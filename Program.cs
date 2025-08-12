@@ -41,6 +41,9 @@ var policy = new AuthorizationPolicyBuilder()
 //Custom Services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IExpenseType, ExpenseTypesService>();
+builder.Services.AddScoped<IAdminLablesService, AdminLablesService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IAdminMeasuringUnitTypesService, AdminMeasuringUnitTypesService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais

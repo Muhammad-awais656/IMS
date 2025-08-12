@@ -41,7 +41,7 @@ namespace IMS.Controllers
                 }
                 if (UserNameSearch == null)
                 {
-                    UserNameSearch = HttpContext.Request.Query.FirstOrDefault().Value;
+                    UserNameSearch = HttpContext.Request.Query["searchUsername"].ToString();
                 }
                 var viewModel = await _userService.GetPagedUsersAsync(pageNumber, currentPageSize, UserNameSearch);
                 return View(viewModel);

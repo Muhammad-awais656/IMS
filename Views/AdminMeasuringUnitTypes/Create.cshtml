@@ -1,0 +1,36 @@
+﻿@using IMS.DAL.PrimaryDBContext
+@model AdminMeasuringUnitType;
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Create Admin Measuring Unit Type</h2>
+    </div>
+    <div class="card-body">
+        <form asp-action="Create">
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitTypeName" class="form-label"></label>
+                <input asp-for="MeasuringUnitTypeName" class="form-control" />
+                <span asp-validation-for="MeasuringUnitTypeName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitTypeDescription" class="form-label"></label>
+                <input asp-for="MeasuringUnitTypeDescription" class="form-control" placeholder="Must enter some desciption" />
+                <span asp-validation-for="MeasuringUnitTypeDescription" class="text-danger"></span>
+            </div>
+            <div class="mb-3 form-check form-switch">
+                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
+                <label asp-for="IsEnabled" class="form-check-label" class="form-control"></label>
+                <span asp-validation-for="IsEnabled" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-success">Create</button>
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

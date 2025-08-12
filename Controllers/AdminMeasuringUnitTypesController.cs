@@ -2,28 +2,25 @@
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using IMS.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Drawing.Printing;
 
 namespace IMS.Controllers
 {
-    public class SettingsAdminLabelsController : Controller
+    public class AdminMeasuringUnitTypesController : Controller
     {
-
-        private readonly IAdminLablesService _adminLabelsService;
+        private readonly IAdminMeasuringUnitTypesService _adminMeasuringUnitTypesService;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
-
-        public SettingsAdminLabelsController(IAdminLablesService adminLablesService)
+        public AdminMeasuringUnitTypesController(IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService)
         {
-            _adminLabelsService = adminLablesService;
+            _adminMeasuringUnitTypesService = adminMeasuringUnitTypesService;
         }
-        // GET: SettingsAdminLabelsController
-        [HttpGet]
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null,string? AdminlabelName = null)
+        // GET: AdminMeasuringUnitTypesController
+        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string? UnitTypeName = null)
         {
-            var viewModel = new AdminLablesViewModel();
+            var viewModel = new AdminMeasuringUnitTypesViewModel();
             try
             {
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -32,11 +29,11 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
-                if (AdminlabelName == null)
+                if (UnitTypeName == null)
                 {
-                    AdminlabelName = HttpContext.Request.Query["searchUsername"].ToString();
+                    UnitTypeName = HttpContext.Request.Query["searchUsername"].ToString();
                 }
-                viewModel = await _adminLabelsService.GetAllAdminLablesAsync(pageNumber, currentPageSize, AdminlabelName);
+                viewModel = await _adminMeasuringUnitTypesService.GetAllAdminMeasuringUnitTypesAsync(pageNumber, currentPageSize, UnitTypeName);
 
 
             }
@@ -48,23 +45,22 @@ namespace IMS.Controllers
             return View(viewModel);
         }
 
-        // GET: SettingsAdminLabelsController/Details/5
+        // GET: AdminMeasuringUnitTypesController/Details/5
         public ActionResult Details(int id)
         {
             return View();
         }
 
-        // GET: SettingsAdminLabelsController/Create
+        // GET: AdminMeasuringUnitTypesController/Create
         public ActionResult Create()
         {
-
             return View();
         }
 
-        // POST: SettingsAdminLabelsController/Create
+        // POST: AdminMeasuringUnitTypesController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(AdminLabel adminLabel)
+        public async  Task<ActionResult> Create(AdminMeasuringUnitType adminMeasuringUnitType)
         {
             try
             {
@@ -72,10 +68,10 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    adminLabel.CreatedBy = userId;
-                    adminLabel.CreatedDate = DateTime.Now;
-                   
-                    var result = await _adminLabelsService.CreateAdminLablesAsync(adminLabel);
+                    adminMeasuringUnitType.CreatedBy = userId;
+                    adminMeasuringUnitType.CreatedDate = DateTime.Now;
+
+                    var result = await _adminMeasuringUnitTypesService.CreateAdminMeasuringUnitTypesAsync(adminMeasuringUnitType);
                     if (result)
                     {
                         TempData["Success"] = AlertMessages.RecordAdded;
@@ -91,28 +87,28 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(adminLabel);
+                return View(adminMeasuringUnitType);
             }
-            return View(adminLabel);
+            return View(adminMeasuringUnitType);
         }
 
-        // GET: SettingsAdminLabelsController/Edit/5
+        // GET: AdminMeasuringUnitTypesController/Edit/5
         public async Task<ActionResult> Edit(long id)
         {
-            var user = await _adminLabelsService.GetAdminLablesByIdAsync(id);
-            if (user == null)
+            var unit = await _adminMeasuringUnitTypesService.GetAdminMeasuringUnitTypesByIdAsync(id);
+            if (unit == null)
             {
                 return NotFound();
             }
-            return View(user);
+            return View(unit);
         }
 
-        // POST: SettingsAdminLabelsController/Edit/5
+        // POST: AdminMeasuringUnitTypesController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit(long id, AdminLabel AdminLabels)
+        public async Task<ActionResult> Edit(long id, AdminMeasuringUnitType adminMeasuringUnitType)
         {
-            if (id != AdminLabels.LabelId)
+            if (id != adminMeasuringUnitType.MeasuringUnitTypeId)
             {
                 return BadRequest();
             }
@@ -121,11 +117,11 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    AdminLabels.ModifiedDate = DateTime.Now;
+                    adminMeasuringUnitType.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    AdminLabels.ModifiedBy = userId;
-                    var response = await _adminLabelsService.UpdateAdminLablesAsync(AdminLabels);
+                    adminMeasuringUnitType.ModifiedBy = userId;
+                    var response = await _adminMeasuringUnitTypesService.UpdateAdminMeasuringUnitTypesAsync(adminMeasuringUnitType);
                     if (response != 0)
                     {
                         TempData["Success"] = AlertMessages.RecordUpdated;
@@ -134,7 +130,7 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
-                        return View(AdminLabels);
+                        return View(adminMeasuringUnitType);
                     }
 
                 }
@@ -145,17 +141,17 @@ namespace IMS.Controllers
                 }
 
             }
-            return View(AdminLabels);
+            return View(adminMeasuringUnitType);
         }
 
-        // GET: SettingsAdminLabelsController/Delete/5
-        public async Task<ActionResult> Delete(long id)
+        // GET: AdminMeasuringUnitTypesController/Delete/5
+        public async Task<ActionResult> Delete(int id)
         {
-            var AdminLabels = new AdminLabel();
+            var measuringUnitType = new AdminMeasuringUnitType();
             try
             {
-                AdminLabels = await _adminLabelsService.GetAdminLablesByIdAsync(id);
-                if (AdminLabels == null)
+                measuringUnitType = await _adminMeasuringUnitTypesService.GetAdminMeasuringUnitTypesByIdAsync(id);
+                if (measuringUnitType == null)
                 {
                     return NotFound();
                 }
@@ -166,17 +162,17 @@ namespace IMS.Controllers
             {
                 TempData["ErrorMessage"] = ex.Message;
             }
-            return View(AdminLabels);
+            return View(measuringUnitType);
         }
 
-        // POST: SettingsAdminLabelsController/Delete/5
+        // POST: AdminMeasuringUnitTypesController/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> DeleteConfirmed(long id)
         {
             try
             {
-                var res = await _adminLabelsService.DeleteAdminLablesAsync(id);
+                var res = await _adminMeasuringUnitTypesService.DeleteAdminMeasuringUnitTypesAsync(id);
                 if (res != 0)
                 {
                     TempData["Success"] = AlertMessages.RecordDeleted;

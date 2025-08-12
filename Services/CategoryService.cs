@@ -7,16 +7,16 @@ using System.Data;
 
 namespace IMS.Services
 {
-    public class AdminLablesService : IAdminLablesService
+    public class CategoryService : ICategoryService
     {
         private readonly IDbContextFactory _dbContextFactory;
-        private readonly ILogger<AdminLablesService> _logger;
-        public AdminLablesService(IDbContextFactory dbContextFactory, ILogger<AdminLablesService> logger)
+        private readonly ILogger<CategoryService> _logger;
+        public CategoryService(IDbContextFactory dbContextFactory, ILogger<CategoryService> logger)
         {
             _dbContextFactory = dbContextFactory;
             _logger = logger;
         }
-        public async Task<bool> CreateAdminLablesAsync(AdminLabel adminLabel)
+        public async Task<bool> CreateAdminCategoryAsync(AdminCategory adminCategory)
         {
             bool response = false;
             try
@@ -26,24 +26,25 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("AddAdminLabels", connection))
+                    using (var command = new SqlCommand("AddAdminCategory", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
-                        command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
-                        command.Parameters.AddWithValue("@pCreatedDate", adminLabel?.CreatedDate == default(DateTime) ? DBNull.Value : adminLabel?.CreatedDate);
-                        command.Parameters.AddWithValue("@pCreatedBy", adminLabel?.CreatedBy != null ? adminLabel.CreatedBy : DBNull.Value);
-                        
+                        command.Parameters.AddWithValue("@pCategoryName", adminCategory.CategoryName);
+                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription);
+                        command.Parameters.AddWithValue("@pIsEnabled", adminCategory.IsEnabled);
+                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments);
+                        command.Parameters.AddWithValue("@pCreatedDate", adminCategory?.CreatedDate != null ? adminCategory.CreatedDate : DBNull.Value);
+                        command.Parameters.AddWithValue("@pCreatedBy", adminCategory?.CreatedBy != null ? adminCategory.CreatedBy : DBNull.Value);
 
-                        var AdminLableIdParam = new SqlParameter("@pLabelId", SqlDbType.BigInt)
+
+                        var AdmincategoryIdParam = new SqlParameter("@pCategoryId", SqlDbType.BigInt)
                         {
                             Direction = ParameterDirection.Output
                         };
-                        command.Parameters.Add(AdminLableIdParam);
+                        command.Parameters.Add(AdmincategoryIdParam);
                         await command.ExecuteNonQueryAsync();
-                        long newAdminLableIdParamId = (long)AdminLableIdParam.Value;
-                        if (newAdminLableIdParamId != 0)
+                        long newAdmincategoryIdParam = (long)AdmincategoryIdParam.Value;
+                        if (newAdmincategoryIdParam != 0)
                         {
                             response = true;
                         }
@@ -58,7 +59,7 @@ namespace IMS.Services
             return response;
         }
 
-        public async Task<int> DeleteAdminLablesAsync(long id)
+        public async Task<int> DeleteAdminCategoryAsync(long id)
         {
             int response = 0;
             try
@@ -66,7 +67,7 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("DeleteAdminLabelsById", connection))
+                    using (var command = new SqlCommand("DeleteCategory", connection))
                     {
                         command.Parameters.AddWithValue("@id", id);
                         command.CommandType = CommandType.StoredProcedure;
@@ -92,17 +93,17 @@ namespace IMS.Services
             return response;
         }
 
-        public async Task<AdminLabel> GetAdminLablesByIdAsync(long id)
+        public async Task<AdminCategory> GetAdminCategoryByIdAsync(long id)
         {
-            AdminLabel adminLabel = new AdminLabel();
+            AdminCategory adminLabel = new AdminCategory();
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetAdminLabelsById", connection))
+                    using (var command = new SqlCommand("GetCategoryDetail", connection))
                     {
-                        command.Parameters.AddWithValue("@id", id);
+                        command.Parameters.AddWithValue("@pCategoryId", id);
                         command.CommandType = CommandType.StoredProcedure;
                         try
                         {
@@ -110,11 +111,12 @@ namespace IMS.Services
                             {
                                 if (await reader.ReadAsync())
                                 {
-                                    return new AdminLabel
+                                    return new AdminCategory
                                     {
-                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
-                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
+                                        CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
+                                        CategoryDescription = reader.GetString(reader.GetOrdinal("CategoryDescription")),
+                                        OtherAdjustments = reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -138,10 +140,10 @@ namespace IMS.Services
             }
             return null;
         }
-        
-        public async Task<AdminLablesViewModel> GetAllAdminLablesAsync(int pageNumber, int? pageSize, string? name)
+
+        public async Task<CategoriesViewModel> GetAllAdminCategoryAsync(int pageNumber, int? pageSize, string? name)
         {
-            var adminlabels = new List<AdminLabel>();
+            var adminCategory = new List<AdminCategory>();
             var totalCount = 0;
 
 
@@ -152,7 +154,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
 
                     //Get total count
-                    using (var command = new SqlCommand("SELECT COUNT(*) FROM AdminLabels", connection))
+                    using (var command = new SqlCommand("SELECT COUNT(*) FROM AdminCategory", connection))
                     {
                         try
                         {
@@ -162,7 +164,7 @@ namespace IMS.Services
                         {
                         }
                     }
-                    using (var command = new SqlCommand("GetAllLabels", connection))
+                    using (var command = new SqlCommand("GetAllCategory", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@PageNumber", pageNumber);
@@ -177,11 +179,12 @@ namespace IMS.Services
 
                                 while (await reader.ReadAsync())
                                 {
-                                    adminlabels.Add(new AdminLabel
+                                    adminCategory.Add(new AdminCategory
                                     {
-                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
-                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
+                                        CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
+                                        CategoryDescription = reader.GetString(reader.GetOrdinal("CategoryDescription")),
+                                        OtherAdjustments = reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -192,7 +195,7 @@ namespace IMS.Services
                                 }
                                 if (!string.IsNullOrEmpty(name))
                                 {
-                                    totalCount = adminlabels.Count;
+                                    totalCount = adminCategory.Count;
 
                                 }
                             }
@@ -210,9 +213,9 @@ namespace IMS.Services
             {
 
             }
-            return new AdminLablesViewModel
+            return new CategoriesViewModel
             {
-                AdminLabels = adminlabels,
+                AdminCategories = adminCategory,
                 CurrentPage = pageNumber,
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 PageSize = pageSize,
@@ -220,7 +223,7 @@ namespace IMS.Services
             };
         }
 
-        public async Task<int> UpdateAdminLablesAsync(AdminLabel adminLabel)
+        public async Task<int> UpdateAdminCategoryAsync(AdminCategory adminCategory)
         {
             var RowsAffectedResponse = 0;
 
@@ -230,15 +233,16 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("UpdateAdminLabels", connection))
+                    using (var command = new SqlCommand("UpdateAdminCategory", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
-                        command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
-                        command.Parameters.AddWithValue("@ModifiedDate", adminLabel?.ModifiedDate == default(DateTime) ? DBNull.Value : adminLabel?.ModifiedDate);
-                        command.Parameters.AddWithValue("@ModifiedBy", adminLabel?.ModifiedBy != null ? adminLabel.ModifiedBy : DBNull.Value);
-                        command.Parameters.AddWithValue("@pLabelId", adminLabel?.LabelId);
+                        command.Parameters.AddWithValue("@pCategoryName", adminCategory.CategoryName);
+                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription);
+                        command.Parameters.AddWithValue("@pIsEnabled", adminCategory.IsEnabled);
+                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments);
+                        command.Parameters.AddWithValue("@ModifiedDate", adminCategory?.ModifiedDate == default(DateTime) ? DBNull.Value : adminCategory?.ModifiedDate);
+                        command.Parameters.AddWithValue("@ModifiedBy", adminCategory?.ModifiedBy);
+                        command.Parameters.AddWithValue("@pCategoryId", adminCategory?.CategoryId);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {

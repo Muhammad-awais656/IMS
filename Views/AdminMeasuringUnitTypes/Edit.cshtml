@@ -1,0 +1,41 @@
+﻿@using IMS.DAL.PrimaryDBContext;
+@model AdminMeasuringUnitType;
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Edit Measuring Unit Type</h2>
+    </div>
+    <div class="card-body">
+        <form asp-action="Edit">
+            <input type="hidden" asp-for="MeasuringUnitTypeId" />
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitTypeName" class="form-label"></label>
+                <input asp-for="MeasuringUnitTypeName" class="form-control" />
+                <span asp-validation-for="MeasuringUnitTypeName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitTypeDescription" class="form-label"></label>
+                <input asp-for="MeasuringUnitTypeDescription" type="text" class="form-control" placeholder="" />
+                <span asp-validation-for="MeasuringUnitTypeDescription" class="text-danger"></span>
+            </div>
+            
+            <div class="mb-3 form-check form-switch">
+
+                <input class="form-check-input" type="checkbox" id="isEnableSwitch"
+                       asp-for="IsEnabled" />
+                <label asp-for="IsEnabled" class="form-check-label"></label>
+                <span asp-validation-for="IsEnabled" class="text-danger"></span>
+            </div>
+
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

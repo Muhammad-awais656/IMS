@@ -35,7 +35,7 @@ namespace IMS.Controllers
                 }
                 if (ExpenseTypeName == null)
                 {
-                    ExpenseTypeName = HttpContext.Request.Query.FirstOrDefault().Value;
+                    ExpenseTypeName = HttpContext.Request.Query["searchUsername"].ToString();
                 }
                 viewModel = await _expenseType.GetAllExpenseTypes(pageNumber, currentPageSize, ExpenseTypeName);
                 

@@ -2,28 +2,25 @@
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using IMS.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Drawing.Printing;
 
 namespace IMS.Controllers
 {
-    public class SettingsAdminLabelsController : Controller
+    public class CategoriesController : Controller
     {
-
-        private readonly IAdminLablesService _adminLabelsService;
+        private readonly ICategoryService _categoryService;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
-
-        public SettingsAdminLabelsController(IAdminLablesService adminLablesService)
+        public CategoriesController(ICategoryService categoryService)
         {
-            _adminLabelsService = adminLablesService;
+            _categoryService = categoryService;
         }
-        // GET: SettingsAdminLabelsController
-        [HttpGet]
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null,string? AdminlabelName = null)
+        // GET: CategoriesController
+        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string? CategoryName = null)
         {
-            var viewModel = new AdminLablesViewModel();
+            var viewModel = new CategoriesViewModel();
             try
             {
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -32,11 +29,11 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
-                if (AdminlabelName == null)
+                if (CategoryName == null)
                 {
-                    AdminlabelName = HttpContext.Request.Query["searchUsername"].ToString();
+                    CategoryName = HttpContext.Request.Query["searchUsername"].ToString();
                 }
-                viewModel = await _adminLabelsService.GetAllAdminLablesAsync(pageNumber, currentPageSize, AdminlabelName);
+                viewModel = await _categoryService.GetAllAdminCategoryAsync(pageNumber, currentPageSize, CategoryName);
 
 
             }
@@ -48,23 +45,22 @@ namespace IMS.Controllers
             return View(viewModel);
         }
 
-        // GET: SettingsAdminLabelsController/Details/5
+        // GET: CategoriesController/Details/5
         public ActionResult Details(int id)
         {
             return View();
         }
 
-        // GET: SettingsAdminLabelsController/Create
+        // GET: CategoriesController/Create
         public ActionResult Create()
         {
-
             return View();
         }
 
-        // POST: SettingsAdminLabelsController/Create
+        // POST: CategoriesController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(AdminLabel adminLabel)
+        public async Task<ActionResult> Create(AdminCategory adminCategory)
         {
             try
             {
@@ -72,10 +68,10 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    adminLabel.CreatedBy = userId;
-                    adminLabel.CreatedDate = DateTime.Now;
-                   
-                    var result = await _adminLabelsService.CreateAdminLablesAsync(adminLabel);
+                    adminCategory.CreatedBy = userId;
+                    adminCategory.CreatedDate = DateTime.Now;
+
+                    var result = await _categoryService.CreateAdminCategoryAsync(adminCategory);
                     if (result)
                     {
                         TempData["Success"] = AlertMessages.RecordAdded;
@@ -91,15 +87,15 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(adminLabel);
+                return View(adminCategory);
             }
-            return View(adminLabel);
+            return View(adminCategory);
         }
 
-        // GET: SettingsAdminLabelsController/Edit/5
+        // GET: CategoriesController/Edit/5
         public async Task<ActionResult> Edit(long id)
         {
-            var user = await _adminLabelsService.GetAdminLablesByIdAsync(id);
+            var user = await _categoryService.GetAdminCategoryByIdAsync(id);
             if (user == null)
             {
                 return NotFound();
@@ -107,12 +103,12 @@ namespace IMS.Controllers
             return View(user);
         }
 
-        // POST: SettingsAdminLabelsController/Edit/5
+        // POST: CategoriesController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit(long id, AdminLabel AdminLabels)
+        public async Task<ActionResult> Edit(long id , AdminCategory adminCategory)
         {
-            if (id != AdminLabels.LabelId)
+            if (id != adminCategory.CategoryId)
             {
                 return BadRequest();
             }
@@ -121,11 +117,11 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    AdminLabels.ModifiedDate = DateTime.Now;
+                    adminCategory.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    AdminLabels.ModifiedBy = userId;
-                    var response = await _adminLabelsService.UpdateAdminLablesAsync(AdminLabels);
+                    adminCategory.ModifiedBy = userId;
+                    var response = await _categoryService.UpdateAdminCategoryAsync(adminCategory);
                     if (response != 0)
                     {
                         TempData["Success"] = AlertMessages.RecordUpdated;
@@ -134,7 +130,7 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
-                        return View(AdminLabels);
+                        return View(adminCategory);
                     }
 
                 }
@@ -145,17 +141,17 @@ namespace IMS.Controllers
                 }
 
             }
-            return View(AdminLabels);
+            return View(adminCategory);
         }
 
-        // GET: SettingsAdminLabelsController/Delete/5
+        // GET: CategoriesController/Delete/5
         public async Task<ActionResult> Delete(long id)
         {
-            var AdminLabels = new AdminLabel();
+            var adminCategory = new AdminCategory();
             try
             {
-                AdminLabels = await _adminLabelsService.GetAdminLablesByIdAsync(id);
-                if (AdminLabels == null)
+                adminCategory = await _categoryService.GetAdminCategoryByIdAsync(id);
+                if (adminCategory == null)
                 {
                     return NotFound();
                 }
@@ -166,17 +162,17 @@ namespace IMS.Controllers
             {
                 TempData["ErrorMessage"] = ex.Message;
             }
-            return View(AdminLabels);
+            return View(adminCategory);
         }
 
-        // POST: SettingsAdminLabelsController/Delete/5
-        [HttpPost, ActionName("Delete")]
+        // POST: CategoriesController/Delete/5
+        [HttpPost,ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> DeleteConfirmed(long id)
         {
             try
             {
-                var res = await _adminLabelsService.DeleteAdminLablesAsync(id);
+                var res = await _categoryService.DeleteAdminCategoryAsync(id);
                 if (res != 0)
                 {
                     TempData["Success"] = AlertMessages.RecordDeleted;

@@ -2,9 +2,9 @@
 
 namespace IMS.Models
 {
-    public class AdminLablesViewModel
+    public class CategoriesViewModel
     {
-        public List<AdminLabel> AdminLabels { get; set; }
+        public List<AdminCategory> AdminCategories { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int? PageSize { get; set; }

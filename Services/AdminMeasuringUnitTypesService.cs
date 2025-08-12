@@ -7,16 +7,16 @@ using System.Data;
 
 namespace IMS.Services
 {
-    public class AdminLablesService : IAdminLablesService
+    public class AdminMeasuringUnitTypesService : IAdminMeasuringUnitTypesService
     {
         private readonly IDbContextFactory _dbContextFactory;
-        private readonly ILogger<AdminLablesService> _logger;
-        public AdminLablesService(IDbContextFactory dbContextFactory, ILogger<AdminLablesService> logger)
+        private readonly ILogger<AdminMeasuringUnitTypesService> _logger;
+        public AdminMeasuringUnitTypesService(IDbContextFactory dbContextFactory, ILogger<AdminMeasuringUnitTypesService> logger)
         {
             _dbContextFactory = dbContextFactory;
             _logger = logger;
         }
-        public async Task<bool> CreateAdminLablesAsync(AdminLabel adminLabel)
+        public async Task<bool> CreateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType adminMeasuringUnitType)
         {
             bool response = false;
             try
@@ -26,24 +26,25 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("AddAdminLabels", connection))
+                    using (var command = new SqlCommand("AddAdminMeasuringUnitType", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
-                        command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
-                        command.Parameters.AddWithValue("@pCreatedDate", adminLabel?.CreatedDate == default(DateTime) ? DBNull.Value : adminLabel?.CreatedDate);
-                        command.Parameters.AddWithValue("@pCreatedBy", adminLabel?.CreatedBy != null ? adminLabel.CreatedBy : DBNull.Value);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeName", adminMeasuringUnitType.MeasuringUnitTypeName);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription);
+                        command.Parameters.AddWithValue("@pIsEnabled", adminMeasuringUnitType.IsEnabled);
                         
+                        command.Parameters.AddWithValue("@pCreatedDate", adminMeasuringUnitType?.CreatedDate != null ? adminMeasuringUnitType.CreatedDate : DBNull.Value);
+                        command.Parameters.AddWithValue("@pCreatedBy", adminMeasuringUnitType?.CreatedBy != null ? adminMeasuringUnitType.CreatedBy : DBNull.Value);
 
-                        var AdminLableIdParam = new SqlParameter("@pLabelId", SqlDbType.BigInt)
+
+                        var unitTypeyIdParam = new SqlParameter("@pMeasuringUnitTypeId", SqlDbType.BigInt)
                         {
                             Direction = ParameterDirection.Output
                         };
-                        command.Parameters.Add(AdminLableIdParam);
+                        command.Parameters.Add(unitTypeyIdParam);
                         await command.ExecuteNonQueryAsync();
-                        long newAdminLableIdParamId = (long)AdminLableIdParam.Value;
-                        if (newAdminLableIdParamId != 0)
+                        long newunitTypeyIdParamParam = (long)unitTypeyIdParam.Value;
+                        if (newunitTypeyIdParamParam != 0)
                         {
                             response = true;
                         }
@@ -58,7 +59,7 @@ namespace IMS.Services
             return response;
         }
 
-        public async Task<int> DeleteAdminLablesAsync(long id)
+        public async Task<int> DeleteAdminMeasuringUnitTypesAsync(long id)
         {
             int response = 0;
             try
@@ -66,7 +67,7 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("DeleteAdminLabelsById", connection))
+                    using (var command = new SqlCommand("DeleteAdminMeasuringUnitType", connection))
                     {
                         command.Parameters.AddWithValue("@id", id);
                         command.CommandType = CommandType.StoredProcedure;
@@ -91,18 +92,18 @@ namespace IMS.Services
             }
             return response;
         }
-
-        public async Task<AdminLabel> GetAdminLablesByIdAsync(long id)
+        
+        public async Task<AdminMeasuringUnitType> GetAdminMeasuringUnitTypesByIdAsync(long id)
         {
-            AdminLabel adminLabel = new AdminLabel();
+            //AdminMeasuringUnitType adminMeasuringUnitType = new AdminMeasuringUnitType();
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetAdminLabelsById", connection))
+                    using (var command = new SqlCommand("GetAdminMeasuringUnitTypeDetails", connection))
                     {
-                        command.Parameters.AddWithValue("@id", id);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeId", id);
                         command.CommandType = CommandType.StoredProcedure;
                         try
                         {
@@ -110,11 +111,12 @@ namespace IMS.Services
                             {
                                 if (await reader.ReadAsync())
                                 {
-                                    return new AdminLabel
+                                    return new AdminMeasuringUnitType
                                     {
-                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
-                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        MeasuringUnitTypeId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId")),
+                                        MeasuringUnitTypeName = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName")),
+                                        MeasuringUnitTypeDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
+                                       
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -138,10 +140,10 @@ namespace IMS.Services
             }
             return null;
         }
-        
-        public async Task<AdminLablesViewModel> GetAllAdminLablesAsync(int pageNumber, int? pageSize, string? name)
+
+        public async Task<AdminMeasuringUnitTypesViewModel> GetAllAdminMeasuringUnitTypesAsync(int pageNumber, int? pageSize, string? name)
         {
-            var adminlabels = new List<AdminLabel>();
+            var adminMeasuringUnitTypes = new List<AdminMeasuringUnitType>();
             var totalCount = 0;
 
 
@@ -152,7 +154,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
 
                     //Get total count
-                    using (var command = new SqlCommand("SELECT COUNT(*) FROM AdminLabels", connection))
+                    using (var command = new SqlCommand("SELECT COUNT(*) FROM AdminMeasuringUnitTypes", connection))
                     {
                         try
                         {
@@ -162,7 +164,7 @@ namespace IMS.Services
                         {
                         }
                     }
-                    using (var command = new SqlCommand("GetAllLabels", connection))
+                    using (var command = new SqlCommand("GetAllAdminMeasuringUnitTypes", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@PageNumber", pageNumber);
@@ -177,11 +179,12 @@ namespace IMS.Services
 
                                 while (await reader.ReadAsync())
                                 {
-                                    adminlabels.Add(new AdminLabel
+                                    adminMeasuringUnitTypes.Add(new AdminMeasuringUnitType
                                     {
-                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
-                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        MeasuringUnitTypeId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId")),
+                                        MeasuringUnitTypeName = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName")),
+                                        MeasuringUnitTypeDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
+                                        
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -192,7 +195,7 @@ namespace IMS.Services
                                 }
                                 if (!string.IsNullOrEmpty(name))
                                 {
-                                    totalCount = adminlabels.Count;
+                                    totalCount = adminMeasuringUnitTypes.Count;
 
                                 }
                             }
@@ -210,9 +213,9 @@ namespace IMS.Services
             {
 
             }
-            return new AdminLablesViewModel
+            return new AdminMeasuringUnitTypesViewModel
             {
-                AdminLabels = adminlabels,
+                AdminMeasuringUnitTypes = adminMeasuringUnitTypes,
                 CurrentPage = pageNumber,
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 PageSize = pageSize,
@@ -220,7 +223,7 @@ namespace IMS.Services
             };
         }
 
-        public async Task<int> UpdateAdminLablesAsync(AdminLabel adminLabel)
+        public async Task<int> UpdateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType adminMeasuringUnitType)
         {
             var RowsAffectedResponse = 0;
 
@@ -230,15 +233,16 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("UpdateAdminLabels", connection))
+                    using (var command = new SqlCommand("UpdateAdminMeasuringUnitType", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
-                        command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
-                        command.Parameters.AddWithValue("@ModifiedDate", adminLabel?.ModifiedDate == default(DateTime) ? DBNull.Value : adminLabel?.ModifiedDate);
-                        command.Parameters.AddWithValue("@ModifiedBy", adminLabel?.ModifiedBy != null ? adminLabel.ModifiedBy : DBNull.Value);
-                        command.Parameters.AddWithValue("@pLabelId", adminLabel?.LabelId);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeName", adminMeasuringUnitType.MeasuringUnitTypeName);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription);
+                        command.Parameters.AddWithValue("@pIsEnabled", adminMeasuringUnitType.IsEnabled);
+                       
+                        command.Parameters.AddWithValue("@pModifiedDate", adminMeasuringUnitType?.ModifiedDate == default(DateTime) ? DBNull.Value : adminMeasuringUnitType?.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedBy", adminMeasuringUnitType?.ModifiedBy);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeId", adminMeasuringUnitType?.MeasuringUnitTypeId);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {

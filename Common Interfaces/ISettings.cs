@@ -27,4 +27,23 @@ namespace IMS.Common_Interfaces
        
         
     }
+    public interface ICategoryService
+    {
+        Task<CategoriesViewModel> GetAllAdminCategoryAsync(int pageNumber, int? pageSize, string? name);
+        Task<AdminCategory> GetAdminCategoryByIdAsync(long id);
+        Task<bool> CreateAdminCategoryAsync(AdminCategory expenseType);
+        Task<int> UpdateAdminCategoryAsync(AdminCategory settings);
+        Task<int> DeleteAdminCategoryAsync(long id);
+    }
+
+    public interface IAdminMeasuringUnitTypesService
+    {
+        Task<AdminMeasuringUnitTypesViewModel> GetAllAdminMeasuringUnitTypesAsync(int pageNumber, int? pageSize, string? name);
+        Task<AdminMeasuringUnitType> GetAdminMeasuringUnitTypesByIdAsync(long id);
+        Task<bool> CreateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType expenseType);
+        Task<int> UpdateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType settings);
+        Task<int> DeleteAdminMeasuringUnitTypesAsync(long id);
+    }
+
+
 }
