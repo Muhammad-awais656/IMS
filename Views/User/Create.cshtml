@@ -1,0 +1,40 @@
+﻿@using IMS.DAL.PrimaryDBContext
+@model User;
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Create User</h2>
+    </div>
+    <div class="card-body">
+        <form asp-action="Create">
+            <div class="mb-3">
+                <label asp-for="UserName" class="form-label"></label>
+                <input asp-for="UserName" class="form-control" />
+                <span asp-validation-for="UserName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="UserPassword" class="form-label"></label>
+                <input asp-for="UserPassword" type="password" class="form-control" />
+                <span asp-validation-for="UserPassword" class="text-danger"></span>
+            </div>
+            <div class="mb-3 form-check form-switch">
+                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
+                <label asp-for="IsEnabled" class="form-check-label"></label>
+                <span asp-validation-for="IsEnabled" class="text-danger"></span>
+            </div>
+            <div class="mb-3 form-check form-switch">
+                <input type="checkbox" asp-for="IsAdmin" class="form-check-input" />
+                <label asp-for="IsAdmin" class="form-check-label"></label>
+                <span asp-validation-for="IsAdmin" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <button type="submit" class="btn btn-success">Create</button>
+                <a asp-action="GetAllUsers" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

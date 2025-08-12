@@ -1,0 +1,32 @@
+﻿
+body {
+    background: linear-gradient(135deg, #74ebd5, #9face6);
+    min-height: 100vh;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.login-card {
+    background-color: #ffffffee;
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.login-header h3 {
+    font-weight: bold;
+    color: #333;
+}
+
+.login-header small {
+    color: #666;
+}
+
+.btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+    .btn-primary:hover {
+        background-color: #2e59d9;
+    }
+

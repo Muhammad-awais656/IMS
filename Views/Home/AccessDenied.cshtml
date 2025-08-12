@@ -1,0 +1,16 @@
+﻿@{
+    ViewData["Title"] = "Access Denied";
+
+    Layout = "~/Views/Shared/_SecondLayout.cshtml"; // No layout to prevent unwanted sidebar
+
+}
+
+<link rel="stylesheet" href="/css/CardStyle.css" />
+
+<div class="container d-flex flex-column justify-content-center align-items-center vh-100 text-center shadow-none" style="">
+    <div class="p-4" style="max-width: 500px;">
+        <h2 class="text-danger fw-bold">Access Denied</h2>
+        <p class="text-muted">You do not have permission to view this page.</p>
+        <a href="@Url.Action("Index", "Home")" class="btn custom-button mt-3">Go to Home</a>
+    </div>
+</div>

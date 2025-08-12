@@ -1,0 +1,394 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - IMS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/IMS.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+        }
+
+        .sidebar {
+            width: fit-content;
+            background-color: darkgreen;
+            height: 100vh;
+            overflow-y: auto;
+            transition: width 0.3s;
+        }
+
+            .sidebar.collapsed {
+                width: auto;
+            }
+
+            .sidebar .toggle-btn {
+                background-color: darkorchid;
+                color: white;
+                padding: 10px;
+                cursor: pointer;
+                text-align: center;
+            }
+
+            .sidebar a {
+                color: white;
+                padding: 12px 20px;
+                display: block;
+                text-decoration: none;
+                white-space: nowrap;
+            }
+
+                .sidebar a:hover {
+                    background-color: none;
+                    display:flow;
+                }
+
+        .submenu {
+            display: none;
+            background-color: chartreuse;
+            padding-left: 20px;
+        }
+
+        .sidebar .menu-item:hover .submenu {
+            display: flow-root;
+        }
+
+        .main {
+            flex-grow: 1;
+            padding: 20px;
+            transition: margin-left 0.3s;
+        }
+
+        .sidebar.collapsed a span {
+            display: none;
+        }
+
+        .sidebar.collapsed .submenu {
+            display: none !important;
+        }
+        /* Custom styles for the table */
+        .custom-table thead {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            color: white;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .custom-table th, .custom-table td {
+            vertical-align: middle;
+            padding: 12px;
+        }
+
+        .custom-table tbody tr {
+            transition: background-color 0.3s ease;
+        }
+
+            .custom-table tbody tr:hover {
+                background-color: limegreen;
+            }
+
+        .custom-table .btn {
+            margin: 0 5px;
+        }
+
+        .custom-table .table-actions {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    @{
+        bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+        string role = isAdmin ? "Admin" : "User";
+    }
+    <div class="sidebar" id="sidebar">
+        <div class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></div>
+
+        @* Dashboard *@
+        @if (role=="Admin")
+        {
+            <div class="menu-item">
+
+                <a class="nav-link" asp-controller="Home" asp-action="Index"><i class="fa-solid fa-house"></i> <span>    Dashboard</span></a>
+            </div>
+
+            
+        }
+        
+        @* Admin *@
+        @if (role=="Admin")
+        {
+            <div class="menu-item">
+                <a href="#"><i class="fa-solid fa-user-tie"></i><span>  Admin <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a class="nav-link" asp-controller="User" asp-action="GetAllUsers"><i class="fa-solid fa-people-group"></i> Users </a>
+                </div>
+            </div>
+        }
+        
+
+        @* Sales *@
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-address-book"></i> <span>Sale <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <a asp-controller="Sales" asp-action="Sales"><i class="fa-solid fa-address-book"></i> Sales</a>
+            </div>
+            <div class="submenu">
+                <a asp-controller="Sales" asp-action="AddSale"><i class="fa-solid fa-plus"></i> Add Sale </a>
+            </div>
+        </div>
+        @* Payments *@
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-sack-dollar"></i> <span>Payment <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <a asp-controller="Payment" asp-action="Payment"> <i class="fa-solid fa-sack-dollar"></i> Payments</a>
+            </div>
+            <div class="submenu">
+                <a asp-controller="Payment" asp-action="AddPayment"><i class="fa-solid fa-plus"></i>Add Payment </a>
+            </div>
+        </div>
+        @* Customer *@
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-user"></i>  <span>Customer <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                
+                <div class="submenu">
+                    <a asp-controller="Customers" asp-action="Customers"><i class="fa-solid fa-users"></i>Customers</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Customers" asp-action="AddCustomer"><i class="fa-solid fa-plus"></i>Add Customer </a>
+                </div>
+                
+                                
+            </div>
+
+        </div>
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-person-walking-arrow-right"></i> <span>Vendor <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <a href="#"><span>Vendor <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-person-walking-arrow-right"></i> Vendors</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Vendor </a>
+                </div>
+                <a href="#"><span>Bills <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-file-invoice-dollar"></i> Bills</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-print"></i> Generate Bills </a>
+                </div>
+                <a href="#"><span>Payments <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-sack-dollar"></i>  Payments</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Payment </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-gift"></i><span>  Product <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-gift"></i> Products</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Product </a>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-layer-group"></i><span>  Stock <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-layer-group"></i> Stocks</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Stock </a>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-sack-dollar"></i><span>  Expense <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-sack-dollar"></i> Expenses</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Expense </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-address-book"></i><span>  Reports <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <a asp-controller="Report" asp-action="SalesReport"><i class="fa-solid fa-address-book"></i> Sales Report </a>
+            </div>
+                
+        </div>
+
+
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-gear"></i> <span>  Settings <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <div class="submenu">
+                    <a asp-controller="Settings" asp-action="GetAllExpenseTypes"><i class="fa-solid fa-sack-dollar"></i> Expense Types</a>
+                </div>
+            </div>
+            <div class="submenu">
+                <div class="submenu">
+                    <a asp-controller="SettingsAdminLabels" asp-action="Index"><i class="fa-solid fa-building"></i> Company Names</a>
+                </div>
+            </div>
+            <div class="submenu">
+                <a href="#"><span>Admin Category <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-list"></i> Categories</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Category </a>
+                </div>
+
+            </div>
+
+            <div class="submenu">
+                <a href="#"><span>Measuring Unit Type <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-text-height"></i> Measuring Unit Types</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Measuring Unit Type </a>
+                </div>
+
+            </div>
+            <div class="submenu">
+                <a href="#"><span>Measuring Unit <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-helmet-un"></i> Measuring Units</a>
+                </div>
+                <div class="submenu">
+                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Measuring Unit </a>
+                </div>
+            </div>
+        </div>
+        @* <div class="menu-item">
+
+            <a asp-controller="Account" asp-action="Logout"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
+        </div> *@
+
+    </div>
+
+    <div class="main" id="main">
+        <div aria-live="polite" aria-atomic="true" class="position-relative">
+            <div class="toast-container position-absolute top-0 end-0 p-3">
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="toast align-items-center text-white bg-danger border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="fa-solid fa-circle-exclamation"></i> @TempData["ErrorMessage"]
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                }
+                @if (TempData["Success"] != null)
+                {
+                    <div class="toast align-items-xl-stretch text-white bg-success border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="fa-solid fa-circle-exclamation"></i> @TempData["Success"]
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                }
+                @if (TempData["InfoMessage"] != null)
+                {
+                    <div class="toast align-items-xl-stretch text-white bg-info border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="fa-solid fa-circle-exclamation"></i> @TempData["InfoMessage"]
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </div>
+        @* <div style="width:inherit; height:fit-content; background-color: lightgray;text-align:center;  ">
+            <h1 style="text-decoration:double; color:orangered">Inventary Management System</h1>
+            
+         
+        </div> *@
+        <div style="width: inherit; height: fit-content; background-color: lightblue; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px;">
+            <!-- Empty left side for balance -->
+            <div style="flex: 1;"></div>
+
+            <!-- Center: Project Name -->
+            <h1 style="text-decoration:solid; color: gray; margin: 0; flex: 1; text-align: center;">
+                IMTraders
+            </h1>
+
+            <!-- Right: Username, Role, and Logout (Profile-like) -->
+            <div style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+                @if (Context.User.Identity.IsAuthenticated)
+                {
+                    <span style="font-weight: bold; color: navy;">
+                        @Context.User.Identity.Name
+                    </span>
+                    <span style="color: gray; font-style: italic;">
+                        
+                        (@role)
+                        
+                        
+                    </span>
+                    @* <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">
+                        Logout
+                    </a> *@
+                    <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-sm">
+                        Login
+                    </a>
+                }
+            </div>
+        </div>
+        @RenderBody()
+    </div>
+    <script>
+        function toggleSidebar() {
+            $('#sidebar').toggleClass('collapsed');
+        }
+
+        // document.addEventListener("DOMContentLoaded", function () {
+        //     // Show the toast for 5 seconds
+        //     const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+        //     toastElList.forEach(function (toastEl) {
+        //         new bootstrap.Toast(toastEl, { delay: 5000 }).show();
+        //     });
+        // });
+    </script>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

@@ -1,0 +1,48 @@
+﻿@model IMS.Models.LoginViewModel;
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<h1>Details</h1>
+
+<div>
+    <h4> User Details </h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ShopUsers.UserName)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ShopUsers.UserName)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ShopUsers.UserPassword)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ShopUsers.UserPassword)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ShopUsers.IsEnabled)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ShopUsers.IsEnabled)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ShopUsers.IsAdmin)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ShopUsers.IsAdmin)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ShopUsers.AdminMeasuringUnits)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ShopUsers.AdminMeasuringUnits)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a asp-action="Edit" asp-route-id="@Model?.ShopUsers.UserId">Edit</a> |
+    <a class="btn btn-secondary" asp-action="GetAllUsers">Back to List</a>
+</div>
