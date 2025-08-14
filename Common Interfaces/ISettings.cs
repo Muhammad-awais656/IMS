@@ -45,5 +45,16 @@ namespace IMS.Common_Interfaces
         Task<int> DeleteAdminMeasuringUnitTypesAsync(long id);
     }
 
+    public interface IAdminMeasuringUnitService
+    {
+        Task<MeasuringUnitViewModel> GetAllAdminMeasuringUnitAsync(int pageNumber, int? pageSize, string? name);
+        Task<AdminMeasuringUnit> GetAdminMeasuringUnitByIdAsync(long id);
+        Task<bool> CreateAdminMeasuringUnitAsync(AdminMeasuringUnit adminMeasuringUnit);
+        Task<int> UpdateAdminMeasuringUnitAsync(AdminMeasuringUnit adminMeasuringUnit);
+        Task<int> DeleteAdminMeasuringUnitAsync(long id);
+
+        Task<List<AdminMeasuringUnitType>> AdminMeasuringUnitTypeCacheAsync();
+    }
+
 
 }

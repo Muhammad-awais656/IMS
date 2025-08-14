@@ -153,15 +153,15 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.MeasuringUnitTypeIdFk).HasColumnName("MeasuringUnitTypeId_FK");
             entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdminMeasuringUnits)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_AdminMeasuringUnit_Users");
+            //entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdminMeasuringUnits)
+            //    .HasForeignKey(d => d.CreatedBy)
+            //    .OnDelete(DeleteBehavior.ClientSetNull)
+            //    .HasConstraintName("FK_AdminMeasuringUnit_Users");
 
-            entity.HasOne(d => d.MeasuringUnitTypeIdFkNavigation).WithMany(p => p.AdminMeasuringUnits)
-                .HasForeignKey(d => d.MeasuringUnitTypeIdFk)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_AdminMeasuringUnit_AdminMeasuringUnitTypes");
+            //entity.HasOne(d => d.MeasuringUnitTypeIdFkNavigation).WithMany(p => p.AdminMeasuringUnits)
+            //    .HasForeignKey(d => d.MeasuringUnitTypeIdFk)
+            //    .OnDelete(DeleteBehavior.ClientSetNull)
+            //    .HasConstraintName("FK_AdminMeasuringUnit_AdminMeasuringUnitTypes");
         });
 
         modelBuilder.Entity<AdminMeasuringUnitType>(entity =>

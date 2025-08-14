@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.Localization;
 using System.Globalization;
 using Microsoft.Extensions.Localization;
 using IMS.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,13 @@ var policy = new AuthorizationPolicyBuilder()
 
     options.Filters.Add(new AuthorizeFilter(policy));
 });
+// Read configuration from appsettings.json
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration) // reads Serilog section
+    .Enrich.FromLogContext()
+    .CreateLogger();
+
+builder.Host.UseSerilog(); // Replace default logging
 
 
 // Self by awais
@@ -44,6 +52,7 @@ builder.Services.AddScoped<IExpenseType, ExpenseTypesService>();
 builder.Services.AddScoped<IAdminLablesService, AdminLablesService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IAdminMeasuringUnitTypesService, AdminMeasuringUnitTypesService>();
+builder.Services.AddScoped<IAdminMeasuringUnitService, AdminMeasuringUnitService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais

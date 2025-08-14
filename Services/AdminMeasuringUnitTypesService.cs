@@ -33,7 +33,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription);
                         command.Parameters.AddWithValue("@pIsEnabled", adminMeasuringUnitType.IsEnabled);
                         
-                        command.Parameters.AddWithValue("@pCreatedDate", adminMeasuringUnitType?.CreatedDate != null ? adminMeasuringUnitType.CreatedDate : DBNull.Value);
+                        command.Parameters.AddWithValue("@pCreatedDate", adminMeasuringUnitType?.CreatedDate == default(DateTime) ? DBNull.Value : adminMeasuringUnitType?.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", adminMeasuringUnitType?.CreatedBy != null ? adminMeasuringUnitType.CreatedBy : DBNull.Value);
 
 

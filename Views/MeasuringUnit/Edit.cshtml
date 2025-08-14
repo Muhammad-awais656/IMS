@@ -1,0 +1,55 @@
+﻿@using IMS.DAL.PrimaryDBContext;
+@model AdminMeasuringUnit;
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Edit Measuring Unit Type</h2>
+    </div>
+    <div class="card-body">
+        <form asp-action="Edit">
+            <input type="hidden" asp-for="MeasuringUnitId" />
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitName" class="form-label"></label>
+                <input asp-for="MeasuringUnitName" class="form-control" />
+                <span asp-validation-for="MeasuringUnitName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitDescription" class="form-label"></label>
+                <input asp-for="MeasuringUnitDescription" type="text" class="form-control" placeholder="" />
+                <span asp-validation-for="MeasuringUnitDescription" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label for="MeasuringUnitTypeIdFk" class="form-label">Admin Measuring Unit Type</label>
+                <select asp-for="MeasuringUnitTypeIdFk"
+                        asp-items="ViewBag.MeasuringUnitTypes"
+                        class="form-control">
+                    <option value=""><-- Select Measuring Unit Type --></option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="MeasuringUnitAbbreviation" class="form-label"></label>
+                <input asp-for="MeasuringUnitAbbreviation" class="form-control" placeholder="Must enter some desciption" />
+                <span asp-validation-for="MeasuringUnitAbbreviation" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+
+                <input class="form-check-input" type="checkbox" id="isEnableSwitch"
+                       asp-for="IsEnabled" />
+                <label asp-for="IsEnabled" class="form-check-label"></label>
+                <span asp-validation-for="IsEnabled" class="text-danger"></span>
+            </div>
+
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

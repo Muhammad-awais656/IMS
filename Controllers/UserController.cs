@@ -3,6 +3,7 @@ using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Enums;
+using IMS.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,13 +18,15 @@ namespace IMS.Controllers
         
         //public string domain = string.Empty;
         private readonly IUserService _userService;
+        private readonly ILogger<UserController> _logger;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
 
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, ILogger<UserController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
 
 
@@ -31,6 +34,9 @@ namespace IMS.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllUsers(int pageNumber=1, int? pageSize = null,string? UserNameSearch=null)
         {
+            PagedUsersViewModel viewModel = new PagedUsersViewModel();
+            _logger.LogInformation("Visited Home/Index at {Time}", DateTime.UtcNow);
+
             try
             {
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -43,16 +49,17 @@ namespace IMS.Controllers
                 {
                     UserNameSearch = HttpContext.Request.Query["searchUsername"].ToString();
                 }
-                var viewModel = await _userService.GetPagedUsersAsync(pageNumber, currentPageSize, UserNameSearch);
-                return View(viewModel);
+                viewModel = await _userService.GetPagedUsersAsync(pageNumber, currentPageSize, UserNameSearch);
+                //return View(viewModel);
 
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] =ex.Message;
-                throw;
+                _logger.LogError(ex.Message, "Error occurred while fetching users.");
             }
             
+            return View(viewModel);
         }
         // GET: UserController/Details/5
         public ActionResult Details(int id)

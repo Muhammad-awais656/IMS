@@ -1,0 +1,158 @@
+﻿@model IMS.Models.MeasuringUnitViewModel;
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h2 class="mb-0" style="text-align:center"> Admin Measuring Unit</h2>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <a asp-action="Create" class="btn btn-success">Create Admin Measuring Unit</a>
+            <form asp-action="Index" asp-controller="MeasuringUnit" asp-route-searchUsername="@ViewData["searchUsername"]" method="get" class="d-flex align-items-center gap-2">
+                <input type="text"
+                       name="searchUsername"
+                       value="@Context.Request.Query["searchUsername"]"
+                       class="form-control"
+                       placeholder="Enter Name" onchange="SearchNameChange" />
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <button type="submit" class="btn btn-info">
+                    Refresh
+                </button>
+
+            </form>
+
+
+            <div>
+                <label for="pageSize" class="form-label me-2">Items per page:</label>
+                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered custom-table">
+                <thead>
+                    <tr>
+                        <th>@Html.DisplayNameFor(model => model.Items[0].MeasuringUnitName)</th>
+                        <th>@Html.DisplayNameFor(model => model.Items[0].MeasuringUnitDescription)</th>
+                        <th>@Html.DisplayNameFor(model => model.Items[0].MeasuringUnitTypeName)</th>
+                        <th>@Html.DisplayNameFor(model => model.AdminMeasuringUnits[0].IsEnabled)</th>
+
+
+                        <th>Actions</th>
+
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Any())
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@Html.DisplayFor(modelItem => item.MeasuringUnitName)</td>
+                                <td>@Html.DisplayFor(modelitem => item.MeasuringUnitDescription)</td>
+                                <td>@Html.DisplayFor(modelitem => item.MeasuringUnitTypeName)</td>
+                                
+
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input @(item.IsEnabled ? "bg-success" : "bg-danger")"
+                                               type="checkbox"
+                                               @(item.IsEnabled ? "checked" : "")
+                                               disabled>
+                                    </div>
+                                </td>
+
+
+                                <td class="table-actions">
+                                    <a class="btn btn-primary btn-sm" asp-action="Edit" asp-route-id="@item.MeasuringUnitId">Edit</a>
+                                    <a class="btn btn-danger btn-sm" asp-action="Delete" asp-route-id="@item.MeasuringUnitId">Delete</a>
+                                </td>
+
+
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center">No Record found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="User pagination">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">First</a>
+                        </li>
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
+                               asp-route-searchUsername="@ViewData["searchUsername"]">Previous</a>
+                        </li>
+                        @{
+                            int startPage = Math.Max(1, Model.CurrentPage - 1);
+                            int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                            if (endPage - startPage < 2)
+                            {
+                                startPage = Math.Max(1, endPage - 2);
+                            }
+
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
+                        </li>
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+
+
+        function SearchNameChange(){
+            debugger;
+
+            const search = document.querySelector('input[name="searchUsername"]').value;
+            window.location.href = '@Url.Action("Index", "MeasuringUnit")'
+                + '?pageNumber=1&pageSize=' + select.value
+                + (search ? '&searchUsername=' + encodeURIComponent(search) : '');
+        }
+
+
+           function changePageSize(select) {
+               debugger;
+            const search = document.querySelector('input[name="searchUsername"]').value;
+            window.location.href = '@Url.Action("Index", "MeasuringUnit")'
+                + '?pageNumber=1&pageSize=' + select.value
+                + (search ? '&searchUsername=' + encodeURIComponent(search) : '');
+        }
+
+
+    </script>
+}

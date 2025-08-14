@@ -27,7 +27,7 @@ public partial class AdminMeasuringUnit
 
     public long ModifiedBy { get; set; }
 
-    public virtual User CreatedByNavigation { get; set; } = null!;
+    //public virtual User CreatedByNavigation { get; set; } = null!;
 
-    public virtual AdminMeasuringUnitType MeasuringUnitTypeIdFkNavigation { get; set; } = null!;
+    //public virtual AdminMeasuringUnitType MeasuringUnitTypeIdFkNavigation { get; set; } = null!;
 }
