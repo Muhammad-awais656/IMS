@@ -25,7 +25,7 @@
 
 
             <div>
-                <label for="pageSize" class="form-label me-2">Users per page:</label>
+                <label for="pageSize" class="form-label me-2">Items Per Page : </label>
                 <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
                     <option value="5" selected="@(Model.PageSize == 5)">5</option>
                     <option value="10" selected="@(Model.PageSize == 10)">10</option>
@@ -97,7 +97,7 @@
             </table>
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="text-muted">Total Users: @Model.TotalCount | Showing @Model.PageSize users per page</span>
+            <span class="text-muted">Total Items : @Model.TotalCount | Showing @Model.PageSize Items per page</span>
             @if (Model.TotalPages > 1)
             {
                 <nav aria-label="User pagination">

@@ -8,19 +8,20 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IMS.Controllers
 {
-    public class CategoriesController : Controller
+    public class ExpenseController : Controller
     {
-        private readonly ICategoryService _categoryService;
+        private readonly IExpenseService _expenseService;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
-        public CategoriesController(ICategoryService categoryService)
+
+        public ExpenseController(IExpenseService expenseService)
         {
-            _categoryService = categoryService;
+            _expenseService = expenseService;
         }
-        // GET: CategoriesController
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string? CategoryName = null)
+        // GET: ExpenseController
+        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, ExpenseFilters expenseFilters=null)
         {
-            var viewModel = new CategoriesViewModel();
+            var viewModel = new ExpenseViewModel();
             try
             {
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -29,12 +30,8 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
-                if (CategoryName == null)
-                {
-                    CategoryName = HttpContext.Request.Query["searchUsername"].ToString();
-                }
-                viewModel = await _categoryService.GetAllAdminCategoryAsync(pageNumber, currentPageSize, CategoryName);
 
+                viewModel = await _expenseService.GetAllExpenseAsync(pageNumber, pageSize, expenseFilters);
 
             }
             catch (Exception ex)
@@ -45,22 +42,22 @@ namespace IMS.Controllers
             return View(viewModel);
         }
 
-        // GET: CategoriesController/Details/5
+        // GET: ExpenseController/Details/5
         public ActionResult Details(int id)
         {
             return View();
         }
 
-        // GET: CategoriesController/Create
+        // GET: ExpenseController/Create
         public ActionResult Create()
         {
             return View();
         }
 
-        // POST: CategoriesController/Create
+        // POST: ExpenseController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(AdminCategory adminCategory)
+        public async Task<ActionResult> Create(Expense expense)
         {
             try
             {
@@ -68,10 +65,10 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    adminCategory.CreatedBy = userId;
-                    adminCategory.CreatedDate = DateTime.Now;
+                    expense.CreatedBy = userId;
+                    expense.CreatedDate = DateTime.Now;
 
-                    var result = await _categoryService.CreateAdminCategoryAsync(adminCategory);
+                    var result = await _expenseService.CreateExpenseAsync(expense);
                     if (result)
                     {
                         TempData["Success"] = AlertMessages.RecordAdded;
@@ -87,15 +84,15 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(adminCategory);
+                return View(expense);
             }
-            return View(adminCategory);
+            return View(expense);
         }
 
-        // GET: CategoriesController/Edit/5
+        // GET: ExpenseController/Edit/5
         public async Task<ActionResult> Edit(long id)
         {
-            var user = await _categoryService.GetAdminCategoryByIdAsync(id);
+            var user = await _expenseService.GetExpenseByIdAsync(id);
             if (user == null)
             {
                 return NotFound();
@@ -103,12 +100,12 @@ namespace IMS.Controllers
             return View(user);
         }
 
-        // POST: CategoriesController/Edit/5
+        // POST: ExpenseController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit(long id , AdminCategory adminCategory)
+        public async Task<ActionResult> Edit(long id, Expense expense)
         {
-            if (id != adminCategory.CategoryId)
+            if (id != expense.ExpenseId)
             {
                 return BadRequest();
             }
@@ -117,11 +114,11 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    adminCategory.ModifiedDate = DateTime.Now;
+                    expense.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    adminCategory.ModifiedBy = userId;
-                    var response = await _categoryService.UpdateAdminCategoryAsync(adminCategory);
+                    expense.ModifiedBy = userId;
+                    var response = await _expenseService.UpdateExpenseAsync(expense);
                     if (response != 0)
                     {
                         TempData["Success"] = AlertMessages.RecordUpdated;
@@ -130,7 +127,7 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
-                        return View(adminCategory);
+                        return View(expense);
                     }
 
                 }
@@ -141,17 +138,17 @@ namespace IMS.Controllers
                 }
 
             }
-            return View(adminCategory);
+            return View(expense);
         }
 
-        // GET: CategoriesController/Delete/5
+        // GET: ExpenseController/Delete/5
         public async Task<ActionResult> Delete(long id)
         {
-            var adminCategory = new AdminCategory();
+            var expense = new Expense();
             try
             {
-                adminCategory = await _categoryService.GetAdminCategoryByIdAsync(id);
-                if (adminCategory == null)
+                expense = await _expenseService.GetExpenseByIdAsync(id);
+                if (expense == null)
                 {
                     return NotFound();
                 }
@@ -162,17 +159,17 @@ namespace IMS.Controllers
             {
                 TempData["ErrorMessage"] = ex.Message;
             }
-            return View(adminCategory);
+            return View(expense);
         }
 
-        // POST: CategoriesController/Delete/5
-        [HttpPost,ActionName("Delete")]
+        // POST: ExpenseController/Delete/5
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> DeleteConfirmed(long id)
+        public async Task<ActionResult> DeleteConfirm(long id)
         {
             try
             {
-                var res = await _categoryService.DeleteAdminCategoryAsync(id);
+                var res = await _expenseService.DeleteExpenseAsync(id);
                 if (res != 0)
                 {
                     TempData["Success"] = AlertMessages.RecordDeleted;

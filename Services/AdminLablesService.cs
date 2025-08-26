@@ -220,6 +220,58 @@ namespace IMS.Services
             };
         }
 
+        public async Task<List<AdminLabel>> GetAllEnabledAdminLablesAsync()
+        {
+            var adminlabelsList = new List<AdminLabel>();
+           
+
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    
+                    using (var command = new SqlCommand("GetAllEnabledLabels", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                     
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+
+
+                                while (await reader.ReadAsync())
+                                {
+                                    adminlabelsList.Add(new AdminLabel
+                                    {
+                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
+                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
+                                        
+                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                    });
+
+                                }
+                            }
+                        }
+                        catch
+                        {
+
+
+                        }
+                    }
+                }
+
+            }
+            catch
+            {
+
+            }
+            return adminlabelsList;
+        }
+
         public async Task<int> UpdateAdminLablesAsync(AdminLabel adminLabel)
         {
             var RowsAffectedResponse = 0;

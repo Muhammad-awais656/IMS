@@ -1,0 +1,39 @@
+﻿@model IMS.Models.ProductViewModel;
+<div id="pagingGrid" class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted">Total Items : @Model.TotalCount | Showing @Model.PageSize Items per page</span>
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="User pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="GetFilteredProducts" asp-route-pageNumber="1"
+                       asp-route-pageSize="@Model.PageSize">First</a>
+                </li>
+                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="GetFilteredProducts" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a>
+                </li>
+                @{
+                    int startPage = Math.Max(1, Model.CurrentPage - 1);
+                    int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                    if (endPage - startPage < 2)
+                    {
+                        startPage = Math.Max(1, endPage - 2);
+                    }
+
+                }
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link" asp-action="GetFilteredProducts" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize">@i</a>
+                    </li>
+                }
+                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="GetFilteredProducts" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="GetFilteredProducts" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize">Last</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>

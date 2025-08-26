@@ -21,15 +21,12 @@ body {
   margin-bottom: 60px;
 }
 .scrollable-dropdown {
-    height: 150px; /* Adjust height to show ~5 items (assuming ~30px per option) */
-    overflow-y: auto; /* Enable vertical scrollbar */
+     /* Shows ~5 items, assuming ~30px per option */
+    overflow-y: auto; /* Enables vertical scrollbar */
     display: block;
-    width: 100%;
-    /* Match form-control width */
+    /*width: 100%;*/ /* Matches form-control width */
 }
 
-/* Optional: Ensure compatibility with Bootstrap's form-control */
 .form-control.scrollable-dropdown {
-    padding: 0.375rem 0.75rem;
-    
+    padding: 0.375rem 0.75rem; /* Matches Bootstrap padding */
 }

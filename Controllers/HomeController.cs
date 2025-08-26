@@ -17,6 +17,7 @@ namespace IMS.Controllers
 
         public IActionResult Index()
         {
+            ViewBag.TotalEmployees = 70;
             return View();
         }
         [HttpGet]

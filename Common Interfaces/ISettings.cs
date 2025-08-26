@@ -24,8 +24,11 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateAdminLablesAsync(AdminLabel expenseType);
         Task<int> UpdateAdminLablesAsync(AdminLabel settings);
         Task<int> DeleteAdminLablesAsync(long id);
-       
-        
+
+        Task<List<AdminLabel>> GetAllEnabledAdminLablesAsync();
+
+
+
     }
     public interface ICategoryService
     {
@@ -34,6 +37,7 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateAdminCategoryAsync(AdminCategory expenseType);
         Task<int> UpdateAdminCategoryAsync(AdminCategory settings);
         Task<int> DeleteAdminCategoryAsync(long id);
+        Task<List<AdminCategory>> GetAllEnabledCategoriesAsync();
     }
 
     public interface IAdminMeasuringUnitTypesService
@@ -43,6 +47,8 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType expenseType);
         Task<int> UpdateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType settings);
         Task<int> DeleteAdminMeasuringUnitTypesAsync(long id);
+        Task<List<AdminMeasuringUnitType>> GetAllEnabledMeasuringUnitTypesAsync();
+
     }
 
     public interface IAdminMeasuringUnitService

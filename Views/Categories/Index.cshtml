@@ -5,7 +5,7 @@
 }
 <div class="card shadow-sm">
     <div class="card-header bg-success text-white">
-        <h2 class="mb-0" style="text-align:center">Users</h2>
+        <h2 class="mb-0" style="text-align:center">Categories</h2>
     </div>
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -27,7 +27,7 @@
 
 
             <div>
-                <label for="pageSize" class="form-label me-2">Items per page:</label>
+                <label for="pageSize" class="form-label me-2">Items Per Page : :</label>
                 <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
                     <option value="5" selected="@(Model.PageSize == 5)">5</option>
                     <option value="10" selected="@(Model.PageSize == 10)">10</option>

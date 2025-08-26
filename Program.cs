@@ -53,6 +53,10 @@ builder.Services.AddScoped<IAdminLablesService, AdminLablesService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IAdminMeasuringUnitTypesService, AdminMeasuringUnitTypesService>();
 builder.Services.AddScoped<IAdminMeasuringUnitService, AdminMeasuringUnitService>();
+builder.Services.AddScoped<IAdminMeasuringUnitService, AdminMeasuringUnitService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais

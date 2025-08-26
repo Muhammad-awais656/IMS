@@ -1,0 +1,64 @@
+﻿
+.custom-box {
+    /*background-color: #FAFCFF;*/ /* Card fill color */
+    background-color: #FAFCFF; /* Card fill color */
+    border: 1px solid #EDF8FF; /* Card border color */
+    color: #0065FF;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    max-width: 350px; /* Reduce width */
+    height: 280px; /* Let the content define the height */
+    margin: 0 auto; /* Center the box */
+}
+
+.custom-box:hover {
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+}
+
+.icon-container {
+    margin-bottom: 15px;
+}
+
+.custom-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #0D6B92; /* Title text color */
+    display: inline;
+    margin-right: 10px;
+}
+
+.custom-description {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.custom-btn {
+    background-color: #EDF8FF; /* Button background color */
+    color: #0D6B92; /* Button text color */
+    border: none; /* Remove border */
+    padding: 10px 20px; /* Add padding for better appearance */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Adjust font size */
+    font-weight: 600; /* Bold text */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transition for hover effects */
+}
+
+.custom-btn:hover {
+    background-color: #D0ECF8; /* Slightly darker shade on hover */
+    transform: scale(1.05); /* Slightly enlarge the button on hover */
+    color: #0D6B92;
+}
+
+.custom-btn:focus {
+    outline: none; /* Remove focus outline */
+    box-shadow: 0 0 5px #0D6B92; /* Add focus shadow */
+    color: #0D6B92;
+}
+
+
+

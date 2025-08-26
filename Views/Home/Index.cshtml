@@ -1,7 +1,90 @@
 ﻿@{
-    ViewData["Title"] = "Home";
-}
+    ViewData["Title"] = "Dashboard";
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string Role = isAdmin ? "Admin" : "User";
 
-<div class="container">
-    <h1>This is Dashboard Page </h1> 
+}
+<link rel="stylesheet" href="/css/CustomBoxStyle.css" />
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h2 class="mb-0" style="text-align:center"> Welcome to Inventary Management System</h2>
+        </div>
+        <div class="card-body" style="background-color:aqua">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Total Employees</h5>
+                        <h6 style="color:red">@ViewBag.TotalEmployees</h6>
+                        <a asp-action="Index" asp-controller="Employee" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+
+
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Total Users</h5>
+                        <h6 style="color:red">@ViewBag.TotalEmployees</h6>
+                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Total Sales Today</h5>
+                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
+                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Total Products</h5>
+                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
+                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Total Stock</h5>
+                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
+                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+
+
+
+
+                
+                <div class="col">
+                    <div class="custom-box text-center" style="background-color:lightblue">
+                        <div class="icon-container">
+                            <i class="bi-person-lines-fill" style="font-size: 3rem; color: #0D6B92;"></i>
+                        </div>
+                        <h5 class="custom-title">Customer Management</h5>
+                        <p class="custom-description">Manage customers.</p>
+                        <a href="/Employee/Index" class="btn custom-btn">Go to Module</a>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
 </div>

@@ -223,6 +223,54 @@ namespace IMS.Services
             };
         }
 
+        public async Task<List<AdminMeasuringUnitType>> GetAllEnabledMeasuringUnitTypesAsync()
+        {
+            var adminMeasuringUnitTypesList = new List<AdminMeasuringUnitType>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand("GetAllEnabledAdminMeasuringUnitTypes", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+
+
+                                while (await reader.ReadAsync())
+                                {
+                                    adminMeasuringUnitTypesList.Add(new AdminMeasuringUnitType
+                                    {
+                                        MeasuringUnitTypeId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId")),
+                                        MeasuringUnitTypeName = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName")),
+                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                    });
+
+                                }
+
+                            }
+                        }
+                        catch
+                        {
+
+
+                        }
+                    }
+                }
+
+            }
+            catch
+            {
+
+            }
+
+            return adminMeasuringUnitTypesList;
+        }
+
         public async Task<int> UpdateAdminMeasuringUnitTypesAsync(AdminMeasuringUnitType adminMeasuringUnitType)
         {
             var RowsAffectedResponse = 0;

@@ -1,0 +1,47 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+@if(role != null)
+{
+    <header>
+        <div style="width: inherit; height: fit-content; background-color:gold; display: flex; align-items: center; justify-content: space-between; padding:inherit">
+            <!-- Empty left side for balance -->
+            <div style="flex: 1;"></div>
+
+            <!-- Center: Project Name -->
+            <h1 style="text-decoration:solid; color: gray; margin: 0; flex: 1; text-align: center;">
+                IMTraders
+            </h1>
+
+            <!-- Right: Username, Role, and Logout (Profile-like) -->
+            <div style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+                @if (Context.User.Identity.IsAuthenticated)
+                {
+                    <span style="font-weight: bold; color: navy;">
+                        @Context.User.Identity.Name
+                    </span>
+                    <span style="color: gray; font-style: italic;">
+
+                        (@role)
+
+
+                    </span>
+                    @* <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">
+                        Logout
+                    </a> *@
+                    <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-sm">
+                        Login
+                    </a>
+                }
+            </div>
+        </div>
+    </header>
+}

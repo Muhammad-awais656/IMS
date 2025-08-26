@@ -263,5 +263,53 @@ namespace IMS.Services
             }
             return RowsAffectedResponse;
         }
+        public async Task<List<AdminCategory>> GetAllEnabledCategoriesAsync()
+        {
+            var adminCategory = new List<AdminCategory>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                   
+                    using (var command = new SqlCommand("GetAllEnabledCategories", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure; 
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+
+
+                                while (await reader.ReadAsync())
+                                {
+                                    adminCategory.Add(new AdminCategory
+                                    {
+                                        CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
+                                        CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
+                                       
+                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                    });
+
+                                }
+                                
+                            }
+                        }
+                        catch
+                        {
+
+
+                        }
+                    }
+                }
+
+            }
+            catch
+            {
+
+            }
+            
+            return adminCategory;
+        }
     }
 }

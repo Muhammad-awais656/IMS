@@ -10,9 +10,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         body {
-            margin: 0;
             font-family: Arial, sans-serif;
-            display: flex;
+            background-color: #f8f9fa; /* Light gray background */
+            height: 100vh; /* Full height */ 
+            margin: 0;
+            display: flex; 
         }
 
         .sidebar {
@@ -38,7 +40,7 @@
             .sidebar a {
                 color: white;
                 padding: 12px 20px;
-                display: block;
+                display: list-item;
                 text-decoration: none;
                 white-space: nowrap;
             }
@@ -51,16 +53,21 @@
         .submenu {
             display: none;
             background-color: chartreuse;
-            padding-left: 20px;
+            padding-left: 10px;
         }
 
         .sidebar .menu-item:hover .submenu {
-            display: flow-root;
+            display : flow;
+            
+        }
+
+        .nav-link:hover {
+            background-color: gray;
         }
 
         .main {
             flex-grow: 1;
-            padding: 20px;
+            padding: 8px;
             transition: margin-left 0.3s;
         }
 
@@ -106,6 +113,9 @@
         bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
         string role = isAdmin ? "Admin" : "User";
     }
+
+    @* Header Partial *@
+    @* @Html.Partial("_HeaderPartial") *@
     <div class="sidebar" id="sidebar">
         <div class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></div>
 
@@ -194,17 +204,21 @@
                 </div>
             </div>
         </div>
+        <div class="menu-item">
+            <a href="#"><i class="fa-solid fa-user-tie"></i><span>  Employee <i class="fa-solid fa-angle-down"></i></span></a>
+            <div class="submenu">
+                <a class="nav-link" asp-controller="Employee" asp-action="Index"><i class="fa-solid fa-people-group"></i> Employees </a>
+            </div>
+        </div>
 
         <div class="menu-item">
             <a href="#"><i class="fa-solid fa-gift"></i><span>  Product <i class="fa-solid fa-angle-down"></i></span></a>
             <div class="submenu">
 
                 <div class="submenu">
-                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-gift"></i> Products</a>
+                    <a asp-controller="Product" asp-action="Index"><i class="fa-solid fa-gift"></i> Products</a>
                 </div>
-                <div class="submenu">
-                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Product </a>
-                </div>
+                
             </div>
         </div>
         <div class="menu-item">
@@ -221,15 +235,13 @@
         </div>
         <div class="menu-item">
             <a href="#"><i class="fa-solid fa-sack-dollar"></i><span>  Expense <i class="fa-solid fa-angle-down"></i></span></a>
-            <div class="submenu">
+          
 
                 <div class="submenu">
-                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-sack-dollar"></i> Expenses</a>
+                    <a asp-controller="Expense" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i> Expenses</a>
                 </div>
-                <div class="submenu">
-                    <a asp-controller="Home" asp-action="User"><i class="fa-solid fa-plus"></i>Add Expense </a>
-                </div>
-            </div>
+     
+           
         </div>
 
         <div class="menu-item">
@@ -341,10 +353,10 @@
                         @Context.User.Identity.Name
                     </span>
                     <span style="color: gray; font-style: italic;">
-                        
+
                         (@role)
-                        
-                        
+
+
                     </span>
                     @* <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">
                         Logout
@@ -359,21 +371,14 @@
                 }
             </div>
         </div>
-        @RenderBody()
+       @RenderBody() 
     </div>
     <script>
         function toggleSidebar() {
             $('#sidebar').toggleClass('collapsed');
         }
-
-        // document.addEventListener("DOMContentLoaded", function () {
-        //     // Show the toast for 5 seconds
-        //     const toastElList = [].slice.call(document.querySelectorAll('.toast'));
-        //     toastElList.forEach(function (toastEl) {
-        //         new bootstrap.Toast(toastEl, { delay: 5000 }).show();
-        //     });
-        // });
     </script>
+    
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
