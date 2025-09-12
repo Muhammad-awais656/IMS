@@ -114,7 +114,7 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(nameof(Index));
+                        return View(nameof(Create));
                     }
                 }
             }

@@ -1,0 +1,73 @@
+﻿@using IMS.DAL.PrimaryDBContext
+@model Customer;
+
+
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Edit">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Edit</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                        <input type="hidden" asp-for="CustomerId" />
+                        <div class="col">
+                            <label asp-for="CustomerName" class="form-label"> Customer Name:</label>
+                            <input asp-for="CustomerName" class="form-control" />
+                            <span asp-validation-for="CustomerName" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="CustomerContactNumber" class="form-label"> Contact Number:</label>
+                            <input asp-for="CustomerContactNumber" class="form-control" />
+                            <span asp-validation-for="CustomerContactNumber" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="CustomerEmail" class="form-label"> Email:</label>
+                            <input asp-for="CustomerEmail" class="form-control" />
+                            <span asp-validation-for="CustomerEmail" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="CustomerEmailCc" class="form-label"> Email Cc:</label>
+                            <input asp-for="CustomerEmailCc" class="form-control" />
+                            <span asp-validation-for="CustomerEmailCc" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="CustomerAddress" class="form-label"> Address :</label>
+                            <input asp-for="CustomerAddress" class="form-control" />
+                            <span asp-validation-for="CustomerAddress" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="InvoiceCreditPeriod" class="form-label"> Invoice Credit Period :</label>
+                            <input asp-for="InvoiceCreditPeriod" class="form-control" />
+                            <span asp-validation-for="InvoiceCreditPeriod" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="StartWorkingTime" class="form-label"> Start Working Time :</label>
+                            @Html.TextBox("StartWorkingTime", Model.StartWorkingTime, new { @class = "form-control", type = "time" })
+                            @Html.ValidationMessageFor(m => m.StartWorkingTime, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col">
+                            <label asp-for="EndWorkingTime" class="form-label"> End Working Time :</label>
+                            @Html.TextBox("EndWorkingTime", Model.EndWorkingTime, new { @class = "form-control", type = "time" })
+                            @Html.ValidationMessageFor(m => m.EndWorkingTime, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col form-check form-switch">
+                            <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
+                            <label asp-for="IsEnabled" class="form-check-label" class="form-control"></label>
+                            <span asp-validation-for="IsEnabled" class="text-danger"></span>
+                        </div>
+
+                    </div>
+                    <div class="mb-3" style="padding:inherit">
+                        <button type="submit" class="btn btn-success">Save</button>
+                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+            </form>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

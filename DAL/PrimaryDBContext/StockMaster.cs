@@ -10,6 +10,7 @@ public partial class StockMaster
     public long ProductIdFk { get; set; }
 
     public decimal AvailableQuantity { get; set; }
+    public long CategoryIdFk { get; set; }
 
     public decimal UsedQuantity { get; set; }
 

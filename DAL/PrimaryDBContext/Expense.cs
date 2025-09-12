@@ -7,7 +7,7 @@ public partial class Expense
 {
     public long ExpenseId { get; set; }
 
-    public long ExpenseTypeIdFk { get; set; }
+    public long? ExpenseTypeIdFk { get; set; }
 
     public string ExpenseDetail { get; set; } = null!;
 

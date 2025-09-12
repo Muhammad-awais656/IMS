@@ -9,7 +9,7 @@
     </div>
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <a asp-action="Create" class="btn btn-success">Create Admin Measuring Unit</a>
+            <a asp-action="Create" class="btn btn-success">Create</a>
             <form asp-action="Index" asp-controller="AdminMeasuringUnitTypes" asp-route-searchUsername="@ViewData["searchUsername"]" method="get" class="d-flex align-items-center gap-2">
                 <input type="text"
                        name="searchUsername"
@@ -26,14 +26,7 @@
             </form>
 
 
-            <div>
-                <label for="pageSize" class="form-label me-2">Items Per Page : :</label>
-                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
-                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
-                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                </select>
-            </div>
+            
         </div>
         <div class="table-responsive">
             <table class="table table-striped table-bordered custom-table">
@@ -89,6 +82,14 @@
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
+            <div class="end-0">
+                <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
+                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                </select>
+            </div>
             @if (Model.TotalPages > 1)
             {
                 <nav aria-label="User pagination">

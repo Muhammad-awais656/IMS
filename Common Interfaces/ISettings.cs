@@ -15,6 +15,7 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateExpenseTypeAsync(AdminExpenseType ExpenseType);
         Task<int> UpdateExpenseTypeAsync(AdminExpenseType ExpenseType);
         Task<int> DeleteExpenseTypeAsync(long id);
+        Task<List<AdminExpenseType>> GetAllEnabledExpenseTypesAsync();
 
     }
     public interface IAdminLablesService

@@ -1,0 +1,104 @@
+@using IMS.DAL.PrimaryDBContext
+@model StockMaster;
+
+@* <div class="container mt-4"> *@
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Create">
+                <div class="card-header" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); color: white; border: none;">
+                    <h2 class="mb-0">Add New Stock</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                        <div class="col">
+                            <label asp-for="CategoryIdFk" class="form-label">Category:</label>
+                            @Html.DropDownList("CategoryIdFk", ViewBag.Categories as IEnumerable<SelectListItem>, "<-- Select Category -->", new { @class = "form-control", @id = "CategoryIdFk" })
+                            <span asp-validation-for="CategoryIdFk" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="ProductIdFk" class="form-label">Product:</label>
+                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control", @id = "ProductIdFk" })
+                            <span asp-validation-for="ProductIdFk" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="TotalQuantity" class="form-label">Total Quantity:</label>
+                            <input asp-for="TotalQuantity" class="form-control" type="number" step="1" />
+                            <span asp-validation-for="TotalQuantity" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="AvailableQuantity" class="form-label">Available Quantity:</label>
+                            <input asp-for="AvailableQuantity" class="form-control" type="number" step="1" readonly />
+                            <small class="form-text text-muted">Auto-calculated from total quantity</small>
+                        </div>
+                      @*   <div class="col">
+                            <label asp-for="UsedQuantity" class="form-label">Used Quantity:</label>
+                            <input asp-for="UsedQuantity" class="form-control" type="number" step="1" readonly />
+                            <small class="form-text text-muted">Read-only field</small>
+                        </div> *@
+                        <div class="col">
+                            <label asp-for="Comment" class="form-label">Description:</label>
+                            <textarea asp-for="Comment" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Comment" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="mb-3" style="padding:inherit">
+                        <button type="submit" class="btn btn-success">Create</button>
+                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@* </div> *@
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            // Handle category change event
+            $('#CategoryIdFk').change(function() {
+                var categoryId = $(this).val();
+                var productDropdown = $('#ProductIdFk');
+                
+                // Clear existing products
+                productDropdown.empty();
+                productDropdown.append('<option value="">&lt;-- Select Product --&gt;</option>');
+                
+                if (categoryId && categoryId !== '') {
+                    // Show loading state
+                    productDropdown.prop('disabled', true);
+                    
+                    // Fetch products for selected category
+                    $.ajax({
+                        url: '@Url.Action("GetProductsByCategory", "Stock")',
+                        type: 'GET',
+                        data: { categoryId: categoryId },
+                        success: function(data) {
+                            $.each(data, function(index, item) {
+                                productDropdown.append('<option value="' + item.value + '">' + item.text + '</option>');
+                            });
+                            productDropdown.prop('disabled', false);
+                        },
+                        error: function() {
+                            alert('Error loading products for selected category.');
+                            productDropdown.prop('disabled', false);
+                        }
+                    });
+                } else {
+                    productDropdown.prop('disabled', false);
+                }
+            });
+
+            // Auto-calculate available quantity when total quantity changes
+            $('#TotalQuantity').on('input', function() {
+                const totalQty = parseInt($(this).val()) || 0;
+                const currentUsed = parseInt($('#UsedQuantity').val()) || 0;
+                
+                // Available = Total - Used (Used remains unchanged)
+                const newAvailable = Math.max(0, totalQty - currentUsed);
+                $('#AvailableQuantity').val(newAvailable);
+            });
+        });
+    </script>
+}
+

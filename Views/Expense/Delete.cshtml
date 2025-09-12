@@ -1,5 +1,21 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@using IMS.DAL.PrimaryDBContext;
+@model IMS.DAL.PrimaryDBContext.Expense;
+
 @{
+    ViewData["Title"] = "Delete Expense";
 }
+
+<h1>Delete Expense</h1>
+
+<h3>Are you sure you want to delete this?</h3>
+<div>
+
+    <dl class="row">
+    </dl>
+
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="ExpenseId" />
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a class="btn btn-secondary" asp-action="Index">Back to List</a>
+    </form>
+</div>

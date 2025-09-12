@@ -6,11 +6,11 @@
 }
 <div class="card shadow-sm">
     <div class="card-header bg-success text-white">
-        <h2 class="mb-0" style="text-align:center">Expense Types</h2>
+        <h2 class="mb-0" style="text-align:center">Expense Type Management</h2>
     </div>
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <a asp-action="CreateExpenseType" class="btn btn-success">Create New Expense Type</a>
+            <a asp-action="CreateExpenseType" class="btn btn-success">Create</a>
             <form asp-action="GetAllExpenseTypes" asp-controller="Settings" asp-route-searchUsername="@ViewData["searchUsername"]" method="get" class="d-flex align-items-center gap-2">
                 <input type="text"
                        name="searchUsername"
@@ -27,14 +27,7 @@
             </form>
 
 
-            <div>
-                <label for="pageSize" class="form-label me-2">Expense Type Per page:</label>
-                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
-                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
-                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                </select>
-            </div>
+           
         </div>
         <div class="table-responsive">
             <table class="table table-striped table-bordered custom-table">
@@ -94,16 +87,24 @@
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted">Total Items : @Model.TotalCount | Showing @Model.PageSize Items per page</span>
+            <div class="end-0">
+                <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
+                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                </select>
+            </div>
             @if (Model.TotalPages > 1)
             {
                 <nav aria-label="User pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="GetAllUsers" asp-route-pageNumber="1"
+                            <a class="page-link" asp-action="GetAllExpenseTypes" asp-route-pageNumber="1"
                                asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="GetAllUsers" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
+                            <a class="page-link" asp-action="GetAllExpenseTypes" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
                                asp-route-searchUsername="@ViewData["searchUsername"]">Previous</a>
                         </li>
                         @{
@@ -118,14 +119,14 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="GetAllUsers" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
+                                <a class="page-link" asp-action="GetAllExpenseTypes" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="GetAllUsers" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
+                            <a class="page-link" asp-action="GetAllExpenseTypes" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="GetAllUsers" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
+                            <a class="page-link" asp-action="GetAllExpenseTypes" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
                         </li>
                     </ul>
                 </nav>

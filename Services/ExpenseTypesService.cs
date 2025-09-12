@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+﻿using DocumentFormat.OpenXml.Wordprocessing;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -93,6 +94,59 @@ namespace IMS.Services
 
             }
             return response;
+        }
+
+        public async Task<List<AdminExpenseType>> GetAllEnabledExpenseTypesAsync()
+        {
+            var expenseTypes = new List<AdminExpenseType>();
+       
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    //Get total count
+                    
+                    using (var command = new SqlCommand("GetAllEnabledExpenseType", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                       
+
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+
+
+                                while (await reader.ReadAsync())
+                                {
+                                    expenseTypes.Add(new AdminExpenseType
+                                    {
+                                        ExpenseTypeId = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId")),
+                                        ExpenseTypeName = reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
+                                        
+                                    });
+
+                                }
+                                
+                            }
+                        }
+                        catch
+                        {
+
+
+                        }
+                    }
+                }
+
+            }
+            catch
+            {
+
+            }
+            return expenseTypes;
+
         }
 
         public async Task<ExpenseTypesViewModel> GetAllExpenseTypes(int pageNumber, int? pageSize,string? expenseTypeName)

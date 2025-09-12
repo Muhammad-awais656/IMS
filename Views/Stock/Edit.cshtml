@@ -1,0 +1,109 @@
+@using IMS.DAL.PrimaryDBContext
+@model StockMaster;
+@* 
+<div class="container mt-4"> *@
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Edit">
+                <div class="card-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none;">
+                    <h2 class="mb-0">Edit Stock</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                        <input type="hidden" asp-for="StockMasterId" />
+                        <div class="col">
+                            <label asp-for="ProductIdFk" class="form-label">Product:</label>
+                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control" })
+                            <span asp-validation-for="ProductIdFk" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="AvailableQuantity" class="form-label">Available Quantity:</label>
+                            <input asp-for="AvailableQuantity" class="form-control" type="number" />
+                            @* <input asp-for="AvailableQuantity" class="form-control" type="number" step="1.0" /> *@
+                            <span asp-validation-for="AvailableQuantity" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="UsedQuantity" class="form-label">Used Quantity:</label>
+                            <input asp-for="UsedQuantity" class="form-control" type="number" readonly />
+                            <small class="form-text text-muted">Read-only field</small>
+                        </div>
+                        <div class="col">
+                            <label asp-for="TotalQuantity" class="form-label">Total Quantity:</label>
+                            <input asp-for="TotalQuantity" class="form-control" type="number" />
+                            @* <input asp-for="TotalQuantity" class="form-control" type="number" step="1.0" /> *@
+                            <span asp-validation-for="TotalQuantity" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="col">
+                            <label asp-for="Comment" class="form-label">Comment:</label>
+                            <textarea asp-for="Comment" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Comment" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="mb-3" style="padding:inherit">
+                        <button type="submit" class="btn btn-success">Save</button>
+                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@* </div> *@
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            // Auto-calculate total quantity when available quantity changes
+            $('#AvailableQuantity').on('input', function() {
+                calculateTotalFromAvailableUsed();
+            });
+
+            // Auto-calculate available quantity when total quantity changes
+            $('#TotalQuantity').on('input', function() {
+                calculateAvailableFromTotal();
+            });
+
+            function calculateTotalFromAvailableUsed() {
+                const availableQty = parseInt($('#AvailableQuantity').val()) || 0;
+                const usedQty = parseInt($('#UsedQuantity').val()) || 0;
+                const totalQty = availableQty + usedQty;
+                $('#TotalQuantity').val(totalQty);
+            }
+
+            function calculateAvailableFromTotal() {
+                const totalQty = parseInt($('#TotalQuantity').val()) || 0;
+                const currentUsed = parseInt($('#UsedQuantity').val()) || 0;
+                
+                // Available = Total - Used (Used remains unchanged)
+                const newAvailable = Math.max(0, totalQty - currentUsed);
+                $('#AvailableQuantity').val(newAvailable);
+            }
+
+            // Add validation before form submission
+            $('form').on('submit', function(e) {
+                const availableQty = parseInt($('#AvailableQuantity').val()) || 0;
+                const usedQty = parseInt($('#UsedQuantity').val()) || 0;
+                const totalQty = parseInt($('#TotalQuantity').val()) || 0;
+                
+                // Check if quantities are valid
+                if (availableQty < 0 || usedQty < 0 || totalQty < 0) {
+                    e.preventDefault();
+                    alert('Quantities cannot be negative.');
+                    return false;
+                }
+                
+                // Check if total equals available + used
+                const calculatedTotal = availableQty + usedQty;
+                if (totalQty !== calculatedTotal) {
+                    e.preventDefault();
+                    alert('Total quantity must equal Available quantity + Used quantity.');
+                    return false;
+                }
+                
+                return true;
+            });
+        });
+    </script>
+}
+

@@ -4,8 +4,8 @@ namespace IMS.Models
 {
     public class ExpenseViewModel
     {
-        public List<Expense> ExpenseList { get; set; }
-        
+        public List<ExpenseModel> ExpenseList { get; set; }
+        public ExpenseFilters expenseFilters { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int? PageSize { get; set; }
@@ -13,7 +13,16 @@ namespace IMS.Models
         public bool HasPreviousPage => CurrentPage > 1;
         public bool HasNextPage => CurrentPage < TotalPages;
         
-    }   
+    }
+    public class ExpenseModel
+    {
+        public long ExpenseId { get; set; }
+        public string ExpenseDetail { get; set; } = null!;
+        public string ExpenseType { get; set; } = null!;
+        public decimal Amount { get; set; }
+        public DateTime ExpenseDate { get; set; }
+        
+    }
     public class ExpenseFilters
     {
         public string? ExpenseType { get; set; }

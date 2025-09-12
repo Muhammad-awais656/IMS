@@ -100,7 +100,7 @@ namespace IMS.Services
 
         public async Task<ExpenseViewModel> GetAllExpenseAsync(int pageNumber, int? pageSize, ExpenseFilters expenseFilters)
         {
-            var expenses = new List<Expense>();
+            var expenses = new List<ExpenseModel>();
             var totalCount = 0;
 
 
@@ -153,17 +153,15 @@ namespace IMS.Services
 
                                 while (await reader.ReadAsync())
                                 {
-                                    expenses.Add(new Expense
+                                    expenses.Add(new ExpenseModel
                                     {
                                         ExpenseId = reader.GetInt64(reader.GetOrdinal("ExpenseId")),
-                                        ExpenseTypeIdFk = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId_FK")),
+                                        ExpenseType = reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
                                         ExpenseDetail = reader.GetString(reader.GetOrdinal("ExpenseDetail")),
                                         Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
-                                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                                        CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                                        ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                                        ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
-                                        ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
+                                        
+                                        ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate"))
+                                        
                                         
 
                                     });
@@ -216,7 +214,7 @@ namespace IMS.Services
                                     return new Expense
                                     {
                                         ExpenseId = reader.GetInt64(reader.GetOrdinal("ExpenseId")),
-                                        ExpenseTypeIdFk = reader.GetInt64(reader.GetOrdinal("ExpenseTypeIdFk")),
+                                        ExpenseTypeIdFk = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId_FK")),
                                         ExpenseDetail = reader.GetString(reader.GetOrdinal("ExpenseDetail")),
                                         Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
@@ -261,11 +259,11 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pExpenseDetail", expense.ExpenseDetail);
                         command.Parameters.AddWithValue("@pExpenseTypeId_FK", expense?.ExpenseTypeIdFk != null ? expense.ExpenseTypeIdFk : DBNull.Value);
                         command.Parameters.AddWithValue("@pAmount", expense.Amount );
-                        command.Parameters.AddWithValue("@pCreatedDate", expense?.CreatedDate == default(DateTime) ? DBNull.Value : expense?.CreatedDate);
+                        
                         command.Parameters.AddWithValue("@pModifiedDate", expense?.ModifiedDate == default(DateTime) ? DBNull.Value : expense?.ModifiedDate);
                         command.Parameters.AddWithValue("@pExpenseDate", expense?.ExpenseDate == default(DateTime) ? DBNull.Value : expense?.ExpenseDate);
                         command.Parameters.AddWithValue("@pModifiedBy", expense?.ModifiedBy != null ? expense.ModifiedBy : DBNull.Value);
-                        command.Parameters.AddWithValue("@pCreatedBy", expense?.CreatedBy != null ? expense.CreatedBy : DBNull.Value);
+                        
                         command.Parameters.AddWithValue("@pExpenseId", expense?.ExpenseId);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)

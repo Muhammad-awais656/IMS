@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static NuGet.Packaging.PackagingConstants;
 
 namespace IMS.Controllers
 {
@@ -19,94 +20,73 @@ namespace IMS.Controllers
         private readonly ICategoryService _categoryService;
         private readonly IAdminMeasuringUnitTypesService _adminMeasuringUnitTypesService;
         private readonly IAdminLablesService _adminLablesService;
+        private readonly IVendor _vendorService;
 
         public ProductController(IProductService productService,ILogger<ProductController> logger,ICategoryService categoryService
-            , IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService, IAdminLablesService adminLablesService)
+            , IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService, 
+            IAdminLablesService adminLablesService,
+            IVendor vendor)
         {
                 _logger = logger;
                 _productService = productService;
                 _categoryService = categoryService;
             _adminMeasuringUnitTypesService = adminMeasuringUnitTypesService;
             _adminLablesService = adminLablesService;
+            _vendorService = vendor;
         }
-        // GET: ProductController
-        //public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, ProductFilters? productFilters = null)
-        //{
-
-        //    var viewModelList = new ProductViewModel();
-
-        //    try
-        //    {
-        //        int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-        //        if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
-        //        {
-        //            currentPageSize = pageSize.Value;
-        //            HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-        //        }
-        //        if (productFilters == null)
-        //        {
-        //            productFilters.ProductName = HttpContext.Request.Query["searchUsername"].ToString();
-        //        }
-        //       var adminCategories = await _categoryService.GetAllEnabledCategoriesAsync();
-
-        //        ViewBag.Categories= new SelectList(adminCategories, "CategoryId", "CategoryName");
-
-        //        viewModelList = await _productService.GetAllProductAsync(pageNumber, currentPageSize, productFilters);
-
-
-
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        TempData["ErrorMessage"] = ex.Message;
-
-        //    }
-        //    return View(viewModelList);
-
-        //    }
-        public async Task<ActionResult> Index()
+        
+        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null )
         {
+            
             var model = new ProductViewModel
             {
                 CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
-
                 LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
                 MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync()
             };
+            ViewBag.Categories = new SelectList(model.CategoryNameList, "CategoryId", "CategoryName");
+            ViewBag.Labels = new SelectList(model.LabelNameList, "LabelId", "LabelName");
+            ViewBag.MeasuringUnitTypes = new SelectList(model.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName");
+            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            {
+                currentPageSize = pageSize.Value;
+                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpName"].ToString()))
+            {
+                model.productFilters.ProductName = HttpContext.Request.Query["searchpName"].ToString();
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpCode"].ToString()))
+            {
+                model.productFilters.ProductCode = HttpContext.Request.Query["searchpCode"].ToString();
+            }
+            if (!string.IsNullOrEmpty( HttpContext.Request.Query["searchpFrom"].ToString()))
+            {
+                model.productFilters.PriceFrom = Convert.ToDecimal(HttpContext.Request.Query["searchpFrom"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpTo"].ToString()))
+            {
+                model.productFilters.PriceTo = Convert.ToDecimal(HttpContext.Request.Query["searchpTo"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["catId"].ToString()))
+            {
+                model.productFilters.CategoryId = Convert.ToInt64(HttpContext.Request.Query["catId"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchULabelId"].ToString()))
+            {
+                model.productFilters.LabelId = Convert.ToInt64(HttpContext.Request.Query["searchULabelId"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchUMUTId"].ToString()))
+            {
+                model.productFilters.MeasuringUnitTypeId = Convert.ToInt64(HttpContext.Request.Query["searchUMUTId"]);
+            }
+
+
+            model = await _productService.GetAllProductAsync(pageNumber, currentPageSize, model.productFilters);
             return View(model);
         }
-        [HttpGet]
-        public async Task<IActionResult> GetFilteredProducts(int pageNumber,int? pageSize=null ,ProductFilters filters=null)
-       {
-            var viewModel = new ProductViewModel();
-
-            try
-            {
-                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
-                {
-                    currentPageSize = pageSize.Value;
-                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-                }
-                viewModel = await _productService.GetAllProductAsync(pageNumber, pageSize, filters);
-                
-                
-
-
-
-
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = ex.Message;
-
-            }
-            //PartialView("_paination", viewModel);
-             return PartialView("_ProductList", viewModel);
-            
-            //return View(viewModel);
-            //return View("Index", viewModel);
-        }
+      
 
 
         // GET: ProductController/Details/5
@@ -116,9 +96,20 @@ namespace IMS.Controllers
         }
 
         // GET: ProductController/Create
-        public ActionResult Create()
+        public async Task<ActionResult> Create()
         {
-            return View();
+            var model = new ProductViewModel
+            {
+                CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
+                LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
+                MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync(),
+                VendorsList = await _vendorService.GetAllEnabledVendors()
+            };
+            ViewBag.Categories = new SelectList(model.CategoryNameList, "CategoryId", "CategoryName");
+            ViewBag.Labels = new SelectList(model.LabelNameList, "LabelId", "LabelName");
+            ViewBag.MeasuringUnitTypes = new SelectList(model.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName");
+            ViewBag.Vendors = new SelectList(model.VendorsList, "SupplierId", "SupplierName");
+            return View(model);
         }
 
         // POST: ProductController/Create

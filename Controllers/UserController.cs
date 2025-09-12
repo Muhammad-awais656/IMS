@@ -81,6 +81,7 @@ namespace IMS.Controllers
             {
                 if (ModelState.IsValid)
                 {
+
                     var result = await _userService.CreateUserAsync(user);
                     if (result)
                     {

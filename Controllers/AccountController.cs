@@ -76,9 +76,20 @@ namespace IMS.Controllers
         }
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync("CookieAuth");
-            HttpContext.Session.Clear();
-            return RedirectToAction("Login");
+            try
+            {
+                await HttpContext.SignOutAsync("CookieAuth");
+                HttpContext.Session.Clear();
+                TempData["Success"] = AlertMessages.LogOutSuccess;
+                return RedirectToAction("Login", "Account");
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+           
+
         }
     }
 }
