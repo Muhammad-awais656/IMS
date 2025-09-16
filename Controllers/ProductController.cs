@@ -21,11 +21,13 @@ namespace IMS.Controllers
         private readonly IAdminMeasuringUnitTypesService _adminMeasuringUnitTypesService;
         private readonly IAdminLablesService _adminLablesService;
         private readonly IVendor _vendorService;
+        private readonly IAdminMeasuringUnitService _adminMeasuringUnitService;
 
         public ProductController(IProductService productService,ILogger<ProductController> logger,ICategoryService categoryService
             , IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService, 
             IAdminLablesService adminLablesService,
-            IVendor vendor)
+            IVendor vendor,
+            IAdminMeasuringUnitService adminMeasuringUnitService)
         {
                 _logger = logger;
                 _productService = productService;
@@ -33,6 +35,7 @@ namespace IMS.Controllers
             _adminMeasuringUnitTypesService = adminMeasuringUnitTypesService;
             _adminLablesService = adminLablesService;
             _vendorService = vendor;
+            _adminMeasuringUnitService = adminMeasuringUnitService;
         }
         
         public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null )
@@ -188,5 +191,39 @@ namespace IMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        public async Task<ActionResult> AddSizePartial(long? MUTId)
+        {
+            var model = new ProductViewModel
+            {
+
+                MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(MUTId)
+
+            };
+            ViewBag.MeasuringUnits = new SelectList(model.MeasuringUnitNameList, "MeasuringUnitId", "MeasuringUnitName");
+            //await GetMeasuringUnits(MUTId);
+            return PartialView("_AddSize", new ProductRange());
+        }
+
+        [HttpPost]
+        public IActionResult SaveSize(ProductRange model)
+        {
+            if (ModelState.IsValid)
+            {
+                // Save to DB
+                //_context.ProductRanges.Add(model);
+                //_context.SaveChanges();
+
+                // return the new row as partial
+                return PartialView("_SizeRow", model);
+            }
+            return BadRequest();
+        }
+        //[HttpGet]
+        //public async Task<ActionResult> GetMeasuringUnits(int MUTId)
+        //{
+            
+        //}
+
     }
 }

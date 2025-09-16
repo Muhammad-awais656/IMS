@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+﻿using DocumentFormat.OpenXml.Wordprocessing;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -271,6 +272,54 @@ namespace IMS.Services
                 PageSize = pageSize,
                 TotalCount = totalCount
             };
+        }
+
+        public async Task<List<AdminMeasuringUnit>> GetAllMeasuringUnitsByMUTIdAsync(long? id)
+        {
+            var adminMeasuringUnits = new List<AdminMeasuringUnit>();
+   
+           
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                   
+
+                    using (var cmd = new SqlCommand("GetAllMeasuringUnitsByMeasuringTypeId", connection))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                 
+                        cmd.Parameters.AddWithValue("@pMeasuringTypeId", id ?? (object)DBNull.Value);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                // Main Measuring Unit
+                                adminMeasuringUnits.Add(new AdminMeasuringUnit
+                                {
+                                    MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
+                                    MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                                    
+                                });
+
+                               
+                            }
+                        }
+                    }
+
+                   
+                }
+            }
+            catch 
+            {
+                
+            }
+
+            return adminMeasuringUnits;
         }
 
         public async Task<int> UpdateAdminMeasuringUnitAsync(AdminMeasuringUnit adminMeasuringUnit)

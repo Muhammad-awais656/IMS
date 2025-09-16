@@ -1,5 +1,6 @@
 ﻿using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using static IMS.Models.ProductViewModel;
 
 namespace IMS.Common_Interfaces
 {
@@ -12,6 +13,8 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateProductAsync(Product product);
         Task<int> UpdateProductAsync(Product product);
         Task<int> DeleteProductAsync(long id);
+
+        Task<List<Product>> GetAllEnabledProductsAsync();
 
         
     }

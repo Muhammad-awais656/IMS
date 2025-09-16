@@ -57,6 +57,13 @@ builder.Services.AddScoped<IAdminMeasuringUnitService, AdminMeasuringUnitService
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
+builder.Services.AddScoped<ICustomer, CustomerService>();
+builder.Services.AddScoped<IVendor, VendorService>();
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<ICustomerPaymentService, CustomerPaymentService>();
+builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais

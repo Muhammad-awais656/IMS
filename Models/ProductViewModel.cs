@@ -10,6 +10,7 @@ namespace IMS.Models
         public List<AdminLabel> LabelNameList { get; set; } = new List<AdminLabel>();
         public List<AdminSupplier> VendorsList { get; set; } = new List<AdminSupplier>();
         public List<AdminMeasuringUnitType> MeasuringUnitTypeNameList { get; set; } = new List<AdminMeasuringUnitType>();
+        public List<AdminMeasuringUnit> MeasuringUnitNameList { get; set; } = new List<AdminMeasuringUnit>();
 
         public List<ProductRange> productRanges { get; set; } = new List<ProductRange>();
         public List<ProductImage> ProductImages { get; set; } = new List<ProductImage>();

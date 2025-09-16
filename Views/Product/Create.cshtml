@@ -1,40 +1,199 @@
 ﻿@using IMS.DAL.PrimaryDBContext
-@model Product;
+@model ProductViewModel;
 
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h2 class="mb-0">Create Product</h2>
     </div>
     <div class="card-body">
-        <form asp-action="Create">
-            @* <div class="mb-3">
-                <label asp-for="UserName" class="form-label"></label>
-                <input asp-for="UserName" class="form-control" />
-                <span asp-validation-for="UserName" class="text-danger"></span>
+        <form asp-action="Create" method="post" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <!-- Product Fields -->
+                    <div class="mb-2">
+                        <label>Product name :</label>
+                        <input asp-for="ProductName" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Product code :</label>
+                        <input asp-for="ProductCode" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Description :</label>
+                        <textarea asp-for="ProductDescription" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Unit price :</label>
+                        <input asp-for="Price" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Measuring unit type :</label>
+                      @*   <select id="MeasuringUnitTypeId" asp-for="MUTId"
+                                asp-items="ViewBag.MeasuringUnitTypes"
+                                class="form-control">
+                            <option value=""><-- Select MU Type --></></option>
+                        
+                        </select> *@
+                        <select id="MeasuringUnitTypeId" class="form-control">
+                            <option value=""><-- Select MU Type --></></option>
+                            @foreach (var item in ViewBag.MeasuringUnitTypes)
+                            {
+                                <option value="@item.Value">@item.Text</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Label :</label>
+                        <select asp-for="LabelId" asp-items="ViewBag.Labels" class="form-control">
+                            <option value=""><-- Select Label --></></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Category :</label>
+                        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control">
+                            <option value=""><-- Select Category --></></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Vendor :</label>
+                        <select asp-for="VendorId" asp-items="ViewBag.Vendors" class="form-control">
+                            <option value=""><-- Select Vendor --></></option>
+                        </select>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="IsEnabled" class="form-check-input" />
+                        <label class="form-check-label">Enabled</label>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <!-- Sizes -->
+                    <h6>Sizes</h6>
+                    <div class="modal fade" id="sizeModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content" id="sizeModalContent">
+                                <!-- Partial will load here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>MU</th>
+                                <th>Size from</th>
+                                <th>Size to</th>
+                                <th>Unit price</th>
+                                <th>Actions</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.productRanges.Count > 0)
+                            {
+                                @foreach (var item in Model.productRanges)
+                                {
+                                    <tr>
+                                        <td>@item.MeasuringUnitIdFk</td>
+                                        <td>@item.RangeFrom</td>
+                                        <td>@item.RangeTo</td>
+                                        <td>@item.UnitPrice</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-danger">Delete</button>
+                                        </td>
+                                    </tr>
+
+                                }
+
+                            }
+
+
+
+                        </tbody>
+                    </table>
+                    <button id="addSizeBtn" type="button" class="btn btn-sm btn-primary">Add size</button>
+
+                    @* <!-- Images -->
+                    <h6 class="mt-3">Images</h6>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Image name</th>
+                                <th>Default</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.ProductImages.Count > 0)
+                            {
+                                @foreach (var img in Model.ProductImages)
+                                {
+                                    <tr>
+                                        <td>@img.ImageContent</td>
+                                        <td>@img.ImageName</td>
+                                        <td><input type="checkbox" checked="@img.IsDefault" /></td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary">Set as default</button>
+                                            <button type="button" class="btn btn-sm btn-danger">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                    @* <input type="file" asp-for="ProductImages.FirstOrDefault().ImageContent" class="form-control" /> *@
+                    @* <button type="button" class="btn btn-sm btn-secondary mt-2">Add image</button>  *@
+                </div>
             </div>
-            <div class="mb-3">
-                <label asp-for="UserPassword" class="form-label"></label>
-                <input asp-for="UserPassword" type="password" class="form-control" />
-                <span asp-validation-for="UserPassword" class="text-danger"></span>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Save</button>
+                <a asp-action="Index" class="btn btn-secondary">Close</a>
             </div>
-            <div class="mb-3 form-check form-switch">
-                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
-                <label asp-for="IsEnabled" class="form-check-label"></label>
-                <span asp-validation-for="IsEnabled" class="text-danger"></span>
-            </div>
-            <div class="mb-3 form-check form-switch">
-                <input type="checkbox" asp-for="IsAdmin" class="form-check-input" />
-                <label asp-for="IsAdmin" class="form-check-label"></label>
-                <span asp-validation-for="IsAdmin" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <button type="submit" class="btn btn-success">Create</button>
-                <a asp-action="GetAllUsers" class="btn btn-secondary">Cancel</a>
-            </div> *@
         </form>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+                let MeasuringUnitTypeId=null;
+            $("#MeasuringUnitTypeId").change(function () {
+                       debugger;
+                      MeasuringUnitTypeId = $(this).val();
+                     
+        // Open Partial View in Modal
+        $("#addSizeBtn").click(function () {
+            debugger;
+             
+                    $.get("/Product/AddSizePartial", { measuringUnitTypeId: MeasuringUnitTypeId }, function (data) {
+                $("#sizeModalContent").html(data);
+                $("#sizeModal").modal("show");
+            });
+        });
+
+        // Save New Size
+        $(document).on("click", "#saveSizeBtn", function () {
+            var formData = $("#addSizeForm").serialize();
+
+                $.post("/Product/SaveSize", formData, function (row) {
+                $("table tbody").append(row); // add new row
+                $("#sizeModal").modal("hide");
+            });
+        });
+
+    });
+        });
+    </script>
 }

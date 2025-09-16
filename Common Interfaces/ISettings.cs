@@ -61,6 +61,8 @@ namespace IMS.Common_Interfaces
         Task<int> DeleteAdminMeasuringUnitAsync(long id);
 
         Task<List<AdminMeasuringUnitType>> AdminMeasuringUnitTypeCacheAsync();
+        Task<List<AdminMeasuringUnit>> GetAllMeasuringUnitsByMUTIdAsync(long? id);
+
     }
 
 

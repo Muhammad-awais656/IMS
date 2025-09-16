@@ -7,8 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="EPPlus" Version="8.0.8" />
     <PackageReference Include="FontAwesome" Version="4.7.0" />
+    <PackageReference Include="iTextSharp" Version="5.5.13.4" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8">
@@ -24,6 +26,7 @@
     <Folder Include="Filters\" />
     <Folder Include="Helpers\" />
     <Folder Include="Images\" />
+    <Folder Include="wwwroot\css\dist\" />
   </ItemGroup>
 
   <ItemGroup>
