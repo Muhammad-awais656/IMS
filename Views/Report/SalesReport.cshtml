@@ -20,7 +20,7 @@
                 <a href="#" id="exportPdfBtn" class="btn btn-danger">
                     <i class="fa fa-file-pdf"></i> Export PDF
                 </a>
-                <a onclick="printContent('PrintData');" class="btn btn-success float-end"> Print</a>
+                <a onclick="printContent();" class="btn btn-success float-end me-2"> Print</a>
             </div>
             <div>
                 <form id="filterForm" style="border:ridge; background: aliceblue;"
@@ -84,7 +84,7 @@
 
         </div>
         <div class="table-responsive" id="printArea">
-            <table class="table table-striped table-bordered custom-table">
+            <table id="salesTable"  class="table table-striped table-bordered custom-table">
                 <thead>
                     <tr>
                         <th>Sale Id</th>
@@ -219,9 +219,22 @@
 
     </script>
     <script>
-          function printContent(divName) {
-            
-            window.print();
+          function printContent() {
+                // Get the table content
+        var printContent = document.getElementById("printArea").innerHTML;
+
+        // Backup full page content
+        var originalContent = document.body.innerHTML;
+
+        // Replace body with table content only
+        document.body.innerHTML = printContent;
+
+        // Print
+        window.print();
+
+        // Restore original content
+        document.body.innerHTML = originalContent;
+
         }
         document.getElementById("exportExcelBtn").addEventListener("click", function () {
             var custId = document.getElementById("SalesReportsFilters.CustomerIdFk").value;
