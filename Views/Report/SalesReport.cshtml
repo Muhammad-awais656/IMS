@@ -20,6 +20,7 @@
                 <a href="#" id="exportPdfBtn" class="btn btn-danger">
                     <i class="fa fa-file-pdf"></i> Export PDF
                 </a>
+                <a onclick="printContent('PrintData');" class="btn btn-success float-end"> Print</a>
             </div>
             <div>
                 <form id="filterForm" style="border:ridge; background: aliceblue;"
@@ -82,7 +83,7 @@
 
 
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive" id="printArea">
             <table class="table table-striped table-bordered custom-table">
                 <thead>
                     <tr>
@@ -218,6 +219,10 @@
 
     </script>
     <script>
+          function printContent(divName) {
+            
+            window.print();
+        }
         document.getElementById("exportExcelBtn").addEventListener("click", function () {
             var custId = document.getElementById("SalesReportsFilters.CustomerIdFk").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
