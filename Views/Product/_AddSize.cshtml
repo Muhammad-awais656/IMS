@@ -1,4 +1,4 @@
-﻿@model IMS.DAL.PrimaryDBContext.ProductRange;
+﻿@model IMS.DAL.PrimaryDBContext.ProductRange
 
 <div class="modal-header">
     <h5 class="modal-title">Add Size</h5>
@@ -9,26 +9,25 @@
     <form id="addSizeForm">
         <div class="mb-2">
             <label>Measuring Unit</label>
-            <select asp-for="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control" id="MeasuringUnitId">
-                <option value=""><-- Select Measuring Unit --></></option>
+            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control">
+                <option value="">-- Select Measuring Unit --</option>
             </select>
         </div>
         <div class="mb-2">
             <label>Size From</label>
-            <input asp-for="RangeFrom" class="form-control" />
+            <input name="RangeFrom" class="form-control" required />
         </div>
         <div class="mb-2">
             <label>Size To</label>
-            <input asp-for="RangeTo" class="form-control" />
+            <input name="RangeTo" class="form-control" required />
         </div>
         <div class="mb-2">
             <label>Unit Price</label>
-            <input asp-for="UnitPrice" class="form-control" />
+            <input name="UnitPrice" class="form-control" required />
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary" id="saveSizeBtn">Save</button>
         </div>
     </form>
-</div>
-
-<div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-    <button type="button" class="btn btn-primary" id="saveSizeBtn">Save</button>
 </div>

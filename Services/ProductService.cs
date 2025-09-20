@@ -234,10 +234,10 @@ namespace IMS.Services
 
         public async Task<ProductViewModel> GetProductByIdAsync(long id)
         {
-            var productList = new List<Product>();
-            var categoryNameList = new List<AdminCategory>();
-            var labelNameList = new List<AdminLabel>();
-            var sizeNameList = new List<AdminSize>();
+            var productList = new Product();
+          
+           
+            var productRanges = new ProductRange();
 
             try
             {
@@ -246,7 +246,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
                     using (var command = new SqlCommand("GetProductDetail", connection))
                     {
-                        command.Parameters.AddWithValue("'@pProductId", id);
+                        command.Parameters.AddWithValue("@pProductId", id);
                         command.CommandType = CommandType.StoredProcedure;
                         try
                         {
@@ -254,7 +254,7 @@ namespace IMS.Services
                             {
                                 if (await reader.ReadAsync())
                                 {
-                                    productList.Add(new Product
+                                    productList= new Product
                                     {
                                         ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
                                         ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
@@ -267,22 +267,23 @@ namespace IMS.Services
                                         CategoryIdFk = reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
                                         MeasuringUnitTypeIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
                                         SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK"))
-                                    });
-                                    categoryNameList.Add(new AdminCategory
+                                    };
+                                    if (reader.GetInt64(reader.GetOrdinal("ProductId_FK")).ToString()!=null)
                                     {
-                                        CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
-                                        CategoryName = reader.GetString(reader.GetOrdinal("CategoryName"))
-                                    });
-                                    labelNameList.Add(new AdminLabel
-                                    {
-                                        LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
-                                        LabelName = reader.GetString(reader.GetOrdinal("LabelName"))
-                                    });
-                                    sizeNameList.Add(new AdminSize
-                                    {
-                                        SizeId = reader.GetInt64(reader.GetOrdinal("SizeId")),
-                                        SizeName = reader.GetString(reader.GetOrdinal("SizeName"))
-                                    });
+                                        productRanges = new ProductRange
+                                        {
+                                            ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
+                                            MeasuringUnitIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId_Fk")),
+                                            RangeFrom = reader.GetDecimal(reader.GetOrdinal("RangeFrom")),
+                                            RangeTo = reader.GetDecimal(reader.GetOrdinal("RangeTo")),
+                                            UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice"))
+                                           
+                                        };
+
+                                    }
+                                    
+
+
                                 }
                             }
                         }
@@ -298,12 +299,11 @@ namespace IMS.Services
             {
 
             }
-            return new ProductViewModel{
-                //ProductList = productList,
-                //CategoryNameList = categoryNameList,
-                //LabelNameList = labelNameList,
+            return new ProductViewModel {
+                ProductList = productList,
+                ProductRange = productRanges
                 //SizeNameList = sizeNameList
-               
+
             };
         }
 
@@ -353,6 +353,47 @@ namespace IMS.Services
             {
             }
             return RowsAffectedResponse;
+        }
+
+        public async Task<bool> CreateProductRange(ProductRange productRange)
+        {
+            bool response = false;
+            try
+            {
+
+
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("AddProductRange", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pProductId_FK", productRange.ProductIdFk);
+                        command.Parameters.AddWithValue("@pMeasuringUnitId_FK", productRange.MeasuringUnitIdFk);
+                        command.Parameters.AddWithValue("@pRangeFrom", productRange.RangeFrom);
+                        command.Parameters.AddWithValue("@pRangeTo", productRange.RangeTo);
+                        command.Parameters.AddWithValue("@pUnitPrice", productRange.UnitPrice);
+                  
+                        var unitTypeyIdParam = new SqlParameter("@pProductRangeId", SqlDbType.BigInt)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(unitTypeyIdParam);
+                        await command.ExecuteNonQueryAsync();
+                        long newunitTypeyIdParamParam = (long)unitTypeyIdParam.Value;
+                        if (newunitTypeyIdParamParam != 0)
+                        {
+                            response = true;
+                        }
+
+                    }
+                }
+            }
+            catch
+            {
+
+            }
+            return response;
         }
     }
 }

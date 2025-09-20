@@ -5,7 +5,9 @@ namespace IMS.Models
 {
     public class ProductViewModel
     {
-        
+        public Product ProductList { get; set; }
+
+        public ProductRange ProductRange { get; set; }
         public List<AdminCategory> CategoryNameList { get; set; } = new List<AdminCategory>();
         public List<AdminLabel> LabelNameList { get; set; } = new List<AdminLabel>();
         public List<AdminSupplier> VendorsList { get; set; } = new List<AdminSupplier>();

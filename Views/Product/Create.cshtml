@@ -10,9 +10,10 @@
             <div class="row">
                 <div class="col-md-6">
                     <!-- Product Fields -->
+                    
                     <div class="mb-2">
                         <label>Product name :</label>
-                        <input asp-for="ProductName" class="form-control" />
+                        <input asp-for="ProductName" class="form-control" required/>
                     </div>
 
                     <div class="mb-2">
@@ -38,12 +39,9 @@
                             <option value=""><-- Select MU Type --></></option>
                         
                         </select> *@
-                        <select id="MeasuringUnitTypeId" class="form-control">
-                            <option value=""><-- Select MU Type --></></option>
-                            @foreach (var item in ViewBag.MeasuringUnitTypes)
-                            {
-                                <option value="@item.Value">@item.Text</option>
-                            }
+                        <select asp-for="MUTId" asp-items="ViewBag.MeasuringUnitTypes"
+                                class="form-control" id="MeasuringUnitTypeId">
+                            <option value="">-- Select MU Type --</option>
                         </select>
                     </div>
 
@@ -69,7 +67,10 @@
                     </div>
 
                     <div class="form-check">
-                        <input asp-for="IsEnabled" class="form-check-input" />
+                        @* <input asp-for="IsEnabled" value="" class="form-check-input" /> *@
+                        <input asp-for="IsEnabled" name="IsEnabled" type="checkbox" value="true" class="form-check-input" />
+                        <input asp-for="IsEnabled" name="IsEnabled" type="hidden" value="false" class="form-check-input" />
+
                         <label class="form-check-label">Enabled</label>
                     </div>
                 </div>
@@ -122,78 +123,160 @@
                     </table>
                     <button id="addSizeBtn" type="button" class="btn btn-sm btn-primary">Add size</button>
 
-                    @* <!-- Images -->
-                    <h6 class="mt-3">Images</h6>
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Image</th>
-                                <th>Image name</th>
-                                <th>Default</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.ProductImages.Count > 0)
-                            {
-                                @foreach (var img in Model.ProductImages)
-                                {
-                                    <tr>
-                                        <td>@img.ImageContent</td>
-                                        <td>@img.ImageName</td>
-                                        <td><input type="checkbox" checked="@img.IsDefault" /></td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-primary">Set as default</button>
-                                            <button type="button" class="btn btn-sm btn-danger">Delete</button>
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                    @* <input type="file" asp-for="ProductImages.FirstOrDefault().ImageContent" class="form-control" /> *@
-                    @* <button type="button" class="btn btn-sm btn-secondary mt-2">Add image</button>  *@
+                    
                 </div>
             </div>
 
             <div class="mt-3">
-                <button type="submit" class="btn btn-success">Save</button>
+                <button id="saveSizeBtn" type="submit" class="btn btn-success">Save</button>
                 <a asp-action="Index" class="btn btn-secondary">Close</a>
             </div>
         </form>
     </div>
+    <!-- Modal container -->
+    <div class="modal fade" id="sizeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="sizeModalContent">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Size</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="addSizeForm">
+                        <div class="mb-2">
+                            <label>Measuring Unit</label>
+                            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control">
+                                <option value="">-- Select Measuring Unit --</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label>Size From</label>
+                            <input name="RangeFrom" class="form-control" required />
+                        </div>
+                        <div class="mb-2">
+                            <label>Size To</label>
+                            <input name="RangeTo" class="form-control" required />
+                        </div>
+                        <div class="mb-2">
+                            <label>Unit Price</label>
+                            <input name="UnitPrice" class="form-control" required />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary" id="saveSizeBtn">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        $(document).ready(function () {
-                let MeasuringUnitTypeId=null;
-            $("#MeasuringUnitTypeId").change(function () {
-                       debugger;
-                      MeasuringUnitTypeId = $(this).val();
-                     
-        // Open Partial View in Modal
-        $("#addSizeBtn").click(function () {
-            debugger;
-             
-                    $.get("/Product/AddSizePartial", { measuringUnitTypeId: MeasuringUnitTypeId }, function (data) {
+        // $(document).ready(function () {
+            //debugger;
+           // Declare variable in a broader scope
+            let measuringUnitTypeId = null;
+
+            // Log initial state
+            console.log("Initial MeasuringUnitTypeId:", measuringUnitTypeId);
+
+            // Capture MeasuringUnitTypeId on change
+            $("#MeasuringUnitTypeId").on("change", function () {
+                measuringUnitTypeId = $(this).val();
+                console.log("MeasuringUnitTypeId changed to:", measuringUnitTypeId);
+                if (!measuringUnitTypeId) {
+                    console.warn("No Measuring Unit Type selected.");
+                }
+            });
+            // Open Partial View in Modal
+            $("#addSizeBtn").click(function () {
+                debugger;
+                console.log("add button size call");
+                if (!measuringUnitTypeId) {
+                    alert("Please select a Measuring Unit Type first.");
+                    return;
+                }
+                console.log("MeasuringUnitTypeId changed in adbtnsize:",measuringUnitTypeId);
+                // $.get("/Product/AddSizePartial?id=",  measuringUnitTypeId, function (data) {
+                //     $("#sizeModalContent").html(data);
+                //     $("#sizeModal").modal("show");
+                // });
+                        $.ajax({
+            url: "/Product/AddSizePartial",
+            type: "GET",
+            data: { measuringUnitTypeId: measuringUnitTypeId },
+            success: function (data) {
                 $("#sizeModalContent").html(data);
                 $("#sizeModal").modal("show");
-            });
+            },
+            error: function (xhr, status, error) {
+                console.error("Error loading partial view:", error);
+                alert("Failed to load size form. Please try again.");
+            }
         });
+            });
 
-        // Save New Size
-        $(document).on("click", "#saveSizeBtn", function () {
-            var formData = $("#addSizeForm").serialize();
+            // Save New Size
+            // $(document).on("click", "#saveSizeBtn", function () {
+            //     console.log("saveSizeBtn is call");
+            //     var formData = $("#addSizeForm").serialize();
 
-                $.post("/Product/SaveSize", formData, function (row) {
-                $("table tbody").append(row); // add new row
+            //     $.post("/Product/SaveSize", formData, function (row) {
+            //         $("table tbody").append(row); // add new row
+            //         $("#sizeModal").modal("hide");
+            //     });
+            // });
+        //    $(document).on("click", "#saveSizeBtn", function (e) {
+        //        debugger;
+        //     e.preventDefault(); 
+        //     console.log("saveSizeBtn is called");
+
+           
+        //   var formData = $("#addSizeForm").serialize();
+        //         console.log("Saving size with form data:", formData);
+        //     $.post("/Product/SaveSize", formData, function (row) {
+        //         $("table tbody").append(row); 
+        //         $("#sizeModal").modal("hide");
+        //     }).fail(function (xhr) {
+        //         alert("Error: " + xhr.responseText);
+        //     });
+        // });
+
+
+        // });
+        $(document).on("click", "#saveSizeBtn", function (e) {
+               debugger;
+            e.preventDefault();
+            console.log("saveSizeBtn is called");
+                var formData = $(this).serialize();
+                    console.log("Saving size with form data:", formData);
+
+            var formData = {
+            MeasuringUnitIdFk: $("#addSizeForm[name='MeasuringUnitIdFk']").val(),
+            RangeFrom: $("#addSizeForm[name='RangeFrom']").val(),
+            RangeTo: $("#addSizeForm[name='RangeTo']").val(),
+            UnitPrice: $("#addSizeForm[name='UnitPrice']").val()
+        };
+
+        $.ajax({
+            url: "/Product/SaveSize",
+            type: "POST",
+            data: formData,
+            success: function (row) {
+                $("table tbody").append(row);
                 $("#sizeModal").modal("hide");
-            });
+            },
+            error: function (xhr) {
+                alert("Error: " + xhr.responseText);
+            }
         });
-
     });
-        });
+      //  });
     </script>
 }

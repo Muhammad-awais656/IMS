@@ -1,5 +1,180 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿@using IMS.DAL.PrimaryDBContext
+@model ProductViewModel;
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Edit Product</h2>
+    </div>
+    <div class="card-body">
+        <form asp-action="Edit" method="post" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <!-- Product Fields -->
+                    <input type="hidden" asp-for="ProductId" />
+                    <div class="mb-2">
+                        <label>Product name :</label>
+                        <input asp-for="ProductName" class="form-control" required />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Product code :</label>
+                        <input asp-for="ProductCode" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Description :</label>
+                        <textarea asp-for="ProductDescription" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Unit price :</label>
+                        <input asp-for="Price" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Measuring unit type :</label>
+                        @*   <select id="MeasuringUnitTypeId" asp-for="MUTId"
+                                asp-items="ViewBag.MeasuringUnitTypes"
+                                class="form-control">
+                            <option value=""><-- Select MU Type --></></option>
+                        
+                        </select> *@
+                        <select asp-for="MUTId" asp-items="ViewBag.MeasuringUnitTypes"
+                                class="form-control" id="MeasuringUnitTypeId">
+                            <option value="">-- Select MU Type --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Label :</label>
+                        <select asp-for="LabelId" asp-items="ViewBag.Labels" class="form-control">
+                            <option value=""><-- Select Label --></></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Category :</label>
+                        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control">
+                            <option value=""><-- Select Category --></></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Vendor :</label>
+                        <select asp-for="VendorId" asp-items="ViewBag.Vendors" class="form-control">
+                            <option value=""><-- Select Vendor --></></option>
+                        </select>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="IsEnabled" class="form-check-input" />
+                        <label class="form-check-label">Enabled</label>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <!-- Sizes -->
+                    <h6>Sizes</h6>
+                    <div class="modal fade" id="sizeModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content" id="sizeModalContent">
+                                <!-- Partial will load here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>MU</th>
+                                <th>Size from</th>
+                                <th>Size to</th>
+                                <th>Unit price</th>
+                                <th>Actions</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.productRanges.Count > 0)
+                            {
+                                @foreach (var item in Model.productRanges)
+                                {
+                                    <tr>
+                                        <td>@item.MeasuringUnitIdFk</td>
+                                        <td>@item.RangeFrom</td>
+                                        <td>@item.RangeTo</td>
+                                        <td>@item.UnitPrice</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-danger">Delete</button>
+                                        </td>
+                                    </tr>
+
+                                }
+
+                            }
+
+
+
+                        </tbody>
+                    </table>
+                    <button id="addSizeBtn" type="button" class="btn btn-sm btn-primary">Add size</button>
+
+
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Save</button>
+                <a asp-action="Index" class="btn btn-secondary">Close</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+            debugger;
+           // Declare variable in a broader scope
+            let measuringUnitTypeId = null;
+
+            // Log initial state
+            console.log("Initial MeasuringUnitTypeId:", measuringUnitTypeId);
+
+            // Capture MeasuringUnitTypeId on change
+            $("#MeasuringUnitTypeId").on("change", function () {
+                measuringUnitTypeId = $(this).val();
+                console.log("MeasuringUnitTypeId changed to:", measuringUnitTypeId);
+                if (!measuringUnitTypeId) {
+                    console.warn("No Measuring Unit Type selected.");
+                }
+            });
+            // Open Partial View in Modal
+            $("#addSizeBtn").click(function () {
+                debugger;
+                console.log("add button size call");
+                if (!measuringUnitTypeId) {
+                    alert("Please select a Measuring Unit Type first.");
+                    return;
+                }
+                console.log("MeasuringUnitTypeId changed in adbtnsize:",measuringUnitTypeId);
+                $.get("/Product/AddSizePartial", { measuringUnitTypeId: measuringUnitTypeId}, function (data) {
+                    $("#sizeModalContent").html(data);
+                    $("#sizeModal").modal("show");
+                });
+            });
+
+            // Save New Size
+            $(document).on("click", "#saveSizeBtn", function () {
+                var formData = $("#addSizeForm").serialize();
+
+                $.post("/Product/SaveSize", formData, function (row) {
+                    $("table tbody").append(row); // add new row
+                    $("#sizeModal").modal("hide");
+                });
+            });
+        });
+    </script>
 }

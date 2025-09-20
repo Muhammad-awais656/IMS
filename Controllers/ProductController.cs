@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+﻿using DocumentFormat.OpenXml.Office2010.Excel;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -118,22 +119,83 @@ namespace IMS.Controllers
         // POST: ProductController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<ActionResult> Create(IFormCollection collection)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
+              
+                if (ModelState.IsValid)
+                {
+                    var adminLabel = new Product
+                    {
+                        ProductName = collection["ProductName"],
+                        ProductCode = collection["ProductCode"],
+                        CategoryIdFk = Convert.ToInt64(collection["CategoryId"]),
+                        LabelIdFk = Convert.ToInt64(collection["LabelId"]),
+                        MeasuringUnitTypeIdFk = Convert.ToInt64(collection["MUTId"]),
+                        SupplierIdFk = Convert.ToInt64(collection["VendorId"]),
+                        UnitPrice = Convert.ToDecimal(collection["Price"]),
+                        ProductDescription = collection["ProductDescription"],
+                        IsEnabled = collection["IsEnabled"].ToString() == "on" ? (byte)1 : (byte)0
+                    };
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    long userId = long.Parse(userIdStr);
+                    adminLabel.CreatedBy = userId;
+                    adminLabel.CreatedDate = DateTime.Now;
+                    adminLabel.ModifiedBy = userId;
+                    adminLabel.ModifiedDate = DateTime.Now;
+                    
+                    var result = await _productService.CreateProductAsync(adminLabel);
+                    if (result)
+                    {
+                        TempData["Success"] = AlertMessages.RecordAdded;
+                        return RedirectToAction(nameof(Index));
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
+                        return View(nameof(Index));
+                    }
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return View();
+                TempData["ErrorMessage"] = ex.Message;
+                return View(nameof(Create));
             }
+            return View(nameof(Create));
         }
 
         // GET: ProductController/Edit/5
-        public ActionResult Edit(int id)
+        public async Task<ActionResult> Edit(long id=0)
         {
-            return View();
+            var model = new ProductViewModel();
+            var unit = await _productService.GetProductByIdAsync(id);
+            model.ProductId = unit.ProductList.ProductId;
+            model.ProductName = unit.ProductList.ProductName;
+            model.ProductCode=unit.ProductList.ProductCode;
+            model.ProductDescription = unit.ProductList.ProductDescription;
+            model.CategoryId = unit.ProductList.CategoryIdFk;
+            model.VendorId = unit.ProductList.SupplierIdFk;
+            model.LabelId = unit.ProductList.LabelIdFk;
+            model.IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled);
+            var model1 = new ProductViewModel
+            {
+                CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
+                LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
+                MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync(),
+                VendorsList = await _vendorService.GetAllEnabledVendors()
+            };
+            ViewBag.Categories = new SelectList(model1.CategoryNameList, "CategoryId", "CategoryName", unit.ProductList.CategoryIdFk);
+            ViewBag.Labels = new SelectList(model1.LabelNameList, "LabelId", "LabelName", unit.ProductList.LabelIdFk);
+            ViewBag.MeasuringUnitTypes = new SelectList(model1.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName",unit.ProductList.MeasuringUnitTypeIdFk);
+            ViewBag.Vendors = new SelectList(model1.VendorsList, "SupplierId", "SupplierName", unit.ProductList.SupplierIdFk);
+            model.productRanges.Add(unit.ProductRange);
+            if (unit == null)
+            {
+                return NotFound();
+            }
+            return View(model);
         }
 
         // POST: ProductController/Edit/5
@@ -192,12 +254,12 @@ namespace IMS.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        public async Task<ActionResult> AddSizePartial(long? MUTId)
+        public async Task<ActionResult> AddSizePartial(long? measuringUnitTypeId)
         {
             var model = new ProductViewModel
             {
 
-                MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(MUTId)
+                MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId)
 
             };
             ViewBag.MeasuringUnits = new SelectList(model.MeasuringUnitNameList, "MeasuringUnitId", "MeasuringUnitName");
@@ -206,18 +268,39 @@ namespace IMS.Controllers
         }
 
         [HttpPost]
-        public IActionResult SaveSize(ProductRange model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveSize(ProductRange model)
         {
-            if (ModelState.IsValid)
+            var res = false;
+            try
             {
-                // Save to DB
-                //_context.ProductRanges.Add(model);
-                //_context.SaveChanges();
 
-                // return the new row as partial
-                return PartialView("_SizeRow", model);
+                if (ModelState.IsValid)
+                {
+                    res = await _productService.CreateProductRange(model);
+                    return PartialView("_SizeRow", model);
+                }
+                if (res != false)
+                {
+                    TempData["Success"] = AlertMessages.RecordDeleted;
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = AlertMessages.RecordNotDeleted;
+                    return RedirectToAction(nameof(Index));
+                }
+
             }
-            return BadRequest();
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+
+            }
+
+            return RedirectToAction(nameof(Index));
+
+           
         }
         //[HttpGet]
         //public async Task<ActionResult> GetMeasuringUnits(int MUTId)
