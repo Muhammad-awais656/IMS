@@ -52,17 +52,47 @@ namespace IMS.Services
                             {
                                 sale.Add(new salesReportItems
                                 {
-                                    SaleId = reader.GetInt64(reader.GetOrdinal("SaleId")),
-                                    CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
-                                    BillNumber = reader.GetInt64(reader.GetOrdinal("BillNumber")),
-                                    SaleDate = reader.GetDateTime(reader.GetOrdinal("SaleDate")),
-                                    TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
-                                    DiscountAmount = reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
-                                    TotalReceivedAmount = reader.GetDecimal(reader.GetOrdinal("TotalReceivedAmount")),
-                                    CustomerIdFk = reader.GetInt64(reader.GetOrdinal("CustomerId_FK")),
-                                    TotalDueAmount = reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
-                                    SaleDescription = reader.GetString(reader.GetOrdinal("SaleDescription")),
-                                  
+                                    SaleId = reader.IsDBNull(reader.GetOrdinal("SaleId"))
+            ? 0
+            : reader.GetInt64(reader.GetOrdinal("SaleId")),
+
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName"))
+            ? string.Empty
+            : reader.GetString(reader.GetOrdinal("CustomerName")),
+
+                                    BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber"))
+            ? 0
+            : reader.GetInt64(reader.GetOrdinal("BillNumber")),
+
+                                    SaleDate = reader.IsDBNull(reader.GetOrdinal("SaleDate"))
+            ? DateTime.MinValue
+            : reader.GetDateTime(reader.GetOrdinal("SaleDate")),
+
+                                    TotalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
+            ? 0m
+            : reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+
+                                    DiscountAmount = reader.IsDBNull(reader.GetOrdinal("DiscountAmount"))
+            ? 0m
+            : reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
+
+                                    TotalReceivedAmount = reader.IsDBNull(reader.GetOrdinal("TotalReceivedAmount"))
+            ? 0m
+            : reader.GetDecimal(reader.GetOrdinal("TotalReceivedAmount")),
+
+                                    CustomerIdFk = reader.IsDBNull(reader.GetOrdinal("CustomerId_FK"))
+            ? 0
+            : reader.GetInt64(reader.GetOrdinal("CustomerId_FK")),
+
+                                    TotalDueAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount"))
+            ? 0m
+            : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
+
+                                    SaleDescription = reader.IsDBNull(reader.GetOrdinal("SaleDescription"))
+            ? string.Empty
+            : reader.GetString(reader.GetOrdinal("SaleDescription")),
+
+
                                 });
                               
 
