@@ -9,25 +9,26 @@
     <form id="addSizeForm">
         <div class="mb-2">
             <label>Measuring Unit</label>
-            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control">
+            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control" required>
                 <option value="">-- Select Measuring Unit --</option>
             </select>
         </div>
         <div class="mb-2">
             <label>Size From</label>
-            <input name="RangeFrom" class="form-control" required />
+            <input name="RangeFrom" type="number" step="0.001" class="form-control" required />
         </div>
         <div class="mb-2">
             <label>Size To</label>
-            <input name="RangeTo" class="form-control" required />
+            <input name="RangeTo" type="number" step="0.001" class="form-control" required />
         </div>
         <div class="mb-2">
             <label>Unit Price</label>
-            <input name="UnitPrice" class="form-control" required />
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary" id="saveSizeBtn">Save</button>
+            <input name="UnitPrice" type="number" step="0.001" class="form-control" required />
         </div>
     </form>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-primary" id="saveSizeBtn">Save</button>
 </div>

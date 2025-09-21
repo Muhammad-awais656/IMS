@@ -119,51 +119,134 @@ namespace IMS.Controllers
         // POST: ProductController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(IFormCollection collection)
+        public async Task<ActionResult> Create(ProductViewModel model)
         {
             try
             {
-              
+                // Remove ProductRange validation errors from ModelState since we handle them separately
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("ProductRange"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                    if (key.StartsWith("ProductList"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
+
+                // Validate only the main product properties
                 if (ModelState.IsValid)
                 {
-                    var adminLabel = new Product
+                    // Check if product code already exists
+                    if (!string.IsNullOrEmpty(model.ProductCode))
                     {
-                        ProductName = collection["ProductName"],
-                        ProductCode = collection["ProductCode"],
-                        CategoryIdFk = Convert.ToInt64(collection["CategoryId"]),
-                        LabelIdFk = Convert.ToInt64(collection["LabelId"]),
-                        MeasuringUnitTypeIdFk = Convert.ToInt64(collection["MUTId"]),
-                        SupplierIdFk = Convert.ToInt64(collection["VendorId"]),
-                        UnitPrice = Convert.ToDecimal(collection["Price"]),
-                        ProductDescription = collection["ProductDescription"],
-                        IsEnabled = collection["IsEnabled"].ToString() == "on" ? (byte)1 : (byte)0
+                        var codeExists = await _productService.ProductCodeExistsAsync(model.ProductCode);
+                        if (codeExists)
+                        {
+                            TempData["WarningMessage"] = "Product code already exists. Please use a different code.";
+                            TempData["InfoMessage"] = "Product code already exists. Please use a different code.";
+
+                        }
+                    }
+
+                    // Validate product ranges if any exist
+                    if (model.productRanges != null && model.productRanges.Any())
+                    {
+                        for (int i = 0; i < model.productRanges.Count; i++)
+                        {
+                            var range = model.productRanges[i];
+                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            {
+                                
+                                TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";
+                            }
+                        }
+                    }
+
+                    // If there are validation errors, reload the view
+                    if (!ModelState.IsValid)
+                    {
+                        await ReloadViewDataAsync(model);
+                        return View(model);
+                    }
+
+                    var product = new Product
+                    {
+                        ProductName = model.ProductName,
+                        ProductCode = model.ProductCode,
+                        CategoryIdFk = model.CategoryId ?? 0,
+                        LabelIdFk = model.LabelId ?? 0,
+                        MeasuringUnitTypeIdFk = model.MUTId,
+                        SupplierIdFk = model.VendorId,
+                        UnitPrice = model.Price,
+                        ProductDescription = model.ProductDescription,
+                        IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
+                        SizeIdFk = 0 // Default value as per your SP
                     };
+                    
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    adminLabel.CreatedBy = userId;
-                    adminLabel.CreatedDate = DateTime.Now;
-                    adminLabel.ModifiedBy = userId;
-                    adminLabel.ModifiedDate = DateTime.Now;
+                    product.CreatedBy = userId;
+                    product.CreatedDate = DateTime.Now;
+                    product.ModifiedBy = userId;
+                    product.ModifiedDate = DateTime.Now;
                     
-                    var result = await _productService.CreateProductAsync(adminLabel);
+                    var result = await _productService.CreateProductAsync(product);
                     if (result)
                     {
+                        // Get the created product ID
+                        var createdProduct = await _productService.GetProductByCodeAsync(model.ProductCode);
+                        if (createdProduct != null && model.productRanges != null && model.productRanges.Any())
+                        {
+                            // Save all product ranges
+                            foreach (var range in model.productRanges)
+                            {
+                                range.ProductIdFk = createdProduct.ProductId;
+                                await _productService.CreateProductRange(range);
+                            }
+                        }
+                        
                         TempData["Success"] = AlertMessages.RecordAdded;
                         return RedirectToAction(nameof(Index));
                     }
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(nameof(Index));
+                        await ReloadViewDataAsync(model);
+                        return View(model);
                     }
                 }
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(nameof(Create));
+                await ReloadViewDataAsync(model);
+                return View(model);
             }
-            return View(nameof(Create));
+            
+            // Reload the view with necessary data if validation fails
+            await ReloadViewDataAsync(model);
+            return View(model);
+        }
+
+        private async Task ReloadViewDataAsync(ProductViewModel model)
+        {
+            model.CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync();
+            model.LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync();
+            model.MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync();
+            model.VendorsList = await _vendorService.GetAllEnabledVendors();
+            
+            ViewBag.Categories = new SelectList(model.CategoryNameList, "CategoryId", "CategoryName");
+            ViewBag.Labels = new SelectList(model.LabelNameList, "LabelId", "LabelName");
+            ViewBag.MeasuringUnitTypes = new SelectList(model.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName");
+            ViewBag.Vendors = new SelectList(model.VendorsList, "SupplierId", "SupplierName");
         }
 
         // GET: ProductController/Edit/5
@@ -179,6 +262,7 @@ namespace IMS.Controllers
             model.VendorId = unit.ProductList.SupplierIdFk;
             model.LabelId = unit.ProductList.LabelIdFk;
             model.IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled);
+            model.Price = unit.ProductRange.UnitPrice;
             var model1 = new ProductViewModel
             {
                 CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
@@ -201,16 +285,121 @@ namespace IMS.Controllers
         // POST: ProductController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public async Task<ActionResult> Edit(ProductViewModel model)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
+                // Remove ProductRange validation errors from ModelState since we handle them separately
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("ProductRange"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                    if (key.StartsWith("ProductList"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
+
+                // Validate only the main product properties
+                if (ModelState.IsValid)
+                {
+                    // Check if product code already exists (excluding current product)
+                    if (!string.IsNullOrEmpty(model.ProductCode))
+                    {
+                        var codeExists = await _productService.ProductCodeExistsAsync(model.ProductCode, model.ProductId);
+                        if (codeExists)
+                        {
+                            
+                            TempData["WarningMessage"] = "Product code already exists. Please use a different code.";
+                        }
+                    }
+
+                    // Validate product ranges if any exist
+                    if (model.productRanges != null && model.productRanges.Any())
+                    {
+                        for (int i = 0; i < model.productRanges.Count; i++)
+                        {
+                            var range = model.productRanges[i];
+                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            {
+                               
+                                TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";
+                            }
+                        }
+                    }
+
+                    // If there are validation errors, reload the view
+                    if (!ModelState.IsValid)
+                    {
+                        await ReloadViewDataAsync(model);
+                        return View(model);
+                    }
+
+                    var product = new Product
+                    {
+                        ProductId = model.ProductId,
+                        ProductName = model.ProductName,
+                        ProductCode = model.ProductCode,
+                        CategoryIdFk = model.CategoryId ?? 0,
+                        LabelIdFk = model.LabelId ?? 0,
+                        MeasuringUnitTypeIdFk = model.MUTId,
+                        SupplierIdFk = model.VendorId,
+                        UnitPrice = model.Price,
+                        ProductDescription = model.ProductDescription,
+                        IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
+                        SizeIdFk = 0 // Default value as per your SP
+                    };
+                    
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    long userId = long.Parse(userIdStr);
+                    product.ModifiedBy = userId;
+                    product.ModifiedDate = DateTime.Now;
+                    
+                    var result = await _productService.UpdateProductAsync(product);
+                    if (result > 0)
+                    {
+                        // Update product ranges
+                        if (model.productRanges != null && model.productRanges.Any())
+                        {
+                            // First, delete existing product ranges for this product
+                            await _productService.DeleteProductRangesByProductIdAsync(model.ProductId);
+                            
+                            // Then add the updated product ranges
+                            foreach (var range in model.productRanges)
+                            {
+                                range.ProductIdFk = model.ProductId;
+                                await _productService.CreateProductRange(range);
+                            }
+                        }
+                        
+                        TempData["Success"] = AlertMessages.RecordUpdated;
+                        return RedirectToAction(nameof(Index));
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
+                        await ReloadViewDataAsync(model);
+                        return View(model);
+                    }
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return View();
+                TempData["ErrorMessage"] = ex.Message;
+                await ReloadViewDataAsync(model);
+                return View(model);
             }
+            
+            // Reload the view with necessary data if validation fails
+            await ReloadViewDataAsync(model);
+            return View(model);
         }
 
         // GET: ProductController/Delete/5
@@ -258,55 +447,22 @@ namespace IMS.Controllers
         {
             var model = new ProductViewModel
             {
-
                 MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId)
-
             };
             ViewBag.MeasuringUnits = new SelectList(model.MeasuringUnitNameList, "MeasuringUnitId", "MeasuringUnitName");
-            //await GetMeasuringUnits(MUTId);
             return PartialView("_AddSize", new ProductRange());
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveSize(ProductRange model)
+        [HttpGet]
+        public async Task<IActionResult> CheckProductCode(string productCode, long? excludeProductId = null)
         {
-            var res = false;
-            try
+            if (string.IsNullOrEmpty(productCode))
             {
-
-                if (ModelState.IsValid)
-                {
-                    res = await _productService.CreateProductRange(model);
-                    return PartialView("_SizeRow", model);
-                }
-                if (res != false)
-                {
-                    TempData["Success"] = AlertMessages.RecordDeleted;
-                    return RedirectToAction(nameof(Index));
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = AlertMessages.RecordNotDeleted;
-                    return RedirectToAction(nameof(Index));
-                }
-
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = ex.Message;
-
+                return Json(false);
             }
 
-            return RedirectToAction(nameof(Index));
-
-           
+            var exists = await _productService.ProductCodeExistsAsync(productCode, excludeProductId);
+            return Json(exists);
         }
-        //[HttpGet]
-        //public async Task<ActionResult> GetMeasuringUnits(int MUTId)
-        //{
-            
-        //}
-
     }
 }

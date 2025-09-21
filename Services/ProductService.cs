@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Office2010.Excel;
+﻿using Azure;
+using DocumentFormat.OpenXml.Office2010.Excel;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -83,31 +84,61 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("DeleteProductById", connection))
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        command.Parameters.AddWithValue("@pProductId", id);
-                        command.CommandType = CommandType.StoredProcedure;
-                        var RowAffected = new SqlParameter("@RowsAffected", SqlDbType.Int)
+                        try
                         {
-                            Direction = ParameterDirection.Output
-                        };
-                        command.Parameters.Add(RowAffected);
+                            // First SP
+                            using (var command = new SqlCommand("DeleteProductById", connection, transaction))
+                            {
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pProductId", id);
 
-                        int rowsAffected = await command.ExecuteNonQueryAsync();
-                        if (rowsAffected != 0)
-                        {
-                            response = rowsAffected;
+                                var rowAffected = new SqlParameter("@RowsAffected", SqlDbType.Int)
+                                {
+                                    Direction = ParameterDirection.Output
+                                };
+                                command.Parameters.Add(rowAffected);
+
+                                await command.ExecuteNonQueryAsync();
+                                int affected = command.Parameters["@RowsAffected"].Value != DBNull.Value
+                                    ? (int)command.Parameters["@RowsAffected"].Value
+                                      : 0;
+                                if (affected > 0)
+                                {
+                                    response = affected;
+                                }
+
+
+                            }
+
+                            // Second SP
+                            using (var command2 = new SqlCommand("DeleteProductRangeByProductId", connection, transaction))
+                            {
+                                command2.CommandType = CommandType.StoredProcedure;
+                                command2.Parameters.AddWithValue("@pProductId", id);
+        
+                                await command2.ExecuteNonQueryAsync();
+                            }
+
+                            // Commit both
+                            transaction.Commit();
                         }
-
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-
+                // log ex
             }
             return response;
         }
+
 
 
         public async Task<ProductViewModel> GetAllProductAsync(int pageNumber, int? pageSize, ProductFilters productFilters)
@@ -237,7 +268,8 @@ namespace IMS.Services
             var productList = new Product();
           
            
-            var productRanges = new ProductRange();
+            var productRanges = new List<ProductRange>();
+            var updatedRoductRange = new ProductRange();
 
             try
             {
@@ -252,7 +284,7 @@ namespace IMS.Services
                         {
                             using (var reader = await command.ExecuteReaderAsync())
                             {
-                                if (await reader.ReadAsync())
+                                while (await reader.ReadAsync())
                                 {
                                     productList= new Product
                                     {
@@ -270,7 +302,7 @@ namespace IMS.Services
                                     };
                                     if (reader.GetInt64(reader.GetOrdinal("ProductId_FK")).ToString()!=null)
                                     {
-                                        productRanges = new ProductRange
+                                        productRanges.Add(new ProductRange
                                         {
                                             ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
                                             MeasuringUnitIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId_Fk")),
@@ -278,7 +310,7 @@ namespace IMS.Services
                                             RangeTo = reader.GetDecimal(reader.GetOrdinal("RangeTo")),
                                             UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice"))
                                            
-                                        };
+                                        });
 
                                     }
                                     
@@ -301,7 +333,7 @@ namespace IMS.Services
             }
             return new ProductViewModel {
                 ProductList = productList,
-                ProductRange = productRanges
+                ProductRange = productRanges.LastOrDefault().RangeTo!=0 ? productRanges.LastOrDefault() : updatedRoductRange,
                 //SizeNameList = sizeNameList
 
             };
@@ -309,7 +341,7 @@ namespace IMS.Services
 
         public async Task<int> UpdateProductAsync(Product product)
         {
-            var RowsAffectedResponse = 0;
+            long RowsAffectedResponse = 0;
 
             try
             {
@@ -324,9 +356,9 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSizeId_FK", product.SizeIdFk);
                         command.Parameters.AddWithValue("@pLabelId_FK", product.LabelIdFk);
                         command.Parameters.AddWithValue("@pModifiedDate", product?.ModifiedDate == default(DateTime) ? DBNull.Value : product?.ModifiedDate);
-                        command.Parameters.AddWithValue("@pCreatedDate", product?.CreatedDate == default(DateTime) ? DBNull.Value : product?.CreatedDate);
+                        
                         command.Parameters.AddWithValue("@pModifiedBy", product?.ModifiedBy);
-                        command.Parameters.AddWithValue("@pCreatedBy", product?.CreatedBy);
+                        
                         command.Parameters.AddWithValue("@pProductId", product?.ProductId);
                         command.Parameters.AddWithValue("@pUnitPrice", product?.UnitPrice);
                         command.Parameters.AddWithValue("@pProductCode", product?.ProductCode);
@@ -341,10 +373,13 @@ namespace IMS.Services
                         };
                         command.Parameters.Add(expenseTypeidParam);
 
-                        int rowsAffected = await command.ExecuteNonQueryAsync();
-                        if (rowsAffected != 0)
+                        await command.ExecuteNonQueryAsync();
+                        long affected = command.Parameters["@RowsAffected"].Value != DBNull.Value
+                                        ? (long)command.Parameters["@RowsAffected"].Value
+                                          : 0;
+                        if (affected > 0)
                         {
-                            RowsAffectedResponse = rowsAffected;
+                            RowsAffectedResponse = affected;
                         }
                     }
                 }
@@ -352,7 +387,7 @@ namespace IMS.Services
             catch
             {
             }
-            return RowsAffectedResponse;
+            return (int)RowsAffectedResponse;
         }
 
         public async Task<bool> CreateProductRange(ProductRange productRange)
@@ -394,6 +429,105 @@ namespace IMS.Services
 
             }
             return response;
+        }
+
+        public async Task<Product?> GetProductByCodeAsync(string productCode)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("SELECT TOP 1 * FROM Products WHERE ProductCode = @ProductCode ORDER BY ProductId DESC", connection))
+                    {
+                        command.Parameters.AddWithValue("@ProductCode", productCode);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                return new Product
+                                {
+                                    ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    ProductDescription = reader.IsDBNull(reader.GetOrdinal("ProductDescription")) ? null : reader.GetString(reader.GetOrdinal("ProductDescription")),
+                                    CategoryIdFk = reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
+                                    LabelIdFk = reader.GetInt64(reader.GetOrdinal("LabelId_FK")),
+                                    MeasuringUnitTypeIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
+                                    SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK")),
+                                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled")),
+                                    SizeIdFk = reader.GetInt64(reader.GetOrdinal("SizeId_FK")),
+                                    CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
+                                    CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                                    ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
+                                    ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate"))
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Log error if needed
+            }
+            return null;
+        }
+
+        public async Task<bool> ProductCodeExistsAsync(string productCode, long? excludeProductId = null)
+        {
+            bool response = false;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("ProductCodeAlreadyExists", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pProductCode", productCode);
+                        command.Parameters.AddWithValue("@pProductId", excludeProductId ?? 0);
+
+                        var returnValue = new SqlParameter("@RETURN_VALUE", SqlDbType.Int)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(returnValue);
+
+                        await command.ExecuteNonQueryAsync();
+                        response = (int)returnValue.Value == 1;
+                    }
+                }
+            }
+            catch
+            {
+                // Log error if needed
+                return false;
+            }
+            return response;
+        }
+
+        public async Task<bool> DeleteProductRangesByProductIdAsync(long productId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("DELETE FROM ProductRange WHERE ProductId_FK = @ProductId", connection))
+                    {
+                        command.Parameters.AddWithValue("@ProductId", productId);
+                        int rowsAffected = await command.ExecuteNonQueryAsync();
+                        return rowsAffected >= 0; // Return true even if no rows were affected
+                    }
+                }
+            }
+            catch
+            {
+                // Log error if needed
+                return false;
+            }
         }
     }
 }

@@ -6,7 +6,16 @@
         <h2 class="mb-0">Create Product</h2>
     </div>
     <div class="card-body">
-        <form asp-action="Create" method="post" enctype="multipart/form-data">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">@TempData["Success"]</div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+        }
+        
+        <form asp-action="Create" method="post" enctype="multipart/form-data" id="productForm">
             <div class="row">
                 <div class="col-md-6">
                     <!-- Product Fields -->
@@ -14,63 +23,62 @@
                     <div class="mb-2">
                         <label>Product name :</label>
                         <input asp-for="ProductName" class="form-control" required/>
+                        <span asp-validation-for="ProductName" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Product code :</label>
-                        <input asp-for="ProductCode" class="form-control" />
+                        <input asp-for="ProductCode" id="ProductCode" class="form-control" />
+                        <span asp-validation-for="ProductCode" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Description :</label>
-                        <textarea asp-for="ProductDescription" class="form-control"></textarea>
+                        <textarea asp-for="ProductDescription" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="ProductDescription" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Unit price :</label>
-                        <input asp-for="Price" class="form-control" />
+                        <input asp-for="Price" class="form-control" type="number" step="0.01" />
+                        <span asp-validation-for="Price" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Measuring unit type :</label>
-                      @*   <select id="MeasuringUnitTypeId" asp-for="MUTId"
-                                asp-items="ViewBag.MeasuringUnitTypes"
-                                class="form-control">
-                            <option value=""><-- Select MU Type --></></option>
-                        
-                        </select> *@
                         <select asp-for="MUTId" asp-items="ViewBag.MeasuringUnitTypes"
                                 class="form-control" id="MeasuringUnitTypeId">
                             <option value="">-- Select MU Type --</option>
                         </select>
+                        <span asp-validation-for="MUTId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Label :</label>
                         <select asp-for="LabelId" asp-items="ViewBag.Labels" class="form-control">
-                            <option value=""><-- Select Label --></></option>
+                            <option value="">-- Select Label --</option>
                         </select>
+                        <span asp-validation-for="LabelId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Category :</label>
                         <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control">
-                            <option value=""><-- Select Category --></></option>
+                            <option value="">-- Select Category --</option>
                         </select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Vendor :</label>
                         <select asp-for="VendorId" asp-items="ViewBag.Vendors" class="form-control">
-                            <option value=""><-- Select Vendor --></></option>
+                            <option value="">-- Select Vendor --</option>
                         </select>
+                        <span asp-validation-for="VendorId" class="text-danger"></span>
                     </div>
 
                     <div class="form-check">
-                        @* <input asp-for="IsEnabled" value="" class="form-check-input" /> *@
-                        <input asp-for="IsEnabled" name="IsEnabled" type="checkbox" value="true" class="form-check-input" />
-                        <input asp-for="IsEnabled" name="IsEnabled" type="hidden" value="false" class="form-check-input" />
-
+                        <input asp-for="IsEnabled" type="checkbox" class="form-check-input" />
                         <label class="form-check-label">Enabled</label>
                     </div>
                 </div>
@@ -78,15 +86,7 @@
                 <div class="col-md-6">
                     <!-- Sizes -->
                     <h6>Sizes</h6>
-                    <div class="modal fade" id="sizeModal" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content" id="sizeModalContent">
-                                <!-- Partial will load here -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <table class="table table-bordered">
+                    <table class="table table-bordered" id="sizesTable">
                         <thead>
                             <tr>
                                 <th>MU</th>
@@ -94,189 +94,304 @@
                                 <th>Size to</th>
                                 <th>Unit price</th>
                                 <th>Actions</th>
-
                             </tr>
                         </thead>
-                        <tbody>
-                            @if (Model.productRanges.Count > 0)
+                        <tbody id="sizesTableBody">
+                            @if (Model.productRanges != null && Model.productRanges.Count > 0)
                             {
                                 @foreach (var item in Model.productRanges)
                                 {
-                                    <tr>
+                                    <tr data-measuring-unit-id="@item.MeasuringUnitIdFk" 
+                                        data-range-from="@item.RangeFrom" 
+                                        data-range-to="@item.RangeTo" 
+                                        data-unit-price="@item.UnitPrice">
                                         <td>@item.MeasuringUnitIdFk</td>
                                         <td>@item.RangeFrom</td>
                                         <td>@item.RangeTo</td>
                                         <td>@item.UnitPrice</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-primary">Edit</button>
-                                            <button type="button" class="btn btn-sm btn-danger">Delete</button>
+                                            <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
                                         </td>
                                     </tr>
-
                                 }
-
                             }
-
-
-
                         </tbody>
                     </table>
                     <button id="addSizeBtn" type="button" class="btn btn-sm btn-primary">Add size</button>
-
-                    
                 </div>
             </div>
 
             <div class="mt-3">
-                <button id="saveSizeBtn" type="submit" class="btn btn-success">Save</button>
+                <button type="submit" class="btn btn-success">Save</button>
                 <a asp-action="Index" class="btn btn-secondary">Close</a>
             </div>
         </form>
     </div>
-    <!-- Modal container -->
-    <div class="modal fade" id="sizeModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" id="sizeModalContent">
+</div>
 
-                <div class="modal-header">
-                    <h5 class="modal-title">Add Size</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body">
-                    <form id="addSizeForm">
-                        <div class="mb-2">
-                            <label>Measuring Unit</label>
-                            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control">
-                                <option value="">-- Select Measuring Unit --</option>
-                            </select>
-                        </div>
-                        <div class="mb-2">
-                            <label>Size From</label>
-                            <input name="RangeFrom" class="form-control" required />
-                        </div>
-                        <div class="mb-2">
-                            <label>Size To</label>
-                            <input name="RangeTo" class="form-control" required />
-                        </div>
-                        <div class="mb-2">
-                            <label>Unit Price</label>
-                            <input name="UnitPrice" class="form-control" required />
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-primary" id="saveSizeBtn">Save</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<!-- Add Size Modal -->
+<div class="modal fade" id="sizeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="sizeModalContent">
+            <!-- Content will be loaded here -->
         </div>
     </div>
-
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        // $(document).ready(function () {
-            //debugger;
-           // Declare variable in a broader scope
+        $(document).ready(function () {
             let measuringUnitTypeId = null;
+            let sizeCounter = 0;
+            let editingSizeId = null; // Track which size is being edited
 
-            // Log initial state
+            // Initialize measuringUnitTypeId with current value on page load
+            measuringUnitTypeId = $("#MeasuringUnitTypeId").val();
             console.log("Initial MeasuringUnitTypeId:", measuringUnitTypeId);
 
             // Capture MeasuringUnitTypeId on change
             $("#MeasuringUnitTypeId").on("change", function () {
                 measuringUnitTypeId = $(this).val();
                 console.log("MeasuringUnitTypeId changed to:", measuringUnitTypeId);
-                if (!measuringUnitTypeId) {
-                    console.warn("No Measuring Unit Type selected.");
-                }
             });
-            // Open Partial View in Modal
+
+            // Open Add Size Modal
             $("#addSizeBtn").click(function () {
-                debugger;
-                console.log("add button size call");
-                if (!measuringUnitTypeId) {
-                    alert("Please select a Measuring Unit Type first.");
+                if (!measuringUnitTypeId || measuringUnitTypeId === "" || measuringUnitTypeId === "0") {
+                    alert("Please select a Measuring Unit Type first before adding sizes.");
+                    $("#MeasuringUnitTypeId").focus();
                     return;
                 }
-                console.log("MeasuringUnitTypeId changed in adbtnsize:",measuringUnitTypeId);
-                // $.get("/Product/AddSizePartial?id=",  measuringUnitTypeId, function (data) {
-                //     $("#sizeModalContent").html(data);
-                //     $("#sizeModal").modal("show");
-                // });
-                        $.ajax({
-            url: "/Product/AddSizePartial",
-            type: "GET",
-            data: { measuringUnitTypeId: measuringUnitTypeId },
-            success: function (data) {
-                $("#sizeModalContent").html(data);
-                $("#sizeModal").modal("show");
-            },
-            error: function (xhr, status, error) {
-                console.error("Error loading partial view:", error);
-                alert("Failed to load size form. Please try again.");
-            }
-        });
+
+                editingSizeId = null; // Reset editing mode
+                $.ajax({
+                    url: "/Product/AddSizePartial",
+                    type: "GET",
+                    data: { measuringUnitTypeId: measuringUnitTypeId },
+                    success: function (data) {
+                        $("#sizeModalContent").html(data);
+                        $("#sizeModal .modal-title").text("Add Size");
+                        $("#sizeModal").modal("show");
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error loading partial view:", error);
+                        alert("Failed to load size form. Please try again.");
+                    }
+                });
             });
 
-            // Save New Size
-            // $(document).on("click", "#saveSizeBtn", function () {
-            //     console.log("saveSizeBtn is call");
-            //     var formData = $("#addSizeForm").serialize();
+            // Save Size from Modal (Add or Edit)
+            $(document).on("click", "#saveSizeBtn", function (e) {
+                e.preventDefault();
+                
+                var measuringUnitId = $("#addSizeForm select[name='MeasuringUnitIdFk']").val();
+                var rangeFrom = $("#addSizeForm input[name='RangeFrom']").val();
+                var rangeTo = $("#addSizeForm input[name='RangeTo']").val();
+                var unitPrice = $("#addSizeForm input[name='UnitPrice']").val();
 
-            //     $.post("/Product/SaveSize", formData, function (row) {
-            //         $("table tbody").append(row); // add new row
-            //         $("#sizeModal").modal("hide");
-            //     });
-            // });
-        //    $(document).on("click", "#saveSizeBtn", function (e) {
-        //        debugger;
-        //     e.preventDefault(); 
-        //     console.log("saveSizeBtn is called");
+                if (!measuringUnitId || !rangeFrom || !rangeTo || !unitPrice) {
+                    alert("Please fill in all fields.");
+                    return;
+                }
 
-           
-        //   var formData = $("#addSizeForm").serialize();
-        //         console.log("Saving size with form data:", formData);
-        //     $.post("/Product/SaveSize", formData, function (row) {
-        //         $("table tbody").append(row); 
-        //         $("#sizeModal").modal("hide");
-        //     }).fail(function (xhr) {
-        //         alert("Error: " + xhr.responseText);
-        //     });
-        // });
+                // Validate numeric values
+                if (parseFloat(rangeFrom) <= 0 || parseFloat(rangeTo) <= 0 || parseFloat(unitPrice) <= 0) {
+                    alert("All numeric values must be greater than 0.");
+                    return;
+                }
 
+                if (parseFloat(rangeFrom) >= parseFloat(rangeTo)) {
+                    alert("Range From must be less than Range To.");
+                    return;
+                }
 
-        // });
-        $(document).on("click", "#saveSizeBtn", function (e) {
-               debugger;
-            e.preventDefault();
-            console.log("saveSizeBtn is called");
-                var formData = $(this).serialize();
-                    console.log("Saving size with form data:", formData);
-
-            var formData = {
-            MeasuringUnitIdFk: $("#addSizeForm[name='MeasuringUnitIdFk']").val(),
-            RangeFrom: $("#addSizeForm[name='RangeFrom']").val(),
-            RangeTo: $("#addSizeForm[name='RangeTo']").val(),
-            UnitPrice: $("#addSizeForm[name='UnitPrice']").val()
-        };
-
-        $.ajax({
-            url: "/Product/SaveSize",
-            type: "POST",
-            data: formData,
-            success: function (row) {
-                $("table tbody").append(row);
+                if (editingSizeId) {
+                    // Update existing size
+                    updateSizeInTable(editingSizeId, measuringUnitId, rangeFrom, rangeTo, unitPrice);
+                } else {
+                    // Add new size
+                    addSizeToTable(measuringUnitId, rangeFrom, rangeTo, unitPrice);
+                }
+                
+                // Clear form and close modal
+                $("#addSizeForm")[0].reset();
                 $("#sizeModal").modal("hide");
-            },
-            error: function (xhr) {
-                alert("Error: " + xhr.responseText);
+                editingSizeId = null;
+            });
+
+            // Add size to table
+            function addSizeToTable(measuringUnitId, rangeFrom, rangeTo, unitPrice) {
+                sizeCounter++;
+                // Convert to numbers to ensure proper data types
+                var measuringUnitIdNum = parseInt(measuringUnitId);
+                var rangeFromNum = parseFloat(rangeFrom);
+                var rangeToNum = parseFloat(rangeTo);
+                var unitPriceNum = parseFloat(unitPrice);
+                
+                var row = `
+                    <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" 
+                        data-range-from="${rangeFromNum}" data-range-to="${rangeToNum}" data-unit-price="${unitPriceNum}">
+                        <td>${measuringUnitIdNum}</td>
+                        <td>${rangeFromNum}</td>
+                        <td>${rangeToNum}</td>
+                        <td>${unitPriceNum}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
+                            <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                $("#sizesTableBody").append(row);
             }
+
+            // Update size in table
+            function updateSizeInTable(sizeId, measuringUnitId, rangeFrom, rangeTo, unitPrice) {
+                var measuringUnitIdNum = parseInt(measuringUnitId);
+                var rangeFromNum = parseFloat(rangeFrom);
+                var rangeToNum = parseFloat(rangeTo);
+                var unitPriceNum = parseFloat(unitPrice);
+                
+                var $row = $(`tr[data-size-id="${sizeId}"]`);
+                $row.attr("data-measuring-unit-id", measuringUnitIdNum);
+                $row.attr("data-range-from", rangeFromNum);
+                $row.attr("data-range-to", rangeToNum);
+                $row.attr("data-unit-price", unitPriceNum);
+                
+                $row.find("td:eq(0)").text(measuringUnitIdNum);
+                $row.find("td:eq(1)").text(rangeFromNum);
+                $row.find("td:eq(2)").text(rangeToNum);
+                $row.find("td:eq(3)").text(unitPriceNum);
+            }
+
+            // Remove size from table
+            $(document).on("click", ".remove-size-btn", function () {
+                $(this).closest("tr").remove();
+            });
+
+            // Edit Size Button Click
+            $(document).on("click", ".edit-size-btn", function () {
+                var $row = $(this).closest("tr");
+                var sizeId = $row.data("size-id");
+                var measuringUnitId = $row.data("measuring-unit-id");
+                var rangeFrom = $row.data("range-from");
+                var rangeTo = $row.data("range-to");
+                var unitPrice = $row.data("unit-price");
+
+                editingSizeId = sizeId; // Set editing mode
+
+                if (!measuringUnitTypeId || measuringUnitTypeId === "" || measuringUnitTypeId === "0") {
+                    alert("Please select a Measuring Unit Type first before editing sizes.");
+                    $("#MeasuringUnitTypeId").focus();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/Product/AddSizePartial",
+                    type: "GET",
+                    data: { measuringUnitTypeId: measuringUnitTypeId },
+                    success: function (data) {
+                        $("#sizeModalContent").html(data);
+                        $("#sizeModal .modal-title").text("Edit Size");
+                        
+                        // Populate form with existing data
+                        $("#addSizeForm select[name='MeasuringUnitIdFk']").val(measuringUnitId);
+                        $("#addSizeForm input[name='RangeFrom']").val(rangeFrom);
+                        $("#addSizeForm input[name='RangeTo']").val(rangeTo);
+                        $("#addSizeForm input[name='UnitPrice']").val(unitPrice);
+                        
+                        $("#sizeModal").modal("show");
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error loading partial view:", error);
+                        alert("Failed to load size form. Please try again.");
+                    }
+                });
+            });
+
+            // Check product code availability on blur
+            $("#ProductCode").on("blur", function () {
+                var productCode = $(this).val();
+                if (productCode && productCode.trim() !== "") {
+                    $.ajax({
+                        url: "/Product/CheckProductCode",
+                        type: "GET",
+                        data: { productCode: productCode },
+                        success: function (exists) {
+                            if (exists) {
+                                $("#ProductCode").addClass("is-invalid");
+                                if ($("#product-code-error").length === 0) {
+                                    $("#ProductCode").after('<div id="product-code-error" class="invalid-feedback">Product code already exists. Please use a different code.</div>');
+                                }
+                            } else {
+                                $("#ProductCode").removeClass("is-invalid").addClass("is-valid");
+                                $("#product-code-error").remove();
+                            }
+                        },
+                        error: function () {
+                            console.log("Error checking product code availability");
+                        }
+                    });
+                } else {
+                    $("#ProductCode").removeClass("is-invalid is-valid");
+                    $("#product-code-error").remove();
+                }
+            });
+
+            // Form submission - collect all sizes and add as hidden inputs
+            $("#productForm").on("submit", function (e) {
+                // Clear existing hidden inputs
+                $("input[name^='productRanges']").remove();
+                
+                // Add hidden inputs for each size
+                var sizeIndex = 0;
+                $("#sizesTableBody tr").each(function () {
+                    var $row = $(this);
+                    var sizeId = $row.data("size-id");
+                    var measuringUnitId = $row.data("measuring-unit-id");
+                    var rangeFrom = $row.data("range-from");
+                    var rangeTo = $row.data("range-to");
+                    var unitPrice = $row.data("unit-price");
+
+                    if (measuringUnitId && measuringUnitId > 0 && rangeFrom && rangeFrom > 0 && rangeTo && rangeTo > 0 && unitPrice && unitPrice > 0) {
+                        // Add ProductRangeId for existing sizes (not new ones)
+                        if (sizeId && !sizeId.toString().startsWith("new_")) {
+                            $("<input>").attr({
+                                type: "hidden",
+                                name: `productRanges[${sizeIndex}].ProductRangeId`,
+                                value: sizeId
+                            }).appendTo("#productForm");
+                        }
+                        
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].MeasuringUnitIdFk`,
+                            value: measuringUnitId
+                        }).appendTo("#productForm");
+                        
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].RangeFrom`,
+                            value: rangeFrom
+                        }).appendTo("#productForm");
+                        
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].RangeTo`,
+                            value: rangeTo
+                        }).appendTo("#productForm");
+                        
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].UnitPrice`,
+                            value: unitPrice
+                        }).appendTo("#productForm");
+                        
+                        sizeIndex++;
+                    }
+                });
+            });
         });
-    });
-      //  });
     </script>
 }

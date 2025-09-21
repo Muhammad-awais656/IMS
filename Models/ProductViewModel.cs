@@ -1,5 +1,6 @@
 ﻿using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
+using System.ComponentModel.DataAnnotations;
 
 namespace IMS.Models
 {
@@ -20,16 +21,30 @@ namespace IMS.Models
         public List<ProductViewModel> Items { get; set; } = new List<ProductViewModel>();
 
         public long ProductId { get; set; }
+        
+        [Required(ErrorMessage = "Product name is required")]
+        [StringLength(200, ErrorMessage = "Product name cannot exceed 200 characters")]
         public string? ProductName { get; set; }
+        
+        [StringLength(50, ErrorMessage = "Product code cannot exceed 50 characters")]
         public string? ProductCode { get; set; }
+        
+        [StringLength(500, ErrorMessage = "Product description cannot exceed 500 characters")]
         public string? ProductDescription { get; set; }
+        
+        [Range(0, double.MaxValue, ErrorMessage = "Price must be a positive number")]
         public decimal Price { get; set; }
+        
         public bool IsEnabled { get; set; }
+        
+        [Required(ErrorMessage = "Category is required")]
         public long? CategoryId { get; set; }
         public string? CategoryName { get; set; }
 
+        [Required(ErrorMessage = "Label is required")]
         public long? LabelId { get; set; }
         public string? LabelName { get; set; }
+        
         public long? MUTId { get; set; }
         public string? MeasuringUnitTypeName { get; set; }
 

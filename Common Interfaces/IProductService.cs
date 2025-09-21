@@ -17,6 +17,9 @@ namespace IMS.Common_Interfaces
         Task<List<Product>> GetAllEnabledProductsAsync();
 
         Task<bool> CreateProductRange(ProductRange productRange);
+        Task<Product?> GetProductByCodeAsync(string productCode);
+        Task<bool> ProductCodeExistsAsync(string productCode, long? excludeProductId = null);
+        Task<bool> DeleteProductRangesByProductIdAsync(long productId);
 
         
     }
