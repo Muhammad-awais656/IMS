@@ -189,6 +189,21 @@ namespace IMS.Services
                         long newSalesId = (long)salesIdParam.Value;
                         response = newSalesId > 0;
                     }
+                    #region sales details insertion
+                    //Sales Details insertion can be handled here or in a separate method as needed 
+
+                    // SP is AddSaleDetails
+                    #endregion
+                    #region get stock and update stock quantity
+                    //get stock by id and update stock quantity
+                    //GetStockByProductId
+                    //update stock quantity in stocks table
+                    //UpdateStock
+                    #endregion
+                    #region sales transaction insertion
+                    //sales Transaction create here
+                            //SaleTransactionCreate
+                    #endregion
                 }
             }
             catch (Exception ex)
@@ -197,6 +212,132 @@ namespace IMS.Services
                 throw;
             }
             return response;
+        }
+
+        public long AddSaleDetails(long saleId, long productId, decimal unitPrice, long quantity, decimal salePrice,
+        decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue)
+        {
+            long saleDetailsId = 0;
+            returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("AddSaleDetails", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pSaleId_FK", saleId);
+                    command.Parameters.AddWithValue("@pPrductId_FK", productId);
+                    command.Parameters.AddWithValue("@pUnitPrice", unitPrice);
+                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    command.Parameters.AddWithValue("@pSalePrice", salePrice);
+                    command.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
+                    command.Parameters.AddWithValue("@pPayableAmount", payableAmount);
+                    command.Parameters.AddWithValue("@ProductRangeId_FK", productRangeId);
+
+                    SqlParameter saleDetailsIdParam = new SqlParameter("@pSaleDetailsId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
+                    command.Parameters.Add(saleDetailsIdParam);
+
+                    SqlParameter returnValueParam = new SqlParameter("@RETURN_VALUE", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };
+                    command.Parameters.Add(returnValueParam);
+
+                    command.ExecuteNonQuery();
+
+                    saleDetailsId = (saleDetailsIdParam.Value != DBNull.Value) ? Convert.ToInt64(saleDetailsIdParam.Value) : 0;
+                    returnValue = (int)returnValueParam.Value;
+                }
+            }
+
+            return saleDetailsId;
+        }
+
+        public int GetStockByProductId(long productId)
+        {
+            int returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("GetStockByProductId", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pProductId", productId);
+
+                    SqlParameter returnValueParam = new SqlParameter("@RETURN_VALUE", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };
+                    command.Parameters.Add(returnValueParam);
+
+                    command.ExecuteNonQuery();
+
+                    returnValue = (int)returnValueParam.Value;
+                }
+            }
+
+            return returnValue;
+        }
+
+        public int UpdateStock(long stockMasterId, long productId, decimal availableQuantity, decimal usedQuantity,
+            long modifiedBy, DateTime modifiedDate)
+        {
+            int returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("UpdateStock", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pStockMasterId", stockMasterId);
+                    command.Parameters.AddWithValue("@pProductId", productId);
+                    command.Parameters.AddWithValue("@pAvailableQuantity", availableQuantity);
+                    command.Parameters.AddWithValue("@pUsedQuantity", usedQuantity);
+                    command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                    command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
+
+                    SqlParameter returnValueParam = new SqlParameter("@RETURN_VALUE", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };
+                    command.Parameters.Add(returnValueParam);
+
+                    command.ExecuteNonQuery();
+
+                    returnValue = (int)returnValueParam.Value;
+                }
+            }
+
+            return returnValue;
+        }
+
+        public int SaleTransactionCreate(long stockMasterId, decimal quantity, string comment, DateTime createdDate,
+            long createdBy, long transactionStatusId, long saleId)
+        {
+            int returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("SaleTransactionCreate", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pStockMasterId", stockMasterId);
+                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    command.Parameters.AddWithValue("@pComment", (object)comment ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@pCreatedDate", createdDate);
+                    command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                    command.Parameters.AddWithValue("@pTransactionStatusId", transactionStatusId);
+                    command.Parameters.AddWithValue("@pSaleId", saleId);
+
+                    SqlParameter returnValueParam = new SqlParameter("@RETURN_VALUE", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };
+                    command.Parameters.Add(returnValueParam);
+
+                    command.ExecuteNonQuery();
+
+                    returnValue = (int)returnValueParam.Value;
+                }
+            }
+
+            return returnValue;
         }
 
         public async Task<int> UpdateSaleAsync(Sale sale)

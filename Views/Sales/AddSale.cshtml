@@ -1,86 +1,251 @@
-﻿@model IMS.DAL.PrimaryDBContext.Sale
-@{
-    ViewData["Title"] = "Add Sale";
-}
+﻿@model AddSaleViewModel
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <form asp-action="Create" method="post">
-                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;">
-                    <h2 class="mb-0">Add New Sale</h2>
-                </div>
-                <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 g-4 mt-2">
-                        <div class="col">
-                            <label class="form-label">Bill Number:</label>
-                            <input type="number" class="form-control" value="@ViewBag.NextBillNumber" readonly />
-                            <input type="hidden" asp-for="BillNumber" value="@ViewBag.NextBillNumber" />
-                        </div>
-                        <div class="col">
-                            <label asp-for="SaleDate" class="form-label">Sale Date:</label>
-                            <input asp-for="SaleDate" class="form-control" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                            <span asp-validation-for="SaleDate" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Customer:</label>
-                            @Html.DropDownList("CustomerIdFk", ViewBag.Customers as IEnumerable<SelectListItem>, "<-- Select Customer -->", new { @class = "form-control" })
-                            <span asp-validation-for="CustomerIdFk" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalAmount" class="form-label">Total Amount:</label>
-                            <input asp-for="TotalAmount" class="form-control" type="number" step="0.01" min="0" />
-                            <span asp-validation-for="TotalAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="DiscountAmount" class="form-label">Discount Amount:</label>
-                            <input asp-for="DiscountAmount" class="form-control" type="number" step="0.01" min="0" value="0" />
-                            <span asp-validation-for="DiscountAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalReceivedAmount" class="form-label">Received Amount:</label>
-                            <input asp-for="TotalReceivedAmount" class="form-control" type="number" step="0.01" min="0" />
-                            <span asp-validation-for="TotalReceivedAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalDueAmount" class="form-label">Due Amount:</label>
-                            <input asp-for="TotalDueAmount" class="form-control" type="number" step="0.01" min="0" readonly />
-                            <span asp-validation-for="TotalDueAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col-12">
-                            <label asp-for="SaleDescription" class="form-label">Description:</label>
-                            <textarea asp-for="SaleDescription" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
-                            <span asp-validation-for="SaleDescription" class="text-danger"></span>
-                        </div>
-                    </div>
-                    <div class="mb-3 mt-4">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fa-solid fa-save"></i> Create Sale
-                        </button>
-                        <a asp-action="Index" class="btn btn-secondary">
-                            <i class="fa-solid fa-arrow-left"></i> Back to List
-                        </a>
-                    </div>
-                </div>
-            </form>
+@{
+    ViewData["Title"] = "Sale";
+}
+<link href="~/css/dist/addsales.css" rel="stylesheet" />
+<div class="sale-container">
+    <h2 style="text-align:center; color:blueviolet; background:burlywood;">Add Sale</h2>
+
+    <form asp-action="AddSale" method="post">
+        <div class="form-row top-section">
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().ProductId">Product:</label>
+                <select asp-for="SaleDetails.FirstOrDefault().ProductId" asp-items="ViewBag.Products" onchange="LoadProductSizes()" class="form-control product-select">
+                    <option value="">--Select a value--</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().ProductSize">Product size:</label>
+                <select asp-for="SaleDetails.FirstOrDefault().ProductSize" id="productSizeSelect" class="form-control">
+                    <option value="">--Select a value--</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().Quantity">Qty:</label>
+                <input asp-for="SaleDetails.FirstOrDefault().Quantity" class="form-control" value="1" />
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().UnitPrice">Unit price:</label>
+                <input asp-for="SaleDetails.FirstOrDefault().UnitPrice" class="form-control" value="0" />
+            </div>
         </div>
-    </div>
+        <div class="form-row top-section">
+            <div class="form-group">
+                <label>Unit sale price:</label>
+                <input asp-for="SaleDetails.FirstOrDefault().SalePrice" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().LineDiscountAmount">Discount amount:</label>
+                <input asp-for="SaleDetails.FirstOrDefault().LineDiscountAmount" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDetails.FirstOrDefault().PayableAmount">Payable amount:</label>
+                <input asp-for="SaleDetails.FirstOrDefault().PayableAmount" class="form-control" value="0" readonly />
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="addToTable">Add</button>
+                <button type="button" class="btn btn-secondary" id="resetFields">Reset</button>
+            </div>
+        </div>
+
+        <table class="sale-table" id="saleDetailsTable">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Product Size</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Sale Price</th>
+                    <th>Discount Amount</th>
+                    <th>Payable Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="saleDetailsBody">
+                <!-- Initial row will be added via JavaScript -->
+            </tbody>
+        </table>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label asp-for="CustomerId">Customer:</label>
+                <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-control">
+                    <option value="">--Select a value--</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label asp-for="BillNo">Bill #:</label>
+                <input asp-for="BillNo" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="SaleDate">Sale date:</label>
+                <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-group">
+                <label asp-for="PayNow">Pay now:</label>
+                <input asp-for="PayNow" class="form-control" value="0" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label asp-for="TotalAmount">Total amount:</label>
+                <input asp-for="TotalAmount" class="form-control" value="0" readonly />
+            </div>
+            <div class="form-group">
+                <label asp-for="DiscountAmount">Discount amount:</label>
+                <input asp-for="DiscountAmount" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="ReceivedAmount">Received amount:</label>
+                <input asp-for="ReceivedAmount" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="DueAmount">Due amount:</label>
+                <input asp-for="DueAmount" class="form-control" value="0" readonly />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label asp-for="PreviousDue">Previous Due:</label>
+                <input asp-for="PreviousDue" class="form-control" value="0" />
+            </div>
+            <div class="form-group">
+                <label asp-for="Description">Description:</label>
+                <input asp-for="Description" class="form-control" />
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Save and Print</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </form>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
     <script>
-        // Auto-calculate due amount when total amount, discount, or received amount changes
-        document.getElementById('TotalAmount').addEventListener('input', calculateDueAmount);
-        document.getElementById('DiscountAmount').addEventListener('input', calculateDueAmount);
-        document.getElementById('TotalReceivedAmount').addEventListener('input', calculateDueAmount);
+        let rowIndex = 0;
 
-        function calculateDueAmount() {
-            const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
+        document.getElementById('addToTable').addEventListener('click', () => {
+            const productSelect = document.querySelector('.product-select');
+            const productId = productSelect.value;
+            const productName = productSelect.options[productSelect.selectedIndex].text;
+            const productSize = document.getElementById('productSizeSelect').value;
+            const unitPrice = parseFloat(document.querySelector('[name="SaleDetails[0].UnitPrice"]').value) || 0;
+            const quantity = parseInt(document.querySelector('[name="SaleDetails[0].Quantity"]').value) || 0;
+            const salePrice = parseFloat(document.querySelector('[name="SaleDetails[0].SalePrice"]').value) || 0;
+            const discount = parseFloat(document.querySelector('[name="SaleDetails[0].LineDiscountAmount"]').value) || 0;
+            const payable = (unitPrice * quantity) - discount;
+
+            if (productId) {
+                const tbody = document.getElementById('saleDetailsBody');
+                const newRow = document.createElement('tr');
+
+                newRow.innerHTML = `
+                    <td>${productName}</td>
+                    <td>${productSize || '--Select a value--'}</td>
+                    <td>${unitPrice.toFixed(2)}</td>
+                    <td>${quantity}</td>
+                    <td>${salePrice.toFixed(2)}</td>
+                    <td>${discount.toFixed(2)}</td>
+                    <td>${payable.toFixed(2)}</td>
+                    <td><button type="button" class="btn btn-danger remove-row">Remove</button></td>
+                    <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${productSize}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${discount}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable}" />
+                `;
+                tbody.appendChild(newRow);
+                rowIndex++;
+
+                // Reset top section fields
+                productSelect.value = "";
+                document.getElementById('productSizeSelect').value = "";
+                document.querySelector('[name="SaleDetails[0].UnitPrice"]').value = "0";
+                document.querySelector('[name="SaleDetails[0].Quantity"]').value = "1";
+                document.querySelector('[name="SaleDetails[0].SalePrice"]').value = "0";
+                document.querySelector('[name="SaleDetails[0].LineDiscountAmount"]').value = "0";
+                document.querySelector('[name="SaleDetails[0].PayableAmount"]').value = "0";
+
+                updateTotals();
+            } else {
+                alert('Please select a product.');
+            }
+        });
+
+        document.getElementById('resetFields').addEventListener('click', () => {
+            // Reset all header section fields
+            document.querySelector('.product-select').value = "";
+            document.getElementById('productSizeSelect').value = "";
+            document.querySelector('[name="SaleDetails[0].UnitPrice"]').value = "0";
+            document.querySelector('[name="SaleDetails[0].Quantity"]').value = "1";
+            document.querySelector('[name="SaleDetails[0].SalePrice"]').value = "0";
+            document.querySelector('[name="SaleDetails[0].LineDiscountAmount"]').value = "0";
+            document.querySelector('[name="SaleDetails[0].PayableAmount"]').value = "0";
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-row')) {
+                e.target.closest('tr').remove();
+                updateTotals();
+            }
+        });
+
+        function updateTotals() {
+            const rows = document.querySelectorAll('#saleDetailsBody tr');
+            let totalAmount = 0;
+
+            rows.forEach(row => {
+                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent) || 0;
+                totalAmount += payable;
+            });
+
+            document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
             const discountAmount = parseFloat(document.getElementById('DiscountAmount').value) || 0;
-            const receivedAmount = parseFloat(document.getElementById('TotalReceivedAmount').value) || 0;
-            const dueAmount = totalAmount - discountAmount - receivedAmount;
-            document.getElementById('TotalDueAmount').value = Math.max(0, dueAmount).toFixed(2);
+            const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
+            document.getElementById('DueAmount').value = (totalAmount - discountAmount - receivedAmount).toFixed(2);
+        }
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => {
+                const unitPrice = parseFloat(document.querySelector('[name="SaleDetails[0].UnitPrice"]').value) || 0;
+                const quantity = parseInt(document.querySelector('[name="SaleDetails[0].Quantity"]').value) || 0;
+                const discount = parseFloat(document.querySelector('[name="SaleDetails[0].LineDiscountAmount"]').value) || 0;
+                const payable = (unitPrice * quantity) - discount;
+                document.querySelector('[name="SaleDetails[0].PayableAmount"]').value = payable.toFixed(2);
+            });
+        });
+
+        // Function to load product sizes
+        function LoadProductSizes() {
+            debugger;
+            const productSelect = document.querySelector('.product-select');
+            const productId = productSelect.value;
+            const sizeSelect = document.getElementById('productSizeSelect');
+
+            // Clear existing options except the default
+            sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+
+            if (productId) {
+                // AJAX call to fetch product sizes
+                fetch(`/Sales/GetProductSizes?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(size => {
+                            const option = document.createElement('option');
+                            option.value = size.value;
+                            option.text = size.text;
+                            sizeSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error loading product sizes:', error));
+            }
         }
     </script>
 }

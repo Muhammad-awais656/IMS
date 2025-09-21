@@ -14,7 +14,54 @@ namespace IMS.Models
         public bool HasPreviousPage => CurrentPage > 1;
         public bool HasNextPage => CurrentPage < TotalPages;
     }
+  
 
+
+    public class SaleDetailViewModel
+    {
+        public long ProductId { get; set; }
+        public string ProductSize { get; set; }
+        public decimal UnitPrice { get; set; }
+        public long Quantity { get; set; }
+        public decimal SalePrice { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal PayableAmount { get; set; }
+        public long ProductRangeId { get; set; }
+    }
+
+    public class AddSaleViewModel
+    {
+        public List<SaleDetailViewModel> SaleDetails { get; set; } = new List<SaleDetailViewModel>();
+        public decimal TotalAmount { get; set; }
+        public decimal TotalReceivedAmount { get; set; }
+        public decimal TotalDueAmount { get; set; }
+        public long? CustomerId { get; set; }
+        public string BillNo { get; set; }
+        public DateTime SaleDate { get; set; }
+        public decimal PayNow { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal ReceivedAmount { get; set; }
+        public decimal DueAmount { get; set; }
+        public decimal PreviousDue { get; set; }
+        public string Description { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public long CreatedBy { get; set; }
+        public DateTime ModifiedDate { get; set; }
+        public long ModifiedBy { get; set; }
+    }
+
+    public class ProductSizeViewModel
+    {
+        public long ProductRangeId { get; set; }
+        public long ProductId_FK { get; set; }
+        public long MeasuringUnitId_FK { get; set; }
+   
+        public decimal RangeFrom { get; set; }
+        public decimal RangeTo { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string MeasuringUnitName { get; set; }
+        public string MeasuringUnitAbbreviation { get; set; }
+    }
     public class SaleWithCustomerViewModel
     {
         public long SaleId { get; set; }

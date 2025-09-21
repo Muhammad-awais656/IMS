@@ -1,0 +1,35 @@
+﻿.sale-container {
+    padding: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.form-group {
+    flex: 1;
+}
+
+.form-control {
+    width: 100%;
+    padding: 5px;
+}
+
+.sale-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+    .sale-table th, .sale-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+
+.btn {
+    padding: 5px 10px;
+    margin-right: 5px;
+}

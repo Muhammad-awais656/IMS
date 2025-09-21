@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using IMS.Common_Interfaces;
-using IMS.Models;
+﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
+using IMS.Models;
+using IMS.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace IMS.Controllers
 {
@@ -10,11 +12,15 @@ namespace IMS.Controllers
     {
         private readonly ISalesService _salesService;
         private readonly ILogger<SalesController> _logger;
+        private readonly IProductService _productService;
+        private readonly ICustomer _customerService;
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService)
         {
             _salesService = salesService;
             _logger = logger;
+            _productService = productService;
+            _customerService = customerService;
         }
 
         // GET: SalesController
@@ -284,5 +290,120 @@ namespace IMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        public IActionResult AddSale()
+        {
+            _productService.GetAllEnabledProductsAsync().ContinueWith(task =>
+            {
+                var products = task.Result;
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+            }).Wait();
+
+        //    ViewBag.Products = new SelectList(new List<SelectListItem>
+        //{
+        //    new SelectListItem { Value = "", Text = "--Select a value--" }
+        //}, "Value", "Text");
+
+            ViewBag.ProductSizes = new SelectList(new List<SelectListItem>
+        {
+            new SelectListItem { Value = "", Text = "--Select a value--" }
+        }, "Value", "Text");
+            _customerService.GetAllEnabledCustomers().ContinueWith(task =>
+            {
+                var customers = task.Result;
+                ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName");
+            }).Wait();
+
+            //    ViewBag.Customers = new SelectList(new List<SelectListItem>
+            //{
+            //    new SelectListItem { Value = "", Text = "--Select a value--" }
+            //}, "Value", "Text");
+           
+            return View(new AddSaleViewModel { SaleDate = DateTime.Now });
+        }
+        [HttpGet]
+        public async Task<JsonResult> GetProductSizes(long productId)
+        {
+            
+           var response= _productService.GetProductRangeByProdId(productId);
+
+            return Json(response);
+        }
+        //[HttpPost]
+        //public async Task<IActionResult> AddSale(AddSaleViewModel model)
+        //{
+        //    try
+        //    {
+        //        if (ModelState.IsValid)
+        //        {
+        //            int returnValue;
+        //            DateTime currentDateTime = DateTime.Now; // 04:11 PM PKT on September 18, 2025
+
+        //            // Add the sale header
+        //            long saleId = _salesService.CreateSaleAsync(
+        //                totalAmount: model.TotalAmount,
+        //                totalReceivedAmount: model.ReceivedAmount,
+        //                totalDueAmount: model.DueAmount,
+        //                customerId: model.CustomerId ?? 0,
+        //                createdDate: currentDateTime,
+        //                createdBy: 1, // Replace with actual user ID
+        //                modifiedDate: currentDateTime,
+        //                modifiedBy: 1, // Replace with actual user ID
+        //                discountAmount: model.DiscountAmount,
+        //                billNumber: long.Parse(model.BillNo ?? "0"),
+        //                saleDescription: model.Description ?? "",
+        //                saleDate: model.SaleDate,
+        //                out returnValue
+        //            );
+
+        //            // Add sale details for each product
+        //            foreach (var detail in model.SaleDetails)
+        //            {
+        //                long saleDetailsId = _saleService.AddSaleDetails(
+        //                    saleId: saleId,
+        //                    productId: detail.ProductId,
+        //                    unitPrice: detail.UnitPrice,
+        //                    quantity: detail.Quantity,
+        //                    salePrice: detail.SalePrice,
+        //                    lineDiscountAmount: detail.LineDiscountAmount,
+        //                    payableAmount: detail.PayableAmount,
+        //                    productRangeId: 111697, // Replace with actual range ID if dynamic
+        //                    out returnValue
+        //                );
+
+        //                // Update stock and transaction for each product
+        //                int stockReturn = _saleService.GetStockByProductId(detail.ProductId);
+        //                int updateStockReturn = _saleService.UpdateStock(
+        //                    stockMasterId: 50235, // Replace with dynamic stock ID
+        //                    productId: detail.ProductId,
+        //                    availableQuantity: 2.000m, // Replace with actual available quantity
+        //                    usedQuantity: (decimal)detail.Quantity,
+        //                    modifiedBy: 1,
+        //                    modifiedDate: currentDateTime
+        //                );
+
+        //                int transactionReturn = _saleService.SaleTransactionCreate(
+        //                    stockMasterId: 50235, // Replace with dynamic stock ID
+        //                    quantity: (decimal)detail.Quantity,
+        //                    comment: "",
+        //                    createdDate: currentDateTime,
+        //                    createdBy: 1,
+        //                    transactionStatusId: 2,
+        //                    saleId: saleId
+        //                );
+        //            }
+
+        //            return RedirectToAction("Index");
+        //        }
+        //        return View(model);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        TempData["ErrorMessage"] = ex.Message;
+        //        return View(model);
+        //    }
+
+        //}
+
     }
 }
