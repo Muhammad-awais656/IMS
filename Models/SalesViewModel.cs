@@ -44,6 +44,7 @@ namespace IMS.Models
         public decimal DueAmount { get; set; }
         public decimal PreviousDue { get; set; }
         public string Description { get; set; }
+        public string ActionType { get; set; }
         public DateTime CreatedDate { get; set; }
         public long CreatedBy { get; set; }
         public DateTime ModifiedDate { get; set; }
