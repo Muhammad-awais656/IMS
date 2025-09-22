@@ -39,7 +39,11 @@ namespace IMS.Controllers
                 if (!hasAnySales)
                 {
                     TempData["InfoMessage"] = "No sales records found in the database. You can create your first sale using the 'Add New Sale' button.";
-                    return View(new SalesViewModel());
+                    var emptyViewModel = new SalesViewModel();
+                    // Load customers for the filter dropdown even when no sales exist
+                    var customersRes = await _salesService.GetAllCustomersAsync();
+                    emptyViewModel.CustomerList = customersRes;
+                    return View(emptyViewModel);
                 }
 
                 var stockFilters = new SalesFilters();
@@ -69,12 +73,28 @@ namespace IMS.Controllers
                 }
 
                 var viewModel = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
+                
+                // Load customers for the filter dropdown
+                var customers = await _salesService.GetAllCustomersAsync();
+                viewModel.CustomerList = customers;
+                
                 return View(viewModel);
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(new SalesViewModel());
+                var errorViewModel = new SalesViewModel();
+                try
+                {
+                    // Load customers for the filter dropdown even when there's an error
+                    var customers = await _salesService.GetAllCustomersAsync();
+                    errorViewModel.CustomerList = customers;
+                }
+                catch (Exception customerEx)
+                {
+                    _logger.LogError(customerEx, "Error loading customers for filter dropdown");
+                }
+                return View(errorViewModel);
             }
         }
 
