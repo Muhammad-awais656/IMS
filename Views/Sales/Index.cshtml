@@ -14,35 +14,7 @@
 
         <div class="card-body">
             <!-- Toolbar -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <a asp-action="AddSale" class="btn btn-success me-2">
-                        <i class="fa-solid fa-plus me-1"></i>Add New Sale
-                    </a>
-                    <a asp-action="Create" class="btn btn-outline-success">
-                        <i class="fa-solid fa-cash-register me-1"></i>Quick Sale
-                    </a>
-                </div>
-
-                <!-- Search and Filters -->
-                <div class="d-flex align-items-center gap-2">
-                    <form asp-action="Index" asp-controller="Sales" method="get" class="d-flex align-items-center gap-2">
-                    <input type="text"
-                           name="searchCustomer"
-                           value="@Context.Request.Query["searchCustomer"]"
-                           class="form-control"
-                               placeholder="Search by customer name..." 
-                               style="width: 200px;" />
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </button>
-                        <a asp-action="Index" class="btn btn-outline-secondary">
-                            <i class="fa-solid fa-refresh"></i>
-                        </a>
-                    </form>
-                </div>
-            </div>
-
+            
             <!-- Advanced Filters -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -91,6 +63,9 @@
                                 <button type="submit" class="btn btn-primary w-100">
                                     <i class="fa-solid fa-search"></i>
                     </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fa-solid fa-refresh"></i>
+                            </a>
                             </div>
                 </form>
                     </div>
@@ -103,12 +78,12 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Bill #</th>
-                            <th>Date</th>
+                            <th>Sales Date</th>
                             <th>Customer</th>
                             <th class="text-end">Total Amount</th>
                             <th class="text-end">Discount</th>
                             <th class="text-end">Received</th>
-                            <th class="text-end">Due</th>
+                            <th class="text-end">Total Dues</th>
                             <th>Description</th>
                             <th class="text-center">Actions</th>
                         </tr>
@@ -122,7 +97,7 @@
                                     <td>
                                         <span class="badge bg-primary">#@sale.BillNumber</span>
                                     </td>
-                                    <td>@sale.SaleDate.ToString("dd/MM/yyyy")</td>
+                                    <td>@sale.SaleDate.ToString("dd-MMM-yyyy")</td>
                                     <td>
                                         <strong>@sale.CustomerName</strong>
                                     </td>
@@ -169,7 +144,7 @@
                                             <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-outline-info btn-sm" title="View Details">
                                     <i class="fa-solid fa-eye"></i>
                                 </a>
-                                            <a asp-action="Edit" asp-route-id="@sale.SaleId" class="btn btn-outline-primary btn-sm" title="Edit Sale">
+                                            <a asp-action="EditSale" asp-route-id="@sale.SaleId" class="btn btn-outline-primary btn-sm" title="Edit Sale">
                                     <i class="fa-solid fa-edit"></i>
                                 </a>
                                             <a asp-action="Delete" asp-route-id="@sale.SaleId" class="btn btn-outline-danger btn-sm" title="Delete Sale">

@@ -31,6 +31,7 @@ namespace IMS.Models
 
     public class AddSaleViewModel
     {
+        public long? SaleId { get; set; } // Add this for editing existing sales
         public List<SaleDetailViewModel> SaleDetails { get; set; } = new List<SaleDetailViewModel>();
         public decimal TotalAmount { get; set; }
         public decimal TotalReceivedAmount { get; set; }

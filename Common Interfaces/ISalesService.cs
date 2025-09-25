@@ -28,5 +28,9 @@ namespace IMS.Common_Interfaces
             long modifiedBy, DateTime modifiedDate);
         long SaleTransactionCreate(long stockMasterId, decimal quantity, string comment, DateTime createdDate,
             long createdBy, long transactionStatusId, long saleId);
+        
+        // Edit Sale functionality methods
+        Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId);
+        Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId);
     }
 }

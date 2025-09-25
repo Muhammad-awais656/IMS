@@ -12,6 +12,7 @@ namespace IMS.Common_Interfaces
         Task<int> DeletePaymentAsync(long id, DateTime modifiedDate, long modifiedBy);
         Task<List<Customer>> GetAllCustomersAsync();
         Task<List<Sale>> GetAllSalesAsync();
+        Task<List<Sale>> GetCustomerBillsAsync(long customerId);
         Task<bool> HasAnyPaymentsAsync();
     }
 }

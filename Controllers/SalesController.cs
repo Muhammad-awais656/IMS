@@ -356,6 +356,66 @@ namespace IMS.Controllers
                 return RedirectToAction("Index");
             }
         }
+
+        [HttpGet]
+        public async Task<ActionResult> EditSale(long id)
+        {
+            try
+            {
+                // Get the sale with details
+                var sale = await _salesService.GetSaleByIdAsync(id);
+                if (sale == null)
+                {
+                    return NotFound();
+                }
+
+                // Get sale details
+                var saleDetails = await _salesService.GetSaleDetailsBySaleIdAsync(id);
+                
+                // Load products
+                var products = await _productService.GetAllEnabledProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+
+                // Load customers
+                var customers = await _salesService.GetAllCustomersAsync();
+                ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", sale.CustomerIdFk);
+
+                // Create AddSaleViewModel with existing data
+                var viewModel = new AddSaleViewModel
+                {
+                    SaleDetails = saleDetails,
+                    TotalAmount = sale.TotalAmount,
+                    TotalReceivedAmount = sale.TotalReceivedAmount,
+                    TotalDueAmount = sale.TotalDueAmount,
+                    CustomerId = sale.CustomerIdFk,
+                    BillNo = sale.BillNumber.ToString(),
+                    SaleDate = sale.SaleDate,
+                    DiscountAmount = sale.DiscountAmount,
+                    ReceivedAmount = sale.TotalReceivedAmount,
+                    DueAmount = sale.TotalDueAmount,
+                    Description = sale.SaleDescription,
+                    SaleId = sale.SaleId // Add this to track the sale being edited
+                };
+
+                // Get previous due amount for the customer
+                if (sale.CustomerIdFk > 0)
+                {
+                    var previousDueAmount = await _salesService.GetPreviousDueAmountByCustomerIdAsync(sale.CustomerIdFk);
+                    viewModel.PreviousDue = previousDueAmount;
+                }
+
+                ViewBag.IsEdit = true;
+                ViewBag.SaleId = sale.SaleId;
+
+                return View("AddSale", viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading Edit Sale page for ID: {SaleId}", id);
+                TempData["ErrorMessage"] = "Error loading the sale for editing. Please try again.";
+                return RedirectToAction("Index");
+            }
+        }
         [HttpGet]
         public async Task<JsonResult> GetProductSizes(long productId)
         {
@@ -414,6 +474,28 @@ namespace IMS.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<JsonResult> GetAvailableStock(long productId)
+        {
+            try
+            {
+                var stock = await _salesService.GetStockByProductIdAsync(productId);
+                if (stock != null)
+                {
+                    return Json(new { success = true, availableQuantity = stock.AvailableQuantity });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Stock information not found", availableQuantity = 0 });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting available stock for product {ProductId}", productId);
+                return Json(new { success = false, message = "Error retrieving stock information", availableQuantity = 0 });
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> AddSale(AddSaleViewModel model)
@@ -430,6 +512,15 @@ namespace IMS.Controllers
                     {
                         keysToRemove.Add(key);
                     }
+                    if (key.StartsWith("Description"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                    if (key.StartsWith("PayNow"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+
                 }
                 foreach (var key in keysToRemove)
                 {
@@ -457,45 +548,84 @@ namespace IMS.Controllers
                 {
                     _logger.LogInformation("ModelState is valid - proceeding with sale creation");
                     
-                    // Validate customer selection
-                    if (!model.CustomerId.HasValue || model.CustomerId == 0)
-                    {
+                // Validate customer selection
+                if (!model.CustomerId.HasValue || model.CustomerId == 0)
+                {
                         _logger.LogWarning("Customer validation failed - CustomerId is null or 0");
                         TempData["ErrorMessage"] = "Please select a customer.";
                         await ReloadViewDataAsync();
                         return View(model);
-                    }
+                }
 
-                    // Validate sale details
-                    if (model.SaleDetails == null || !model.SaleDetails.Any())
-                    {
+                // Validate sale details
+                if (model.SaleDetails == null || !model.SaleDetails.Any())
+                {
                         _logger.LogWarning("Sale details validation failed - SaleDetails is null or empty");
                         TempData["ErrorMessage"] = "Please add at least one product to the sale.";
                         await ReloadViewDataAsync();
                         return View(model);
-                    }
-                    
+                }
+
                     _logger.LogInformation("Sale details validation passed - {Count} items", model.SaleDetails.Count);
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     
                     DateTime currentDateTime = DateTime.Now;
+                    long saleId;
 
-                    // Add the sale header
-                    var saleId = await _salesService.CreateSaleAsync(
-                        model.TotalAmount,
-                        model.ReceivedAmount,
-                        model.DueAmount,
-                        model.CustomerId.Value,
-                        currentDateTime,
-                        userId,
-                        currentDateTime,
-                        userId,
-                        model.DiscountAmount,
-                        long.Parse(model.BillNo ?? "0"),
-                        model.Description ?? "",
-                        model.SaleDate
-                    );
+                    // Check if we're editing an existing sale
+                    if (model.SaleId.HasValue && model.SaleId > 0)
+                    {
+                        _logger.LogInformation("Updating existing sale with ID: {SaleId}", model.SaleId);
+                        
+                        // Update existing sale
+                        var updateResult = await _salesService.UpdateSaleAsync(new Sale
+                        {
+                            SaleId = model.SaleId.Value,
+                            TotalAmount = model.TotalAmount,
+                            TotalReceivedAmount = model.ReceivedAmount,
+                            TotalDueAmount = model.DueAmount,
+                            CustomerIdFk = model.CustomerId.Value,
+                            DiscountAmount = model.DiscountAmount,
+                            BillNumber = long.Parse(model.BillNo ?? "0"),
+                            SaleDescription = model.Description ?? "Add Sale",
+                            SaleDate = model.SaleDate,
+                            ModifiedBy = userId,
+                            ModifiedDate = currentDateTime
+                        });
+
+                        if (updateResult == 0)
+                        {
+                            TempData["ErrorMessage"] = "Failed to update sale.";
+                            await ReloadViewDataAsync();
+                            return View(model);
+                        }
+
+                        // Delete existing sale details
+                        await _salesService.DeleteSaleDetailsBySaleIdAsync(model.SaleId.Value);
+                        
+                        saleId = model.SaleId.Value;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Creating new sale");
+                        
+                        // Create new sale
+                        saleId = await _salesService.CreateSaleAsync(
+                            model.TotalAmount,
+                            model.ReceivedAmount,
+                            model.DueAmount,
+                            model.CustomerId.Value,
+                            currentDateTime,
+                            userId,
+                            currentDateTime,
+                            userId,
+                            model.DiscountAmount,
+                            long.Parse(model.BillNo ?? "0"),
+                            model.Description ?? "",
+                            model.SaleDate
+                        );
+                    }
 
                     if (saleId > 0)
                     {
@@ -525,7 +655,7 @@ namespace IMS.Controllers
                                     detail.ProductId,
                                     prodMaster.AvailableQuantity - (decimal)detail.Quantity, // This should be calculated based on current stock
                                     prodMaster.TotalQuantity,
-                                    prodMaster.AvailableQuantity + (decimal)detail.Quantity,
+                                    prodMaster.UsedQuantity + (decimal)detail.Quantity,
                                     userId,
                                     currentDateTime
                                 );
@@ -548,19 +678,21 @@ namespace IMS.Controllers
                             Request.Headers["Content-Type"].ToString().Contains("application/x-www-form-urlencoded"))
                         {
                             // AJAX request - return JSON
+                            string successMessage = model.SaleId.HasValue ? "Sale updated successfully!" : "Sale created successfully!";
                             if (model.ActionType == "saveAndPrint")
                             {
-                                return Json(new { success = true, message = "Sale created successfully!", saleId = saleId, print = true });
+                                return Json(new { success = true, message = successMessage, saleId = saleId, print = true });
                             }
                             else
                             {
-                                return Json(new { success = true, message = "Sale created successfully!", saleId = saleId });
+                                return Json(new { success = true, message = successMessage, saleId = saleId });
                             }
                         }
                         else
                         {
                             // Regular form submission - use TempData and redirect
-                            TempData["Success"] = "Sale created successfully!";
+                            string successMessage = model.SaleId.HasValue ? "Sale updated successfully!" : "Sale created successfully!";
+                            TempData["Success"] = successMessage;
                             
                             if (model.ActionType == "saveAndPrint")
                             {
@@ -568,7 +700,7 @@ namespace IMS.Controllers
                             }
                             else
                             {
-                                return RedirectToAction("AddSale");
+                                return RedirectToAction("Index");
                             }
                         }
                     }
@@ -626,7 +758,7 @@ namespace IMS.Controllers
             
             // Reload the view with necessary data if validation fails
             await ReloadViewDataAsync();
-            return View(model);
+                return View(model);
         }
 
     }

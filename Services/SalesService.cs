@@ -437,6 +437,72 @@ namespace IMS.Services
             return response;
         }
 
+        public async Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId)
+        {
+            var saleDetails = new List<SaleDetailViewModel>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetSaleDetailsBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                saleDetails.Add(new SaleDetailViewModel
+                                {
+                                    ProductId = reader.GetInt64("ProductId_FK"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
+                                    ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.GetInt64("Quantity"),
+                                    SalePrice = reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.GetDecimal("PayableAmount")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sale details by sale ID");
+                throw;
+            }
+            return saleDetails;
+        }
+
+        public async Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("DELETE FROM SaleDetails WHERE SaleId_FK = @SaleId", connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting sale details by sale ID");
+                throw;
+            }
+            return response;
+        }
+
         public async Task<List<Customer>> GetAllCustomersAsync()
         {
             var customers = new List<Customer>();

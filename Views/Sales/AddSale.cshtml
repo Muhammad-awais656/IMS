@@ -8,15 +8,25 @@
     <div class="card shadow-sm">
         <div class="card-header bg-success text-white">
             <h2 class="mb-0 text-center">
-                <i class="fa-solid fa-cash-register me-2"></i>Add New Sale
+                <i class="fa-solid fa-cash-register me-2"></i>
+                @if (ViewBag.IsEdit == true)
+                {
+                    <text>Edit Sale</text>
+                }
+                else
+                {
+                    <text>Add New Sale</text>
+                }
             </h2>
         </div>
 
         <div class="card-body">
-            <form asp-action="AddSale" method="post" id="addSaleForm">
+    <form asp-action="AddSale" method="post" id="addSaleForm">
                 @Html.AntiForgeryToken()
                 <!-- Hidden field to track which button was clicked -->
                 <input type="hidden" id="actionType" name="actionType" value="" />
+                <!-- Hidden field for SaleId when editing -->
+                <input type="hidden" asp-for="SaleId" id="saleId" />
 
                 <!-- Product Selection Section -->
                 <div class="row mb-4">
@@ -29,37 +39,37 @@
                         <label for="productSelect" class="form-label">Product:</label>
                         <select id="productSelect" asp-items="ViewBag.Products" class="form-select">
                             <option value="">--Select Product--</option>
-                        </select>
-                    </div>
+                </select>
+            </div>
                     <div class="col-md-3">
                         <label for="productSizeSelect" class="form-label">Product Size:</label>
                         <select id="productSizeSelect" class="form-select">
                             <option value="">--Select Size--</option>
-                        </select>
-                    </div>
+                </select>
+            </div>
                     <div class="col-md-2">
                         <label for="quantity" class="form-label">Quantity:</label>
-                        <input type="number" id="quantity" class="form-control" value="1" min="1" />
-                    </div>
+                <input type="number" id="quantity" class="form-control" value="1" min="1" />
+            </div>
                     <div class="col-md-2">
                         <label for="unitPrice" class="form-label">Unit Price:</label>
-                        <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
-                    </div>
+                <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
+            </div>
                     <div class="col-md-2">
                         <label for="salePrice" class="form-label">Sale Price:</label>
-                        <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
-                    </div>
+                <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
+            </div>
                 </div>
 
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label for="discountAmount" class="form-label">Line Discount:</label>
-                        <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
-                    </div>
+                <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
+            </div>
                     <div class="col-md-3">
                         <label for="payableAmount" class="form-label">Payable Amount:</label>
-                        <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
-                    </div>
+                <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
+            </div>
                     <div class="col-md-6 d-flex align-items-end">
                         <button type="button" class="btn btn-primary me-2" id="addToTable" title="Add product to sale (Ctrl+Enter)">
                             <i class="fa-solid fa-plus me-1"></i>Add to Sale
@@ -67,8 +77,8 @@
                         <button type="button" class="btn btn-outline-secondary" id="resetFields" title="Reset product fields (Escape)">
                             <i class="fa-solid fa-rotate-left me-1"></i>Reset Product
                         </button>
-                    </div>
-                </div>
+            </div>
+        </div>
 
                 <!-- Sale Items Table -->
                 <div class="row mb-4">
@@ -81,19 +91,19 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Code</th>
-                                        <th>Product</th>
+                    <th>Product</th>
                                         <th>Unit Price</th>
                                         <th>Sale Price</th>
                                         <th>Qty</th>
-                                        <th>Discount</th>
+                                        <th>Total Discount</th>
                                         <th>Payable</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="saleDetailsBody">
-                                    <!-- Product rows will be added via JavaScript -->
-                                </tbody>
-                            </table>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="saleDetailsBody">
+                <!-- Product rows will be added via JavaScript -->
+            </tbody>
+        </table>
                         </div>
                     </div>
                 </div>
@@ -109,23 +119,23 @@
                         <label asp-for="CustomerId" class="form-label">Customer:</label>
                         <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" required>
                             <option value="">--Select Customer--</option>
-                        </select>
-                        <span asp-validation-for="CustomerId" class="text-danger"></span>
-                    </div>
+                </select>
+                <span asp-validation-for="CustomerId" class="text-danger"></span>
+            </div>
                     <div class="col-md-3">
                         <label asp-for="BillNo" class="form-label">Bill #:</label>
-                        <input asp-for="BillNo" class="form-control" value="@ViewBag.NextBillNumber" readonly />
-                    </div>
+                <input asp-for="BillNo" class="form-control" value="@ViewBag.NextBillNumber" readonly />
+            </div>
                     <div class="col-md-3">
                         <label asp-for="SaleDate" class="form-label">Sale Date:</label>
-                        <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                    </div>
+                <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+            </div>
                     <div class="col-md-3">
                         <label asp-for="PayNow" class="form-label">Pay Now (Optional):</label>
                         <input asp-for="PayNow" class="form-control" value="0" step="0.01" placeholder="Enter payment amount (optional)" />
                         <small class="form-text text-muted">Leave empty to add full amount to customer's due</small>
-                    </div>
-                </div>
+            </div>
+        </div>
 
                 <!-- Payment Summary Section -->
                 <div class="row mb-4">
@@ -136,21 +146,21 @@
                     </div>
                     <div class="col-md-3">
                         <label asp-for="TotalAmount" class="form-label">Total Amount:</label>
-                        <input asp-for="TotalAmount" class="form-control" value="0" readonly />
-                    </div>
+                <input asp-for="TotalAmount" class="form-control" value="0" readonly />
+            </div>
                     <div class="col-md-3">
                         <label asp-for="DiscountAmount" class="form-label">Total Discount:</label>
-                        <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
-                    </div>
+                <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
+            </div>
                     <div class="col-md-3">
                         <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
-                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" />
-                    </div>
+                <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" />
+            </div>
                     <div class="col-md-3">
                         <label asp-for="DueAmount" class="form-label">Due Amount:</label>
-                        <input asp-for="DueAmount" class="form-control" value="0" readonly />
-                    </div>
-                </div>
+                <input asp-for="DueAmount" class="form-control" value="0" readonly />
+            </div>
+        </div>
 
                 <!-- Additional Information -->
                 <div class="row mb-4">
@@ -167,24 +177,40 @@
                     <div class="col-md-6">
                         <label asp-for="Description" class="form-label">Description:</label>
                         <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
-                    </div>
-                </div>
+            </div>
+            </div>
 
                 <!-- Action Buttons -->
                 <div class="row">
                     <div class="col-12 text-center">
                         <button type="button" class="btn btn-success me-2" onclick="saveAndPrintSale()">
-                            <i class="fa-solid fa-print me-1"></i>Save and Print
+                            <i class="fa-solid fa-print me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update and Print</text>
+                            }
+                            else
+                            {
+                                <text>Save and Print</text>
+                            }
                         </button>
                         <button type="button" class="btn btn-primary me-2" onclick="saveSale()">
-                            <i class="fa-solid fa-save me-1"></i>Save Sale
+                            <i class="fa-solid fa-save me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update Sale</text>
+                            }
+                            else
+                            {
+                                <text>Save Sale</text>
+                            }
                         </button>
                         <a asp-action="Index" class="btn btn-secondary">
                             <i class="fa-solid fa-arrow-left me-1"></i>Back to Sales
                         </a>
-                    </div>
-                </div>
-            </form>
+            </div>
+        </div>
+    </form>
         </div>
     </div>
 </div>
@@ -194,32 +220,41 @@
     <script>
         let rowIndex = 0;
         let selectedProductSize = null;
+        let currentAvailableStock = 0;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Set up event listeners
             setupEventListeners();
-
+            
+            // Check if we're editing an existing sale
+            const isEdit = @(ViewBag.IsEdit?.ToString().ToLower() ?? "false");
+            if (isEdit) {
+                populateExistingSaleDetails();
+            }
         });
 
         function setupEventListeners() {
             // Product selection change
             document.getElementById('productSelect').addEventListener('change', loadProductSizes);
-
+            
             // Product size selection change
             document.getElementById('productSizeSelect').addEventListener('change', onProductSizeChange);
 
             // Customer selection change
             document.getElementById('CustomerId').addEventListener('change', loadPreviousDueAmount);
-
+            
             // Quantity, sale price, discount change
-            document.getElementById('quantity').addEventListener('input', calculatePayableAmount);
+            document.getElementById('quantity').addEventListener('input', function() {
+                calculatePayableAmount();
+                validateQuantityInput();
+            });
             document.getElementById('salePrice').addEventListener('input', calculatePayableAmount);
             document.getElementById('discountAmount').addEventListener('input', calculatePayableAmount);
-
+            
             // Add to table button
             document.getElementById('addToTable').addEventListener('click', addProductToTable);
-
+            
             // Reset fields button
             document.getElementById('resetFields').addEventListener('click', resetFields);
 
@@ -244,15 +279,19 @@
                 // Show loading state
                 showLoadingState();
             });
-
-            // Remove row functionality
+            
+            // Remove row functionality - using event delegation for dynamically added rows
             document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-row')) {
-                    e.target.closest('tr').remove();
-                    updateTotals();
+                if (e.target.classList.contains('remove-row') || e.target.closest('.remove-row')) {
+                    const row = e.target.closest('tr');
+                    if (row) {
+                        row.remove();
+                        updateTotals();
+                        showSuccessMessage('Product removed from sale successfully!');
+                    }
                 }
             });
-
+            
             // Total calculation inputs
             document.getElementById('DiscountAmount').addEventListener('input', updateTotals);
             document.getElementById('ReceivedAmount').addEventListener('input', updateReceivedAmountFromReceived);
@@ -289,14 +328,17 @@
 
             // Clear existing options
             sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
-
+            
             // Reset fields
             resetProductFields();
 
             if (productId) {
                 // Show loading
                 sizeSelect.innerHTML = '<option value="">Loading...</option>';
-
+                
+                // Load available stock first
+                loadAvailableStock(productId);
+                
                 // AJAX call to fetch product sizes
                 fetch(`/Sales/GetProductSizes?productId=${productId}`)
                     .then(response => response.json())
@@ -320,6 +362,70 @@
                         console.error('Error loading product sizes:', error);
                         sizeSelect.innerHTML = '<option value="">Error loading sizes</option>';
                     });
+            }
+        }
+
+        function loadAvailableStock(productId) {
+            fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentAvailableStock = data.availableQuantity;
+                        updateStockDisplay();
+                        console.log('Available stock loaded:', currentAvailableStock);
+                    } else {
+                        currentAvailableStock = 0;
+                        updateStockDisplay();
+                        console.error('Error loading stock:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading available stock:', error);
+                    currentAvailableStock = 0;
+                    updateStockDisplay();
+                });
+        }
+
+        function updateStockDisplay() {
+            const quantityInput = document.getElementById('quantity');
+            const maxQuantity = Math.floor(currentAvailableStock);
+            
+            // Update max attribute
+            quantityInput.setAttribute('max', maxQuantity);
+            
+            // Update placeholder to show available stock
+            quantityInput.setAttribute('placeholder', `Max: ${maxQuantity}`);
+            
+            // Add visual indicator
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                quantityLabel.innerHTML = `Quantity: <small class="text-muted">(Available: ${maxQuantity})</small>`;
+            }
+        }
+
+        function validateQuantityInput() {
+            const quantityInput = document.getElementById('quantity');
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const maxQuantity = Math.floor(currentAvailableStock);
+            
+            // Remove previous validation styling
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            
+            if (quantity > 0 && currentAvailableStock > 0) {
+                if (quantity > maxQuantity) {
+                    // Show error styling
+                    quantityInput.classList.add('is-invalid');
+                    quantityInput.setCustomValidity(`Maximum quantity allowed: ${maxQuantity}`);
+                } else {
+                    // Show valid styling
+                    quantityInput.classList.add('is-valid');
+                    quantityInput.setCustomValidity('');
+                }
+            } else if (quantity > 0 && currentAvailableStock === 0) {
+                quantityInput.classList.add('is-invalid');
+                quantityInput.setCustomValidity('No stock available for this product');
+            } else {
+                quantityInput.setCustomValidity('');
             }
         }
 
@@ -388,7 +494,7 @@
         function onProductSizeChange() {
             const sizeSelect = document.getElementById('productSizeSelect');
             const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
-
+            
             if (selectedOption.value) {
                 selectedProductSize = {
                     productRangeId: selectedOption.dataset.productRangeId,
@@ -399,13 +505,13 @@
                     measuringUnitName: selectedOption.dataset.measuringUnitName,
                     measuringUnitAbbreviation: selectedOption.dataset.measuringUnitAbbreviation
                 };
-
+                
                 // Populate unit price
                 document.getElementById('unitPrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-
+                
                 // Set default sale price to unit price
                 document.getElementById('salePrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-
+                
                 // Calculate payable amount
                 calculatePayableAmount();
             } else {
@@ -419,11 +525,12 @@
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
             const payable = (salePrice * quantity) - discount;
-
+            
             document.getElementById('payableAmount').value = payable.toFixed(2);
         }
 
         function addProductToTable() {
+            debugger;
             const productSelect = document.getElementById('productSelect');
             const productId = productSelect.value;
             const productName = productSelect.options[productSelect.selectedIndex].text;
@@ -432,23 +539,29 @@
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
             const payable = parseFloat(document.getElementById('payableAmount').value) || 0;
-
+            const totalDiscount = discount*quantity;
             // Validation
             if (!productId) {
                 showValidationError('Please select a product.');
                 return;
             }
-
+            
             if (!selectedProductSize) {
                 showValidationError('Please select a product size.');
                 return;
             }
-
+            
             if (quantity <= 0) {
                 showValidationError('Please enter a valid quantity.');
                 return;
             }
-
+            
+            // Check stock availability
+            if (quantity > currentAvailableStock) {
+                showValidationError(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
+                return;
+            }
+            
             if (salePrice <= 0) {
                 showValidationError('Please enter a valid sale price.');
                 return;
@@ -467,14 +580,14 @@
             // Add to table
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
-
+            
             newRow.innerHTML = `
                 <td>${selectedProductSize.measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
                 <td>$${unitPrice.toFixed(2)}</td>
                 <td>$${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
-                <td>$${discount.toFixed(2)}</td>
+                <td>$${totalDiscount.toFixed(2)}</td>
                 <td>$${payable.toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-danger btn-sm remove-row">
@@ -490,10 +603,10 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${discount.toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
             `;
-
+            
             tbody.appendChild(newRow);
             rowIndex++;
-
+            
             // Reset fields
             resetFields();
 
@@ -516,6 +629,20 @@
             document.getElementById('discountAmount').value = "0";
             document.getElementById('payableAmount').value = "0";
             selectedProductSize = null;
+            currentAvailableStock = 0;
+            
+            // Reset quantity input styling and attributes
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            quantityInput.removeAttribute('max');
+            quantityInput.removeAttribute('placeholder');
+            quantityInput.setCustomValidity('');
+            
+            // Reset quantity label
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                quantityLabel.innerHTML = 'Quantity:';
+            }
         }
 
 
@@ -525,29 +652,104 @@
             document.getElementById('salePrice').value = "0";
             document.getElementById('discountAmount').value = "0";
             document.getElementById('payableAmount').value = "0";
+            
+            // Reset quantity input styling
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            quantityInput.setCustomValidity('');
+        }
+
+        function populateExistingSaleDetails() {
+            console.log('Populating existing sale details for editing...');
+            
+            // Get the existing sale details from the model
+            const saleDetails = @Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()));
+            
+            if (saleDetails && saleDetails.length > 0) {
+                console.log('Found existing sale details:', saleDetails);
+                
+                // Clear any existing rows
+                document.getElementById('saleDetailsBody').innerHTML = '';
+                rowIndex = 0;
+                
+                // Add each existing sale detail as a row
+                saleDetails.forEach(function(detail) {
+                    addExistingProductToTable(detail);
+                });
+                
+                // Update totals
+                updateTotals();
+                
+                showSuccessMessage('Existing sale details loaded successfully!');
+            } else {
+                console.log('No existing sale details found');
+            }
+        }
+
+        function addExistingProductToTable(detail) {
+            // Get product name from the product select options
+            const productSelect = document.getElementById('productSelect');
+            const productOption = Array.from(productSelect.options).find(option => option.value == detail.productId);
+            const productName = productOption ? productOption.text : 'Unknown Product';
+            
+            // Add to table
+            const tbody = document.getElementById('saleDetailsBody');
+            const newRow = document.createElement('tr');
+            
+            newRow.innerHTML = `
+                <td>${detail.productSize || ''}</td>
+                <td>${productName}</td>
+                <td>$${parseFloat(detail.unitPrice).toFixed(2)}</td>
+                <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
+                <td>${detail.quantity}</td>
+                <td>$${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
+                <td>$${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${detail.productId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${detail.productRangeId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${detail.productSize || ''}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(detail.unitPrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${detail.quantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(detail.salePrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(detail.lineDiscountAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(detail.payableAmount).toFixed(2)}" />
+            `;
+            
+            tbody.appendChild(newRow);
+            rowIndex++;
         }
 
         function updateTotals() {
             const rows = document.querySelectorAll('#saleDetailsBody tr');
             let totalAmount = 0;
+            let totalDiscount = 0;
 
             // Calculate total from all sale items
             rows.forEach(row => {
                 const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
+                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
                 totalAmount += payable;
+                totalDiscount += discount;
             });
 
             // Update Total Amount
             document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
+            
+            // Update Total Discount
+            document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
 
-            // Get discount, received, and previous due amounts
-            const discountAmount = parseFloat(document.getElementById('DiscountAmount').value) || 0;
+            // Get received and previous due amounts
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const previousDueAmount = parseFloat(document.getElementById('PreviousDue').value) || 0;
 
-            // Calculate due amount (Total - Discount - Received + Previous Due)
-            const dueAmount = Math.max(0, totalAmount - discountAmount - receivedAmount + previousDueAmount);
-
+            // Calculate due amount (Total Amount is already net after line discounts, so we don't subtract totalDiscount again)
+            // Due Amount = Total Amount - Received Amount + Previous Due
+            const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
+            
             // Update Due Amount
             document.getElementById('DueAmount').value = dueAmount.toFixed(2);
 
@@ -580,6 +782,7 @@
         }
 
         function updateAmountDisplay() {
+            debugger;
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
@@ -784,7 +987,7 @@
                 console.log('Form validation failed - stopping submission');
                 return false;
             }
-
+            
             console.log('Form validation passed - proceeding with AJAX submission');
             showLoadingState();
 

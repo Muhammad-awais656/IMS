@@ -21,6 +21,9 @@ namespace IMS.Services
         public async Task<CustomerPaymentViewModel> GetAllPaymentsAsync(int pageNumber, int? pageSize, CustomerPaymentFilters? filters)
         {
             var viewModel = new CustomerPaymentViewModel();
+            var paymentsList = new List<PaymentWithCustomerViewModel>();
+            int totalRecords = 0;
+            
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
@@ -36,10 +39,12 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pCustomerId", filters?.CustomerId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDateFrom", filters?.PaymentDateFrom ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDateTo", filters?.PaymentDateTo ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@PageNo", pageNumber);
+                        command.Parameters.AddWithValue("@PageSize", pageSize);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
-                            var paymentsList = new List<PaymentWithCustomerViewModel>();
+                            // Read the first result set (payment records)
                             while (await reader.ReadAsync())
                             {
                                 var payment = new PaymentWithCustomerViewModel
@@ -60,25 +65,31 @@ namespace IMS.Services
                                 paymentsList.Add(payment);
                             }
 
-                            // Apply pagination manually
-                            var totalCount = paymentsList.Count;
-                            var offset = (pageNumber - 1) * (pageSize ?? 10);
-                            var pagedPaymentsList = paymentsList.Skip(offset).Take(pageSize ?? 10).ToList();
+                            // Move to second result set for total count
+                            await reader.NextResultAsync();
 
-                            viewModel.PaymentsList = pagedPaymentsList;
-                            viewModel.CurrentPage = pageNumber;
-                            viewModel.PageSize = pageSize ?? 10;
-                            viewModel.TotalCount = totalCount;
-                            viewModel.TotalPages = (int)Math.Ceiling((double)totalCount / (pageSize ?? 10));
-                            
-                            _logger.LogInformation($"Retrieved {totalCount} payment records");
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.GetInt32("TotalRecords");
+                            }
                         }
                     }
 
-                    // Get customers and sales for dropdowns
-                    viewModel.CustomerList = await GetAllCustomersAsync();
-                    viewModel.SalesList = await GetAllSalesAsync();
+                    // Set pagination properties using TotalRecords from stored procedure
+                    viewModel.PaymentsList = paymentsList;
+                    viewModel.CurrentPage = pageNumber;
+                    viewModel.PageSize = pageSize ?? 10;
+                    viewModel.TotalCount = totalRecords;
+                    viewModel.TotalPages = pageSize.HasValue && pageSize.Value > 0
+                        ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                        : 1;
+                    
+                    _logger.LogInformation($"Retrieved {paymentsList.Count} payment records out of {totalRecords} total records");
                 }
+
+                // Get customers and sales for dropdowns
+                viewModel.CustomerList = await GetAllCustomersAsync();
+                viewModel.SalesList = await GetAllSalesAsync();
             }
             catch (Exception ex)
             {
@@ -315,6 +326,43 @@ namespace IMS.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all sales");
+                throw;
+            }
+            return sales;
+        }
+
+        public async Task<List<Sale>> GetCustomerBillsAsync(long customerId)
+        {
+            var sales = new List<Sale>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetAllCustomerBillNumbers", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pCustomerId", customerId);
+                        
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var sale = new Sale
+                                {
+                                    SaleId = reader.GetInt64("SaleId"),
+                                    BillNumber = reader.GetInt64("BillNumber")
+                                };
+                                sales.Add(sale);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer bills for customer {CustomerId}", customerId);
                 throw;
             }
             return sales;
