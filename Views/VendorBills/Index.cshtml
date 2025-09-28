@@ -51,18 +51,20 @@
                 <div class="col-md-2">
                     <label for="billDateFrom" class="form-label">Bill date from :</label>
                     <input type="date" name="billDateFrom" id="billDateFrom" class="form-control" 
-                           value="@ViewData["billDateFrom"]" />
+                           value="@(ViewData["billDateFrom"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
                 </div>
                 <div class="col-md-2">
                     <label for="billDateTo" class="form-label">Bill date to :</label>
                     <input type="date" name="billDateTo" id="billDateTo" class="form-control" 
-                           value="@ViewData["billDateTo"]" />
+                           value="@(ViewData["billDateTo"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fa-solid fa-magnifying-glass"></i> Search
+                    <button type="submit" class="btn btn-search me-2">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i> Search
                     </button>
-                    <a asp-action="Index" class="btn btn-secondary">Reset filters</a>
+                    <a asp-action="Index" class="btn btn-reset">
+                        <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                    </a>
                 </div>
             </form>
         </div>
@@ -264,5 +266,19 @@
             url.searchParams.set('pageSize', select.value);
             window.location.href = url.toString();
         }
+
+        // Set default dates on page load if not already set
+        document.addEventListener('DOMContentLoaded', function() {
+            const billDateFrom = document.getElementById('billDateFrom');
+            const billDateTo = document.getElementById('billDateTo');
+            
+            if (!billDateFrom.value) {
+                billDateFrom.value = new Date().toISOString().split('T')[0];
+            }
+            
+            if (!billDateTo.value) {
+                billDateTo.value = new Date().toISOString().split('T')[0];
+            }
+        });
     </script>
 }

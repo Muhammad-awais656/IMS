@@ -24,6 +24,13 @@ namespace IMS.Controllers
         {
             try
             {
+                // Set today's date as default if no dates are provided
+                var today = DateTime.Today;
+                if (!billDateFrom.HasValue)
+                    billDateFrom = today;
+                if (!billDateTo.HasValue)
+                    billDateTo = today;
+
                 var filters = new VendorBillsFilters
                 {
                     VendorId = vendorId,
