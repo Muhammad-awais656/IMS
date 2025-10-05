@@ -226,8 +226,10 @@
                 <div class="col-md-6">
                     <div class="card p-3">
                         <h6 class="mb-2">Stock Status</h6>
-                        <canvas id="stockDonut" height="160"></canvas>
-                        <div class="d-flex justify-content-around mt-3 small-muted">
+                        <div style="position: relative; height: 200px; width: 100%;">
+                            <canvas id="stockDonut" style="max-height: 200px; max-width: 100%;"></canvas>
+                        </div>
+                        <div id="stockLabels" class="d-flex justify-content-around mt-3 small-muted">
                             <div><span class="badge bg-success me-1">&nbsp;</span>In stock: @Model.InStockCount</div>
                             <div><span class="badge bg-warning me-1">&nbsp;</span>Available: @Model.LowStockCount</div>
                             <div><span class="badge bg-danger me-1">&nbsp;</span>Used: @Model.OutOfStockCount</div>
@@ -300,6 +302,7 @@
     <partial name="_ValidationScriptsPartial" />
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="~/js/dashboard-service.js"></script>
 
 <script>
         $(document).ready(function() {
@@ -332,40 +335,54 @@
         }
     });
 
-    // Stock donut
-    const donutCtx = document.getElementById('stockDonut').getContext('2d');
-    const donut = new Chart(donutCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['In Stock','Out of Stock', 'Available Stock' ],
-            datasets: [{
-                data: [@Model.InStockCount,@Model.OutOfStockCount, @Model.LowStockCount],
-                backgroundColor: ['#28a745','#dc3545','#ffc107']
-            }]
-        },
-        options: { plugins: { legend: { position: 'bottom' } } }
-    });
-    $("#productDropdown").change(function () {
-        debugger;
-        let productId = $(this).val();
-        if (productId == "0") return;
-
-        $.getJSON("/Home/GetStockStatus", { productId: productId }, function (data) {
-            debugger;
-            stockChart.data.datasets[0].data = [
-                data.inStockCount,
-                data.lowStockCount,
-                data.outOfStockCount
-            ];
-            stockChart.update();
-
-            $("#stockLabels").html(`
-                <div><span class="badge bg-success me-1">&nbsp;</span>In stock: ${data.inStockCount}</div>
-                <div><span class="badge bg-warning me-1">&nbsp;</span>Available: ${data.lowStockCount}</div>
-                <div><span class="badge bg-danger me-1">&nbsp;</span>Used: ${data.outOfStockCount}</div>
-            `);
+    // Stock donut chart initialization
+    const stockDonutElement = document.getElementById('stockDonut');
+    if (stockDonutElement) {
+        const donutCtx = stockDonutElement.getContext('2d');
+        
+        // Ensure we have valid data
+        const inStock = @(Model.InStockCount ?? 0);
+        const outOfStock = @(Model.OutOfStockCount ?? 0);
+        const available = @(Model.LowStockCount ?? 0);
+        
+        console.log('Initial chart data:', { inStock, outOfStock, available });
+        
+        const donut = new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['In Stock','Out of Stock', 'Available Stock' ],
+                datasets: [{
+                    data: [inStock, outOfStock, available],
+                    backgroundColor: ['#28a745','#dc3545','#ffc107'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: { 
+                plugins: { 
+                    legend: { 
+                        position: 'bottom',
+                        display: true
+                    } 
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    animateRotate: true,
+                    animateScale: true
+                }
+            }
         });
-    });
+
+        // Set the chart instance in the dashboard service
+        if (window.dashboardService) {
+            window.dashboardService.setChart(donut);
+        }
+        
+        console.log('Stock chart initialized successfully');
+    } else {
+        console.error('Stock donut canvas element not found');
+    }
     });
 </script>
 }

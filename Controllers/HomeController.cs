@@ -96,14 +96,43 @@ namespace IMS.Controllers
         [HttpGet]
         public async Task<IActionResult> GetStockStatus(long? productId)
         {
-            var model = new DashboardViewModel();
-            var result = await _dashboardService.GetStockStatusAsync(productId);
+            try
+            {
+                if (!productId.HasValue)
+                {
+                    return Json(new { error = "Product ID is required" });
+                }
 
-            model.InStockCount = result.FirstOrDefault()?.InStockCount;
-            model.LowStockCount = result.FirstOrDefault()?.AvailableStockCount;
-            model.OutOfStockCount = result.FirstOrDefault()?.OutOfStockCount;
-            
-            return Json(model);
+                var model = new DashboardViewModel();
+                var result = await _dashboardService.GetStockStatusAsync(productId);
+
+                var stockData = result.FirstOrDefault();
+                if (stockData != null)
+                {
+                    model.InStockCount = stockData.InStockCount ?? 0;
+                    model.LowStockCount = stockData.AvailableStockCount ?? 0;
+                    model.OutOfStockCount = stockData.OutOfStockCount ?? 0;
+                }
+                else
+                {
+                    // Return default values if no data found
+                    model.InStockCount = 0;
+                    model.LowStockCount = 0;
+                    model.OutOfStockCount = 0;
+                }
+                
+                return Json(model);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (you might want to use a proper logging framework)
+                return Json(new { 
+                    error = "An error occurred while fetching stock data",
+                    inStockCount = 0,
+                    lowStockCount = 0,
+                    outOfStockCount = 0
+                });
+            }
         }
         [HttpGet]
         public IActionResult Ping()

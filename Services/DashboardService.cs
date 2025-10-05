@@ -161,11 +161,11 @@ ORDER BY m.Yr, m.Mn;
                 SELECT 
                 p.ProductId,
                 p.ProductName,
-                SUM(s.TotalQuantity) AS StockIn,
-                SUM(s.AvailableQuantity) AS StockAvailable,
-                SUM(s.UsedQuantity) AS StockUsed
-            FROM StockMaster s
-            JOIN Products p ON s.ProductId_FK = p.ProductId
+                ISNULL(SUM(s.TotalQuantity), 0) AS StockIn,
+                ISNULL(SUM(s.AvailableQuantity), 0) AS StockAvailable,
+                ISNULL(SUM(s.UsedQuantity), 0) AS StockUsed
+            FROM Products p
+            LEFT JOIN StockMaster s ON s.ProductId_FK = p.ProductId
             WHERE p.ProductId = @ProductId
             GROUP BY p.ProductId, p.ProductName";
 
@@ -174,20 +174,29 @@ ORDER BY m.Yr, m.Mn;
                     command.Parameters.AddWithValue("@ProductId", productId);
                     using (var reader = await command.ExecuteReaderAsync())
                     {
-                        while (await reader.ReadAsync())
+                        if (await reader.ReadAsync())
                         {
                             var stock = new StockStaus
                             {
                                 ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
                                 ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                                InStockCount = reader.GetDecimal(reader.GetOrdinal("StockIn")),
-                                OutOfStockCount = reader.GetDecimal(reader.GetOrdinal("StockUsed")),
-                                AvailableStockCount = reader.GetDecimal(reader.GetOrdinal("StockAvailable")),
-
+                                InStockCount = reader.IsDBNull(reader.GetOrdinal("StockIn")) ? 0 : reader.GetDecimal(reader.GetOrdinal("StockIn")),
+                                OutOfStockCount = reader.IsDBNull(reader.GetOrdinal("StockUsed")) ? 0 : reader.GetDecimal(reader.GetOrdinal("StockUsed")),
+                                AvailableStockCount = reader.IsDBNull(reader.GetOrdinal("StockAvailable")) ? 0 : reader.GetDecimal(reader.GetOrdinal("StockAvailable")),
                             };
                             stockData.Add(stock);
-
-
+                        }
+                        else
+                        {
+                            // If no data found, return default values
+                            stockData.Add(new StockStaus
+                            {
+                                ProductId = productId,
+                                ProductName = "Unknown Product",
+                                InStockCount = 0,
+                                OutOfStockCount = 0,
+                                AvailableStockCount = 0
+                            });
                         }
                     }
                 }
