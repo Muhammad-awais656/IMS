@@ -34,7 +34,7 @@
                                    placeholder="Enter Contact Numer" onchange="SearchNameChange" />
 
                         </div>
-                        <div class="col">
+                      @*   <div class="col">
                             <label for="searchEmail" class="form-label">NTN :</label>
                             <input type="text"
                                    name="searchEmail"
@@ -42,7 +42,7 @@
                                    class="form-control"
                                    placeholder="Enter NTN" onchange="SearchNameChange" />
 
-                        </div>
+                        </div> *@
                         <div class="mb-md-3">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -71,8 +71,8 @@
                         <th> Vendor Id </th>
                         <th>Vendor Name</th>
                         <th>Contact Number</th>
-                        <th>NTN</th>
-                        <th>Email</th>
+                       @*  <th>NTN</th> *@
+                       @*  <th>Email</th> *@
                         
                         <th>Address</th>
                         <th>Is Deleted</th>
@@ -91,8 +91,8 @@
                                 <td>@Html.DisplayFor(modelItem => item.SupplierId)</td>
                                 <td>@Html.DisplayFor(modelitem => item.SupplierName)</td>
                                 <td>@Html.DisplayFor(modelitem => item.SupplierPhoneNumber)</td>
-                                <td>@Html.DisplayFor(modelitem => item.SupplierNtn)</td>
-                                <td>@Html.DisplayFor(modelitem => item.SupplierEmail)</td>
+                               @*  <td>@Html.DisplayFor(modelitem => item.SupplierNtn)</td> *@
+                               @*  <td>@Html.DisplayFor(modelitem => item.SupplierEmail)</td> *@
                                 <td>@Html.DisplayFor(modelitem => item.SupplierAddress)</td>
                                     <td>
                                         <div class="form-check form-switch">

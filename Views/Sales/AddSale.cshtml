@@ -1,68 +1,216 @@
-﻿@model IMS.DAL.PrimaryDBContext.Sale
+﻿@model AddSaleViewModel
+
 @{
     ViewData["Title"] = "Add Sale";
 }
-
-<div class="container mt-4">
+<link href="~/css/dist/addsales.css" rel="stylesheet" />
+<div class="sale-container">
     <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h2 class="mb-0 text-center">
+                <i class="fa-solid fa-cash-register me-2"></i>
+                @if (ViewBag.IsEdit == true)
+                {
+                    <text>Edit Sale</text>
+                }
+                else
+                {
+                    <text>Add New Sale</text>
+                }
+            </h2>
+        </div>
+
         <div class="card-body">
-            <form asp-action="Create" method="post">
-                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;">
-                    <h2 class="mb-0">Add New Sale</h2>
+    <form asp-action="AddSale" method="post" id="addSaleForm">
+                @Html.AntiForgeryToken()
+                <!-- Hidden field to track which button was clicked -->
+                <input type="hidden" id="actionType" name="actionType" value="" />
+                <!-- Hidden field for SaleId when editing -->
+                <input type="hidden" asp-for="SaleId" id="saleId" />
+
+                <!-- Product Selection Section -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-primary mb-3">
+                            <i class="fa-solid fa-box me-2"></i>Product Selection
+                        </h5>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="productSelect" class="form-label">Product:</label>
+                        <select id="productSelect" asp-items="ViewBag.Products" class="form-select">
+                            <option value="">--Select Product--</option>
+                </select>
+            </div>
+                    <div class="col-md-3">
+                        <label for="productSizeSelect" class="form-label">Product Size:</label>
+                        <select id="productSizeSelect" class="form-select">
+                            <option value="">--Select Size--</option>
+                </select>
+            </div>
+                    <div class="col-md-2">
+                        <label for="quantity" class="form-label">Quantity:</label>
+                <input type="number" id="quantity" class="form-control" value="1" min="1" />
+            </div>
+                    <div class="col-md-2">
+                        <label for="unitPrice" class="form-label">Unit Price:</label>
+                <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
+            </div>
+                    <div class="col-md-2">
+                        <label for="salePrice" class="form-label">Sale Price:</label>
+                <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
+            </div>
                 </div>
-                <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 g-4 mt-2">
-                        <div class="col">
-                            <label class="form-label">Bill Number:</label>
-                            <input type="number" class="form-control" value="@ViewBag.NextBillNumber" readonly />
-                            <input type="hidden" asp-for="BillNumber" value="@ViewBag.NextBillNumber" />
-                        </div>
-                        <div class="col">
-                            <label asp-for="SaleDate" class="form-label">Sale Date:</label>
-                            <input asp-for="SaleDate" class="form-control" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                            <span asp-validation-for="SaleDate" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Customer:</label>
-                            @Html.DropDownList("CustomerIdFk", ViewBag.Customers as IEnumerable<SelectListItem>, "<-- Select Customer -->", new { @class = "form-control" })
-                            <span asp-validation-for="CustomerIdFk" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalAmount" class="form-label">Total Amount:</label>
-                            <input asp-for="TotalAmount" class="form-control" type="number" step="0.01" min="0" />
-                            <span asp-validation-for="TotalAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="DiscountAmount" class="form-label">Discount Amount:</label>
-                            <input asp-for="DiscountAmount" class="form-control" type="number" step="0.01" min="0" value="0" />
-                            <span asp-validation-for="DiscountAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalReceivedAmount" class="form-label">Received Amount:</label>
-                            <input asp-for="TotalReceivedAmount" class="form-control" type="number" step="0.01" min="0" />
-                            <span asp-validation-for="TotalReceivedAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="TotalDueAmount" class="form-label">Due Amount:</label>
-                            <input asp-for="TotalDueAmount" class="form-control" type="number" step="0.01" min="0" readonly />
-                            <span asp-validation-for="TotalDueAmount" class="text-danger"></span>
-                        </div>
-                        <div class="col-12">
-                            <label asp-for="SaleDescription" class="form-label">Description:</label>
-                            <textarea asp-for="SaleDescription" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
-                            <span asp-validation-for="SaleDescription" class="text-danger"></span>
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label for="discountAmount" class="form-label">Line Discount:</label>
+                <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
+            </div>
+                    <div class="col-md-3">
+                        <label for="payableAmount" class="form-label">Payable Amount:</label>
+                <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
+            </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary me-2" id="addToTable" title="Add product to sale (Ctrl+Enter)">
+                            <i class="fa-solid fa-plus me-1"></i>Add to Sale
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="resetFields" title="Reset product fields (Escape)">
+                            <i class="fa-solid fa-rotate-left me-1"></i>Reset Product
+                        </button>
+            </div>
+        </div>
+
+                <!-- Sale Items Table -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-primary mb-3">
+                            <i class="fa-solid fa-list me-2"></i>Sale Items
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="saleDetailsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Code</th>
+                    <th>Product</th>
+                                        <th>Unit Price</th>
+                                        <th>Sale Price</th>
+                                        <th>Qty</th>
+                                        <th>Total Discount</th>
+                                        <th>Payable</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="saleDetailsBody">
+                <!-- Product rows will be added via JavaScript -->
+            </tbody>
+        </table>
                         </div>
                     </div>
-                    <div class="mb-3 mt-4">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fa-solid fa-save"></i> Create Sale
+                </div>
+
+                <!-- Sale Information Section -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-primary mb-3">
+                            <i class="fa-solid fa-user me-2"></i>Sale Information
+                        </h5>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="CustomerId" class="form-label">Customer:</label>
+                        <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" required>
+                            <option value="">--Select Customer--</option>
+                </select>
+                <span asp-validation-for="CustomerId" class="text-danger"></span>
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="BillNo" class="form-label">Bill #:</label>
+                <input asp-for="BillNo" class="form-control" value="@ViewBag.NextBillNumber" readonly />
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="SaleDate" class="form-label">Sale Date:</label>
+                <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="PayNow" class="form-label">Pay Now (Optional):</label>
+                        <input asp-for="PayNow" class="form-control" value="0" step="0.01" placeholder="Enter payment amount (optional)" />
+                        <small class="form-text text-muted">Leave empty to add full amount to customer's due</small>
+            </div>
+        </div>
+
+                <!-- Payment Summary Section -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-primary mb-3">
+                            <i class="fa-solid fa-calculator me-2"></i>Payment Summary
+                        </h5>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="TotalAmount" class="form-label">Total Amount:</label>
+                <input asp-for="TotalAmount" class="form-control" value="0" readonly />
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="DiscountAmount" class="form-label">Total Discount:</label>
+                <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
+                <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" />
+            </div>
+                    <div class="col-md-3">
+                        <label asp-for="DueAmount" class="form-label">Due Amount:</label>
+                <input asp-for="DueAmount" class="form-control" value="0" readonly />
+            </div>
+        </div>
+
+                <!-- Additional Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="PreviousDue" class="form-label">Previous Due:</label>
+                        <div class="input-group">
+                            <input asp-for="PreviousDue" class="form-control" value="0" step="0.01" readonly />
+                            <span class="input-group-text">
+                                <i class="fa-solid fa-dollar-sign"></i>
+                            </span>
+                        </div>
+                        <small class="form-text text-muted">This will be populated automatically when you select a customer</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Description" class="form-label">Description:</label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
+            </div>
+            </div>
+
+                <!-- Action Buttons -->
+                <div class="row">
+                    <div class="col-12 text-center">
+                        <button type="button" class="btn btn-success me-2" onclick="saveAndPrintSale()">
+                            <i class="fa-solid fa-print me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update and Print</text>
+                            }
+                            else
+                            {
+                                <text>Save and Print</text>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-primary me-2" onclick="saveSale()">
+                            <i class="fa-solid fa-save me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update Sale</text>
+                            }
+                            else
+                            {
+                                <text>Save Sale</text>
+                            }
                         </button>
                         <a asp-action="Index" class="btn btn-secondary">
-                            <i class="fa-solid fa-arrow-left"></i> Back to List
+                            <i class="fa-solid fa-arrow-left me-1"></i>Back to Sales
                         </a>
-                    </div>
-                </div>
-            </form>
+            </div>
+        </div>
+    </form>
         </div>
     </div>
 </div>
@@ -70,17 +218,966 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        // Auto-calculate due amount when total amount, discount, or received amount changes
-        document.getElementById('TotalAmount').addEventListener('input', calculateDueAmount);
-        document.getElementById('DiscountAmount').addEventListener('input', calculateDueAmount);
-        document.getElementById('TotalReceivedAmount').addEventListener('input', calculateDueAmount);
+        let rowIndex = 0;
+        let selectedProductSize = null;
+        let currentAvailableStock = 0;
 
-        function calculateDueAmount() {
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Check if we're editing an existing sale
+            const isEdit = @(ViewBag.IsEdit?.ToString().ToLower() ?? "false");
+            if (isEdit) {
+                populateExistingSaleDetails();
+            }
+        });
+
+        function setupEventListeners() {
+            // Product selection change
+            document.getElementById('productSelect').addEventListener('change', loadProductSizes);
+            
+            // Product size selection change
+            document.getElementById('productSizeSelect').addEventListener('change', onProductSizeChange);
+
+            // Customer selection change
+            document.getElementById('CustomerId').addEventListener('change', loadPreviousDueAmount);
+            
+            // Quantity, sale price, discount change
+            document.getElementById('quantity').addEventListener('input', function() {
+                calculatePayableAmount();
+                validateQuantityInput();
+            });
+            document.getElementById('salePrice').addEventListener('input', calculatePayableAmount);
+            document.getElementById('discountAmount').addEventListener('input', calculatePayableAmount);
+            
+            // Add to table button
+            document.getElementById('addToTable').addEventListener('click', addProductToTable);
+            
+            // Reset fields button
+            document.getElementById('resetFields').addEventListener('click', resetFields);
+
+            // Reset all fields button
+
+
+            // Old event listeners removed - now using onclick methods with AJAX
+
+            // Form submission event listener - just for logging
+            document.getElementById('addSaleForm').addEventListener('submit', function(e) {
+                console.log('=== FORM SUBMIT EVENT TRIGGERED ===');
+                console.log('Form action:', this.action);
+                console.log('Form method:', this.method);
+                
+                // Log form data for debugging
+                const formData = new FormData(this);
+                console.log('=== FORM DATA BEING SUBMITTED ===');
+                for (let [key, value] of formData.entries()) {
+                    console.log(`${key}: ${value}`);
+                }
+                
+                // Show loading state
+                showLoadingState();
+            });
+            
+            // Remove row functionality - using event delegation for dynamically added rows
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-row') || e.target.closest('.remove-row')) {
+                    const row = e.target.closest('tr');
+                    if (row) {
+                        row.remove();
+                        updateTotals();
+                        showSuccessMessage('Product removed from sale successfully!');
+                    }
+                }
+            });
+            
+            // Total calculation inputs
+            document.getElementById('DiscountAmount').addEventListener('input', updateTotals);
+            document.getElementById('ReceivedAmount').addEventListener('input', updateReceivedAmountFromReceived);
+            document.getElementById('PayNow').addEventListener('input', updateReceivedAmount);
+            document.getElementById('PreviousDue').addEventListener('input', updateTotals);
+
+            // Additional event listeners for real-time updates
+            document.getElementById('TotalAmount').addEventListener('input', updateTotals);
+            document.getElementById('DueAmount').addEventListener('input', updateTotals);
+
+            // Initialize display on page load
+            updateAmountDisplay();
+
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+Enter to add product to table
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    addProductToTable();
+                }
+
+                // Escape to reset fields
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    resetFields();
+                }
+            });
+        }
+
+        function loadProductSizes() {
+            const productSelect = document.getElementById('productSelect');
+            const productId = productSelect.value;
+            const sizeSelect = document.getElementById('productSizeSelect');
+
+            // Clear existing options
+            sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+            
+            // Reset fields
+            resetProductFields();
+
+            if (productId) {
+                // Show loading
+                sizeSelect.innerHTML = '<option value="">Loading...</option>';
+                
+                // Load available stock first
+                loadAvailableStock(productId);
+                
+                // AJAX call to fetch product sizes
+                fetch(`/Sales/GetProductSizes?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+                        data.forEach(size => {
+                            const option = document.createElement('option');
+                            option.value = size.value;
+                            option.text = size.text;
+                            option.dataset.productRangeId = size.productRangeId;
+                            option.dataset.measuringUnitId = size.measuringUnitId;
+                            option.dataset.rangeFrom = size.rangeFrom;
+                            option.dataset.rangeTo = size.rangeTo;
+                            option.dataset.unitPrice = size.unitPrice;
+                            option.dataset.measuringUnitName = size.measuringUnitName;
+                            option.dataset.measuringUnitAbbreviation = size.measuringUnitAbbreviation;
+                            sizeSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading product sizes:', error);
+                        sizeSelect.innerHTML = '<option value="">Error loading sizes</option>';
+                    });
+            }
+        }
+
+        function loadAvailableStock(productId) {
+            fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentAvailableStock = data.availableQuantity;
+                        updateStockDisplay();
+                        console.log('Available stock loaded:', currentAvailableStock);
+                    } else {
+                        currentAvailableStock = 0;
+                        updateStockDisplay();
+                        console.error('Error loading stock:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading available stock:', error);
+                    currentAvailableStock = 0;
+                    updateStockDisplay();
+                });
+        }
+
+        function updateStockDisplay() {
+            const quantityInput = document.getElementById('quantity');
+            const maxQuantity = Math.floor(currentAvailableStock);
+            
+            // Update max attribute
+            quantityInput.setAttribute('max', maxQuantity);
+            
+            // Update placeholder to show available stock
+            quantityInput.setAttribute('placeholder', `Max: ${maxQuantity}`);
+            
+            // Add visual indicator
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                quantityLabel.innerHTML = `Quantity: <small class="text-muted">(Available: ${maxQuantity})</small>`;
+            }
+        }
+
+        function validateQuantityInput() {
+            const quantityInput = document.getElementById('quantity');
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const maxQuantity = Math.floor(currentAvailableStock);
+            
+            // Remove previous validation styling
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            
+            if (quantity > 0 && currentAvailableStock > 0) {
+                if (quantity > maxQuantity) {
+                    // Show error styling
+                    quantityInput.classList.add('is-invalid');
+                    quantityInput.setCustomValidity(`Maximum quantity allowed: ${maxQuantity}`);
+                } else {
+                    // Show valid styling
+                    quantityInput.classList.add('is-valid');
+                    quantityInput.setCustomValidity('');
+                }
+            } else if (quantity > 0 && currentAvailableStock === 0) {
+                quantityInput.classList.add('is-invalid');
+                quantityInput.setCustomValidity('No stock available for this product');
+            } else {
+                quantityInput.setCustomValidity('');
+            }
+        }
+
+        function loadPreviousDueAmount() {
+            const customerSelect = document.getElementById('CustomerId');
+            const customerId = customerSelect.value;
+            const previousDueInput = document.getElementById('PreviousDue');
+
+            if (customerId) {
+                // Show loading state
+                previousDueInput.value = 'Loading...';
+                previousDueInput.style.backgroundColor = '#f8f9fa';
+                previousDueInput.style.color = '#6c757d';
+
+                // AJAX call to fetch previous due amount
+                fetch(`/Sales/GetPreviousDueAmount?customerId=${customerId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const amount = parseFloat(data.previousDueAmount);
+                            previousDueInput.value = amount.toFixed(2);
+
+                            // Visual feedback based on amount
+                            if (amount > 0) {
+                                previousDueInput.style.backgroundColor = '#fff3cd';
+                                previousDueInput.style.color = '#856404';
+                                showSuccessMessage(`Previous due amount loaded: $${amount.toFixed(2)}`);
+                            } else {
+                                previousDueInput.style.backgroundColor = '#d1edff';
+                                previousDueInput.style.color = '#0c5460';
+                                showSuccessMessage('No previous due amount for this customer');
+                            }
+                        } else {
+                            previousDueInput.value = '0.00';
+                            previousDueInput.style.backgroundColor = '#f8d7da';
+                            previousDueInput.style.color = '#721c24';
+                            showValidationError(data.message || 'Error loading previous due amount');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading previous due amount:', error);
+                        previousDueInput.value = '0.00';
+                        previousDueInput.style.backgroundColor = '#f8d7da';
+                        previousDueInput.style.color = '#721c24';
+                        showValidationError('Error loading previous due amount');
+                    })
+                    .finally(() => {
+                        // Reset to normal state after a delay
+                        setTimeout(() => {
+                            previousDueInput.style.backgroundColor = '';
+                            previousDueInput.style.color = '';
+                        }, 2000);
+
+                        // Update totals after loading previous due
+                        updateTotals();
+                    });
+            } else {
+                // Clear previous due when no customer selected
+                previousDueInput.value = '0.00';
+                previousDueInput.style.backgroundColor = '';
+                previousDueInput.style.color = '';
+                updateTotals();
+            }
+        }
+
+        function onProductSizeChange() {
+            const sizeSelect = document.getElementById('productSizeSelect');
+            const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
+            
+            if (selectedOption.value) {
+                selectedProductSize = {
+                    productRangeId: selectedOption.dataset.productRangeId,
+                    measuringUnitId: selectedOption.dataset.measuringUnitId,
+                    rangeFrom: selectedOption.dataset.rangeFrom,
+                    rangeTo: selectedOption.dataset.rangeTo,
+                    unitPrice: selectedOption.dataset.unitPrice,
+                    measuringUnitName: selectedOption.dataset.measuringUnitName,
+                    measuringUnitAbbreviation: selectedOption.dataset.measuringUnitAbbreviation
+                };
+                
+                // Populate unit price
+                document.getElementById('unitPrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                
+                // Set default sale price to unit price
+                document.getElementById('salePrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                
+                // Calculate payable amount
+                calculatePayableAmount();
+            } else {
+                selectedProductSize = null;
+                resetProductFields();
+            }
+        }
+
+        function calculatePayableAmount() {
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+            const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+            const payable = (salePrice * quantity) - discount;
+            
+            document.getElementById('payableAmount').value = payable.toFixed(2);
+        }
+
+        function addProductToTable() {
+            debugger;
+            const productSelect = document.getElementById('productSelect');
+            const productId = productSelect.value;
+            const productName = productSelect.options[productSelect.selectedIndex].text;
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+            const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+            const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+            const payable = parseFloat(document.getElementById('payableAmount').value) || 0;
+            const totalDiscount = discount*quantity;
+            // Validation
+            if (!productId) {
+                showValidationError('Please select a product.');
+                return;
+            }
+            
+            if (!selectedProductSize) {
+                showValidationError('Please select a product size.');
+                return;
+            }
+            
+            if (quantity <= 0) {
+                showValidationError('Please enter a valid quantity.');
+                return;
+            }
+            
+            // Check stock availability
+            if (quantity > currentAvailableStock) {
+                showValidationError(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
+                return;
+            }
+            
+            if (salePrice <= 0) {
+                showValidationError('Please enter a valid sale price.');
+                return;
+            }
+
+            // Check for duplicate products
+            const existingRows = document.querySelectorAll('#saleDetailsBody tr');
+            for (let row of existingRows) {
+                const existingProductId = row.querySelector('input[name*=".ProductId"]').value;
+                if (existingProductId === productId) {
+                    showValidationError('This product has already been added to the sale. Please remove it first or update the quantity.');
+                    return;
+                }
+            }
+
+            // Add to table
+            const tbody = document.getElementById('saleDetailsBody');
+            const newRow = document.createElement('tr');
+            
+            newRow.innerHTML = `
+                <td>${selectedProductSize.measuringUnitAbbreviation}</td>
+                <td>${productName}</td>
+                <td>$${unitPrice.toFixed(2)}</td>
+                <td>$${salePrice.toFixed(2)}</td>
+                <td>${quantity}</td>
+                <td>$${totalDiscount.toFixed(2)}</td>
+                <td>$${payable.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${selectedProductSize.productRangeId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${selectedProductSize.measuringUnitAbbreviation}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${Math.floor(quantity)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${discount.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
+            `;
+            
+            tbody.appendChild(newRow);
+            rowIndex++;
+            
+            // Reset fields
+            resetFields();
+
+            // Update totals immediately after adding product
+            updateTotals();
+
+            // Show success message
+            showSuccessMessage('Product added to sale successfully!');
+
+            // Focus on product selection for next item
+            document.getElementById('productSelect').focus();
+        }
+
+        function resetFields() {
+            document.getElementById('productSelect').value = "";
+            document.getElementById('productSizeSelect').innerHTML = '<option value="">--Select a value--</option>';
+            document.getElementById('quantity').value = "1";
+            document.getElementById('unitPrice').value = "0";
+            document.getElementById('salePrice').value = "0";
+            document.getElementById('discountAmount').value = "0";
+            document.getElementById('payableAmount').value = "0";
+            selectedProductSize = null;
+            currentAvailableStock = 0;
+            
+            // Reset quantity input styling and attributes
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            quantityInput.removeAttribute('max');
+            quantityInput.removeAttribute('placeholder');
+            quantityInput.setCustomValidity('');
+            
+            // Reset quantity label
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                quantityLabel.innerHTML = 'Quantity:';
+            }
+        }
+
+
+        function resetProductFields() {
+            document.getElementById('quantity').value = "1";
+            document.getElementById('unitPrice').value = "0";
+            document.getElementById('salePrice').value = "0";
+            document.getElementById('discountAmount').value = "0";
+            document.getElementById('payableAmount').value = "0";
+            
+            // Reset quantity input styling
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.classList.remove('is-invalid', 'is-valid');
+            quantityInput.setCustomValidity('');
+        }
+
+        function populateExistingSaleDetails() {
+            console.log('Populating existing sale details for editing...');
+            
+            // Get the existing sale details from the model
+            const saleDetails = @Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()));
+            
+            if (saleDetails && saleDetails.length > 0) {
+                console.log('Found existing sale details:', saleDetails);
+                
+                // Clear any existing rows
+                document.getElementById('saleDetailsBody').innerHTML = '';
+                rowIndex = 0;
+                
+                // Add each existing sale detail as a row
+                saleDetails.forEach(function(detail) {
+                    addExistingProductToTable(detail);
+                });
+                
+                // Update totals
+                updateTotals();
+                
+                showSuccessMessage('Existing sale details loaded successfully!');
+            } else {
+                console.log('No existing sale details found');
+            }
+        }
+
+        function addExistingProductToTable(detail) {
+            // Get product name from the product select options
+            const productSelect = document.getElementById('productSelect');
+            const productOption = Array.from(productSelect.options).find(option => option.value == detail.productId);
+            const productName = productOption ? productOption.text : 'Unknown Product';
+            
+            // Add to table
+            const tbody = document.getElementById('saleDetailsBody');
+            const newRow = document.createElement('tr');
+            
+            newRow.innerHTML = `
+                <td>${detail.productSize || ''}</td>
+                <td>${productName}</td>
+                <td>$${parseFloat(detail.unitPrice).toFixed(2)}</td>
+                <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
+                <td>${detail.quantity}</td>
+                <td>$${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
+                <td>$${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${detail.productId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${detail.productRangeId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${detail.productSize || ''}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(detail.unitPrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${detail.quantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(detail.salePrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(detail.lineDiscountAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(detail.payableAmount).toFixed(2)}" />
+            `;
+            
+            tbody.appendChild(newRow);
+            rowIndex++;
+        }
+
+        function updateTotals() {
+            const rows = document.querySelectorAll('#saleDetailsBody tr');
+            let totalAmount = 0;
+            let totalDiscount = 0;
+
+            // Calculate total from all sale items
+            rows.forEach(row => {
+                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
+                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
+                totalAmount += payable;
+                totalDiscount += discount;
+            });
+
+            // Update Total Amount
+            document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
+            
+            // Update Total Discount
+            document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
+
+            // Get received and previous due amounts
+            const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
+            const previousDueAmount = parseFloat(document.getElementById('PreviousDue').value) || 0;
+
+            // Calculate due amount (Total Amount is already net after line discounts, so we don't subtract totalDiscount again)
+            // Due Amount = Total Amount - Received Amount + Previous Due
+            const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
+            
+            // Update Due Amount
+            document.getElementById('DueAmount').value = dueAmount.toFixed(2);
+
+            // Pay Now field is optional - don't auto-sync with Received Amount
+            // User can enter any amount they want to pay now
+
+            // Visual feedback for amounts
+            updateAmountDisplay();
+        }
+
+        function updateReceivedAmount() {
+            const payNow = parseFloat(document.getElementById('PayNow').value) || 0;
+            document.getElementById('ReceivedAmount').value = payNow.toFixed(2);
+            updateTotals();
+
+            // Show helpful message when payment is complete
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const discountAmount = parseFloat(document.getElementById('DiscountAmount').value) || 0;
-            const receivedAmount = parseFloat(document.getElementById('TotalReceivedAmount').value) || 0;
-            const dueAmount = totalAmount - discountAmount - receivedAmount;
-            document.getElementById('TotalDueAmount').value = Math.max(0, dueAmount).toFixed(2);
+            const netTotal = totalAmount - discountAmount;
+
+            if (payNow >= netTotal && netTotal > 0) {
+                showSuccessMessage('Payment complete! No amount due.');
+            }
+        }
+
+        function updateReceivedAmountFromReceived() {
+            const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
+            document.getElementById('PayNow').value = receivedAmount.toFixed(2);
+            updateTotals();
+        }
+
+        function updateAmountDisplay() {
+            debugger;
+            const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
+            const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
+            const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
+
+            // Add visual indicators
+            const totalElement = document.getElementById('TotalAmount');
+            const receivedElement = document.getElementById('ReceivedAmount');
+            const dueElement = document.getElementById('DueAmount');
+
+            // Reset classes
+            totalElement.classList.remove('text-success', 'text-warning');
+            receivedElement.classList.remove('text-success', 'text-warning');
+            dueElement.classList.remove('text-success', 'text-danger', 'text-warning');
+
+            // Apply visual feedback
+            if (totalAmount > 0) {
+                totalElement.classList.add('text-success');
+            }
+
+            if (receivedAmount > 0) {
+                receivedElement.classList.add('text-success');
+            }
+
+            if (dueAmount > 0) {
+                dueElement.classList.add('text-danger');
+            } else if (receivedAmount > 0 && dueAmount === 0) {
+                dueElement.classList.add('text-success');
+            }
+        }
+
+        // Form submission handler - only for loading state
+        document.getElementById('addSaleForm').addEventListener('submit', function(e) {
+            console.log('=== FORM SUBMISSION EVENT TRIGGERED ===');
+            console.log('Form submitting to AddSale with action type:', document.getElementById('actionType').value);
+            console.log('Form action URL:', this.action);
+            console.log('Form method:', this.method);
+
+            // Log all form data for debugging
+            const formData = new FormData(this);
+            console.log('Form data being submitted:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ': ' + value);
+            }
+
+            // Show loading state when form is submitting
+            showLoadingState();
+
+            // Don't prevent default - let the form submit naturally
+            console.log('Form is now submitting to AddSale POST method');
+        });
+
+        function clearValidationMessages() {
+            const existingAlerts = document.querySelectorAll('.alert-danger, .alert-success');
+            existingAlerts.forEach(alert => alert.remove());
+        }
+
+        function validateForm() {
+            console.log('=== VALIDATING FORM ===');
+            
+            const customerId = document.getElementById('CustomerId').value;
+            const saleDetailsCount = document.querySelectorAll('#saleDetailsBody tr').length;
+            const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
+            const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
+            const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
+
+            console.log('Validation values:', {
+                customerId: customerId,
+                saleDetailsCount: saleDetailsCount,
+                totalAmount: totalAmount,
+                receivedAmount: receivedAmount,
+                dueAmount: dueAmount
+            });
+
+            // Clear previous validation messages
+            clearValidationMessages();
+
+            let isValid = true;
+            let errorMessages = [];
+
+            if (!customerId || customerId === '') {
+                errorMessages.push('Please select a customer.');
+                isValid = false;
+            }
+
+            if (saleDetailsCount === 0) {
+                errorMessages.push('Please add at least one product to the sale.');
+                isValid = false;
+            }
+
+            if (totalAmount <= 0) {
+                errorMessages.push('Total amount must be greater than zero.');
+                isValid = false;
+            }
+
+            if (receivedAmount < 0) {
+                errorMessages.push('Received amount cannot be negative.');
+                isValid = false;
+            }
+
+            if (dueAmount < 0) {
+                errorMessages.push('Due amount cannot be negative.');
+                isValid = false;
+            }
+
+            console.log('Validation result:', isValid);
+            console.log('Error messages:', errorMessages);
+
+            if (!isValid) {
+                showValidationError(errorMessages.join('<br>'));
+            }
+
+            return isValid;
+        }
+
+
+        function showLoadingState() {
+            // Disable all form elements
+            const formElements = document.querySelectorAll('#addSaleForm input, #addSaleForm select, #addSaleForm textarea, #addSaleForm button');
+            formElements.forEach(element => {
+                element.disabled = true;
+            });
+
+            // Show loading message
+            showSuccessMessage('Saving sale... Please wait.');
+
+            // Add loading spinner to buttons
+            const saveBtn = document.getElementById('saveBtn');
+            const saveAndPrintBtn = document.getElementById('saveAndPrintBtn');
+
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+            }
+            if (saveAndPrintBtn) {
+                saveAndPrintBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+            }
+        }
+
+        function resetFormAfterSuccess() {
+            // Re-enable all form elements
+            const formElements = document.querySelectorAll('#addSaleForm input, #addSaleForm select, #addSaleForm textarea, #addSaleForm button');
+            formElements.forEach(element => {
+                element.disabled = false;
+            });
+
+            // Reset button text
+            const saveBtn = document.getElementById('saveBtn');
+            const saveAndPrintBtn = document.getElementById('saveAndPrintBtn');
+
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-save me-1"></i>Save Sale';
+            }
+            if (saveAndPrintBtn) {
+                saveAndPrintBtn.innerHTML = '<i class="fa-solid fa-print me-1"></i>Save and Print';
+            }
+
+        }
+
+
+        function showValidationError(message) {
+            clearValidationMessages();
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const form = document.getElementById('addSaleForm');
+            form.insertBefore(alertDiv, form.firstChild);
+        }
+
+        function showSuccessMessage(message) {
+            clearValidationMessages();
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fa-solid fa-check-circle me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const form = document.getElementById('addSaleForm');
+            form.insertBefore(alertDiv, form.firstChild);
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+
+        // AJAX Save Sale function
+        function saveSale() {
+            console.log('=== AJAX Save Sale called ===');
+            
+            // Validate form
+            if (!validateForm()) {
+                console.log('Form validation failed - stopping submission');
+                return false;
+            }
+            
+            console.log('Form validation passed - proceeding with AJAX submission');
+            showLoadingState();
+
+            // Collect form data
+            const formData = collectFormData('save');
+            
+            // Make AJAX call
+            $.post('@Url.Action("AddSale", "Sales")', formData)
+                .done(function(response) {
+                    console.log('AJAX Save Sale success:', response);
+                    hideLoadingState();
+                    
+                    if (response.success) {
+                        showSuccessMessage('Sale saved successfully!');
+                        // Reset form after successful save
+                        resetAllFormFields();
+                    } else {
+                        showValidationError(response.message || 'Failed to save sale');
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('AJAX Save Sale error:', error);
+                    hideLoadingState();
+                    showValidationError('Error saving sale: ' + error);
+                });
+        }
+
+        // AJAX Save and Print function
+        function saveAndPrintSale() {
+            console.log('=== AJAX Save and Print called ===');
+            
+            // Validate form
+            if (!validateForm()) {
+                console.log('Form validation failed - stopping submission');
+                return false;
+            }
+
+            console.log('Form validation passed - proceeding with AJAX submission');
+            showLoadingState();
+
+            // Collect form data
+            const formData = collectFormData('saveAndPrint');
+            
+            // Make AJAX call
+            $.post('@Url.Action("AddSale", "Sales")', formData)
+                .done(function(response) {
+                    console.log('AJAX Save and Print success:', response);
+                    hideLoadingState();
+                    
+                    if (response.success) {
+                        showSuccessMessage('Sale saved successfully!');
+                        // Reset form after successful save
+                        resetAllFormFields();
+                        // Open print window
+                        if (response.saleId) {
+                            window.open('@Url.Action("Details", "Sales")' + '?id=' + response.saleId + '&print=true', '_blank');
+                        }
+                    } else {
+                        showValidationError(response.message || 'Failed to save sale');
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('AJAX Save and Print error:', error);
+                    hideLoadingState();
+                    showValidationError('Error saving sale: ' + error);
+                });
+        }
+
+        // Collect form data for AJAX submission
+        function collectFormData(actionType) {
+            const formData = {};
+            
+            // Add anti-forgery token
+            formData['__RequestVerificationToken'] = $('input[name="__RequestVerificationToken"]').val();
+            
+            // Add action type
+            formData['ActionType'] = actionType;
+            
+            // Add main form fields
+            formData['CustomerId'] = $('#CustomerId').val();
+            formData['BillNo'] = $('#BillNo').val();
+            formData['SaleDate'] = $('#SaleDate').val();
+            formData['PayNow'] = $('#PayNow').val();
+            formData['TotalAmount'] = $('#TotalAmount').val();
+            formData['DiscountAmount'] = $('#DiscountAmount').val();
+            formData['ReceivedAmount'] = $('#ReceivedAmount').val();
+            formData['DueAmount'] = $('#DueAmount').val();
+            formData['PreviousDue'] = $('#PreviousDue').val();
+            formData['Description'] = $('#Description').val();
+            
+            // Add SaleDetails
+            const saleDetailsRows = document.querySelectorAll('#saleDetailsBody tr');
+            saleDetailsRows.forEach((row, index) => {
+                const productId = row.querySelector('input[name*=".ProductId"]').value;
+                const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
+                const productSize = row.querySelector('input[name*=".ProductSize"]').value;
+                const unitPrice = row.querySelector('input[name*=".UnitPrice"]').value;
+                const quantity = row.querySelector('input[name*=".Quantity"]').value;
+                const salePrice = row.querySelector('input[name*=".SalePrice"]').value;
+                const lineDiscountAmount = row.querySelector('input[name*=".LineDiscountAmount"]').value;
+                const payableAmount = row.querySelector('input[name*=".PayableAmount"]').value;
+                
+                formData[`SaleDetails[${index}].ProductId`] = productId;
+                formData[`SaleDetails[${index}].ProductRangeId`] = productRangeId;
+                formData[`SaleDetails[${index}].ProductSize`] = productSize;
+                formData[`SaleDetails[${index}].UnitPrice`] = unitPrice;
+                formData[`SaleDetails[${index}].Quantity`] = quantity;
+                formData[`SaleDetails[${index}].SalePrice`] = salePrice;
+                formData[`SaleDetails[${index}].LineDiscountAmount`] = lineDiscountAmount;
+                formData[`SaleDetails[${index}].PayableAmount`] = payableAmount;
+            });
+            
+            console.log('Form data collected for AJAX submission:', formData);
+            return formData;
+        }
+
+        // Hide loading state
+        function hideLoadingState() {
+            const formElements = document.querySelectorAll('#addSaleForm input, #addSaleForm select, #addSaleForm textarea, #addSaleForm button');
+            formElements.forEach(element => {
+                element.disabled = false;
+            });
+            
+            // Reset button text
+            const saveBtn = document.querySelector('button[onclick="saveSale()"]');
+            const saveAndPrintBtn = document.querySelector('button[onclick="saveAndPrintSale()"]');
+            
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-save me-1"></i>Save Sale';
+            }
+            if (saveAndPrintBtn) {
+                saveAndPrintBtn.innerHTML = '<i class="fa-solid fa-print me-1"></i>Save and Print';
+            }
+        }
+
+        // Reset all form fields after successful save
+        function resetAllFormFields() {
+            console.log('=== Resetting all form fields ===');
+            
+            // Reset main form fields
+            $('#CustomerId').val('').trigger('change');
+            $('#BillNo').val('');
+            $('#SaleDate').val(new Date().toISOString().split('T')[0]);
+            $('#PayNow').val('');
+            $('#TotalAmount').val('0.00');
+            $('#DiscountAmount').val('0.00');
+            $('#ReceivedAmount').val('0.00');
+            $('#DueAmount').val('0.00');
+            $('#PreviousDue').val('0.00');
+            $('#Description').val('');
+            
+            // Clear product selection
+            $('#ProductId').val('').trigger('change');
+            $('#ProductRangeId').val('').trigger('change');
+            $('#ProductSize').val('');
+            $('#UnitPrice').val('');
+            $('#Quantity').val('');
+            $('#SalePrice').val('');
+            $('#LineDiscountAmount').val('');
+            $('#PayableAmount').val('');
+            
+            // Clear sale details table
+            $('#saleDetailsBody').empty();
+            
+            // Reset totals
+            updateTotals();
+            
+            // Get new bill number
+            getNewBillNumber();
+            
+            // Clear any validation messages
+            clearValidationMessages();
+            
+            console.log('Form reset completed');
+        }
+
+        // Get new bill number from server
+        function getNewBillNumber() {
+            $.get('@Url.Action("GetNextBillNumber", "Sales")')
+                .done(function(response) {
+                    if (response.success) {
+                        $('#BillNo').val(response.billNumber);
+                        console.log('New bill number loaded:', response.billNumber);
+                    } else {
+                        console.error('Failed to get new bill number:', response.message);
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('Error getting new bill number:', error);
+                });
         }
     </script>
 }

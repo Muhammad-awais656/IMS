@@ -14,41 +14,78 @@
 
         <div class="card-body">
             <!-- Toolbar -->
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <a asp-action="Create" class="btn btn-success">Add New Sale</a>
-
-                <!-- Search -->
-                <form asp-action="Index" asp-controller="Sales" asp-route-searchCustomer="@ViewData["searchCustomer"]" method="get" class="d-flex align-items-center gap-2">
-                    <input type="text"
-                           name="searchCustomer"
-                           value="@Context.Request.Query["searchCustomer"]"
-                           class="form-control"
-                           placeholder="Enter Customer Name" onchange="SearchCustomerChange()" />
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-magnifying-glass"></i>
+            
+            <!-- Advanced Filters -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fa-solid fa-filter me-2"></i>Advanced Filters
+                        <button class="btn btn-sm btn-outline-primary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </h6>
+                </div>
+                <div class="collapse" id="filterCollapse">
+                    <div class="card-body">
+                        <form asp-action="Index" method="get" class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Customer:</label>
+                                <select name="customerId" class="form-select">
+                                    <option value="">All Customers</option>
+                                    @if (Model.CustomerList != null)
+                                    {
+                                        @foreach (var customer in Model.CustomerList)
+                                        {
+                                            <option value="@customer.CustomerId" selected="@(Context.Request.Query["customerId"] == customer.CustomerId.ToString())">
+                                                @customer.CustomerName
+                                            </option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Bill Number:</label>
+                                <input type="number" name="billNumber" class="form-control" value="@Context.Request.Query["billNumber"]" placeholder="Bill #" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">From Date:</label>
+                                <input type="date" name="saleFrom" class="form-control" value="@Context.Request.Query["saleFrom"]" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">To Date:</label>
+                                <input type="date" name="saleDateTo" class="form-control" value="@Context.Request.Query["saleDateTo"]" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Description:</label>
+                                <input type="text" name="description" class="form-control" value="@Context.Request.Query["description"]" placeholder="Description" />
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fa-solid fa-search"></i>
                     </button>
-                    <button type="submit" class="btn btn-info">
-                        Refresh
-                    </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fa-solid fa-refresh"></i>
+                            </a>
+                            </div>
                 </form>
-
-               
+                    </div>
+                </div>
             </div>
 
             <!-- Table -->
             <div class="table-responsive">
-                <table class="table table-striped table-bordered custom-table">
-                    <thead>
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
                         <tr>
                             <th>Bill #</th>
-                            <th>Date</th>
+                            <th>Sales Date</th>
                             <th>Customer</th>
-                            <th>Total Amount</th>
-                            <th>Discount</th>
-                            <th>Received</th>
-                            <th>Due</th>
+                            <th class="text-end">Total Amount</th>
+                            <th class="text-end">Discount</th>
+                            <th class="text-end">Received</th>
+                            <th class="text-end">Total Dues</th>
                             <th>Description</th>
-                            <th>Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -57,28 +94,63 @@
                             foreach (var sale in Model.SalesList)
                             {
                                 <tr>
-                                    <td>@sale.BillNumber</td>
-                                    <td>@sale.SaleDate.ToString("dd/MM/yyyy")</td>
-                                    <td>@sale.CustomerName</td>
-                                    <td>@sale.TotalAmount.ToString("C")</td>
-                                    <td>@sale.DiscountAmount.ToString("C")</td>
-                                    <td>@sale.TotalReceivedAmount.ToString("C")</td>
-                                    <td>@sale.TotalDueAmount.ToString("C")</td>
-                                    <td title="@sale.SaleDescription">
-                                        @(sale.SaleDescription?.Length > 30
-                                                                        ? sale.SaleDescription.Substring(0, 30) + "..."
-                                                                        : sale.SaleDescription)
+                                    <td>
+                                        <span class="badge bg-primary">#@sale.BillNumber</span>
+                                    </td>
+                                    <td>@sale.SaleDate.ToString("dd-MMM-yyyy")</td>
+                                    <td>
+                                        <strong>@sale.CustomerName</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold text-success">@sale.TotalAmount.ToString("C")</span>
+                                    </td>
+                                    <td class="text-end">
+                                        @if (sale.DiscountAmount > 0)
+                                        {
+                                            <span class="text-warning">@sale.DiscountAmount.ToString("C")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success">@sale.TotalReceivedAmount.ToString("C")</span>
+                                    </td>
+                                    <td class="text-end">
+                                        @if (sale.TotalDueAmount > 0)
+                                        {
+                                            <span class="text-danger fw-bold">@sale.TotalDueAmount.ToString("C")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-success">Paid</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(sale.SaleDescription))
+                                        {
+                                            <span title="@sale.SaleDescription" class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                @(sale.SaleDescription.Length > 30 ? sale.SaleDescription.Substring(0, 30) + "..." : sale.SaleDescription)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
                             </td>
-                            <td class="table-actions text-nowrap">
-                                <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-info btn-sm">
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-outline-info btn-sm" title="View Details">
                                     <i class="fa-solid fa-eye"></i>
                                 </a>
-                                <a asp-action="Edit" asp-route-id="@sale.SaleId" class="btn btn-primary btn-sm">
+                                            <a asp-action="EditSale" asp-route-id="@sale.SaleId" class="btn btn-outline-primary btn-sm" title="Edit Sale">
                                     <i class="fa-solid fa-edit"></i>
                                 </a>
-                                <a asp-action="Delete" asp-route-id="@sale.SaleId" class="btn btn-danger btn-sm">
+                                            <a asp-action="Delete" asp-route-id="@sale.SaleId" class="btn btn-outline-danger btn-sm" title="Delete Sale">
                                     <i class="fa-solid fa-trash"></i>
                                 </a>
+                                        </div>
                             </td>
                         </tr>
                                                 }
@@ -86,7 +158,13 @@
                         else
                         {
                             <tr>
-                                <td colspan="9" class="text-center">No sales found.</td>
+                                <td colspan="9" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="fa-solid fa-inbox fa-3x mb-3"></i>
+                                        <p class="mb-0">No sales found.</p>
+                                        <small>Start by creating your first sale using the "Add New Sale" button above.</small>
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -94,46 +172,59 @@
             </div>
 
             <!-- Pagination -->
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
-                <!-- Page Size -->
-                <div>
-                    <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
-                    <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div class="d-flex align-items-center">
+                    <span class="text-muted me-3">
+                        <i class="fa-solid fa-info-circle me-1"></i>
+                        Total: <strong>@Model.TotalCount</strong> sales | Showing <strong>@Model.PageSize</strong> per page
+                    </span>
+                    <div class="d-flex align-items-center">
+                        <label for="pageSize" class="form-label me-2 text-muted mb-0">Items per page:</label>
+                        <select id="pageSize" class="form-select form-select-sm" style="width: auto;" onchange="changePageSize(this)">
                         <option value="5" selected="@(Model.PageSize == 5)">5</option>
                         <option value="10" selected="@(Model.PageSize == 10)">10</option>
                         <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                            <option value="50" selected="@(Model.PageSize == 50)">50</option>
                     </select>
+                    </div>
                 </div>
                 @if (Model.TotalPages > 1)
                 {
                     <nav aria-label="Sales pagination">
-                        <ul class="pagination justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@ViewData["searchCustomer"]">First</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@Context.Request.Query["searchCustomer"]" asp-route-customerId="@Context.Request.Query["customerId"]" asp-route-billNumber="@Context.Request.Query["billNumber"]" asp-route-saleFrom="@Context.Request.Query["saleFrom"]" asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]" asp-route-description="@Context.Request.Query["description"]">
+                                    <i class="fa-solid fa-angles-left"></i>
+                                </a>
                             </li>
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@ViewData["searchCustomer"]">Previous</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@Context.Request.Query["searchCustomer"]" asp-route-customerId="@Context.Request.Query["customerId"]" asp-route-billNumber="@Context.Request.Query["billNumber"]" asp-route-saleFrom="@Context.Request.Query["saleFrom"]" asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]" asp-route-description="@Context.Request.Query["description"]">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </a>
                             </li>
                             @{
-                                int startPage = Math.Max(1, Model.CurrentPage - 1);
-                                int endPage = Math.Min(Model.TotalPages, startPage + 2);
-                                if (endPage - startPage < 2)
+                                int startPage = Math.Max(1, Model.CurrentPage - 2);
+                                int endPage = Math.Min(Model.TotalPages, startPage + 4);
+                                if (endPage - startPage < 4)
                                 {
-                                    startPage = Math.Max(1, endPage - 2);
+                                    startPage = Math.Max(1, endPage - 4);
                                 }
                             }
                             @for (int i = startPage; i <= endPage; i++)
                             {
                                 <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@ViewData["searchCustomer"]">@i</a>
+                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@Context.Request.Query["searchCustomer"]" asp-route-customerId="@Context.Request.Query["customerId"]" asp-route-billNumber="@Context.Request.Query["billNumber"]" asp-route-saleFrom="@Context.Request.Query["saleFrom"]" asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]" asp-route-description="@Context.Request.Query["description"]">@i</a>
                                 </li>
                             }
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@ViewData["searchCustomer"]">Next</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@Context.Request.Query["searchCustomer"]" asp-route-customerId="@Context.Request.Query["customerId"]" asp-route-billNumber="@Context.Request.Query["billNumber"]" asp-route-saleFrom="@Context.Request.Query["saleFrom"]" asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]" asp-route-description="@Context.Request.Query["description"]">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </a>
                             </li>
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@ViewData["searchCustomer"]">Last</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchCustomer="@Context.Request.Query["searchCustomer"]" asp-route-customerId="@Context.Request.Query["customerId"]" asp-route-billNumber="@Context.Request.Query["billNumber"]" asp-route-saleFrom="@Context.Request.Query["saleFrom"]" asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]" asp-route-description="@Context.Request.Query["description"]">
+                                    <i class="fa-solid fa-angles-right"></i>
+                                </a>
                             </li>
                         </ul>
                     </nav>
@@ -148,16 +239,57 @@
         function SearchCustomerChange() {
             const search = document.querySelector('input[name="searchCustomer"]').value;
             const pageSize = document.getElementById("pageSize").value;
-            window.location.href = '@Url.Action("Index", "Sales")'
-                + '?pageNumber=1&pageSize=' + pageSize
-                + (search ? '&searchCustomer=' + encodeURIComponent(search) : '');
+            const customerId = document.querySelector('select[name="customerId"]')?.value || '';
+            const billNumber = document.querySelector('input[name="billNumber"]')?.value || '';
+            const saleFrom = document.querySelector('input[name="saleFrom"]')?.value || '';
+            const saleDateTo = document.querySelector('input[name="saleDateTo"]')?.value || '';
+            const description = document.querySelector('input[name="description"]')?.value || '';
+            
+            const params = new URLSearchParams();
+            params.set('pageNumber', '1');
+            params.set('pageSize', pageSize);
+            if (search) params.set('searchCustomer', search);
+            if (customerId) params.set('customerId', customerId);
+            if (billNumber) params.set('billNumber', billNumber);
+            if (saleFrom) params.set('saleFrom', saleFrom);
+            if (saleDateTo) params.set('saleDateTo', saleDateTo);
+            if (description) params.set('description', description);
+            
+            window.location.href = '@Url.Action("Index", "Sales")' + '?' + params.toString();
         }
 
         function changePageSize(select) {
             const search = document.querySelector('input[name="searchCustomer"]').value;
-            window.location.href = '@Url.Action("Index", "Sales")'
-                + '?pageNumber=1&pageSize=' + select.value
-                + (search ? '&searchCustomer=' + encodeURIComponent(search) : '');
+            const customerId = document.querySelector('select[name="customerId"]')?.value || '';
+            const billNumber = document.querySelector('input[name="billNumber"]')?.value || '';
+            const saleFrom = document.querySelector('input[name="saleFrom"]')?.value || '';
+            const saleDateTo = document.querySelector('input[name="saleDateTo"]')?.value || '';
+            const description = document.querySelector('input[name="description"]')?.value || '';
+            
+            const params = new URLSearchParams();
+            params.set('pageNumber', '1');
+            params.set('pageSize', select.value);
+            if (search) params.set('searchCustomer', search);
+            if (customerId) params.set('customerId', customerId);
+            if (billNumber) params.set('billNumber', billNumber);
+            if (saleFrom) params.set('saleFrom', saleFrom);
+            if (saleDateTo) params.set('saleDateTo', saleDateTo);
+            if (description) params.set('description', description);
+            
+            window.location.href = '@Url.Action("Index", "Sales")' + '?' + params.toString();
         }
+
+        // Auto-submit search on Enter key
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.querySelector('input[name="searchCustomer"]');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        SearchCustomerChange();
+                    }
+                });
+            }
+        });
     </script>
 }

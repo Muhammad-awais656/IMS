@@ -11,7 +11,7 @@
                     <h2 class="mb-0">Create Customer</h2>
                 </div>
                 <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                    <div class="row row-cols-1 ">
 
                         <div class="col">
                             <label asp-for="CustomerName" class="form-label"> Customer Name:</label>
@@ -23,27 +23,27 @@
                             <input asp-for="CustomerContactNumber" class="form-control" />
                             <span asp-validation-for="CustomerContactNumber" class="text-danger"></span>
                         </div>
-                        <div class="col">
+                    @*     <div class="col">
                             <label asp-for="CustomerEmail" class="form-label"> Email:</label>
                             <input asp-for="CustomerEmail" class="form-control" />
                             <span asp-validation-for="CustomerEmail" class="text-danger"></span>
-                        </div>
-                        <div class="col">
+                        </div> *@
+                     @*    <div class="col">
                             <label asp-for="CustomerEmailCc" class="form-label"> Email Cc:</label>
                             <input asp-for="CustomerEmailCc" class="form-control" />
                             <span asp-validation-for="CustomerEmailCc" class="text-danger"></span>
-                        </div>
+                        </div> *@
                         <div class="col">
                             <label asp-for="CustomerAddress" class="form-label"> Address :</label>
                             <input asp-for="CustomerAddress" class="form-control" />
                             <span asp-validation-for="CustomerAddress" class="text-danger"></span>
                         </div>
-                        <div class="col">
+                      @*   <div class="col">
                             <label asp-for="InvoiceCreditPeriod" class="form-label"> Invoice Credit Period :</label>
                             <input asp-for="InvoiceCreditPeriod" class="form-control" />
                             <span asp-validation-for="InvoiceCreditPeriod" class="text-danger"></span>
-                        </div>
-                        <div class="col">
+                        </div> *@
+                    @*     <div class="col">
                             <label asp-for="StartWorkingTime" class="form-label"> Start Working Time :</label>
                             @Html.TextBox("StartWorkingTime", null, new { @class = "form-control", type = "time" })
                             @Html.ValidationMessageFor(m => m.StartWorkingTime, "", new { @class = "text-danger" })
@@ -52,7 +52,7 @@
                             <label asp-for="EndWorkingTime" class="form-label"> End Working Time :</label>
                             @Html.TextBox("EndWorkingTime", null, new { @class = "form-control", type = "time" })
                             @Html.ValidationMessageFor(m => m.EndWorkingTime, "", new { @class = "text-danger" })
-                        </div>
+                        </div> *@
                         <div class="mb-3 form-check form-switch">
                             <label asp-for="IsEnabled" class="form-check-label" class="form-control">Is Enbled :</label>
                             <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />

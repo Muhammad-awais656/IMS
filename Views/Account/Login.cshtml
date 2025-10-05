@@ -20,7 +20,8 @@
     
     <div class="card login-card p-4" style="width: 100%; max-width: 400px;">
         <div class="text-center login-header mb-4">
-            <img src="~/images/IMTradersLogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" />
+            @* <img src="~/images/IMTradersLogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" /> *@
+            <img src="~/images/zahoortraderslogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" />
             <h3 class="mb-1" style="color:deeppink; font-family: serif;font-style: italic;">IMS Login</h3>
             <small style="font-weight:bold;color:darkblue;font-style:oblique;">Inventory Management System</small>
         </div>
@@ -47,9 +48,9 @@
                     <i class="fa fa-database"></i> Domain
                 </label>
                 <select asp-for="Domain" class="form-select">
-                    <option value="">-- Select Domain --</option>
+                   @*  <option value="">-- Select Domain --</option> *@
                     <option value="Shop">Shop</option>
-                    <option value="Factory">Factory</option>
+             @*        <option value="Factory">Factory</option> *@
                 </select>
                 <span asp-validation-for="Domain" class="text-danger"></span>
             </div>

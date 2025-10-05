@@ -4,6 +4,7 @@ using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
+using Org.BouncyCastle.Asn1.Cms;
 using System;
 using System.Data;
 using System.Net.Mail;
@@ -38,15 +39,15 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pCustomerName", customer.CustomerName);
                         command.Parameters.AddWithValue("@pCustomerContactNumber", customer.CustomerContactNumber);
-                        command.Parameters.AddWithValue("@pCustomerEmail", customer.CustomerEmail);
-                        command.Parameters.AddWithValue("@pCustomerEmailCC", customer.CustomerEmailCc);
+                        command.Parameters.AddWithValue("@pCustomerEmail", DBNull.Value);
+                        command.Parameters.AddWithValue("@pCustomerEmailCC", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerAddress", customer?.CustomerAddress != null ? customer?.CustomerAddress : DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedDate", customer?.CreatedDate != null ? customer?.CreatedDate : DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", customer?.IsEnabled != null ? customer?.IsEnabled: DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedBy", customer?.CreatedBy != null ? customer.CreatedBy : DBNull.Value);
-                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", customer?.InvoiceCreditPeriod != null ? customer.InvoiceCreditPeriod : DBNull.Value);
-                        command.Parameters.AddWithValue("@pStartWorkingTime", customer?.StartWorkingTime != null ? customer?.StartWorkingTime : DBNull.Value);
-                        command.Parameters.AddWithValue("@pEndWorkingTime", customer?.EndWorkingTime != null ? customer?.EndWorkingTime : DBNull.Value);
+                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", DBNull.Value);
+                        command.Parameters.AddWithValue("@pStartWorkingTime", DBNull.Value);
+                        command.Parameters.AddWithValue("@pEndWorkingTime", DBNull.Value);
                         
                         var CustomerIdParam = new SqlParameter("@pCustomerId", SqlDbType.BigInt)
                         {
@@ -174,15 +175,15 @@ namespace IMS.Services
                                     return new Customer
                                     {
                                         CustomerId = reader.GetInt64(reader.GetOrdinal("CustomerId")),
-                                        InvoiceCreditPeriod = reader.GetInt64(reader.GetOrdinal("InvoiceCreditPeriod")),
+                                        //InvoiceCreditPeriod = reader.GetInt64(reader.GetOrdinal("InvoiceCreditPeriod")),
                                         CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
                                         CustomerContactNumber = reader.IsDBNull(reader.GetOrdinal("CustomerContactNumber")) ? null : reader.GetString(reader.GetOrdinal("CustomerContactNumber")),
-                                        CustomerEmail = reader.IsDBNull(reader.GetOrdinal("CustomerEmail")) ? null : reader.GetString(reader.GetOrdinal("CustomerEmail")),
-                                        CustomerEmailCc = reader.IsDBNull(reader.GetOrdinal("CustomerEmailCC")) ? null : reader.GetString(reader.GetOrdinal("CustomerEmailCC")),
+                                        //CustomerEmail = reader.IsDBNull(reader.GetOrdinal("CustomerEmail")) ? null : reader.GetString(reader.GetOrdinal("CustomerEmail")),
+                                        //CustomerEmailCc = reader.IsDBNull(reader.GetOrdinal("CustomerEmailCC")) ? null : reader.GetString(reader.GetOrdinal("CustomerEmailCC")),
                                         CustomerAddress = reader.IsDBNull(reader.GetOrdinal("CustomerAddress")) ? null : reader.GetString(reader.GetOrdinal("CustomerAddress")),
-                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled")),
-                                        StartWorkingTime  = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("StartWorkingTime"))),
-                                        EndWorkingTime = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("EndWorkingTime")))
+                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                        //StartWorkingTime  = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("StartWorkingTime"))),
+                                        //EndWorkingTime = TimeOnly.FromTimeSpan(reader.GetTimeSpan(reader.GetOrdinal("EndWorkingTime")))
                                     };
                                 }
                             }
@@ -220,7 +221,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         command.Parameters.AddWithValue("@pCoustomerName", (object)Customername ?? DBNull.Value);
                         command.Parameters.AddWithValue("@PhoneNumber", (object)contactNo ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@EmailAddress", (object)email ?? DBNull.Value);
+                        
                         using (var reader = await command.ExecuteReaderAsync())
                         {
 
@@ -291,15 +292,15 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pCustomerId", customer.CustomerId);
                         command.Parameters.AddWithValue("@pCustomerName", customer.CustomerName);
                         command.Parameters.AddWithValue("@pCustomerContactNumber", customer.CustomerContactNumber);
-                        command.Parameters.AddWithValue("@pCustomerEmail", customer.CustomerEmail);
-                        command.Parameters.AddWithValue("@pCustomerEmailCC", customer.CustomerEmailCc);
+                        command.Parameters.AddWithValue("@pCustomerEmail", DBNull.Value);
+                        command.Parameters.AddWithValue("@pCustomerEmailCC", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerAddress", customer.CustomerAddress);
                         command.Parameters.AddWithValue("@pIsEnabled", customer.IsEnabled);
-                        command.Parameters.AddWithValue("@pStartWorkingTime", customer.StartWorkingTime);
-                        command.Parameters.AddWithValue("@pEndWorkingTime", customer.EndWorkingTime);
+                        command.Parameters.AddWithValue("@pStartWorkingTime", DBNull.Value);
+                        command.Parameters.AddWithValue("@pEndWorkingTime", DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedDate", customer?.ModifiedDate == default(DateTime) ? DBNull.Value : customer?.ModifiedDate);
                         command.Parameters.AddWithValue("@ModifiedBy", customer?.ModifiedBy);
-                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", customer?.InvoiceCreditPeriod);
+                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", DBNull.Value);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {

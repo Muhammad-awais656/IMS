@@ -5,7 +5,7 @@ namespace IMS.Models
 {
     public class VendorViewModel
     {
-        public List<AdminSupplier> VendorList { get; set; }
+        public List<AdminSupplier> VendorList { get; set; } = new List<AdminSupplier>();
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int? PageSize { get; set; }

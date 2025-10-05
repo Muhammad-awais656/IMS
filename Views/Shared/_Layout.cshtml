@@ -131,6 +131,7 @@
             white-space: nowrap;
         }
     </style>
+    @RenderSection("Styles", required: false)
 </head>
 <body>
     @{
@@ -183,6 +184,10 @@
                     <div class="submenu">
                         <a asp-controller="Sales" asp-action="Index"><i class="fa-solid fa-address-book"></i> Sales</a>
                     </div>
+
+                    <div class="submenu">
+                        <a asp-controller="Sales" asp-action="AddSale"><i class="fa-solid fa-plus"></i> Sales</a>
+                    </div>
                     <div class="submenu">
                         <a asp-controller="CustomerPayment" asp-action="Index"> <i class="fa-solid fa-sack-dollar"></i> Payments</a>
                     </div>
@@ -203,7 +208,7 @@
                         <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-file-invoice-dollar"></i> Bills</a>
                     </div>
                     <div class="submenu">
-                        <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-print"></i> Generate Bills </a>
+                        <a asp-controller="VendorBills" asp-action="Create"><i class="fa-solid fa-print"></i> Generate Bills </a>
                     </div>
 
                     <div class="menu-item">
@@ -367,8 +372,8 @@
                 <div style="flex: 1;"></div>
 
                 <!-- Center: Project Name -->
-                <h1 style="text-decoration:solid; color: gray; margin: 0; flex: 1; text-align: center;">
-                    IMTraders
+                <h1 style="text-decoration:solid; color: red; margin: 0; flex: 1; text-align: center; font-family:'Jameel Noori Nastaleeq'">
+                    ایم ظہور ٹریڈرز
                 </h1>
 
                 <!-- Right: Username, Role, and Logout (Profile-like) -->

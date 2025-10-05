@@ -63,6 +63,8 @@ builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ICustomerPaymentService, CustomerPaymentService>();
+builder.Services.AddScoped<IVendorPaymentService, VendorPaymentService>();
+builder.Services.AddScoped<IVendorBillsService, VendorBillsService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 

@@ -26,7 +26,6 @@
     <Folder Include="Filters\" />
     <Folder Include="Helpers\" />
     <Folder Include="Images\" />
-    <Folder Include="wwwroot\css\dist\" />
   </ItemGroup>
 
   <ItemGroup>

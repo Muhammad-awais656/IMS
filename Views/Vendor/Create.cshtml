@@ -11,7 +11,7 @@
                     <h2 class="mb-0">Create Vendor</h2>
                 </div>
                 <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                    <div class="row row-cols-1 ">
                         
                         <div class="col">
                             <label asp-for="SupplierName" class="form-label"> Vendor Name:</label>
@@ -23,16 +23,16 @@
                             <input asp-for="SupplierPhoneNumber" class="form-control" />
                             <span asp-validation-for="SupplierPhoneNumber" class="text-danger"></span>
                         </div>
-                        <div class="col">
+                      @*   <div class="col">
                             <label asp-for="SupplierNtn" class="form-label"> NTN:</label>
                             <input asp-for="SupplierNtn" class="form-control" />
                             <span asp-validation-for="SupplierNtn" class="text-danger"></span>
-                        </div>
-                        <div class="col">
+                        </div> *@
+                      @*   <div class="col">
                             <label asp-for="SupplierEmail" class="form-label">Vendor Email:</label>
                             <input asp-for="SupplierEmail" class="form-control" />
                             <span asp-validation-for="SupplierEmail" class="text-danger"></span>
-                        </div>
+                        </div> *@
                         <div class="col">
                             <label asp-for="SupplierAddress" class="form-label"> Address :</label>
                             <input asp-for="SupplierAddress" class="form-control" />

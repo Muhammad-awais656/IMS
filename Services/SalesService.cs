@@ -56,6 +56,24 @@ namespace IMS.Services
                             var salesList = new List<SaleWithCustomerViewModel>();
                             while (await reader.ReadAsync())
                             {
+                                //var sale = new SaleWithCustomerViewModel
+                                //{
+                                //    SaleId = reader.GetInt64("SaleId"),
+                                //    BillNumber = reader.GetInt64("BillNumber"),
+                                //    SaleDate = reader.GetDateTime("SaleDate"),
+                                //    TotalAmount = reader.GetDecimal("TotalAmount"),
+                                //    DiscountAmount = reader.GetDecimal("DiscountAmount"),
+                                //    TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount"),
+                                //    TotalDueAmount = reader.GetDecimal("TotalDueAmount"),
+                                //    CustomerIdFk = reader.GetInt64("CustomerId_FK"),
+                                //    CustomerName = reader.GetString("CustomerName"),
+                                //    SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
+                                //    IsDeleted = reader.GetBoolean("IsDeleted"),
+                                //    CreatedDate = reader.IsDBNull("CreatedDate") ? null : reader.GetDateTime("CreatedDate"),
+                                //    CreatedBy = reader.IsDBNull("CreatedBy") ? null : reader.GetInt64("CreatedBy"),
+                                //    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
+                                //    ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy")
+                                //};
                                 var sale = new SaleWithCustomerViewModel
                                 {
                                     SaleId = reader.GetInt64("SaleId"),
@@ -66,14 +84,27 @@ namespace IMS.Services
                                     TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount"),
                                     TotalDueAmount = reader.GetDecimal("TotalDueAmount"),
                                     CustomerIdFk = reader.GetInt64("CustomerId_FK"),
-                                    CustomerName = reader.GetString("CustomerName"),
-                                    SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName"))
+                      ? null
+                      : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    SaleDescription = reader.IsDBNull(reader.GetOrdinal("SaleDescription"))
+                      ? null
+                      : reader.GetString(reader.GetOrdinal("SaleDescription")),
                                     IsDeleted = reader.GetBoolean("IsDeleted"),
-                                    CreatedDate = reader.IsDBNull("CreatedDate") ? null : reader.GetDateTime("CreatedDate"),
-                                    CreatedBy = reader.IsDBNull("CreatedBy") ? null : reader.GetInt64("CreatedBy"),
-                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
-                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy")
+                                    CreatedDate = reader.IsDBNull(reader.GetOrdinal("CreatedDate"))
+                      ? null
+                      : reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                                    CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy"))
+                      ? null
+                      : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
+                                    ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate"))
+                      ? null
+                      : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
+                                    ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy"))
+                      ? null
+                      : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
                                 };
+
                                 salesList.Add(sale);
                             }
 
@@ -189,6 +220,21 @@ namespace IMS.Services
                         long newSalesId = (long)salesIdParam.Value;
                         response = newSalesId > 0;
                     }
+                    #region sales details insertion
+                    //Sales Details insertion can be handled here or in a separate method as needed 
+
+                    // SP is AddSaleDetails
+                    #endregion
+                    #region get stock and update stock quantity
+                    //get stock by id and update stock quantity
+                    //GetStockByProductId
+                    //update stock quantity in stocks table
+                    //UpdateStock
+                    #endregion
+                    #region sales transaction insertion
+                    //sales Transaction create here
+                            //SaleTransactionCreate
+                    #endregion
                 }
             }
             catch (Exception ex)
@@ -197,6 +243,163 @@ namespace IMS.Services
                 throw;
             }
             return response;
+        }
+
+        public long AddSaleDetails(long saleId, long productId, decimal unitPrice, long quantity, decimal salePrice,
+        decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue)
+        {
+            long saleDetailsId = 0;
+            returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("AddSaleDetails", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pSaleId_FK", saleId);
+                    command.Parameters.AddWithValue("@pPrductId_FK", productId);
+                    command.Parameters.AddWithValue("@pUnitPrice", unitPrice);
+                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    command.Parameters.AddWithValue("@pSalePrice", salePrice);
+                    command.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
+                    command.Parameters.AddWithValue("@pPayableAmount", payableAmount);
+                    command.Parameters.AddWithValue("@ProductRangeId_FK", productRangeId);
+
+                    SqlParameter saleDetailsIdParam = new SqlParameter("@pSaleDetailsId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
+                    command.Parameters.Add(saleDetailsIdParam);
+
+                    command.ExecuteNonQuery();
+
+                    saleDetailsId = (saleDetailsIdParam.Value != DBNull.Value) ? Convert.ToInt64(saleDetailsIdParam.Value) : 0;
+               
+                }
+            }
+
+            return saleDetailsId;
+        }
+
+        //public Task<StockMaster> GetStockByProductId(long productId)
+        //{
+        //    long returnValue = 0;
+
+        //    using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+        //    {
+        //        connection.Open();
+        //        using (SqlCommand command = new SqlCommand("GetStockByProductId", connection))
+        //        {
+        //            command.CommandType = CommandType.StoredProcedure;
+
+        //            command.Parameters.AddWithValue("@pProductId", productId);
+
+               
+        //            var res= command.ExecuteNonQuery();
+                    
+                    
+        //        }
+        //    }
+
+        //    return returnValue;
+        //}
+        public async Task<StockMaster> GetStockByProductIdAsync(long productId)
+        {
+            var stocks = new StockMaster();
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                await connection.OpenAsync();
+
+                using (SqlCommand command = new SqlCommand("GetStockByProductId", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.Parameters.AddWithValue("@pProductId", productId);
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var stock = new StockMaster
+                            {
+                                StockMasterId = reader.GetInt64(reader.GetOrdinal("StockMasterId")),
+                                ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
+                                AvailableQuantity = reader.GetDecimal(reader.GetOrdinal("AvailableQuantity")),
+                                UsedQuantity = reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
+                                TotalQuantity = reader.GetDecimal(reader.GetOrdinal("TotalQuantity"))
+                            };
+                            stocks = stock;
+
+
+                        }
+                    }
+                }
+            }
+
+            return stocks;
+        }
+
+
+
+        public long UpdateStock(long stockMasterId, long productId, decimal availableQuantity, decimal totalQty, decimal usedQuantity,
+            long modifiedBy, DateTime modifiedDate)
+        {
+            int returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("UpdateStock", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pStockMasterId", stockMasterId);
+                    command.Parameters.AddWithValue("@pProductId", productId);
+                    command.Parameters.AddWithValue("@pAvailableQuantity", availableQuantity);
+                    command.Parameters.AddWithValue("@pUsedQuantity", usedQuantity);
+                    command.Parameters.AddWithValue("@TotalQuantity", totalQty);
+                    command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                    command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
+
+
+                    command.ExecuteNonQuery();
+
+                    returnValue = 1;
+                }
+            }
+
+            return returnValue;
+        }
+
+        public long SaleTransactionCreate(long stockMasterId, decimal quantity, string comment, DateTime createdDate,
+            long createdBy, long transactionStatusId, long saleId)
+        {
+            long returnValue = 0;
+
+            using (SqlConnection connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                connection.Open();
+                using (SqlCommand command = new SqlCommand("SaleTransactionCreate", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@pStockMasterId", stockMasterId);
+                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    command.Parameters.AddWithValue("@pComment", (object)comment ?? DBNull.Value);
+                    command.Parameters.AddWithValue("@pCreatedDate", createdDate);
+                    command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                    command.Parameters.AddWithValue("@pTransactionStatusId", transactionStatusId);
+                    command.Parameters.AddWithValue("@pSaleId", saleId);
+
+                    SqlParameter saleDetailsIdParam = new SqlParameter("@transactionId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
+                    command.Parameters.Add(saleDetailsIdParam);
+
+                    command.ExecuteNonQuery();
+                    returnValue = (saleDetailsIdParam.Value != DBNull.Value) ? Convert.ToInt64(saleDetailsIdParam.Value) : 0;
+                    
+                }
+            }
+
+            return returnValue;
         }
 
         public async Task<int> UpdateSaleAsync(Sale sale)
@@ -260,6 +463,72 @@ namespace IMS.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting sale");
+                throw;
+            }
+            return response;
+        }
+
+        public async Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId)
+        {
+            var saleDetails = new List<SaleDetailViewModel>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetSaleDetailsBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                saleDetails.Add(new SaleDetailViewModel
+                                {
+                                    ProductId = reader.GetInt64("ProductId_FK"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
+                                    ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.GetInt64("Quantity"),
+                                    SalePrice = reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.GetDecimal("PayableAmount")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sale details by sale ID");
+                throw;
+            }
+            return saleDetails;
+        }
+
+        public async Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("DELETE FROM SaleDetails WHERE SaleId_FK = @SaleId", connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting sale details by sale ID");
                 throw;
             }
             return response;
@@ -345,6 +614,130 @@ namespace IMS.Services
                 _logger.LogError(ex, "Error checking if sales exist");
                 return false;
             }
+        }
+
+        public async Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId)
+        {
+            var productSizes = new List<ProductSizeViewModel>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetProductUnitPriceRangeByProductId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pProductId", productId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var productSize = new ProductSizeViewModel
+                                {
+                                    ProductRangeId = reader.GetInt64("ProductRangeId"),
+                                    ProductId_FK = reader.GetInt64("ProductId_FK"),
+                                    MeasuringUnitId_FK = reader.GetInt64("MeasuringUnitId_FK"),
+                                    RangeFrom = reader.GetDecimal("RangeFrom"),
+                                    RangeTo = reader.GetDecimal("RangeTo"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    MeasuringUnitName = reader.GetString("MeasuringUnitName"),
+                                    MeasuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation")
+                                };
+                                productSizes.Add(productSize);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product unit price range by product ID");
+                throw;
+            }
+            return productSizes;
+        }
+
+        public async Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
+            long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
+            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate)
+        {
+            long saleId = 0;
+            int returnValue = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("AddSale", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pTotalAmount", totalAmount);
+                        command.Parameters.AddWithValue("@pTotalReceivedAmount", totalReceivedAmount);
+                        command.Parameters.AddWithValue("@pTotalDueAmount", totalDueAmount);
+                        command.Parameters.AddWithValue("@pCustomerId_FK", customerId);
+                        command.Parameters.AddWithValue("@pCreatedDate", createdDate);
+                        command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                        command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                        command.Parameters.AddWithValue("@pDiscountAmount", discountAmount);
+                        command.Parameters.AddWithValue("@pBillNumber", billNumber);
+                        command.Parameters.AddWithValue("@pSaleDescription", saleDescription ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pSaleDate", saleDate);
+
+                        var salesIdParam = new SqlParameter("@pSalesId", SqlDbType.BigInt)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(salesIdParam);
+
+                        
+                       
+
+                        await command.ExecuteNonQueryAsync();
+                        saleId = (long)salesIdParam.Value;
+                       
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating sale");
+                throw;
+            }
+            return saleId;
+        }
+
+        public async Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId)
+        {
+            decimal response = decimal.Zero;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetPreviousDueAmountBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", DBNull.Value);
+                        command.Parameters.AddWithValue("@pCustomerId", customerId);
+
+                       
+
+                        var res = await command.ExecuteScalarAsync();
+                        response= (decimal)res;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting previous due amount for customer {CustomerId}", customerId);
+                return 0; // Return 0 if there's an error
+            }
+            return response;
         }
     }
 }

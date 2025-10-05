@@ -40,7 +40,7 @@
                                    placeholder="Enter Contact Numer" onchange="SearchNameChange" />
 
                         </div>
-                        <div class="col">
+                     @*    <div class="col">
                             <label for="searchEmail" class="form-label">Email :</label>
                             <input type="text"
                                    name="searchEmail"
@@ -48,7 +48,7 @@
                                    class="form-control"
                                    placeholder="Enter Email" onchange="SearchNameChange" />
 
-                        </div>
+                        </div> *@
                         <div class="col">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -68,7 +68,7 @@
                         <th> Customer Id </th>
                         <th>Customer Name</th>
                         <th>Contact Number</th>
-                        <th>Email</th>
+                        @* <th>Email</th> *@
                         <th>Address</th>
                         <th>Enabled</th>
                    
@@ -86,7 +86,7 @@
                                 <td>@Html.DisplayFor(modelItem => item.CustomerId)</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerContactNumber)</td>
-                                <td>@Html.DisplayFor(modelitem => item.CustomerEmail)</td>
+                                @* <td>@Html.DisplayFor(modelitem => item.CustomerEmail)</td> *@
                                 <td>@Html.DisplayFor(modelitem => item.CustomerAddress)</td>
                                     <td>
                                         <div class="form-check form-switch">
