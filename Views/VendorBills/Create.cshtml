@@ -1,65 +1,515 @@
-﻿@using IMS.DAL.PrimaryDBContext
-@model AdminSupplier;
+@model IMS.Models.GenerateBillViewModel
+@{
+    ViewBag.Title = "Generate Bill";
+}
 
-
-
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <form asp-action="Create">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Create Vendor</h2>
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h2 class="mb-0 text-center">
+                        <i class="fa-solid fa-file-invoice me-2"></i>
+                        Generate Bill
+                    </h2>
                 </div>
-                <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
-                        
-                        <div class="col">
-                            <label asp-for="SupplierName" class="form-label"> Vendor Name:</label>
-                            <input asp-for="SupplierName" class="form-control" />
-                            <span asp-validation-for="SupplierName" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierPhoneNumber" class="form-label"> Contact Number:</label>
-                            <input asp-for="SupplierPhoneNumber" class="form-control" />
-                            <span asp-validation-for="SupplierPhoneNumber" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierNtn" class="form-label"> NTN:</label>
-                            <input asp-for="SupplierNtn" class="form-control" />
-                            <span asp-validation-for="SupplierNtn" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierEmail" class="form-label">Vendor Email:</label>
-                            <input asp-for="SupplierEmail" class="form-control" />
-                            <span asp-validation-for="SupplierEmail" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierAddress" class="form-label"> Address :</label>
-                            <input asp-for="SupplierAddress" class="form-control" />
-                            <span asp-validation-for="SupplierAddress" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierDescription" class="form-label"> Description :</label>
-                            <input asp-for="SupplierDescription" class="form-control" />
-                            <span asp-validation-for="SupplierDescription" class="text-danger"></span>
+                <div class="card-body p-4">
+                    <form asp-action="Create" method="post" id="generateBillForm">
+                        <input type="hidden" asp-for="BillId" />
+                        <input type="hidden" asp-for="ActionType" />
+
+                        <!-- Product Entry Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0">
+                                            <i class="fa-solid fa-plus-circle me-2"></i>
+                                            Add Product Details
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label for="productSelect" class="form-label">Product :</label>
+                                                <select id="productSelect" asp-items="ViewBag.Products" class="form-select" onchange="loadProductSizes()">
+                                                    <option value="">--Select a value--</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="productSizeSelect" class="form-label">Product size :</label>
+                                                <select id="productSizeSelect" class="form-select">
+                                                    <option value="">--Select a value--</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label for="unitPrice" class="form-label">Unit price :</label>
+                                                <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" onchange="calculatePayableAmount()" />
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label for="unitPurchasePrice" class="form-label">Unit purchase price :</label>
+                                                <input type="number" id="unitPurchasePrice" class="form-control" value="0" step="0.01" onchange="calculatePayableAmount()" />
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label for="quantity" class="form-label">Qty :</label>
+                                                <input type="number" id="quantity" class="form-control" value="1" min="1" onchange="calculatePayableAmount()" />
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-md-3">
+                                                <label for="discountAmount" class="form-label">Discount amount :</label>
+                                                <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" onchange="calculatePayableAmount()" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="payableAmount" class="form-label">Payable amount :</label>
+                                                <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
+                                            </div>
+                                            <div class="col-md-6 d-flex align-items-end">
+                                                <button type="button" class="btn btn-success me-2" onclick="addProductToTable()">
+                                                    <i class="fa-solid fa-plus me-1"></i> Add
+                                                </button>
+                                                <button type="button" class="btn btn-warning" onclick="resetProductFields()">
+                                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="col form-check form-switch">
-                            <label asp-for="IsDeleted" class="form-check-label" class="form-control"> Is Deleted</label>
-                            <input type="checkbox" asp-for="IsDeleted" class="form-check-input" />
-                            <span asp-validation-for="IsDeleted" class="text-danger"></span>
+                        <!-- Product List Table -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card border-secondary">
+                                    <div class="card-header bg-dark text-white">
+                                        <h5 class="mb-0">
+                                            <i class="fa-solid fa-list me-2"></i>
+                                            Product List
+                                        </h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover mb-0">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>Product code</th>
+                                                        <th>Product</th>
+                                                        <th>Unit price</th>
+                                                        <th>Bill price</th>
+                                                        <th>QTY</th>
+                                                        <th>Discount amount</th>
+                                                        <th>Payable amount</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="productListBody">
+                                                    <!-- Product rows will be added here dynamically -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                    </div>
+                        <!-- Bill Details Section -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card border-info">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0">
+                                            <i class="fa-solid fa-file-invoice me-2"></i>
+                                            Bill Details
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label asp-for="VendorId" class="form-label">Vendor :</label>
+                                                <div class="input-group">
+                                                    <select asp-for="VendorId" class="form-select" onchange="loadPreviousDue()">
+                                                        <option value="">--Select a value--</option>
+                                                        @if (Model?.VendorList?.Any() == true)
+                                                        {
+                                                            @foreach (var vendor in Model.VendorList)
+                                                            {
+                                                                <option value="@vendor.SupplierId">
+                                                                    @vendor.SupplierName
+                                                                </option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                    <button type="button" class="btn btn-outline-success" onclick="addNewVendor()">
+                                                        <i class="fa-solid fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                                <span asp-validation-for="VendorId" class="text-danger"></span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="BillNumber" class="form-label">Bill # :</label>
+                                                <input asp-for="BillNumber" class="form-control" value="0" />
+                                                <span asp-validation-for="BillNumber" class="text-danger"></span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="BillDate" class="form-label">Bill date :</label>
+                                                <input asp-for="BillDate" type="date" class="form-control" />
+                                                <span asp-validation-for="BillDate" class="text-danger"></span>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-md-3">
+                                                <label asp-for="TotalAmount" class="form-label">Total amount :</label>
+                                                <input asp-for="TotalAmount" class="form-control" value="0" readonly />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="DiscountAmount" class="form-label">Discount amount :</label>
+                                                <input asp-for="DiscountAmount" class="form-control" value="0" readonly />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="PaidAmount" class="form-label">Paid amount :</label>
+                                                <input asp-for="PaidAmount" class="form-control" value="0" onchange="calculateDueAmount()" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="DueAmount" class="form-label">Due amount :</label>
+                                                <input asp-for="DueAmount" class="form-control" value="0" readonly />
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-md-3">
+                                                <label asp-for="PreviousDue" class="form-label">PreviousDue :</label>
+                                                <input asp-for="PreviousDue" class="form-control" value="0" readonly />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label asp-for="PayNow" class="form-label">Pay now:</label>
+                                                <input asp-for="PayNow" class="form-control" value="0" onchange="calculateDueAmount()" />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label asp-for="Description" class="form-label">Description :</label>
+                                                <textarea asp-for="Description" class="form-control" rows="2" placeholder="Enter description..."></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-success">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0">
+                                            <i class="fa-solid fa-calculator me-2"></i>
+                                            Summary
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Total Items:</strong></div>
+                                            <div class="col-6 text-end" id="totalItems">0</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Total Amount:</strong></div>
+                                            <div class="col-6 text-end" id="totalAmountDisplay">$0.00</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Total Discount:</strong></div>
+                                            <div class="col-6 text-end" id="totalDiscountDisplay">$0.00</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Paid Amount:</strong></div>
+                                            <div class="col-6 text-end" id="paidAmountDisplay">$0.00</div>
+                                        </div>
+                                        <hr>
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Due Amount:</strong></div>
+                                            <div class="col-6 text-end" id="dueAmountDisplay">$0.00</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row mt-4">
+                            <div class="col-12 text-center">
+                                <button type="submit" name="ActionType" value="saveAndPrint" class="btn btn-primary btn-lg me-3">
+                                    <i class="fa-solid fa-print me-2"></i>Save and Print
+                                </button>
+                                <button type="submit" name="ActionType" value="save" class="btn btn-success btn-lg me-3">
+                                    <i class="fa-solid fa-save me-2"></i>Save
+                                </button>
+                                <a asp-action="Index" class="btn btn-danger btn-lg">
+                                    <i class="fa-solid fa-times me-2"></i>Close
+                                </a>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-                <div class="mb-3" style="padding:inherit">
-                    <button type="submit" class="btn btn-success">Save</button>
-                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
+@section Styles {
+    <style>
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn {
+            border-radius: 25px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        
+        .table thead th {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .card.border-primary .card-header {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        }
+        
+        .card.border-info .card-header {
+            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        }
+        
+        .card.border-success .card-header {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        }
+    </style>
+}
+
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let rowIndex = 0;
+        let selectedProductSize = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set today's date as default
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('BillDate').value = today;
+            
+            // Initialize form
+            resetProductFields();
+        });
+
+        function loadProductSizes() {
+            const productSelect = document.getElementById('productSelect');
+            const productId = productSelect.value;
+            const sizeSelect = document.getElementById('productSizeSelect');
+
+            // Clear existing options
+            sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+            
+            // Reset fields
+            resetProductFields();
+
+            if (productId) {
+                // Show loading
+                sizeSelect.innerHTML = '<option value="">Loading...</option>';
+                
+                // AJAX call to fetch product sizes
+                fetch(`/VendorBills/GetProductSizes?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+                        data.forEach(size => {
+                            const option = document.createElement('option');
+                            option.value = size.value;
+                            option.text = size.text;
+                            option.dataset.productRangeId = size.productRangeId;
+                            option.dataset.measuringUnitId = size.measuringUnitId;
+                            option.dataset.rangeFrom = size.rangeFrom;
+                            option.dataset.rangeTo = size.rangeTo;
+                            option.dataset.unitPrice = size.unitPrice;
+                            option.dataset.measuringUnitName = size.measuringUnitName;
+                            option.dataset.measuringUnitAbbreviation = size.measuringUnitAbbreviation;
+                            sizeSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading product sizes:', error);
+                        sizeSelect.innerHTML = '<option value="">Error loading sizes</option>';
+                    });
+            }
+        }
+
+        function resetProductFields() {
+            document.getElementById('unitPrice').value = '0';
+            document.getElementById('unitPurchasePrice').value = '0';
+            document.getElementById('quantity').value = '1';
+            document.getElementById('discountAmount').value = '0';
+            document.getElementById('payableAmount').value = '0';
+            selectedProductSize = null;
+        }
+
+        function calculatePayableAmount() {
+            const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+            const quantity = parseInt(document.getElementById('quantity').value) || 0;
+            const discountAmount = parseFloat(document.getElementById('discountAmount').value) || 0;
+            
+            const totalAmount = unitPrice * quantity;
+            const payableAmount = totalAmount - discountAmount;
+            
+            document.getElementById('payableAmount').value = payableAmount.toFixed(2);
+        }
+
+        function addProductToTable() {
+            const productSelect = document.getElementById('productSelect');
+            const sizeSelect = document.getElementById('productSizeSelect');
+            const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+            const unitPurchasePrice = parseFloat(document.getElementById('unitPurchasePrice').value) || 0;
+            const quantity = parseInt(document.getElementById('quantity').value) || 0;
+            const discountAmount = parseFloat(document.getElementById('discountAmount').value) || 0;
+            const payableAmount = parseFloat(document.getElementById('payableAmount').value) || 0;
+
+            if (!productSelect.value || !sizeSelect.value || quantity <= 0) {
+                alert('Please select product, size, and enter valid quantity.');
+                return;
+            }
+
+            const productName = productSelect.options[productSelect.selectedIndex].text;
+            const productCode = productSelect.options[productSelect.selectedIndex].dataset.code;
+            const productSize = sizeSelect.options[sizeSelect.selectedIndex].text;
+
+            const tableBody = document.getElementById('productListBody');
+            const newRow = tableBody.insertRow();
+            
+            newRow.innerHTML = `
+                <td>${productCode}</td>
+                <td>${productName}</td>
+                <td>$${unitPrice.toFixed(2)}</td>
+                <td>$${unitPurchasePrice.toFixed(2)}</td>
+                <td>${quantity}</td>
+                <td>$${discountAmount.toFixed(2)}</td>
+                <td>$${payableAmount.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+
+            // Store data in hidden inputs
+            newRow.innerHTML += `
+                <input type="hidden" name="BillItems[${rowIndex}].ProductId" value="${productSelect.value}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductRangeId" value="${sizeSelect.value}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductCode" value="${productCode}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductName" value="${productName}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductSize" value="${productSize}" />
+                <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
+                <input type="hidden" name="BillItems[${rowIndex}].BillPrice" value="${unitPurchasePrice}" />
+                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
+                <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />
+            `;
+
+            rowIndex++;
+            updateTotals();
+            resetProductFields();
+        }
+
+        function removeProductRow(button) {
+            const row = button.closest('tr');
+            row.remove();
+            updateTotals();
+        }
+
+        function updateTotals() {
+            const rows = document.querySelectorAll('#productListBody tr');
+            let totalAmount = 0;
+            let totalDiscount = 0;
+            let totalItems = 0;
+
+            rows.forEach(row => {
+                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
+                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
+                const quantity = parseInt(row.querySelector('td:nth-child(5)').textContent) || 0;
+                
+                totalAmount += payable;
+                totalDiscount += discount;
+                totalItems += quantity;
+            });
+
+            document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
+            document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalAmountDisplay').textContent = '$' + totalAmount.toFixed(2);
+            document.getElementById('totalDiscountDisplay').textContent = '$' + totalDiscount.toFixed(2);
+            
+            calculateDueAmount();
+        }
+
+        function calculateDueAmount() {
+            const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
+            const paidAmount = parseFloat(document.getElementById('PaidAmount').value) || 0;
+            const previousDue = parseFloat(document.getElementById('PreviousDue').value) || 0;
+            
+            const dueAmount = Math.max(0, totalAmount - paidAmount + previousDue);
+            
+            document.getElementById('DueAmount').value = dueAmount.toFixed(2);
+            document.getElementById('paidAmountDisplay').textContent = '$' + paidAmount.toFixed(2);
+            document.getElementById('dueAmountDisplay').textContent = '$' + dueAmount.toFixed(2);
+        }
+
+        function loadPreviousDue() {
+            const vendorId = document.getElementById('VendorId').value;
+            if (vendorId) {
+                // Load previous due amount via AJAX
+                fetch('@Url.Action("GetPreviousDue", "VendorBills")' + '?vendorId=' + vendorId)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('PreviousDue').value = data.previousDue || 0;
+                        calculateDueAmount();
+                    })
+                    .catch(error => {
+                        console.error('Error loading previous due:', error);
+                    });
+            } else {
+                document.getElementById('PreviousDue').value = '0';
+                calculateDueAmount();
+            }
+        }
+
+        function addNewVendor() {
+            // Open vendor creation modal or redirect
+            window.open('@Url.Action("Create", "Vendor")', '_blank');
+        }
+
+        // Handle size selection
+        document.getElementById('productSizeSelect').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.dataset.unitPrice) {
+                document.getElementById('unitPrice').value = selectedOption.dataset.unitPrice;
+                calculatePayableAmount();
+            }
+        });
+    </script>
 }

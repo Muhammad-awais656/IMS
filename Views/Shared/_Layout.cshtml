@@ -131,6 +131,7 @@
             white-space: nowrap;
         }
     </style>
+    @RenderSection("Styles", required: false)
 </head>
 <body>
     @{
@@ -207,7 +208,7 @@
                         <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-file-invoice-dollar"></i> Bills</a>
                     </div>
                     <div class="submenu">
-                        <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-print"></i> Generate Bills </a>
+                        <a asp-controller="VendorBills" asp-action="Create"><i class="fa-solid fa-print"></i> Generate Bills </a>
                     </div>
 
                     <div class="menu-item">

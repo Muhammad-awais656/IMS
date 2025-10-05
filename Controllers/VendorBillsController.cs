@@ -3,6 +3,7 @@ using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace IMS.Controllers
 {
@@ -179,23 +180,118 @@ namespace IMS.Controllers
         }
 
         // GET: VendorBillsController/Create
-        public ActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            return View();
+            try
+            {
+                // Load products using the same pattern as SalesController
+                var products = await _vendorBillsService.GetAllProductsAsync();
+                ViewBag.Products = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(products, "ProductId", "ProductName");
+                
+                var viewModel = new GenerateBillViewModel
+                {
+                    VendorList = await _vendorBillsService.GetAllVendorsAsync(),
+                    ProductList = products,
+                    BillDate = DateTime.Today
+                };
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading create bill page");
+                TempData["ErrorMessage"] = "An error occurred while loading the create bill page.";
+                return View(new GenerateBillViewModel());
+            }
         }
 
         // POST: VendorBillsController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<IActionResult> Create(GenerateBillViewModel model)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
+                if (ModelState.IsValid)
+                {
+                    // Process the bill creation
+                    var result = await _vendorBillsService.CreateBillAsync(model);
+                    
+                    if (result > 0)
+                    {
+                        TempData["SuccessMessage"] = "Bill created successfully!";
+                        if (model.ActionType == "saveAndPrint")
+                        {
+                            return RedirectToAction("Details", new { id = result, print = true });
+                        }
+                        return RedirectToAction("Index");
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "Failed to create bill.";
+                    }
+                }
+                
+                // Reload data for the view
+                var products = await _vendorBillsService.GetAllProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+                model.VendorList = await _vendorBillsService.GetAllVendorsAsync();
+                model.ProductList = products;
+                return View(model);
             }
-            catch
+            catch (Exception ex)
             {
-                return View();
+                _logger.LogError(ex, "Error creating bill");
+                TempData["ErrorMessage"] = "An error occurred while creating the bill.";
+                var products = await _vendorBillsService.GetAllProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+                model.VendorList = await _vendorBillsService.GetAllVendorsAsync();
+                model.ProductList = products;
+                return View(model);
+            }
+        }
+
+        // AJAX endpoint to get product sizes
+        [HttpGet]
+        public async Task<IActionResult> GetProductSizes(long productId)
+        {
+            try
+            {
+                var productSizes = await _vendorBillsService.GetProductSizesAsync(productId);
+                var result = productSizes.Select(ps => new
+                {
+                    value = ps.ProductRangeId.ToString(),
+                    text = "Size " + ps.ProductRangeId.ToString(),
+                    productRangeId = ps.ProductRangeId,
+                    unitPrice = ps.UnitPrice,
+                    measuringUnitId = ps.MeasuringUnitIdFk,
+                    rangeFrom = ps.RangeFrom,
+                    rangeTo = ps.RangeTo,
+                    measuringUnitName = "Unit", // Default value
+                    measuringUnitAbbreviation = "U" // Default value
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product sizes for product {ProductId}", productId);
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get previous due amount
+        [HttpGet]
+        public async Task<IActionResult> GetPreviousDue(long vendorId)
+        {
+            try
+            {
+                var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
+                return Json(new { previousDue });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting previous due for vendor {VendorId}", vendorId);
+                return Json(new { previousDue = 0 });
             }
         }
 

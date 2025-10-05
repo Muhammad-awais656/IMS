@@ -1,6 +1,5 @@
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
-using IMS.DAL.PrimaryDBContext;
 
 namespace IMS.Common_Interfaces
 {
@@ -16,5 +15,11 @@ namespace IMS.Common_Interfaces
         Task<List<Product>> GetVendorProductsAsync(long supplierId);
         Task<List<ProductRange>> GetProductUnitPriceRangesAsync(long productId);
         Task<decimal> GetPreviousDueAmountAsync(long? billId, long vendorId);
+        
+        // New methods for Generate Bill functionality
+        Task<List<Product>> GetAllProductsAsync();
+        Task<List<ProductRange>> GetProductSizesAsync(long productId);
+        Task<decimal> GetPreviousDueAmountAsync(long vendorId);
+        Task<long> CreateBillAsync(GenerateBillViewModel model);
     }
 }
