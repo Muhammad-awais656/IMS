@@ -1,0 +1,157 @@
+@model IMS.DAL.PrimaryDBContext.PersonalPayment
+@{
+    ViewData["Title"] = "Payment Details";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fa-solid fa-eye me-2"></i>Payment Details
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Bank Information -->
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-university me-2"></i>Bank Information
+                            </h5>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bank Name:</label>
+                                <p class="form-control-plaintext">@Model.BankName</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Account Number:</label>
+                                <p class="form-control-plaintext">@Model.AccountNumber</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Account Holder Name:</label>
+                                <p class="form-control-plaintext">@Model.AccountHolderName</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bank Branch:</label>
+                                <p class="form-control-plaintext">@(Model.BankBranch ?? "N/A")</p>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <!-- Payment Information -->
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-credit-card me-2"></i>Payment Information
+                            </h5>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Credit Amount:</label>
+                                <p class="form-control-plaintext fs-5 text-success fw-bold">@(Model.CreditAmount > 0 ? Model.CreditAmount.ToString("C") : "-")</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Debit Amount:</label>
+                                <p class="form-control-plaintext fs-5 text-danger fw-bold">@(Model.DebitAmount > 0 ? Model.DebitAmount.ToString("C") : "-")</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Net Amount:</label>
+                                <p class="form-control-plaintext fs-5 fw-bold @((Model.CreditAmount - Model.DebitAmount) >= 0 ? "text-success" : "text-danger")">
+                                    @((Model.CreditAmount - Model.DebitAmount).ToString("C"))
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Payment Description:</label>
+                                <p class="form-control-plaintext">@Model.PaymentDescription</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Payment Date:</label>
+                                <p class="form-control-plaintext">@Model.PaymentDate.ToString("MMM dd, yyyy")</p>
+                            </div>
+                        </div>
+                        
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Status:</label>
+                                <p class="form-control-plaintext">
+                                    <span class="badge bg-@(Model.IsActive ? "success" : "danger") fs-6">
+                                        @(Model.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <!-- Audit Information -->
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3">
+                                <i class="fa-solid fa-info-circle me-2"></i>Audit Information
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Created Date:</label>
+                                <p class="form-control-plaintext">@Model.CreatedDate.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Last Modified:</label>
+                                <p class="form-control-plaintext">@Model.ModifiedDate.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-end">
+                                <a asp-action="Index" class="btn btn-secondary me-2">
+                                    <i class="fa-solid fa-arrow-left me-1"></i>Back to List
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@Model.PersonalPaymentId" class="btn btn-warning me-2">
+                                    <i class="fa-solid fa-edit me-1"></i>Edit Payment
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@Model.PersonalPaymentId" class="btn btn-danger">
+                                    <i class="fa-solid fa-trash me-1"></i>Delete Payment
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

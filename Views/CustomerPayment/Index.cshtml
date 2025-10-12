@@ -145,16 +145,18 @@
                                                                         : payment.Description)
                                     </td>
                                     <td class="table-actions text-nowrap">
-                                <a asp-action="Details" asp-route-id="@payment.PaymentId" class="btn btn-info btn-sm">
-                                    <i class="fa-solid fa-eye"></i>
-                                </a>
-                                <a asp-action="Edit" asp-route-id="@payment.PaymentId" class="btn btn-primary btn-sm">
-                                    <i class="fa-solid fa-edit"></i>
-                                </a>
-                                <a asp-action="Delete" asp-route-id="@payment.PaymentId" class="btn btn-danger btn-sm">
-                                    <i class="fa-solid fa-trash"></i>
-                                </a>
-                            </td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </a>
+                                            <a asp-action="Edit" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
+                                                <i class="fa-solid fa-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
                         </tr>
                                                 }
                         }

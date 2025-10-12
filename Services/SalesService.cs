@@ -457,9 +457,9 @@ namespace IMS.Services
                             {
                                 saleDetails.Add(new SaleDetailViewModel
                                 {
-                                    ProductId = reader.GetInt64("ProductId_FK"),
+                                    ProductId = reader.GetInt64("PrductId_FK"),
                                     ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
-                                    ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
+                                   // ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
                                     Quantity = reader.GetInt64("Quantity"),
                                     SalePrice = reader.GetDecimal("SalePrice"),
@@ -630,7 +630,8 @@ namespace IMS.Services
 
         public async Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
             long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
-            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate)
+            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
+            string paymentMethod = null, long? onlineAccountId = null)
         {
             long saleId = 0;
             int returnValue = 0;
@@ -655,6 +656,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pBillNumber", billNumber);
                         command.Parameters.AddWithValue("@pSaleDescription", saleDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleDate", saleDate);
+                        command.Parameters.AddWithValue("@pPaymentMethod", paymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pOnlineAccountId", onlineAccountId ?? (object)DBNull.Value);
 
                         var salesIdParam = new SqlParameter("@pSalesId", SqlDbType.BigInt)
                         {
@@ -707,6 +710,64 @@ namespace IMS.Services
                 return 0; // Return 0 if there's an error
             }
             return response;
+        }
+
+        public async Task<long> ProcessOnlinePaymentTransactionAsync(long personalPaymentId, long saleId, decimal creditAmount, 
+            string transactionDescription, long createdBy, DateTime? createdDate = null)
+        {
+            long transactionDetailId = 0;
+            int returnValue = 0;
+            
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("ProcessOnlinePaymentTransaction", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pPersonalPaymentId", personalPaymentId);
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        command.Parameters.AddWithValue("@pCreditAmount", creditAmount);
+                        command.Parameters.AddWithValue("@pTransactionDescription", 
+                            string.IsNullOrEmpty(transactionDescription) ? (object)DBNull.Value : transactionDescription);
+                        command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                        command.Parameters.AddWithValue("@pCreatedDate", createdDate ?? (object)DBNull.Value);
+                        
+                        var transactionDetailIdParam = new SqlParameter("@pPersonalPaymentSaleDetailId", SqlDbType.BigInt)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(transactionDetailIdParam);
+                        
+                        var returnValueParam = new SqlParameter("@pReturnValue", SqlDbType.Int)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(returnValueParam);
+                        
+                        await command.ExecuteNonQueryAsync();
+                        
+                        transactionDetailId = (long)transactionDetailIdParam.Value;
+                        returnValue = (int)returnValueParam.Value;
+                        
+                        if (returnValue < 0)
+                        {
+                            _logger.LogError("Error processing online payment transaction. Return value: {ReturnValue}", returnValue);
+                            throw new Exception($"Failed to process online payment transaction. Error code: {returnValue}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing online payment transaction for PersonalPaymentId: {PersonalPaymentId}, SaleId: {SaleId}", 
+                    personalPaymentId, saleId);
+                throw;
+            }
+            
+            return transactionDetailId;
         }
     }
 }

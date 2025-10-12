@@ -2,12 +2,10 @@
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Net.Mail;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace IMS.Services
 {

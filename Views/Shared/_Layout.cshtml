@@ -250,6 +250,7 @@
 
                 <div class="submenu">
                     <a asp-controller="Expense" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i> Expenses</a>
+                    <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i> Personal Payments</a>
                 </div>
 
 
@@ -425,6 +426,16 @@
         <script src="~/lib/jquery/dist/jquery.min.js"></script>
         <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
         <script src="~/js/site.js" asp-append-version="true"></script>
+        
+        <!-- Universal Searchable Dropdown Service -->
+        <link href="~/css/searchable-dropdown.css" rel="stylesheet" />
+        <script src="~/js/error-handler.js"></script>
+        <script src="~/js/loading-service.js"></script>
+        <script src="~/js/dropdown-config.js"></script>
+        <script src="~/js/searchable-dropdown.js"></script>
+        <script src="~/js/universal-dropdown-service.js"></script>
+        <script src="~/js/generate-bills-service.js"></script>
+        
         @await RenderSectionAsync("Scripts", required: false)
     }
 </body>

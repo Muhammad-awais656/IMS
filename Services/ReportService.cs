@@ -3,10 +3,8 @@ using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
-using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 using System;
 using System.Data;
-using System.Net.Mail;
 
 
 namespace IMS.Services

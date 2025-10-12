@@ -5,68 +5,139 @@
     ViewBag.Title = "Vendor Bills";
 }
 
+<link href="~/css/product-management.css" rel="stylesheet" />
+<link href="~/css/user-management.css" rel="stylesheet" />
+
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h2 class="mb-0" style="text-align:center">Vendor Bill List</h2>
     </div>
     <div class="card-body">
-        <!-- Filter Section -->
-        <div class="mb-3">
-            <form asp-action="Index" method="get" class="row g-3">
-                <div class="col-md-2">
-                    <label for="vendorId" class="form-label">Vendor :</label>
-                    <select name="vendorId" id="vendorId" class="form-select" onchange="loadBillNumbers()">
-                        <option value="">--Select a value--</option>
-                        @if (Model?.VendorList?.Any() == true)
-                        {
-                            @foreach (var vendor in Model.VendorList)
-                            {
-                                <option value="@vendor.SupplierId" selected="@(ViewData["vendorId"]?.ToString() == vendor.SupplierId.ToString())">
-                                    @vendor.SupplierName
-                                </option>
-                            }
-                        }
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="billNumber" class="form-label">Bill number :</label>
-                    <select name="billNumber" id="billNumber" class="form-select">
-                        <option value="">--Select a value--</option>
-                        @if (ViewBag.BillNumbers != null)
-                        {
-                            @foreach (var bill in ViewBag.BillNumbers)
-                            {
-                                <option value="@bill.BillNumber" selected="@(ViewData["billNumber"]?.ToString() == bill.BillNumber.ToString())">
-                                    @bill.BillNumber
-                                </option>
-                            }
-                        }
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="description" class="form-label">Description :</label>
-                    <input type="text" name="description" id="description" class="form-control" 
-                           value="@ViewData["description"]" placeholder="Enter description" />
-                </div>
-                <div class="col-md-2">
-                    <label for="billDateFrom" class="form-label">Bill date from :</label>
-                    <input type="date" name="billDateFrom" id="billDateFrom" class="form-control" 
-                           value="@(ViewData["billDateFrom"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
-                </div>
-                <div class="col-md-2">
-                    <label for="billDateTo" class="form-label">Bill date to :</label>
-                    <input type="date" name="billDateTo" id="billDateTo" class="form-control" 
-                           value="@(ViewData["billDateTo"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-search me-2">
-                        <i class="fa-solid fa-magnifying-glass me-1"></i> Search
+        <!-- Enhanced Filter Section -->
+        <div class="card mb-4 user-search-card">
+            <div class="card-header user-search-header bg-transparent border-0 py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0 user-search-title">
+                        <i class="fa-solid fa-filter user-search-icon me-2"></i>Advanced Search & Filters
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary collapse-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+                        <i class="fa-solid fa-chevron-down"></i>
                     </button>
-                    <a asp-action="Index" class="btn btn-reset">
-                        <i class="fa-solid fa-rotate-left me-1"></i> Reset
-                    </a>
                 </div>
-            </form>
+            </div>
+            <div class="collapse show" id="filterCollapse">
+                <div class="card-body pt-0">
+                    <form asp-action="Index" method="get">
+                        
+                        <!-- Filter Inputs Row -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select name="vendorId" id="vendorId" class="form-select border-0 shadow-sm" onchange="loadBillNumbers()">
+                                        <option value="">--Select a value--</option>
+                                        @if (Model?.VendorList?.Any() == true)
+                                        {
+                                            @foreach (var vendor in Model.VendorList)
+                                            {
+                                                <option value="@vendor.SupplierId" selected="@(ViewData["vendorId"]?.ToString() == vendor.SupplierId.ToString())">
+                                                    @vendor.SupplierName
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                    <label for="vendorId" class="text-muted">
+                                        <i class="fa-solid fa-building me-1"></i>Vendor
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select name="billNumber" id="billNumber" class="form-select border-0 shadow-sm">
+                                        <option value="">--Select a value--</option>
+                                        @if (ViewBag.BillNumbers != null)
+                                        {
+                                            @foreach (var bill in ViewBag.BillNumbers)
+                                            {
+                                                <option value="@bill.BillNumber" selected="@(ViewData["billNumber"]?.ToString() == bill.BillNumber.ToString())">
+                                                    @bill.BillNumber
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                    <label for="billNumber" class="text-muted">
+                                        <i class="fa-solid fa-file-invoice me-1"></i>Bill Number
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <input type="text" 
+                                           name="description" 
+                                           id="description" 
+                                           class="form-control border-0 shadow-sm" 
+                                           value="@ViewData["description"]" 
+                                           placeholder="Enter description" />
+                                    <label for="description" class="text-muted">
+                                        <i class="fa-solid fa-align-left me-1"></i>Description
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <input type="date" 
+                                           name="billDateFrom" 
+                                           id="billDateFrom" 
+                                           class="form-control border-0 shadow-sm" 
+                                           value="@(ViewData["billDateFrom"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
+                                    <label for="billDateFrom" class="text-muted">
+                                        <i class="fa-solid fa-calendar-day me-1"></i>From Date
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <input type="date" 
+                                           name="billDateTo" 
+                                           id="billDateTo" 
+                                           class="form-control border-0 shadow-sm" 
+                                           value="@(ViewData["billDateTo"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
+                                    <label for="billDateTo" class="text-muted">
+                                        <i class="fa-solid fa-calendar-day me-1"></i>To Date
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons Row -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary btn-enhanced btn-search px-4 py-2">
+                                            <i class="fa-solid fa-magnifying-glass me-2"></i>Search Bills
+                                        </button>
+                                        <a asp-action="Index" class="btn btn-secondary btn-enhanced btn-reset px-4 py-2">
+                                            <i class="fa-solid fa-refresh me-2"></i>Reset Filters
+                                        </a>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-info btn-enhanced px-4 py-2">
+                                            <i class="fa-solid fa-print me-2"></i>Print Preview
+                                        </button>
+                                        <a asp-controller="Home" asp-action="Index" class="btn btn-danger btn-enhanced px-4 py-2">
+                                            <i class="fa-solid fa-times me-2"></i>Close
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Data Grid Section -->
@@ -236,39 +307,82 @@
 
 @section Scripts {
     <script>
-        function loadBillNumbers() {
-            const vendorId = document.getElementById('vendorId').value;
-            const billNumberSelect = document.getElementById('billNumber');
+        // Enhanced Vendor Bills Management JavaScript
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVendorBillsManagement();
+        });
+
+        function initializeVendorBillsManagement() {
+            // Add loading states to buttons
+            addLoadingStates();
             
-            // Clear existing options
-            billNumberSelect.innerHTML = '<option value="">--Select a value--</option>';
+            // Add smooth animations
+            addSmoothAnimations();
             
-            if (vendorId) {
-                fetch('@Url.Action("GetBillNumbers", "VendorBills")' + '?supplierId=' + vendorId)
-                    .then(response => response.json())
-                    .then(data => {
-                        data.forEach(bill => {
-                            const option = document.createElement('option');
-                            option.value = bill.billNumber;
-                            option.textContent = bill.billNumber;
-                            billNumberSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error loading bill numbers:', error);
-                    });
+            // Add form validation feedback
+            addFormValidation();
+            
+            // Set default dates
+            setDefaultDates();
+        }
+
+        function addLoadingStates() {
+            const searchBtn = document.querySelector('.btn-search');
+            const resetBtn = document.querySelector('.btn-reset');
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', function() {
+                    this.classList.add('btn-loading');
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...';
+                });
+            }
+            
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function() {
+                    this.classList.add('btn-loading');
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Resetting...';
+                });
             }
         }
 
-        function changePageSize(select) {
-            const url = new URL(window.location);
-            url.searchParams.set('pageNumber', '1');
-            url.searchParams.set('pageSize', select.value);
-            window.location.href = url.toString();
+        function addSmoothAnimations() {
+            // Add hover effects to form elements
+            const formElements = document.querySelectorAll('.form-floating');
+            formElements.forEach(element => {
+                element.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                
+                element.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
         }
 
-        // Set default dates on page load if not already set
-        document.addEventListener('DOMContentLoaded', function() {
+        function addFormValidation() {
+            const inputs = document.querySelectorAll('.form-control, .form-select');
+            inputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.add('is-valid');
+                        this.classList.remove('is-invalid');
+                    } else {
+                        this.classList.remove('is-valid');
+                    }
+                });
+                
+                input.addEventListener('input', function() {
+                    if (this.classList.contains('is-invalid')) {
+                        this.classList.remove('is-invalid');
+                    }
+                });
+            });
+        }
+
+        function setDefaultDates() {
             const billDateFrom = document.getElementById('billDateFrom');
             const billDateTo = document.getElementById('billDateTo');
             
@@ -278,6 +392,92 @@
             
             if (!billDateTo.value) {
                 billDateTo.value = new Date().toISOString().split('T')[0];
+            }
+        }
+
+        function loadBillNumbers() {
+            const vendorId = document.getElementById('vendorId').value;
+            const billNumberSelect = document.getElementById('billNumber');
+            
+            // Clear existing options
+            billNumberSelect.innerHTML = '<option value="">--Select a value--</option>';
+            
+            if (vendorId) {
+                // Add loading state to bill number dropdown
+                billNumberSelect.disabled = true;
+                billNumberSelect.innerHTML = '<option value="">Loading...</option>';
+                
+                fetch('@Url.Action("GetBillNumbers", "VendorBills")' + '?supplierId=' + vendorId)
+                    .then(response => response.json())
+                    .then(data => {
+                        billNumberSelect.innerHTML = '<option value="">--Select a value--</option>';
+                        data.forEach(bill => {
+                            const option = document.createElement('option');
+                            option.value = bill.billNumber;
+                            option.textContent = bill.billNumber;
+                            billNumberSelect.appendChild(option);
+                        });
+                        billNumberSelect.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error loading bill numbers:', error);
+                        billNumberSelect.innerHTML = '<option value="">--Select a value--</option>';
+                        billNumberSelect.disabled = false;
+                    });
+            }
+        }
+
+        function changePageSize(select) {
+            // Add loading state
+            const searchBtn = document.querySelector('.btn-search');
+            if (searchBtn) {
+                searchBtn.classList.add('btn-loading');
+            }
+            
+            const url = new URL(window.location);
+            url.searchParams.set('pageNumber', '1');
+            url.searchParams.set('pageSize', select.value);
+            window.location.href = url.toString();
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl + Enter to search
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                const searchBtn = document.querySelector('.btn-search');
+                if (searchBtn) {
+                    searchBtn.click();
+                }
+            }
+            
+            // Escape to reset
+            if (e.key === 'Escape') {
+                const resetBtn = document.querySelector('.btn-reset');
+                if (resetBtn) {
+                    resetBtn.click();
+                }
+            }
+        });
+
+        // Add tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        // Collapse/expand functionality for filter section
+        document.addEventListener('DOMContentLoaded', function() {
+            const collapseBtn = document.querySelector('.collapse-btn');
+            const collapseIcon = collapseBtn.querySelector('i');
+            
+            if (collapseBtn) {
+                collapseBtn.addEventListener('click', function() {
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    collapseIcon.className = isExpanded ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-down';
+                });
             }
         });
     </script>

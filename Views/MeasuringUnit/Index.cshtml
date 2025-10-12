@@ -3,30 +3,60 @@
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
 }
+
+<link href="~/css/product-management.css" rel="stylesheet" />
+<link href="~/css/user-management.css" rel="stylesheet" />
+
 <div class="card shadow-sm">
     <div class="card-header bg-success text-white">
         <h2 class="mb-0" style="text-align:center"> Admin Measuring Unit</h2>
     </div>
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <a asp-action="Create" class="btn btn-success">Create</a>
-            <form asp-action="Index" asp-controller="MeasuringUnit" asp-route-searchUsername="@ViewData["searchUsername"]" method="get" class="d-flex align-items-center gap-2">
-                <input type="text"
-                       name="searchUsername"
-                       value="@Context.Request.Query["searchUsername"]"
-                       class="form-control"
-                       placeholder="Enter Name" onchange="SearchNameChange" />
-                <button type="submit" class="btn btn-primary">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
-                <button type="submit" class="btn btn-info">
-                    Refresh
-                </button>
-
-            </form>
-
-
-            
+        <!-- Enhanced Search Section -->
+        <div class="card mb-4 user-search-card">
+            <div class="card-header user-search-header bg-transparent border-0 py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0 user-search-title">
+                        <i class="fa-solid fa-search user-search-icon me-2"></i>Search & Actions
+                    </h5>
+                </div>
+            </div>
+            <div class="card-body user-search-section pt-0">
+                <form asp-action="Index" asp-controller="MeasuringUnit" asp-route-searchUsername="@ViewData["searchUsername"]" method="get">
+                    
+                    <div class="row g-3 align-items-end">
+                        <!-- Search Input -->
+                        <div class="col-md-6">
+                            <div class="form-floating user-search-floating">
+                                <input type="text"
+                                       name="searchUsername"
+                                       value="@Context.Request.Query["searchUsername"]"
+                                       class="form-control user-search-input"
+                                       placeholder="Enter measuring unit name"
+                                       onchange="SearchNameChange()" />
+                                <label class="text-muted">
+                                    <i class="fa-solid fa-ruler me-1"></i>Search by Measuring Unit
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="col-md-6">
+                            <div class="d-flex user-button-group justify-content-end">
+                                <button type="submit" class="btn btn-user-search">
+                                    <i class="fa-solid fa-magnifying-glass me-2"></i>Search
+                                </button>
+                                <a asp-action="Index" class="btn btn-user-reset">
+                                    <i class="fa-solid fa-refresh me-2"></i>Refresh
+                                </a>
+                                <a asp-action="Create" class="btn btn-user-create">
+                                    <i class="fa-solid fa-plus me-2"></i>Create Unit
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-striped table-bordered custom-table">
@@ -65,8 +95,19 @@
 
 
                                 <td class="table-actions">
-                                    <a class="btn btn-primary btn-sm" asp-action="Edit" asp-route-id="@item.MeasuringUnitId">Edit</a>
-                                    <a class="btn btn-danger btn-sm" asp-action="Delete" asp-route-id="@item.MeasuringUnitId">Delete</a>
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Details" asp-route-id="@item.MeasuringUnitId" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@item.MeasuringUnitId" class="btn btn-sm btn-outline-warning" title="Edit Measuring Unit"
+                                           onclick="return validateRecordId(@item.MeasuringUnitId)">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.MeasuringUnitId" class="btn btn-sm btn-outline-danger" title="Delete Measuring Unit"
+                                           onclick="return validateRecordId(@item.MeasuringUnitId)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    </div>
                                 </td>
 
 

@@ -46,6 +46,8 @@ namespace IMS.Models
         public decimal PreviousDue { get; set; }
         public string Description { get; set; }
         public string ActionType { get; set; }
+        public string PaymentMethod { get; set; } // Cash or Online
+        public long? OnlineAccountId { get; set; } // Personal Payment ID when Online is selected
         public DateTime CreatedDate { get; set; }
         public long CreatedBy { get; set; }
         public DateTime ModifiedDate { get; set; }

@@ -15,13 +15,15 @@ namespace IMS.Controllers
         private readonly ILogger<SalesController> _logger;
         private readonly IProductService _productService;
         private readonly ICustomer _customerService;
+        private readonly IPersonalPaymentService _personalPaymentService;
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService)
         {
             _salesService = salesService;
             _logger = logger;
             _productService = productService;
             _customerService = customerService;
+            _personalPaymentService = personalPaymentService;
         }
 
         // GET: SalesController
@@ -496,6 +498,29 @@ namespace IMS.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<JsonResult> GetOnlineAccounts()
+        {
+            try
+            {
+                var onlineAccounts = await _personalPaymentService.GetAllPersonalPaymentsAsync(1, 1000, new PersonalPaymentFilters { IsActive = true });
+                var accountOptions = onlineAccounts.PersonalPaymentList.Select(account => new
+                {
+                    personalPaymentId = account.PersonalPaymentId,
+                    bankName = account.BankName,
+                    accountNumber = account.AccountNumber,
+                    accountHolderName = account.AccountHolderName
+                }).ToList();
+
+                return Json(accountOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting online accounts");
+                return Json(new List<object>());
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> AddSale(AddSaleViewModel model)
@@ -623,7 +648,9 @@ namespace IMS.Controllers
                             model.DiscountAmount,
                             long.Parse(model.BillNo ?? "0"),
                             model.Description ?? "",
-                            model.SaleDate
+                            model.SaleDate,
+                            model.PaymentMethod,
+                            model.OnlineAccountId
                         );
                     }
 
@@ -670,6 +697,32 @@ namespace IMS.Controllers
                                     2, // Sale transaction
                                     saleId
                                 );
+                            }
+                        }
+
+                        // Process online payment transaction if payment method is Online
+                        if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
+                        {
+                            try
+                            {
+                                var transactionDescription = $"Sale Credit - Bill #{model.BillNo} - {model.Description}";
+                                var transactionId = await _salesService.ProcessOnlinePaymentTransactionAsync(
+                                    model.OnlineAccountId.Value,
+                                    saleId,
+                                    model.ReceivedAmount, // Credit the received amount to the online account
+                                    transactionDescription,
+                                    userId,
+                                    currentDateTime
+                                );
+                                
+                                _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}", 
+                                    transactionId, saleId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error processing online payment transaction for Sale ID: {SaleId}", saleId);
+                                // Don't fail the entire sale if online payment processing fails
+                                // Just log the error and continue
                             }
                         }
 

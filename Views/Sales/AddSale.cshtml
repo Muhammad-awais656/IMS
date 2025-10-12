@@ -137,6 +137,32 @@
             </div>
         </div>
 
+        <!-- Payment Method Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="text-primary mb-3">
+                    <i class="fa-solid fa-credit-card me-2"></i>Payment Method
+                </h5>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="PaymentMethod" class="form-label">Payment Method:</label>
+                <select asp-for="PaymentMethod" class="form-select" id="paymentMethodSelect">
+                    <option value="">--Select Payment Method--</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                            <option value="Pay Later">Pay Later</option>
+                </select>
+                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+            </div>
+            <div class="col-md-3" id="onlineAccountDiv" style="display: none;">
+                <label asp-for="OnlineAccountId" class="form-label">Online Account:</label>
+                <select asp-for="OnlineAccountId" class="form-select" id="onlineAccountSelect">
+                    <option value="">--Select Online Account--</option>
+                </select>
+                <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
+            </div>
+        </div>
+
                 <!-- Payment Summary Section -->
                 <div class="row mb-4">
                     <div class="col-12">
@@ -217,6 +243,8 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/sales-form-service.js"></script>
+    
     <script>
         let rowIndex = 0;
         let selectedProductSize = null;
@@ -288,6 +316,14 @@
                         row.remove();
                         updateTotals();
                         showSuccessMessage('Product removed from sale successfully!');
+                    }
+                }
+                
+                // Edit row functionality
+                if (e.target.classList.contains('edit-row') || e.target.closest('.edit-row')) {
+                    const row = e.target.closest('tr');
+                    if (row) {
+                        editProductFromTable(row);
                     }
                 }
             });
@@ -590,7 +626,10 @@
                 <td>$${totalDiscount.toFixed(2)}</td>
                 <td>$${payable.toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                    <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -621,8 +660,26 @@
         }
 
         function resetFields() {
-            document.getElementById('productSelect').value = "";
+            debugger;
+            
+            // Reset product dropdown using sales form service
+            if (window.resetSalesProductDropdown) {
+                window.resetSalesProductDropdown();
+            } else {
+                // Fallback to original method with change event
+                const productSelect = document.getElementById('productSelect');
+                if (productSelect) {
+                    productSelect.value = "";
+                    // Trigger change event to clear dependent dropdowns
+                    const changeEvent = new Event('change', { bubbles: true });
+                    productSelect.dispatchEvent(changeEvent);
+                }
+            }
+            
+            // Reset product size dropdown
             document.getElementById('productSizeSelect').innerHTML = '<option value="">--Select a value--</option>';
+            
+            // Reset other fields
             document.getElementById('quantity').value = "1";
             document.getElementById('unitPrice').value = "0";
             document.getElementById('salePrice').value = "0";
@@ -643,6 +700,11 @@
             if (quantityLabel) {
                 quantityLabel.innerHTML = 'Quantity:';
             }
+
+            // Reset payment method fields
+            document.getElementById('paymentMethodSelect').value = '';
+            document.getElementById('onlineAccountSelect').value = '';
+            document.getElementById('onlineAccountDiv').style.display = 'none';
         }
 
 
@@ -705,7 +767,10 @@
                 <td>$${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
                 <td>$${parseFloat(detail.payableAmount).toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                    <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -839,6 +904,14 @@
             existingAlerts.forEach(alert => alert.remove());
         }
 
+        function clearValidationStyling() {
+            // Clear validation styling from form elements
+            const formElements = document.querySelectorAll('#addSaleForm input, #addSaleForm select, #addSaleForm textarea');
+            formElements.forEach(element => {
+                element.classList.remove('is-invalid', 'is-valid');
+            });
+        }
+
         function validateForm() {
             console.log('=== VALIDATING FORM ===');
             
@@ -847,17 +920,22 @@
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
+            const paymentMethod = document.getElementById('paymentMethodSelect').value;
+            const onlineAccountId = document.getElementById('onlineAccountSelect').value;
 
             console.log('Validation values:', {
                 customerId: customerId,
                 saleDetailsCount: saleDetailsCount,
                 totalAmount: totalAmount,
                 receivedAmount: receivedAmount,
-                dueAmount: dueAmount
+                dueAmount: dueAmount,
+                paymentMethod: paymentMethod,
+                onlineAccountId: onlineAccountId
             });
 
-            // Clear previous validation messages
+            // Clear previous validation messages and styling
             clearValidationMessages();
+            clearValidationStyling();
 
             let isValid = true;
             let errorMessages = [];
@@ -885,6 +963,28 @@
             if (dueAmount < 0) {
                 errorMessages.push('Due amount cannot be negative.');
                 isValid = false;
+            }
+
+            // Payment method validation
+            if (!paymentMethod || paymentMethod === '') {
+                errorMessages.push('Please select a payment method.');
+                // Add visual feedback
+                document.getElementById('paymentMethodSelect').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('paymentMethodSelect').classList.remove('is-invalid');
+                
+                if (paymentMethod === 'Online') {
+                    // If Online payment is selected, validate online account
+                    if (!onlineAccountId || onlineAccountId === '') {
+                        errorMessages.push('Please select an online account for online payment.');
+                        // Add visual feedback
+                        document.getElementById('onlineAccountSelect').classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        document.getElementById('onlineAccountSelect').classList.remove('is-invalid');
+                    }
+                }
             }
 
             console.log('Validation result:', isValid);
@@ -1077,6 +1177,8 @@
             formData['DueAmount'] = $('#DueAmount').val();
             formData['PreviousDue'] = $('#PreviousDue').val();
             formData['Description'] = $('#Description').val();
+            formData['PaymentMethod'] = $('#paymentMethodSelect').val();
+            formData['OnlineAccountId'] = $('#onlineAccountSelect').val();
             
             // Add SaleDetails
             const saleDetailsRows = document.querySelectorAll('#saleDetailsBody tr');
@@ -1158,8 +1260,9 @@
             // Get new bill number
             getNewBillNumber();
             
-            // Clear any validation messages
+            // Clear any validation messages and styling
             clearValidationMessages();
+            clearValidationStyling();
             
             console.log('Form reset completed');
         }
@@ -1179,5 +1282,114 @@
                     console.error('Error getting new bill number:', error);
                 });
         }
+
+        // Edit product from table function
+        function editProductFromTable(row) {
+            try {
+                // Get the row data
+                const productId = row.querySelector('input[name*=".ProductId"]').value;
+                const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
+                const productSize = row.querySelector('input[name*=".ProductSize"]').value;
+                const unitPrice = parseFloat(row.querySelector('input[name*=".UnitPrice"]').value);
+                const quantity = parseFloat(row.querySelector('input[name*=".Quantity"]').value);
+                const salePrice = parseFloat(row.querySelector('input[name*=".SalePrice"]').value);
+                const lineDiscountAmount = parseFloat(row.querySelector('input[name*=".LineDiscountAmount"]').value);
+                
+                // Get product name from the table cell
+                const productName = row.cells[1].textContent;
+                
+                // Populate the form fields
+                document.getElementById('productSelect').value = productId;
+                
+                // Trigger product change to load sizes
+                const changeEvent = new Event('change', { bubbles: true });
+                document.getElementById('productSelect').dispatchEvent(changeEvent);
+                
+                // Wait a bit for the sizes to load, then select the correct size
+                setTimeout(() => {
+                    const sizeSelect = document.getElementById('productSizeSelect');
+                    const sizeOption = Array.from(sizeSelect.options).find(option => 
+                        option.dataset.productRangeId === productRangeId
+                    );
+                    
+                    if (sizeOption) {
+                        sizeSelect.value = sizeOption.value;
+                        // Trigger size change to load unit price
+                        const sizeChangeEvent = new Event('change', { bubbles: true });
+                        sizeSelect.dispatchEvent(sizeChangeEvent);
+                    }
+                    
+                    // Populate other fields
+                    document.getElementById('quantity').value = quantity;
+                    document.getElementById('unitPrice').value = unitPrice.toFixed(2);
+                    document.getElementById('salePrice').value = salePrice.toFixed(2);
+                    document.getElementById('discountAmount').value = (lineDiscountAmount / quantity).toFixed(2);
+                    
+                    // Calculate payable amount
+                    calculatePayableAmount();
+                    
+                    // Remove the row from table (user will add it back with updated values)
+                    row.remove();
+                    updateTotals();
+                    
+                    // Show success message
+                    showSuccessMessage('Product loaded for editing. Update the values and click "Add to Sale" to save changes.');
+                    
+                }, 500); // Wait 500ms for the product sizes to load
+                
+            } catch (error) {
+                console.error('Error editing product from table:', error);
+                showValidationError('Error loading product for editing. Please try again.');
+            }
+        }
+
+        // Payment Method Dropdown Logic
+        $(document).ready(function() {
+            // Handle payment method change
+            $('#paymentMethodSelect').on('change', function() {
+                const paymentMethod = $(this).val();
+                const onlineAccountDiv = $('#onlineAccountDiv');
+                const onlineAccountSelect = $('#onlineAccountSelect');
+                
+                // Clear validation styling
+                $(this).removeClass('is-invalid');
+                
+                if (paymentMethod === 'Online') {
+                    onlineAccountDiv.show();
+                    loadOnlineAccounts();
+                } else {
+                    onlineAccountDiv.hide();
+                    onlineAccountSelect.val('').trigger('change');
+                }
+            });
+            
+            // Handle online account change
+            $('#onlineAccountSelect').on('change', function() {
+                // Clear validation styling
+                $(this).removeClass('is-invalid');
+            });
+
+            // Load online accounts from PersonalPayments
+            function loadOnlineAccounts() {
+                $.ajax({
+                    url: '/Sales/GetOnlineAccounts',
+                    type: 'GET',
+                    success: function(data) {
+                        const select = $('#onlineAccountSelect');
+                        select.empty();
+                        select.append('<option value="">--Select Online Account--</option>');
+                        
+                        if (data && data.length > 0) {
+                            data.forEach(function(account) {
+                                select.append(`<option value="${account.personalPaymentId}">${account.bankName} - ${account.accountNumber}</option>`);
+                            });
+                        }
+                    },
+                    error: function() {
+                        console.error('Error loading online accounts');
+                    }
+                });
+            }
+        });
     </script>
 }

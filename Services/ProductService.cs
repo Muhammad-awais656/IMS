@@ -1,14 +1,9 @@
-﻿using Azure;
-using DocumentFormat.OpenXml.Office2010.Excel;
-using IMS.Common_Interfaces;
+﻿using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
-using NuGet.Protocol;
 using System.Data;
-using static IMS.Models.ProductViewModel;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace IMS.Services
 {
@@ -141,7 +136,7 @@ namespace IMS.Services
 
 
 
-        public async Task<ProductViewModel> GetAllProductAsync(int pageNumber, int? pageSize, ProductFilters productFilters)
+        public async Task<ProductViewModel> GetAllProductAsync(int pageNumber, int? pageSize, ProductViewModel.ProductFilters productFilters)
         {
             var products = new List<ProductViewModel>();
             var totalRecords = 0;

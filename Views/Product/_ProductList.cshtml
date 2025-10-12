@@ -27,8 +27,17 @@
                         <td>@product.MeasuringUnitTypeName</td>
                         <td>@(product.IsEnabled)</td>
                         <td class="table-actions">
-                            <a class="btn btn-primary btn-sm" asp-action="Edit" asp-route-id="@product.ProductId"><i class="fa-solid fa-pen"></i></a> |
-                            <a class="btn btn-danger btn-sm" asp-action="Delete" asp-route-id="@product.ProductId"><i class="fa-solid fa-trash-can"></i></a>
+                            <div class="btn-group" role="group">
+                                <a asp-action="Details" asp-route-id="@product.ProductId" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fa-solid fa-eye"></i>
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@product.ProductId" class="btn btn-sm btn-outline-warning" title="Edit Product">
+                                    <i class="fa-solid fa-edit"></i>
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@product.ProductId" class="btn btn-sm btn-outline-danger" title="Delete Product">
+                                    <i class="fa-solid fa-trash"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 }

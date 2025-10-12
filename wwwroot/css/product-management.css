@@ -1,0 +1,228 @@
+/* Product Management Enhanced Styles */
+
+/* Search Filters Section */
+.search-filters-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.search-filters-card:hover {
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Floating Labels Enhancement */
+.form-floating > .form-control {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+}
+
+.form-floating > .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    background-color: #ffffff;
+}
+
+.form-floating > .form-select {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+}
+
+.form-floating > .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Floating Labels */
+.form-floating > label {
+    color: #6c757d;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    color: #0d6efd;
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+}
+
+.form-floating > .form-select:focus ~ label,
+.form-floating > .form-select:not([value=""]) ~ label {
+    color: #0d6efd;
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+}
+
+/* Enhanced Buttons */
+.btn-enhanced {
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: none;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-enhanced:hover::before {
+    left: 100%;
+}
+
+.btn-enhanced:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Search Button Special Styling */
+.btn-search {
+    background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+    border: none;
+    color: white;
+}
+
+.btn-search:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    color: white;
+}
+
+/* Reset Button Styling */
+.btn-reset {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    border: none;
+    color: white;
+}
+
+.btn-reset:hover {
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+    color: white;
+}
+
+/* Create Button Styling */
+.btn-create {
+    background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+    border: none;
+    color: white;
+}
+
+.btn-create:hover {
+    background: linear-gradient(135deg, #146c43 0%, #0f5132 100%);
+    color: white;
+}
+
+/* Collapse Button */
+.collapse-btn {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.collapse-btn:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-color: #0d6efd;
+}
+
+/* Filter Header */
+.filter-header {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(0, 86, 179, 0.05) 100%);
+    border-radius: 10px;
+    margin-bottom: 0;
+}
+
+/* Icon Styling */
+.filter-icon {
+    color: #0d6efd;
+    font-size: 1.1em;
+}
+
+/* Input Group Enhancements */
+.input-group-enhanced .form-control {
+    border-radius: 10px 0 0 10px;
+}
+
+.input-group-enhanced .btn {
+    border-radius: 0 10px 10px 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .search-filters-card {
+        margin: 0 -15px;
+        border-radius: 0;
+    }
+    
+    .btn-enhanced {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+}
+
+/* Animation for form elements */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form-floating {
+    animation: slideInUp 0.5s ease-out;
+}
+
+/* Focus ring enhancement */
+.form-control:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Placeholder styling */
+.form-control::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Loading state */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+

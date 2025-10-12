@@ -3,97 +3,161 @@
     ViewBag.Title = "Vendor Payments";
 }
 
+<link href="~/css/product-management.css" rel="stylesheet" />
+<link href="~/css/user-management.css" rel="stylesheet" />
+
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
         <h2 class="mb-0" style="text-align:center">Vendor Payments Management</h2>
     </div>
     <div class="card-body">
-        <!-- Quick Search -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h5 class="mb-0">Vendor Payments</h5>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
-                    <input type="text"
-                           name="description"
-                           value="@ViewData["description"]"
-                           class="form-control"
-                           placeholder="Search by description..." 
-                           style="width: 200px;" />
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">
-                        <i class="fa-solid fa-refresh"></i>
-                    </a>
-                </form>
-            </div>
-        </div>
-
-        <!-- Advanced Filters -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="mb-0">
-                    <i class="fa-solid fa-filter me-2"></i>Advanced Filters
-                    <button class="btn btn-sm btn-outline-primary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+        <!-- Enhanced Search Section - User Management Style -->
+        <div class="card mb-4 user-search-card">
+            <div class="card-header user-search-header bg-transparent border-0 py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0 user-search-title">
+                        <i class="fa-solid fa-filter user-search-icon me-2"></i>Advanced Search & Filters
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary collapse-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
-                </h6>
+                </div>
             </div>
-            <div class="collapse" id="filterCollapse">
-                <div class="card-body">
-                    <form asp-action="Index" method="get" class="row g-3">
-                        <!-- First Row -->
-                        <div class="col-md-3">
-                            <label for="vendorId" class="form-label">Vendor:</label>
-                            <select name="vendorId" id="vendorId" class="form-select" onchange="loadBillNumbers()">
-                                <option value="">All Vendors</option>
-                                @foreach (var vendor in Model.VendorList)
-                                {
-                                    <option value="@vendor.SupplierId" selected="@(ViewData["vendorId"]?.ToString() == vendor.SupplierId.ToString())">
-                                        @vendor.SupplierName
-                                    </option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="billNumber" class="form-label">Bill Number:</label>
-                            <select name="billNumber" id="billNumber" class="form-select">
-                                <option value="">All Bills</option>
-                                @if (ViewBag.BillNumbers != null)
-                                {
-                                    @foreach (var bill in ViewBag.BillNumbers)
-                                    {
-                                        <option value="@bill.BillNumber" selected="@(ViewData["billNumber"]?.ToString() == bill.BillNumber.ToString())">
-                                            @bill.BillNumber (@bill.TotalDueAmount.ToString("N2"))
-                                        </option>
-                                    }
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="billDateFrom" class="form-label">From Date:</label>
-                            <input type="date" name="billDateFrom" id="billDateFrom" class="form-control" value="@ViewData["billDateFrom"]" />
-                        </div>
-                        <div class="col-md-2">
-                            <label for="billDateTo" class="form-label">To Date:</label>
-                            <input type="date" name="billDateTo" id="billDateTo" class="form-control" value="@ViewData["billDateTo"]" />
-                        </div>
-                        <div class="col-md-2">
-                            <label for="description" class="form-label">Description:</label>
-                            <input type="text" name="description" id="description" class="form-control" value="@ViewData["description"]" placeholder="Description" />
-                        </div>
-                        <div class="col-md-1 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fa-solid fa-search"></i>
-                            </button>
+            <div class="collapse show" id="filterCollapse">
+                <div class="card-body pt-0">
+                    <form asp-action="Index" method="get">
+                        
+                        <!-- Quick Search Row -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-8">
+                                <div class="form-floating user-search-floating">
+                                    <input type="text"
+                                           name="description"
+                                           value="@ViewData["description"]"
+                                           class="form-control user-search-input border-0 shadow-sm"
+                                           placeholder="Search by description..." />
+                                    <label class="text-muted">
+                                        <i class="fa-solid fa-search me-1"></i>Search by Description
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex gap-2 user-button-group">
+                                    <button type="submit" class="btn btn-primary btn-user-search px-4 py-2">
+                                        <i class="fa-solid fa-magnifying-glass me-2"></i>Search
+                                    </button>
+                                    <a asp-action="Index" class="btn btn-secondary btn-user-reset px-4 py-2">
+                                        <i class="fa-solid fa-refresh me-2"></i>Reset
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="col-md-1 d-flex align-items-end">
-                            <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                                <i class="fa-solid fa-undo"></i> Reset
-                            </button>
+                        <!-- Advanced Filter Inputs Row -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <div class="form-floating user-search-floating">
+                                    <select name="vendorId" id="vendorId" class="form-select user-search-input border-0 shadow-sm" onchange="loadBillNumbers()">
+                                        <option value="">All Vendors</option>
+                                        @foreach (var vendor in Model.VendorList)
+                                        {
+                                            <option value="@vendor.SupplierId" selected="@(ViewData["vendorId"]?.ToString() == vendor.SupplierId.ToString())">
+                                                @vendor.SupplierName
+                                            </option>
+                                        }
+                                    </select>
+                                    <label for="vendorId" class="text-muted">
+                                        <i class="fa-solid fa-building me-1"></i>Vendor
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating user-search-floating">
+                                    <select name="billNumber" id="billNumber" class="form-select user-search-input border-0 shadow-sm">
+                                        <option value="">All Bills</option>
+                                        @if (ViewBag.BillNumbers != null)
+                                        {
+                                            @foreach (var bill in ViewBag.BillNumbers)
+                                            {
+                                                <option value="@bill.BillNumber" selected="@(ViewData["billNumber"]?.ToString() == bill.BillNumber.ToString())">
+                                                    @bill.BillNumber (@bill.TotalDueAmount.ToString("N2"))
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                    <label for="billNumber" class="text-muted">
+                                        <i class="fa-solid fa-file-invoice me-1"></i>Bill Number
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating user-search-floating">
+                                    <input type="date" 
+                                           name="billDateFrom" 
+                                           id="billDateFrom" 
+                                           class="form-control user-search-input border-0 shadow-sm" 
+                                           value="@ViewData["billDateFrom"]" />
+                                    <label for="billDateFrom" class="text-muted">
+                                        <i class="fa-solid fa-calendar-day me-1"></i>From Date
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating user-search-floating">
+                                    <input type="date" 
+                                           name="billDateTo" 
+                                           id="billDateTo" 
+                                           class="form-control user-search-input border-0 shadow-sm" 
+                                           value="@ViewData["billDateTo"]" />
+                                    <label for="billDateTo" class="text-muted">
+                                        <i class="fa-solid fa-calendar-day me-1"></i>To Date
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-floating user-search-floating">
+                                    <input type="text" 
+                                           name="description" 
+                                           id="description" 
+                                           class="form-control user-search-input border-0 shadow-sm" 
+                                           value="@ViewData["description"]" 
+                                           placeholder="Description" />
+                                    <label for="description" class="text-muted">
+                                        <i class="fa-solid fa-align-left me-1"></i>Description
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons Row -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex gap-2 user-button-group">
+                                        <button type="submit" class="btn btn-primary btn-user-search px-4 py-2">
+                                            <i class="fa-solid fa-magnifying-glass me-2"></i>Search Payments
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-user-reset px-4 py-2" onclick="resetFilters()">
+                                            <i class="fa-solid fa-undo me-2"></i>Reset Filters
+                                        </button>
+                                    </div>
+                                    <div class="d-flex gap-2 user-button-group">
+                                        <button type="button" class="btn btn-info btn-user-create px-4 py-2" onclick="printPreview()">
+                                            <i class="fa-solid fa-print me-2"></i>Print Preview
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-user-create px-4 py-2" onclick="refreshData()">
+                                            <i class="fa-solid fa-refresh me-2"></i>Refresh
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-user-create px-4 py-2" onclick="closeWindow()">
+                                            <i class="fa-solid fa-times me-2"></i>Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -200,6 +264,116 @@
 
 @section Scripts {
     <script>
+        // Enhanced Vendor Payments Management JavaScript - User Management Style
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVendorPaymentsManagement();
+        });
+
+        function initializeVendorPaymentsManagement() {
+            // Add loading states to buttons
+            addLoadingStates();
+            
+            // Add smooth animations
+            addSmoothAnimations();
+            
+            // Add form validation feedback
+            addFormValidation();
+            
+            // Set default dates
+            setDefaultDates();
+            
+            // Initialize collapse functionality
+            initializeCollapse();
+        }
+
+        function addLoadingStates() {
+            const searchBtns = document.querySelectorAll('.btn-user-search');
+            const resetBtns = document.querySelectorAll('.btn-user-reset');
+            
+            searchBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.add('btn-loading');
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...';
+                });
+            });
+            
+            resetBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.add('btn-loading');
+                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Resetting...';
+                });
+            });
+        }
+
+        function addSmoothAnimations() {
+            // Add hover effects to form elements
+            const formElements = document.querySelectorAll('.user-search-floating');
+            formElements.forEach(element => {
+                element.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                
+                element.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+        }
+
+        function addFormValidation() {
+            const inputs = document.querySelectorAll('.user-search-input');
+            inputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.add('is-valid');
+                        this.classList.remove('is-invalid');
+                    } else {
+                        this.classList.remove('is-valid');
+                    }
+                });
+                
+                input.addEventListener('input', function() {
+                    if (this.classList.contains('is-invalid')) {
+                        this.classList.remove('is-invalid');
+                    }
+                });
+            });
+        }
+
+        function setDefaultDates() {
+            const billDateFrom = document.getElementById('billDateFrom');
+            const billDateTo = document.getElementById('billDateTo');
+            
+            if (!billDateFrom.value) {
+                const today = new Date();
+                const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                billDateFrom.value = oneMonthAgo.toISOString().split('T')[0];
+            }
+            
+            if (!billDateTo.value) {
+                const today = new Date();
+                billDateTo.value = today.toISOString().split('T')[0];
+            }
+        }
+
+        function initializeCollapse() {
+            const collapseElement = document.getElementById('filterCollapse');
+            const toggleButton = document.querySelector('[data-bs-target="#filterCollapse"]');
+            const toggleIcon = toggleButton.querySelector('i');
+
+            collapseElement.addEventListener('show.bs.collapse', function () {
+                toggleIcon.classList.remove('fa-chevron-down');
+                toggleIcon.classList.add('fa-chevron-up');
+            });
+
+            collapseElement.addEventListener('hide.bs.collapse', function () {
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            });
+        }
+
         function resetFilters() {
             // Reset all filter inputs
             document.getElementById('vendorId').value = '';
@@ -228,6 +402,7 @@
             
             if (vendorId) {
                 // Show loading state
+                billNumberSelect.disabled = true;
                 billNumberSelect.innerHTML = '<option value="">Loading bills...</option>';
                 
                 // Make AJAX call to get bill numbers
@@ -241,58 +416,79 @@
                             option.textContent = `${bill.billNumber} (${bill.totalDueAmount})`;
                             billNumberSelect.appendChild(option);
                         });
+                        billNumberSelect.disabled = false;
                     })
                     .catch(error => {
                         console.error('Error loading bill numbers:', error);
                         billNumberSelect.innerHTML = '<option value="">Error loading bills</option>';
+                        billNumberSelect.disabled = false;
                     });
             }
         }
 
         function printPreview() {
-            // Implement print preview functionality
-            window.print();
+            // Add loading state
+            const btn = event.target;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Preparing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                window.print();
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }, 1000);
         }
 
         function refreshData() {
-            // Reload the current page with current filters
-            window.location.reload();
+            // Add loading state
+            const btn = event.target;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Refreshing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         }
 
         function closeWindow() {
-            // Close the current window/tab
-            window.close();
+            // Add loading state
+            const btn = event.target;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Closing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                window.close();
+            }, 500);
         }
 
-        // Set default date range if not provided
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl + Enter to search
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                const searchBtn = document.querySelector('.btn-user-search');
+                if (searchBtn) {
+                    searchBtn.click();
+                }
+            }
+            
+            // Escape to reset
+            if (e.key === 'Escape') {
+                const resetBtn = document.querySelector('.btn-user-reset');
+                if (resetBtn) {
+                    resetBtn.click();
+                }
+            }
+        });
+
+        // Add tooltips
         document.addEventListener('DOMContentLoaded', function() {
-            const billDateFrom = document.getElementById('billDateFrom');
-            const billDateTo = document.getElementById('billDateTo');
-            
-            if (!billDateFrom.value) {
-                const today = new Date();
-                const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-                billDateFrom.value = oneMonthAgo.toISOString().split('T')[0];
-            }
-            
-            if (!billDateTo.value) {
-                const today = new Date();
-                billDateTo.value = today.toISOString().split('T')[0];
-            }
-
-            // Handle collapse toggle icon
-            const collapseElement = document.getElementById('filterCollapse');
-            const toggleButton = document.querySelector('[data-bs-target="#filterCollapse"]');
-            const toggleIcon = toggleButton.querySelector('i');
-
-            collapseElement.addEventListener('show.bs.collapse', function () {
-                toggleIcon.classList.remove('fa-chevron-down');
-                toggleIcon.classList.add('fa-chevron-up');
-            });
-
-            collapseElement.addEventListener('hide.bs.collapse', function () {
-                toggleIcon.classList.remove('fa-chevron-up');
-                toggleIcon.classList.add('fa-chevron-down');
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
     </script>
