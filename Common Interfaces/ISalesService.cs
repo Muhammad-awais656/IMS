@@ -37,5 +37,8 @@ namespace IMS.Common_Interfaces
         // Online Payment Transaction methods
         Task<long> ProcessOnlinePaymentTransactionAsync(long personalPaymentId, long saleId, decimal creditAmount, 
             string transactionDescription, long createdBy, DateTime? createdDate = null);
+        
+        // Print Receipt methods
+        Task<SalePrintViewModel> GetSaleForPrintAsync(long saleId);
     }
 }

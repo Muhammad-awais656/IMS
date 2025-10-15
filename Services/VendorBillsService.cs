@@ -349,11 +349,15 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    using (var command = new SqlCommand("GetPreviousDueAmountByBillId", connection))
+                    using (var command = new SqlCommand(@"
+                        SELECT ISNULL(SUM(TotalDueAmount), 0) AS PreviousDueAmount
+                        FROM PurchaseOrders
+                        WHERE SupplierId_FK = @vendorId
+                        AND IsDeleted = 0
+                        AND (@billId IS NULL OR BillId != @billId)", connection))
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pBillId", billId ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@pVendorId", vendorId);
+                        command.Parameters.AddWithValue("@vendorId", vendorId);
+                        command.Parameters.AddWithValue("@billId", billId ?? (object)DBNull.Value);
 
                         var result = await command.ExecuteScalarAsync();
                         return result != null ? Convert.ToDecimal(result) : 0;
@@ -375,7 +379,7 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("SELECT ProductId, ProductCode, ProductName FROM Products WHERE IsDeleted = 0", connection))
+                    using (var command = new SqlCommand("SELECT ProductId, ProductCode, ProductName FROM Products WHERE Isenabled = 1", connection))
                     {
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -408,7 +412,12 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("SELECT ProductRangeId, UnitPrice FROM ProductRange WHERE ProductId_FK = @ProductId AND IsDeleted = 0", connection))
+                    using (var command = new SqlCommand(@"
+                        SELECT pr.ProductRangeId, pr.UnitPrice, pr.RangeFrom, pr.RangeTo, pr.MeasuringUnitId_FK,
+       mu.MeasuringUnitName, mu.MeasuringUnitAbbreviation
+FROM ProductRange pr
+LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                        WHERE pr.ProductId_FK = @ProductId", connection))
                     {
                         command.Parameters.AddWithValue("@ProductId", productId);
                         using (var reader = await command.ExecuteReaderAsync())
@@ -418,7 +427,12 @@ namespace IMS.Services
                                 productSizes.Add(new ProductRange
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
-                                    UnitPrice = reader.GetDecimal("UnitPrice")
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    RangeFrom = reader.GetDecimal("RangeFrom"),
+                                    RangeTo = reader.GetDecimal("RangeTo"),
+                                    MeasuringUnitIdFk = reader.GetInt64("MeasuringUnitId_FK"),
+                                    MeasuringUnitName = reader.IsDBNull("MeasuringUnitName") ? "Unit" : reader.GetString("MeasuringUnitName"),
+                                    MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? "U" : reader.GetString("MeasuringUnitAbbreviation")
                                 });
                             }
                         }
@@ -440,11 +454,10 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetPreviousDueAmountByVendorId", connection))
+                    
+                    using (var command = new SqlCommand("SELECT SUM(ISNULL(p.TotalDueAmount,0)) PreviousDueAmount FROM PurchaseOrders p WHERE p.SupplierId_FK = @pVendorId", connection))
                     {
-                        command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pVendorId", vendorId);
-
                         var result = await command.ExecuteScalarAsync();
                         return result != null ? Convert.ToDecimal(result) : 0;
                     }
@@ -454,6 +467,172 @@ namespace IMS.Services
             {
                 _logger.LogError(ex, "Error getting previous due amount for vendor {VendorId}", vendorId);
                 return 0;
+            }
+        }
+
+        public async Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT PurchaseOrderId, BillNumber, SupplierId_FK, BillNumber, PurchaseOrderDate, TotalAmount, DiscountAmount, 
+        TotalReceivedAmount,TotalAmount, TotalDueAmount, PurchaseOrderDescription, CreatedDate
+ FROM PurchaseOrders 
+ WHERE PurchaseOrderId = @BillId AND IsDeleted = 0
+", connection))
+                    {
+                        command.Parameters.AddWithValue("@BillId", billId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                return new VendorBillViewModel
+                                {
+                                    BillId = reader.GetInt64("PurchaseOrderId"),
+                                    VendorId = reader.GetInt64("SupplierId_FK"),
+                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    BillDate = reader.GetDateTime("PurchaseOrderDate"),
+                                    TotalAmount = reader.GetDecimal("TotalAmount"),
+                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
+                                    PaidAmount = reader.GetDecimal("TotalReceivedAmount"),
+                                    DueAmount = reader.GetDecimal("TotalDueAmount"),
+                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription")
+                                  
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendor bill by ID {BillId}", billId);
+                throw;
+            }
+            return null;
+        }
+
+        public async Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId)
+        {
+            var billItems = new List<BillItemViewModel>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT bi.BillItemId, bi.ProductId, bi.ProductRangeId, bi.UnitPrice, 
+                               bi.Quantity, bi.DiscountAmount, bi.PayableAmount, p.ProductName
+                        FROM PurchaseOrderItems bi
+                        LEFT JOIN Product p ON bi.ProductId = p.ProductId
+                        WHERE bi.BillId = @BillId AND bi.IsDeleted = 0", connection))
+                    {
+                        command.Parameters.AddWithValue("@BillId", billId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                billItems.Add(new BillItemViewModel
+                                {
+                                    BillItemId = reader.GetInt64("BillItemId"),
+                                    ProductId = reader.GetInt64("ProductId"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.GetDecimal("Quantity"),
+                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
+                                    PayableAmount = reader.GetDecimal("PayableAmount"),
+                                    ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendor bill items for bill {BillId}", billId);
+                throw;
+            }
+            return billItems;
+        }
+
+        public async Task<bool> UpdateVendorBillAsync(long billId, GenerateBillViewModel model)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Update the main bill
+                            using (var command = new SqlCommand(@"
+                                UPDATE PurchaseOrders 
+                                SET VendorId = @VendorId, BillNumber = @BillNumber, BillDate = @BillDate,
+                                    TotalAmount = @TotalAmount, DiscountAmount = @DiscountAmount,
+                                    PaidAmount = @PaidAmount, DueAmount = @DueAmount, Description = @Description
+                                WHERE BillId = @BillId", connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@BillId", billId);
+                                command.Parameters.AddWithValue("@VendorId", model.VendorId);
+                                command.Parameters.AddWithValue("@BillNumber", model.BillNumber);
+                                command.Parameters.AddWithValue("@BillDate", model.BillDate);
+                                command.Parameters.AddWithValue("@TotalAmount", model.TotalAmount);
+                                command.Parameters.AddWithValue("@DiscountAmount", model.DiscountAmount);
+                                command.Parameters.AddWithValue("@PaidAmount", model.PaidAmount);
+                                command.Parameters.AddWithValue("@DueAmount", model.DueAmount);
+                                command.Parameters.AddWithValue("@Description", model.Description ?? "");
+
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // Delete existing bill items
+                            using (var command = new SqlCommand("UPDATE PurchaseOrderItems SET IsDeleted = 1 WHERE BillId = @BillId", connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@BillId", billId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // Insert new bill items
+                            foreach (var item in model.BillItems)
+                            {
+                                using (var command = new SqlCommand(@"
+                                    INSERT INTO PurchaseOrderItems (BillId, ProductId, ProductRangeId, UnitPrice, Quantity, DiscountAmount, PayableAmount, CreatedDate)
+                                    VALUES (@BillId, @ProductId, @ProductRangeId, @UnitPrice, @Quantity, @DiscountAmount, @PayableAmount, @CreatedDate)", connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@BillId", billId);
+                                    command.Parameters.AddWithValue("@ProductId", item.ProductId);
+                                    command.Parameters.AddWithValue("@ProductRangeId", item.ProductRangeId);
+                                    command.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
+                                    command.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                    command.Parameters.AddWithValue("@DiscountAmount", item.DiscountAmount);
+                                    command.Parameters.AddWithValue("@PayableAmount", item.PayableAmount);
+                                    command.Parameters.AddWithValue("@CreatedDate", DateTime.Now);
+
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating vendor bill {BillId}", billId);
+                return false;
             }
         }
 
@@ -468,48 +647,67 @@ namespace IMS.Services
                     {
                         try
                         {
-                            // Create the bill
-                            using (var command = new SqlCommand("CreateVendorBill", connection, transaction))
+                            long billId = 0;
+                            long paymentId = 0;
+                            var createdDate = DateTime.Now;
+                            var createdBy = 1; // TODO: Get from session
+
+                            // Create the bill using AddBill stored procedure
+                            using (var command = new SqlCommand("AddBill", connection, transaction))
                             {
                                 command.CommandType = CommandType.StoredProcedure;
-                                command.Parameters.AddWithValue("@pVendorId", model.VendorId);
-                                command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
-                                command.Parameters.AddWithValue("@pBillDate", model.BillDate);
                                 command.Parameters.AddWithValue("@pTotalAmount", model.TotalAmount);
+                                command.Parameters.AddWithValue("@pTotalReceivedAmount", model.PaidAmount);
+                                command.Parameters.AddWithValue("@pTotalDueAmount", model.DueAmount);
+                                command.Parameters.AddWithValue("@pSupplierId_FK", model.VendorId);
+                                command.Parameters.AddWithValue("@pCreatedDate", createdDate);
+                                command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                                command.Parameters.AddWithValue("@pModifiedDate", createdDate);
+                                command.Parameters.AddWithValue("@pModifiedBy", createdBy);
                                 command.Parameters.AddWithValue("@pDiscountAmount", model.DiscountAmount);
-                                command.Parameters.AddWithValue("@pPaidAmount", model.PaidAmount);
-                                command.Parameters.AddWithValue("@pDueAmount", model.DueAmount);
-                                command.Parameters.AddWithValue("@pDescription", model.Description ?? "");
-                                command.Parameters.AddWithValue("@pCreatedBy", 1); // TODO: Get from session
-                                command.Parameters.AddWithValue("@pCreatedDate", DateTime.Now);
-
-                                var billId = await command.ExecuteScalarAsync();
-                                var newBillId = Convert.ToInt64(billId);
-
-                                // Add bill items
-                                foreach (var item in model.BillItems)
+                                command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
+                                command.Parameters.AddWithValue("@pBillDescription", model.Description ?? "");
+                                command.Parameters.AddWithValue("@pBillDate", model.BillDate);
+                                
+                                // Output parameter for BillId
+                                var billIdParam = new SqlParameter("@pBillId", SqlDbType.BigInt)
                                 {
-                                    using (var itemCommand = new SqlCommand("CreateVendorBillItem", connection, transaction))
-                                    {
-                                        itemCommand.CommandType = CommandType.StoredProcedure;
-                                        itemCommand.Parameters.AddWithValue("@pBillId", newBillId);
-                                        itemCommand.Parameters.AddWithValue("@pProductId", item.ProductId);
-                                        itemCommand.Parameters.AddWithValue("@pProductRangeId", item.ProductRangeId);
-                                        itemCommand.Parameters.AddWithValue("@pUnitPrice", item.UnitPrice);
-                                        itemCommand.Parameters.AddWithValue("@pUnitPurchasePrice", item.BillPrice);
-                                        itemCommand.Parameters.AddWithValue("@pQuantity", (int)item.Quantity);
-                                        itemCommand.Parameters.AddWithValue("@pDiscountAmount", item.DiscountAmount);
-                                        itemCommand.Parameters.AddWithValue("@pPayableAmount", item.PayableAmount);
-                                        itemCommand.Parameters.AddWithValue("@pCreatedBy", 1); // TODO: Get from session
-                                        itemCommand.Parameters.AddWithValue("@pCreatedDate", DateTime.Now);
+                                    Direction = ParameterDirection.Output
+                                };
+                                command.Parameters.Add(billIdParam);
 
-                                        await itemCommand.ExecuteNonQueryAsync();
-                                    }
-                                }
-
-                                transaction.Commit();
-                                return newBillId;
+                                await command.ExecuteNonQueryAsync();
+                                billId = Convert.ToInt64(billIdParam.Value);
                             }
+
+                            // Add bill items using AddBillDetails stored procedure
+                            foreach (var item in model.BillItems)
+                            {
+                                using (var itemCommand = new SqlCommand("AddBillDetails", connection, transaction))
+                                {
+                                    itemCommand.CommandType = CommandType.StoredProcedure;
+                                    itemCommand.Parameters.AddWithValue("@pBillId_FK", billId);
+                                    itemCommand.Parameters.AddWithValue("@pPrductId_FK", item.ProductId);
+                                    itemCommand.Parameters.AddWithValue("@pUnitPrice", item.UnitPrice);
+                                    itemCommand.Parameters.AddWithValue("@pQuantity", (int)item.Quantity);
+                                    itemCommand.Parameters.AddWithValue("@pPurchasePrice", item.BillPrice);
+                                    itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", item.DiscountAmount);
+                                    itemCommand.Parameters.AddWithValue("@pPayableAmount", item.PayableAmount);
+                                    itemCommand.Parameters.AddWithValue("@ProductRangeId_FK", item.ProductRangeId);
+                                    
+                                    // Output parameter for BillDetailsId
+                                    var billDetailsIdParam = new SqlParameter("@pBillDetailsId", SqlDbType.BigInt)
+                                    {
+                                        Direction = ParameterDirection.Output
+                                    };
+                                    itemCommand.Parameters.Add(billDetailsIdParam);
+
+                                    await itemCommand.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            transaction.Commit();
+                            return billId;
                         }
                         catch
                         {

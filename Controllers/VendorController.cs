@@ -209,5 +209,27 @@ namespace IMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // AJAX endpoint to get vendors for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetVendors()
+        {
+            try
+            {
+                var vendors = await _vndorservice.GetAllEnabledVendors();
+                var result = vendors.Select(v => new
+                {
+                    value = v.SupplierId.ToString(),
+                    text = v.SupplierName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendors for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
     }
 }

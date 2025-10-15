@@ -80,7 +80,7 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(Index);
+                        return View(nameof(Index));
                     }
                 }
             }

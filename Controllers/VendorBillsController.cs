@@ -28,7 +28,7 @@ namespace IMS.Controllers
                 // Set today's date as default if no dates are provided
                 var today = DateTime.Today;
                 if (!billDateFrom.HasValue)
-                    billDateFrom = today;
+                    billDateFrom = DateTime.Now.AddMonths(-1);
                 if (!billDateTo.HasValue)
                     billDateTo = today;
 
@@ -165,16 +165,16 @@ namespace IMS.Controllers
 
         // AJAX endpoint to get previous due amount
         [HttpGet]
-        public async Task<IActionResult> GetPreviousDue(long? billId, long vendorId)
+        public async Task<IActionResult> GetPreviousDue(long vendorId)
         {
             try
             {
-                var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(billId, vendorId);
+                var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
                 return Json(new { previousDue });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting previous due amount for bill {BillId} and vendor {VendorId}", billId, vendorId);
+                _logger.LogError(ex, "Error getting previous due amount for vendor {VendorId}", vendorId);
                 return Json(new { previousDue = 0 });
             }
         }
@@ -259,15 +259,15 @@ namespace IMS.Controllers
                 var productSizes = await _vendorBillsService.GetProductSizesAsync(productId);
                 var result = productSizes.Select(ps => new
                 {
-                    value = ps.ProductRangeId.ToString(),
-                    text = "Size " + ps.ProductRangeId.ToString(),
+                    value = ps.ProductRangeId,
+                    text = $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom}-{ps.RangeTo} - ${ps.UnitPrice:F2}",
                     productRangeId = ps.ProductRangeId,
-                    unitPrice = ps.UnitPrice,
                     measuringUnitId = ps.MeasuringUnitIdFk,
                     rangeFrom = ps.RangeFrom,
                     rangeTo = ps.RangeTo,
-                    measuringUnitName = "Unit", // Default value
-                    measuringUnitAbbreviation = "U" // Default value
+                    unitPrice = ps.UnitPrice,
+                    measuringUnitName = ps.MeasuringUnitName,
+                    measuringUnitAbbreviation = ps.MeasuringUnitAbbreviation
                 }).ToList();
                 
                 return Json(result);
@@ -280,39 +280,117 @@ namespace IMS.Controllers
         }
 
         // AJAX endpoint to get previous due amount
-        [HttpGet]
-        public async Task<IActionResult> GetPreviousDue(long vendorId)
+        //[HttpGet]
+        //public async Task<IActionResult> GetPreviousDue(long vendorId)
+        //{
+        //    try
+        //    {
+        //        var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
+        //        var result = new
+        //        {
+        //            previousDue = previousDue
+        //        };
+                
+        //        return Json(result);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error getting previous due for vendor {VendorId}", vendorId);
+        //        return Json(new { previousDue = 0 });
+        //    }
+        //}
+
+        // GET: VendorBillsController/Edit/5
+        public async Task<ActionResult> Edit(long id)
         {
             try
             {
-                var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
-                return Json(new { previousDue });
+                // Get the vendor bill with details
+                var vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (vendorBill == null)
+                {
+                    return NotFound();
+                }
+
+                // Get bill items
+                var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
+                
+                // Load products
+                var products = await _vendorBillsService.GetAllProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+
+                // Load vendors
+                var vendors = await _vendorBillsService.GetAllVendorsAsync();
+                ViewBag.Vendors = new SelectList(vendors, "VendorId", "VendorName", vendorBill.VendorId);
+
+                // Create GenerateBillViewModel with existing data
+                var viewModel = new GenerateBillViewModel
+                {
+                    BillId = vendorBill.BillId,
+                    VendorId = vendorBill.VendorId,
+                    BillNumber = vendorBill.BillNumber,
+                    BillDate = vendorBill.BillDate,
+                    TotalAmount = vendorBill.TotalAmount,
+                    DiscountAmount = vendorBill.DiscountAmount,
+                    PaidAmount = vendorBill.PaidAmount,
+                    DueAmount = vendorBill.DueAmount,
+                    Description = vendorBill.Description,
+                    BillItems = billItems
+                };
+
+                ViewBag.IsEdit = true;
+                return View("Create", viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting previous due for vendor {VendorId}", vendorId);
-                return Json(new { previousDue = 0 });
+                _logger.LogError(ex, "Error loading Edit Vendor Bill page for ID: {BillId}", id);
+                TempData["ErrorMessage"] = "Error loading vendor bill for editing.";
+                return RedirectToAction(nameof(Index));
             }
-        }
-
-        // GET: VendorBillsController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
         }
 
         // POST: VendorBillsController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public async Task<ActionResult> Edit(long id, GenerateBillViewModel model)
         {
             try
             {
-                return RedirectToAction(nameof(Index));
+                if (ModelState.IsValid)
+                {
+                    // Update the vendor bill
+                    var success = await _vendorBillsService.UpdateVendorBillAsync(id, model);
+                    
+                    if (success)
+                    {
+                        TempData["SuccessMessage"] = "Vendor bill updated successfully!";
+                        return RedirectToAction(nameof(Index));
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "Error updating vendor bill.";
+                    }
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Please correct the validation errors.";
+                }
+
+                // Reload data for the view
+                var products = await _vendorBillsService.GetAllProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+
+                var vendors = await _vendorBillsService.GetAllVendorsAsync();
+                ViewBag.Vendors = new SelectList(vendors, "VendorId", "VendorName", model.VendorId);
+
+                ViewBag.IsEdit = true;
+                return View("Create", model);
             }
-            catch
+            catch (Exception ex)
             {
-                return View();
+                _logger.LogError(ex, "Error updating vendor bill {BillId}", id);
+                TempData["ErrorMessage"] = "Error updating vendor bill.";
+                return RedirectToAction(nameof(Index));
             }
         }
 

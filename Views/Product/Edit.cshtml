@@ -47,34 +47,25 @@
 
                     <div class="mb-2">
                         <label>Measuring unit type :</label>
-                        <select asp-for="MUTId" asp-items="ViewBag.MeasuringUnitTypes"
-                                class="form-control" id="MeasuringUnitTypeId">
-                            <option value="">-- Select MU Type --</option>
-                        </select>
+                        <input id="MeasuringUnitTypeId" name="MUTId" style="width: 100%;" />
                         <span asp-validation-for="MUTId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Label :</label>
-                        <select asp-for="LabelId" asp-items="ViewBag.Labels" class="form-control">
-                            <option value="">-- Select Label --</option>
-                        </select>
+                        <input id="LabelId" name="LabelId" style="width: 100%;" />
                         <span asp-validation-for="LabelId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Category :</label>
-                        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-control">
-                            <option value="">-- Select Category --</option>
-                        </select>
+                        <input id="CategoryId" name="CategoryId" style="width: 100%;" />
                         <span asp-validation-for="CategoryId" class="text-danger"></span>
                     </div>
 
                     <div class="mb-2">
                         <label>Vendor :</label>
-                        <select asp-for="VendorId" asp-items="ViewBag.Vendors" class="form-control">
-                            <option value="">-- Select Vendor --</option>
-                        </select>
+                        <input id="VendorId" name="VendorId" style="width: 100%;" />
                         <span asp-validation-for="VendorId" class="text-danger"></span>
                     </div>
 
@@ -172,6 +163,24 @@
                     success: function (data) {
                         $("#sizeModalContent").html(data);
                         $("#sizeModal .modal-title").text("Add Size");
+                        
+                        // Pre-populate the Measuring Unit Type dropdown with the current selection
+                        setTimeout(function() {
+                            var mutCombo = $("#modalMeasuringUnitTypeId").data("kendoComboBox");
+                            if (mutCombo) {
+                                mutCombo.value(measuringUnitTypeId);
+                                // Manually trigger the change event to load measuring units
+                                var changeEvent = $.Event("change");
+                                changeEvent.sender = mutCombo;
+                                mutCombo.trigger(changeEvent);
+                                
+                                // Also call loadMeasuringUnits directly as backup
+                                if (typeof loadMeasuringUnits === 'function') {
+                                    loadMeasuringUnits(measuringUnitTypeId);
+                                }
+                            }
+                        }, 200);
+                        
                         $("#sizeModal").modal("show");
                     },
                     error: function (xhr, status, error) {
@@ -389,10 +398,98 @@
                             value: unitPrice
                         }).appendTo("#productForm");
                         
+                        // Initialize Kendo combobox for the newly added measuring unit dropdown
+                        initializeMeasuringUnitCombobox("#MUTId_" + sizeIndex);
+                        
                         sizeIndex++;
                     }
                 });
             });
+
+            // Function to initialize Kendo combobox for measuring unit dropdowns
+            function initializeMeasuringUnitCombobox(element) {
+                $(element).kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/Product/GetMeasuringUnitTypes",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select MU Type --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1
+                });
+            }
+            
+            // Initialize Kendo UI ComboBoxes
+            console.log("Initializing Kendo comboboxes for Edit page...");
+            
+            // Initialize Measuring Unit Type Combobox
+            initializeMeasuringUnitCombobox("#MeasuringUnitTypeId");
+
+            // Initialize Label Combobox
+            $("#LabelId").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetLabels",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Label --",
+                value: "@Model.LabelId",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
+            // Initialize Category Combobox
+            $("#CategoryId").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetCategories",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Category --",
+                value: "@Model.CategoryId",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
+            // Initialize Vendor Combobox
+            $("#VendorId").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Vendor --",
+                value: "@Model.VendorId",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
+            console.log("Kendo comboboxes initialized for Edit page");
         });
     </script>
 }

@@ -30,7 +30,11 @@ namespace IMS.Controllers
                     PaymentDateFrom = paymentDateFrom,
                     PaymentDateTo = paymentDateTo
                 };
-
+                if (filters.PaymentDateFrom == null && filters.PaymentDateTo==null)
+                {
+                    filters.PaymentDateFrom = DateTime.Now;
+                    filters.PaymentDateTo = DateTime.Now;
+                }
                 var viewModel = await _customerPaymentService.GetAllPaymentsAsync(pageNumber, pageSize ?? 10, filters);
 
                 // Store filter values in ViewData for form persistence
@@ -256,6 +260,21 @@ namespace IMS.Controllers
                 TempData["ErrorMessage"] = "An error occurred while deleting the payment.";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCustomerBills(long customerId)
+        {
+            try
+            {
+                var bills = await _customerPaymentService.GetCustomerBillsAsync(customerId);
+                return Json(new { success = true, bills = bills });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching customer bills for customer {CustomerId}", customerId);
+                return Json(new { success = false, message = "Error fetching customer bills" });
+            }
         }
     }
 }

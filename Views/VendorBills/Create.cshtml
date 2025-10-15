@@ -1,6 +1,7 @@
 @model IMS.Models.GenerateBillViewModel
 @{
-    ViewBag.Title = "Generate Bill";
+    bool isEdit = ViewBag.IsEdit == true;
+    ViewBag.Title = isEdit ? "Edit Bill" : "Generate Bill";
 }
 
 <div class="container-fluid mt-3">
@@ -10,11 +11,11 @@
                 <div class="card-header bg-gradient-primary text-white">
                     <h2 class="mb-0 text-center">
                         <i class="fa-solid fa-file-invoice me-2"></i>
-                        Generate Bill
+                        @(isEdit ? "Edit Bill" : "Generate Bill")
                     </h2>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Create" method="post" id="generateBillForm">
+                    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="generateBillForm">
                         <input type="hidden" asp-for="BillId" />
                         <input type="hidden" asp-for="ActionType" />
 
@@ -32,15 +33,11 @@
                                         <div class="row g-3">
                                             <div class="col-md-3">
                                                 <label for="productSelect" class="form-label">Product :</label>
-                                                <select id="productSelect" asp-items="ViewBag.Products" class="form-select" onchange="loadProductSizes()">
-                                                    <option value="">--Select a value--</option>
-                                                </select>
+                                                <input id="productSelect" name="ProductId" style="width: 100%;" />
                                             </div>
                                             <div class="col-md-3">
                                                 <label for="productSizeSelect" class="form-label">Product size :</label>
-                                                <select id="productSizeSelect" class="form-select">
-                                                    <option value="">--Select a value--</option>
-                                                </select>
+                                                <input id="productSizeSelect" name="ProductSizeId" style="width: 100%;" />
                                             </div>
                                             <div class="col-md-2">
                                                 <label for="unitPrice" class="form-label">Unit price :</label>
@@ -128,18 +125,7 @@
                                             <div class="col-md-6">
                                                 <label asp-for="VendorId" class="form-label">Vendor :</label>
                                                 <div class="input-group">
-                                                    <select asp-for="VendorId" class="form-select" onchange="loadPreviousDue()">
-                                                        <option value="">--Select a value--</option>
-                                                        @if (Model?.VendorList?.Any() == true)
-                                                        {
-                                                            @foreach (var vendor in Model.VendorList)
-                                                            {
-                                                                <option value="@vendor.SupplierId">
-                                                                    @vendor.SupplierName
-                                                                </option>
-                                                            }
-                                                        }
-                                                    </select>
+                                                    <input asp-for="VendorId" id="vendorSelect" style="width: 100%;" />
                                                     <button type="button" class="btn btn-outline-success" onclick="addNewVendor()">
                                                         <i class="fa-solid fa-plus"></i>
                                                     </button>
@@ -311,13 +297,90 @@
         let rowIndex = 0;
         let selectedProductSize = null;
 
+        // Initialize Kendo UI ComboBoxes
+        function initializeKendoDropdowns() {
+            console.log("Initializing Kendo UI dropdowns for VendorBills Create...");
+            
+            // Product Selection Combobox
+            $("#productSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetProducts",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    loadProductSizes();
+                }
+            });
+
+            // Product Size Selection Combobox
+            $("#productSizeSelect").kendoComboBox({
+                dataSource: {
+                    data: []
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Size --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                enabled: false,
+                change: function() {
+                    onProductSizeChange();
+                }
+            });
+
+            // Vendor Selection Combobox
+            $("#vendorSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Vendor/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Vendor --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    loadPreviousDue();
+                }
+            });
+
+            console.log("Kendo UI dropdowns initialized successfully for VendorBills Create");
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Kendo UI dropdowns
+            initializeKendoDropdowns();
+            
             // Set today's date as default
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('BillDate').value = today;
             
             // Initialize form
             resetProductFields();
+            
+            // Load existing bill items if in edit mode
+            @if (isEdit && Model.BillItems?.Any() == true)
+            {
+                <text>
+                loadExistingBillItems();
+                </text>
+            }
         });
 
         function loadProductSizes() {
@@ -480,12 +543,26 @@
         }
 
         function loadPreviousDue() {
+            debugger;
             const vendorId = document.getElementById('VendorId').value;
+            console.log('loadPreviousDue called with vendorId:', vendorId);
+            
             if (vendorId) {
+                const url = '@Url.Action("GetPreviousDue", "VendorBills")' + '?vendorId=' + vendorId;
+                console.log('Making request to:', url);
+                
                 // Load previous due amount via AJAX
-                fetch('@Url.Action("GetPreviousDue", "VendorBills")' + '?vendorId=' + vendorId)
-                    .then(response => response.json())
+                fetch(url)
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        console.log('Response ok:', response.ok);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Response data:', data);
                         document.getElementById('PreviousDue').value = data.previousDue || 0;
                         calculateDueAmount();
                     })
@@ -493,6 +570,7 @@
                         console.error('Error loading previous due:', error);
                     });
             } else {
+                console.log('No vendorId provided, setting PreviousDue to 0');
                 document.getElementById('PreviousDue').value = '0';
                 calculateDueAmount();
             }
@@ -503,13 +581,44 @@
             window.open('@Url.Action("Create", "Vendor")', '_blank');
         }
 
-        // Handle size selection
-        document.getElementById('productSizeSelect').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value && selectedOption.dataset.unitPrice) {
-                document.getElementById('unitPrice').value = selectedOption.dataset.unitPrice;
-                calculatePayableAmount();
+        function loadExistingBillItems() {
+            @if (isEdit && Model.BillItems?.Any() == true)
+            {
+                foreach (var item in Model.BillItems)
+                {
+                    <text>
+                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', @item.UnitPrice, @item.Quantity, @item.DiscountAmount, @item.PayableAmount);
+                    </text>
+                }
             }
-        });
+        }
+
+        function addExistingItemToTable(productId, productRangeId, productName, unitPrice, quantity, discountAmount, payableAmount) {
+            const tbody = document.getElementById('productListBody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${productName}</td>
+                <td>${unitPrice.toFixed(3)}</td>
+                <td>${quantity}</td>
+                <td>${discountAmount.toFixed(3)}</td>
+                <td>${payableAmount.toFixed(3)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+                <input type="hidden" name="BillItems[${rowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductRangeId" value="${productRangeId}" />
+                <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
+                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
+                <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />
+            `;
+            tbody.appendChild(row);
+            rowIndex++;
+            updateTotals();
+        }
+
+        // Handle size selection - now handled by Kendo UI combobox change event
     </script>
 }

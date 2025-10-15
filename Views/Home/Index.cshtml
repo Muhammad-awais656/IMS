@@ -189,7 +189,7 @@
         <div class="col-md-3">
             <div class="card card-compact p-3">
                 <div class="d-flex align-items-center">
-                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-dollar-sign fa-2x text-danger"></i></div>
+                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-rupee-sign fa-2x text-danger"></i></div>
                     <div>
                         <div class="stat-value">@Model.MonthlyRevenue.ToString("C")</div>
                         <div class="stat-label">This Month Revenue</div>
@@ -215,12 +215,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="productDropdown">Select Product</label>
-                        <select id="productDropdown" class="form-control">
-                            @foreach (var item in Model.ProductList)
-                            {
-                                <option value="@item.Value">@item.Text</option>
-                            }
-                        </select>
+                        <input id="productDropdown" name="ProductId" style="width: 100%;" />
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -309,6 +304,10 @@
     // prepare data from server model
     const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
     const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
+    const productList = @Html.Raw(JsonSerializer.Serialize(Model.ProductList));
+    
+    // Make product data available globally for dashboard service
+    window.dashboardProductData = productList;
 
     // Sales line chart
     const ctx = document.getElementById('salesChart').getContext('2d');

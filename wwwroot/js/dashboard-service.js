@@ -15,11 +15,11 @@ class DashboardService {
      */
     init() {
         this.bindEvents();
-        // Try to initialize searchable dropdown, but don't fail if it doesn't work
+        // Try to initialize Kendo UI combobox, but don't fail if it doesn't work
         try {
-            this.initializeSearchableDropdown();
+            this.initializeKendoComboBox();
         } catch (error) {
-            console.error('Failed to initialize searchable dropdown:', error);
+            console.error('Failed to initialize Kendo UI combobox:', error);
             // Show original dropdown as fallback
             const productDropdown = document.getElementById('productDropdown');
             if (productDropdown) {
@@ -29,12 +29,14 @@ class DashboardService {
     }
 
     /**
-     * Initialize the searchable dropdown
+     * Initialize the Kendo UI combobox
      */
-    initializeSearchableDropdown() {
-        // Check if SearchableDropdown class is available
-        if (typeof SearchableDropdown === 'undefined') {
-            console.error('SearchableDropdown class not found. Make sure searchable-dropdown.js is loaded.');
+    initializeKendoComboBox() {
+        // Check if Kendo UI is available
+        if (typeof kendo === 'undefined' || typeof $.fn.kendoComboBox === 'undefined') {
+            console.error('Kendo UI not found. Make sure Kendo UI scripts are loaded in _Layout.cshtml.');
+            console.log('Will retry initialization in 2 seconds...');
+            setTimeout(() => this.retryInitialization(), 2000);
             return;
         }
 
@@ -45,46 +47,72 @@ class DashboardService {
             return;
         }
 
-        console.log('Initializing searchable dropdown...');
+        console.log('Initializing Kendo UI combobox...');
+        console.log('jQuery available:', typeof $ !== 'undefined');
+        console.log('Kendo available:', typeof kendo !== 'undefined');
+        console.log('Kendo ComboBox available:', typeof $.fn.kendoComboBox !== 'undefined');
 
-        this.productData = Array.from(productDropdown.options).map(option => ({
-            value: option.value,
-            text: option.text
-        })).filter(item => item.value !== ''); // Remove empty option
+        // Get product data from global variable set in the view
+        this.productData = window.dashboardProductData || [];
+        console.log('Product data loaded from server:', this.productData);
 
-        console.log('Product data loaded:', this.productData);
-
-        // Create searchable dropdown container
-        const container = document.createElement('div');
-        container.id = 'searchableProductDropdown';
-        productDropdown.parentNode.insertBefore(container, productDropdown);
-        productDropdown.style.display = 'none'; // Hide original dropdown
+        // Hide original dropdown
+        productDropdown.style.display = 'none';
 
         try {
-            // Initialize searchable dropdown
-            this.searchableDropdown = new SearchableDropdown('searchableProductDropdown', {
-                placeholder: 'Select a product...',
-                searchPlaceholder: 'Type product name to search...',
-                noResultsText: 'No products found',
-                dataSource: this.productData,
-                valueField: 'value',
-                textField: 'text',
-                onSelect: (item) => {
-                    console.log('Product selected:', item);
-                    this.handleProductSelection(item);
+            // Initialize Kendo UI combobox
+            $(productDropdown).kendoComboBox({
+                dataSource: {
+                    data: this.productData
+                },
+                dataTextField: "Text",
+                dataValueField: "Value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: (e) => {
+                    console.log('Product selection changed:', e.sender.value());
+                    const selectedItem = e.sender.dataItem();
+                    if (selectedItem) {
+                        this.handleProductSelection({
+                            value: selectedItem.Value,
+                            text: selectedItem.Text
+                        });
+                    }
+                },
+                select: (e) => {
+                    console.log('Product selected:', e.item);
+                    const selectedItem = e.sender.dataItem();
+                    if (selectedItem) {
+                        this.handleProductSelection({
+                            value: selectedItem.Value,
+                            text: selectedItem.Text
+                        });
+                    }
                 }
             });
-            console.log('Searchable dropdown initialized successfully');
             
-            // Test if dropdown is actually working
-            setTimeout(() => {
-                this.testDropdownClickability();
-            }, 1000);
+            this.searchableDropdown = $(productDropdown).data("kendoComboBox");
+            console.log('Kendo UI combobox initialized successfully');
             
         } catch (error) {
-            console.error('Error initializing searchable dropdown:', error);
-            // Show original dropdown if searchable dropdown fails
+            console.error('Error initializing Kendo UI combobox:', error);
+            // Show original dropdown if Kendo UI fails
             productDropdown.style.display = 'block';
+        }
+    }
+
+    /**
+     * Retry initialization if Kendo UI is not available initially
+     */
+    retryInitialization() {
+        console.log('Retrying Kendo UI combobox initialization...');
+        if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+            this.initializeKendoComboBox();
+        } else {
+            console.log('Kendo UI still not available, will retry in 2 seconds...');
+            setTimeout(() => this.retryInitialization(), 2000);
         }
     }
 
@@ -358,25 +386,28 @@ class DashboardService {
     }
 
     /**
-     * Update the searchable dropdown data
+     * Update the Kendo UI combobox data
      * @param {Array} newData - New product data
      */
     updateProductData(newData) {
         this.productData = newData;
         if (this.searchableDropdown) {
-            this.searchableDropdown.setDataSource(newData);
+            this.searchableDropdown.dataSource.data(newData);
+            this.searchableDropdown.refresh();
         }
     }
 
     /**
-     * Get the selected product from searchable dropdown
+     * Get the selected product from Kendo UI combobox
      * @returns {Object|null} Selected product or null
      */
     getSelectedProduct() {
         if (this.searchableDropdown) {
+            const value = this.searchableDropdown.value();
+            const dataItem = this.searchableDropdown.dataItem();
             return {
-                value: this.searchableDropdown.getValue(),
-                text: this.searchableDropdown.getText()
+                value: value,
+                text: dataItem ? dataItem.Text : ''
             };
         }
         return null;
@@ -386,119 +417,50 @@ class DashboardService {
      * Test method to verify dropdown functionality
      */
     testDropdown() {
-        console.log('Testing dropdown functionality...');
-        console.log('SearchableDropdown class available:', typeof SearchableDropdown !== 'undefined');
+        console.log('Testing Kendo UI combobox functionality...');
+        console.log('Kendo UI available:', typeof kendo !== 'undefined');
+        console.log('jQuery Kendo ComboBox available:', typeof $.fn.kendoComboBox !== 'undefined');
         console.log('Dashboard service instance:', this);
-        console.log('Searchable dropdown instance:', this.searchableDropdown);
+        console.log('Kendo combobox instance:', this.searchableDropdown);
         console.log('Product data:', this.productData);
         
-        const container = document.getElementById('searchableProductDropdown');
-        console.log('Dropdown container:', container);
+        const productDropdown = document.getElementById('productDropdown');
+        console.log('Product dropdown element:', productDropdown);
         
-        if (container) {
-            const display = container.querySelector('.dropdown-display');
-            console.log('Dropdown display element:', display);
-            
-            if (display) {
-                console.log('Display element classes:', display.className);
-                console.log('Display element style:', display.style.cssText);
-                console.log('Display element computed style:', window.getComputedStyle(display));
-                console.log('Display element pointer events:', window.getComputedStyle(display).pointerEvents);
-                console.log('Display element z-index:', window.getComputedStyle(display).zIndex);
-                
-                // Test if element is clickable
-                const rect = display.getBoundingClientRect();
-                console.log('Display element position:', rect);
-                console.log('Element is visible:', rect.width > 0 && rect.height > 0);
-                
-                // Test click event manually
-                console.log('Testing manual click...');
-                display.click();
-            }
+        if (this.searchableDropdown) {
+            console.log('Combobox value:', this.searchableDropdown.value());
+            console.log('Combobox data source:', this.searchableDropdown.dataSource.data());
+            console.log('Combobox enabled:', this.searchableDropdown.enabled);
+            console.log('Combobox readonly:', this.searchableDropdown.readonly);
         }
         
         // Check if original dropdown is hidden
-        const originalDropdown = document.getElementById('productDropdown');
-        console.log('Original dropdown:', originalDropdown);
-        if (originalDropdown) {
-            console.log('Original dropdown display style:', originalDropdown.style.display);
+        if (productDropdown) {
+            console.log('Original dropdown display style:', productDropdown.style.display);
         }
     }
 
     /**
-     * Test dropdown clickability
+     * Test Kendo UI combobox functionality
      */
-    testDropdownClickability() {
-        const container = document.getElementById('searchableProductDropdown');
-        if (!container) {
-            console.error('Dropdown container not found');
+    testKendoComboBox() {
+        if (!this.searchableDropdown) {
+            console.error('Kendo UI combobox not initialized');
             return;
         }
 
-        const display = container.querySelector('.dropdown-display');
-        if (!display) {
-            console.error('Dropdown display element not found');
-            return;
+        console.log('Testing Kendo UI combobox...');
+        console.log('- Value:', this.searchableDropdown.value());
+        console.log('- Enabled:', this.searchableDropdown.enabled);
+        console.log('- Data source count:', this.searchableDropdown.dataSource.data().length);
+        
+        // Test opening the dropdown
+        try {
+            this.searchableDropdown.open();
+            console.log('Combobox opened successfully');
+        } catch (error) {
+            console.error('Error opening combobox:', error);
         }
-
-        // Check if element is actually clickable
-        const rect = display.getBoundingClientRect();
-        const isVisible = rect.width > 0 && rect.height > 0;
-        const hasPointerEvents = window.getComputedStyle(display).pointerEvents !== 'none';
-        
-        console.log('Dropdown clickability test:');
-        console.log('- Element visible:', isVisible);
-        console.log('- Has pointer events:', hasPointerEvents);
-        console.log('- Element position:', rect);
-        
-        if (!isVisible || !hasPointerEvents) {
-            console.warn('Dropdown appears to be not clickable, creating simple fallback');
-            this.createSimpleDropdown();
-        }
-    }
-
-    /**
-     * Create a simple fallback dropdown
-     */
-    createSimpleDropdown() {
-        const container = document.getElementById('searchableProductDropdown');
-        if (!container) return;
-
-        console.log('Creating simple dropdown fallback...');
-        
-        // Create a simple select element
-        const simpleSelect = document.createElement('select');
-        simpleSelect.className = 'form-control';
-        simpleSelect.id = 'simpleProductDropdown';
-        
-        // Add options
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'Select a product...';
-        simpleSelect.appendChild(defaultOption);
-        
-        this.productData.forEach(product => {
-            const option = document.createElement('option');
-            option.value = product.value;
-            option.textContent = product.text;
-            simpleSelect.appendChild(option);
-        });
-        
-        // Add change event
-        simpleSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                this.handleProductSelection({
-                    value: e.target.value,
-                    text: e.target.options[e.target.selectedIndex].text
-                });
-            }
-        });
-        
-        // Replace the complex dropdown with simple one
-        container.innerHTML = '';
-        container.appendChild(simpleSelect);
-        
-        console.log('Simple dropdown created successfully');
     }
 }
 
@@ -507,6 +469,11 @@ $(document).ready(() => {
     // Wait a bit to ensure all scripts are loaded
     setTimeout(() => {
         console.log('Initializing dashboard service...');
+        console.log('Script loading check:');
+        console.log('- jQuery:', typeof $ !== 'undefined');
+        console.log('- Kendo:', typeof kendo !== 'undefined');
+        console.log('- Kendo ComboBox:', typeof $.fn.kendoComboBox !== 'undefined');
+        
         window.dashboardService = new DashboardService();
         console.log('Dashboard service initialized');
         
@@ -519,52 +486,44 @@ $(document).ready(() => {
             }
         };
 
-        window.forceOpenDropdown = () => {
-            if (window.dashboardService && window.dashboardService.searchableDropdown) {
-                window.dashboardService.searchableDropdown.forceOpen();
-            } else {
-                console.error('Searchable dropdown not available');
-            }
-        };
-
-        window.forceCloseDropdown = () => {
-            if (window.dashboardService && window.dashboardService.searchableDropdown) {
-                window.dashboardService.searchableDropdown.forceClose();
-            } else {
-                console.error('Searchable dropdown not available');
-            }
-        };
-
-        window.createSimpleDropdown = () => {
+        window.testKendoComboBox = () => {
             if (window.dashboardService) {
-                window.dashboardService.createSimpleDropdown();
+                window.dashboardService.testKendoComboBox();
             } else {
                 console.error('Dashboard service not available');
             }
         };
 
-        window.forceShowMenu = () => {
+        window.openComboBox = () => {
             if (window.dashboardService && window.dashboardService.searchableDropdown) {
-                window.dashboardService.searchableDropdown.forceShowMenu();
+                window.dashboardService.searchableDropdown.open();
             } else {
-                console.error('Searchable dropdown not available');
+                console.error('Kendo UI combobox not available');
             }
         };
 
-        window.manualCloseDropdown = () => {
+        window.closeComboBox = () => {
             if (window.dashboardService && window.dashboardService.searchableDropdown) {
                 window.dashboardService.searchableDropdown.close();
             } else {
-                console.error('Searchable dropdown not available');
+                console.error('Kendo UI combobox not available');
+            }
+        };
+
+        window.getComboBoxValue = () => {
+            if (window.dashboardService && window.dashboardService.searchableDropdown) {
+                return window.dashboardService.searchableDropdown.value();
+            } else {
+                console.error('Kendo UI combobox not available');
+                return null;
             }
         };
         
-        console.log('You can test the dropdown by running:');
-        console.log('- testDropdown() - Get dropdown info');
-        console.log('- forceOpenDropdown() - Force open dropdown');
-        console.log('- forceCloseDropdown() - Force close dropdown');
-        console.log('- forceShowMenu() - Force show dropdown menu');
-        console.log('- manualCloseDropdown() - Manually close dropdown');
-        console.log('- createSimpleDropdown() - Create simple fallback dropdown');
-    }, 500); // Increased delay to ensure all scripts are loaded
+        console.log('You can test the Kendo UI combobox by running:');
+        console.log('- testDropdown() - Get general dropdown info');
+        console.log('- testKendoComboBox() - Test Kendo UI combobox functionality');
+        console.log('- openComboBox() - Open the combobox');
+        console.log('- closeComboBox() - Close the combobox');
+        console.log('- getComboBoxValue() - Get current combobox value');
+    }, 1000); // Increased delay to ensure all Kendo UI scripts are loaded
 });

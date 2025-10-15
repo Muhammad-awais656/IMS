@@ -98,8 +98,9 @@
                                 </td>
 
                                 <td class="table-actions">
-                                    <a class="btn btn-primary btn-sm" asp-action="EditExpenseType" asp-route-id="@item.ExpenseTypeId">Edit</a>
-                                    <a class="btn btn-danger btn-sm" asp-action="DeleteExpenseType" asp-route-id="@item.ExpenseTypeId">Delete</a>
+                                    <a class="btn btn-sm btn-outline-warning" asp-action="EditExpenseType" asp-route-id="@item.ExpenseTypeId"> <i class="fa-solid fa-edit"></i></a>
+                                    <a class="btn btn-sm btn-outline-danger" asp-action="DeleteExpenseType" asp-route-id="@item.ExpenseTypeId"><i class="fa-solid fa-trash"></i></a>
+                                  
                                 </td>
 
 

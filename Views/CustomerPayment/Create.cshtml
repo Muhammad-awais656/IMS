@@ -4,6 +4,44 @@
     ViewData["Title"] = "Create Payment";
 }
 
+<style>
+    /* Kendo ComboBox Styling */
+    .k-combobox {
+        width: 100% !important;
+    }
+    
+    .k-combobox .k-input {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .k-combobox .k-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .k-dropdown {
+        border-radius: 8px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+        border-radius: 12px 12px 0 0;
+    }
+</style>
+
 <div class="container mt-4">
     <div class="card shadow-sm">
         <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
@@ -17,27 +55,19 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label asp-for="CustomerId" class="form-label">Customer Name *</label>
-                            <select asp-for="CustomerId" class="form-select" required>
-                                <option value="">--Select Customer--</option>
-                                @foreach (var customer in Model.CustomerList)
-                                {
-                                    <option value="@customer.CustomerId">@customer.CustomerName</option>
-                                }
-                            </select>
+                            <label asp-for="CustomerId" class="form-label">
+                                <i class="fa-solid fa-user me-1 text-primary"></i>Customer Name *
+                            </label>
+                            <input asp-for="CustomerId" id="customerComboBox" style="width: 100%;" required />
                             <span asp-validation-for="CustomerId" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label asp-for="SaleId" class="form-label">Bill Number *</label>
-                            <select asp-for="SaleId" class="form-select" required>
-                                <option value="">--Select Bill--</option>
-                                @foreach (var sale in Model.SalesList)
-                                {
-                                    <option value="@sale.SaleId">@sale.BillNumber</option>
-                                }
-                            </select>
+                            <label asp-for="SaleId" class="form-label">
+                                <i class="fa-solid fa-receipt me-1 text-primary"></i>Bill Number *
+                            </label>
+                            <input asp-for="SaleId" id="billComboBox" style="width: 100%;" required />
                             <span asp-validation-for="SaleId" class="text-danger"></span>
                         </div>
                     </div>
@@ -81,4 +111,123 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // Initialize Customer ComboBox
+            $("#customerComboBox").kendoComboBox({
+                placeholder: "Select Customer...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                dataSource: [
+                    { value: "", text: "--Select Customer--" }
+                    @if (Model.CustomerList != null)
+                    {
+                        @foreach (var customer in Model.CustomerList)
+                        {
+                            <text>,</text>
+                            <text>{ value: "@customer.CustomerId", text: "@customer.CustomerName" }</text>
+                        }
+                    }
+                ],
+                value: "@(Model.CustomerId > 0 ? Model.CustomerId.ToString() : "")",
+                change: function() {
+                    const customerId = this.value();
+                    const billCombo = $("#billComboBox").data("kendoComboBox");
+                    
+                    if (billCombo) {
+                        // Clear bills when customer changes
+                        billCombo.dataSource.data([]);
+                        billCombo.value("");
+                        
+                        if (customerId) {
+                            // Show loading state
+                            billCombo.dataSource.add({ value: "", text: "Loading bills..." });
+                            billCombo.enable(false);
+                            
+                            // Fetch customer bills
+                            fetch('@Url.Action("GetCustomerBills", "CustomerPayment")' + '?customerId=' + customerId)
+                                .then(response => response.json())
+                                .then(data => {
+                                    billCombo.dataSource.data([]);
+                                    
+                                    if (data.success && data.bills && data.bills.length > 0) {
+                                        billCombo.dataSource.add({ value: "", text: "--Select Bill--" });
+                                        data.bills.forEach(function(bill) {
+                                            billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber });
+                                        });
+                                    } else {
+                                        billCombo.dataSource.add({ value: "", text: "No bills found for this customer" });
+                                    }
+                                    
+                                    billCombo.enable(true);
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching customer bills:', error);
+                                    billCombo.dataSource.data([]);
+                                    billCombo.dataSource.add({ value: "", text: "Error loading bills" });
+                                    billCombo.enable(true);
+                                });
+                        }
+                    }
+                }
+            });
+
+            // Initialize Bill ComboBox
+            $("#billComboBox").kendoComboBox({
+                placeholder: "Select Bill...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                dataSource: [
+                    { value: "", text: "--Select Bill--" }
+                    @if (Model.SalesList != null)
+                    {
+                        @foreach (var sale in Model.SalesList)
+                        {
+                            <text>,</text>
+                            <text>{ value: "@sale.SaleId", text: "@sale.BillNumber" }</text>
+                        }
+                    }
+                ],
+                value: "@(Model.SaleId > 0 ? Model.SaleId.ToString() : "")"
+            });
+
+            // Handle form submission to ensure Kendo ComboBox values are properly submitted
+            $('form').on('submit', function() {
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
+                const billCombo = $("#billComboBox").data("kendoComboBox");
+                
+                if (customerCombo) {
+                    $("#customerComboBox").val(customerCombo.value());
+                }
+                if (billCombo) {
+                    $("#billComboBox").val(billCombo.value());
+                }
+            });
+
+            // Add loading state to submit button
+            $('form').on('submit', function() {
+                const submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true);
+                submitBtn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Creating Payment...');
+            });
+
+            // Ensure ComboBoxes show placeholder text when no value is selected
+            setTimeout(function() {
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
+                const billCombo = $("#billComboBox").data("kendoComboBox");
+                
+                if (customerCombo && (!customerCombo.value() || customerCombo.value() === "0")) {
+                    customerCombo.value("");
+                }
+                if (billCombo && (!billCombo.value() || billCombo.value() === "0")) {
+                    billCombo.value("");
+                }
+            }, 100);
+        });
+    </script>
 }

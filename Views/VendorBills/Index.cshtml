@@ -91,7 +91,7 @@
                                            name="billDateFrom" 
                                            id="billDateFrom" 
                                            class="form-control border-0 shadow-sm" 
-                                           value="@(ViewData["billDateFrom"] ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
+                                           value="@(ViewData["billDateFrom"] ?? DateTime.Now.AddMonths(-1).ToString("yyyy-MM-dd"))" />
                                     <label for="billDateFrom" class="text-muted">
                                         <i class="fa-solid fa-calendar-day me-1"></i>From Date
                                     </label>
@@ -154,6 +154,7 @@
                         <th>Paid amount</th>
                         <th>Total payable amount</th>
                         <th>Description</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -171,13 +172,27 @@
                                 <td>@bill.PaidAmount.ToString("N3")</td>
                                 <td>@bill.TotalPayableAmount.ToString("N3")</td>
                                 <td>@bill.Description</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="@Url.Action("Edit", "VendorBills", new { id = bill.BillId })" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="Edit Bill">
+                                            <i class="fa-solid fa-edit"></i>
+                                        </a>
+                                        <a href="@Url.Action("Details", "VendorBills", new { id = bill.BillId })" 
+                                           class="btn btn-sm btn-outline-info" 
+                                           title="View Details">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
                             </tr>
                         }
                     }
                     else
                     {
                         <tr>
-                            <td colspan="9" class="text-center">No bills found.</td>
+                            <td colspan="10" class="text-center">No bills found.</td>
                         </tr>
                     }
                 </tbody>
@@ -387,7 +402,10 @@
             const billDateTo = document.getElementById('billDateTo');
             
             if (!billDateFrom.value) {
-                billDateFrom.value = new Date().toISOString().split('T')[0];
+                // Set to last month
+                const lastMonth = new Date();
+                lastMonth.setMonth(lastMonth.getMonth() - 1);
+                billDateFrom.value = lastMonth.toISOString().split('T')[0];
             }
             
             if (!billDateTo.value) {

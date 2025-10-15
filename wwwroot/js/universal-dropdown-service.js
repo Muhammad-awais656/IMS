@@ -10,7 +10,18 @@ class UniversalDropdownService {
             '#searchableProductDropdown', // Already converted
             '#searchableProductSelect', // Sales form dropdown (already handled)
             'select[multiple]', // Multi-select dropdowns
-            'select[data-no-convert]' // Explicitly excluded dropdowns
+            'select[data-no-convert]', // Explicitly excluded dropdowns
+            'select[name="searchULabelId"]', // Product Management Labels dropdown
+            'select[name="catId"]', // Product Management Category dropdown
+            'select[name="searchUMUTId"]', // Product Management Measuring Unit Type dropdown
+            '#catId', // Product Management Category Kendo Combobox
+            '#searchULabelId', // Product Management Label Kendo Combobox
+            '#searchUMUTId', // Product Management Measuring Unit Type Kendo Combobox
+            '#productSelect', // Add Sale Product dropdown
+            '#productSizeSelect', // Add Sale Product Size dropdown
+            '#customerSelect', // Add Sale Customer dropdown (fixed name)
+            '#paymentMethodSelect', // Add Sale Payment Method dropdown
+            '#onlineAccountSelect' // Add Sale Online Account dropdown
         ];
         this.init();
     }
@@ -26,6 +37,13 @@ class UniversalDropdownService {
                 const currentPath = window.location.pathname;
                 const isProductPage = currentPath.includes('/Product/');
                 const isVendorBillsPage = currentPath.includes('/VendorBills/');
+                const isSalesPage = currentPath.includes('/Sales/');
+                
+                // Skip Universal dropdown service on Sales pages - let Kendo UI handle them
+                if (isSalesPage) {
+                    console.log('Sales page detected - skipping Universal dropdown service to allow Kendo UI to handle dropdowns');
+                    return;
+                }
                 
                 // Show loading while converting dropdowns
                 if (window.loadingService) {
@@ -96,6 +114,13 @@ class UniversalDropdownService {
      */
     shouldConvertDropdown(select) {
         const selectId = select.id || select.name;
+        
+        // Skip if we're on a sales page - let Kendo UI handle dropdowns
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('/Sales/')) {
+            console.log(`Skipping ${selectId} - on sales page, using Kendo UI instead`);
+            return false;
+        }
         
         // Check if already converted
         if (this.convertedDropdowns.has(selectId)) {

@@ -8,10 +8,12 @@
 <div class="modal-body">
     <form id="addSizeForm">
         <div class="mb-2">
+            <label>Measuring Unit Type</label>
+            <input id="modalMeasuringUnitTypeId" name="MeasuringUnitTypeId" style="width: 100%;" />
+        </div>
+        <div class="mb-2">
             <label>Measuring Unit</label>
-            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control" required>
-                <option value="">-- Select Measuring Unit --</option>
-            </select>
+            <input id="modalMeasuringUnitId" name="MeasuringUnitIdFk" style="width: 100%;" />
         </div>
         <div class="mb-2">
             <label>Size From</label>
@@ -32,3 +34,124 @@
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
     <button type="button" class="btn btn-primary" id="saveSizeBtn">Save</button>
 </div>
+
+<script>
+    $(document).ready(function() {
+        // Initialize Measuring Unit Type Combobox
+        $("#modalMeasuringUnitTypeId").kendoComboBox({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: "/Product/GetMeasuringUnitTypes",
+                        dataType: "json"
+                    }
+                }
+            },
+            dataTextField: "text",
+            dataValueField: "value",
+            placeholder: "-- Select MU Type --",
+            filter: "contains",
+            suggest: true,
+            minLength: 1,
+            change: function() {
+                var mutId = this.value();
+                console.log("MU Type changed to:", mutId);
+                
+                // Clear and disable Measuring Unit dropdown
+                var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
+                if (measuringUnitCombo) {
+                    measuringUnitCombo.value("");
+                    measuringUnitCombo.enable(false);
+                }
+                
+                if (mutId && mutId !== "") {
+                    // Load measuring units based on selected MU Type
+                    loadMeasuringUnits(mutId);
+                }
+            }
+        });
+        
+        // Initialize Measuring Unit Combobox (initially disabled)
+        $("#modalMeasuringUnitId").kendoComboBox({
+            dataSource: {
+                data: []
+            },
+            dataTextField: "text",
+            dataValueField: "value",
+            placeholder: "-- Select Measuring Unit --",
+            filter: "contains",
+            suggest: true,
+            minLength: 1,
+            enabled: false,
+            readonly: false
+        });
+        
+        // Function to load measuring units based on MU Type
+        function loadMeasuringUnits(mutId) {
+            console.log("Loading measuring units for MU Type ID:", mutId);
+            
+            // Clear and disable the combobox first
+            var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
+            if (measuringUnitCombo) {
+                measuringUnitCombo.value("");
+                measuringUnitCombo.enable(false);
+                measuringUnitCombo.dataSource.data([]);
+            }
+            
+            $.ajax({
+                url: "/Product/GetMeasuringUnitsByType",
+                type: "GET",
+                data: { measuringUnitTypeId: mutId },
+                success: function(data) {
+                    console.log("AJAX Success - Measuring units data:", data);
+                    
+                    if (data && data.length > 0) {
+                        // Update the existing combobox with new data
+                        if (measuringUnitCombo) {
+                            measuringUnitCombo.dataSource.data(data);
+                            measuringUnitCombo.enable(true);
+                            measuringUnitCombo.readonly(false);
+                            measuringUnitCombo.refresh();
+                        } else {
+                            // Recreate if it doesn't exist
+                            $("#modalMeasuringUnitId").kendoComboBox({
+                                dataSource: {
+                                    data: data
+                                },
+                                dataTextField: "text",
+                                dataValueField: "value",
+                                placeholder: "-- Select Measuring Unit --",
+                                filter: "contains",
+                                suggest: true,
+                                minLength: 1,
+                                enabled: true,
+                                readonly: false
+                            });
+                        }
+                        
+                        console.log("Measuring units loaded successfully. Count:", data.length);
+                    } else {
+                        console.log("No measuring units found for this MU Type");
+                        if (measuringUnitCombo) {
+                            measuringUnitCombo.enable(false);
+                            measuringUnitCombo.readonly(true);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error loading measuring units:", error);
+                    console.error("Response:", xhr.responseText);
+                    
+                    // Show error message to user
+                    alert("Failed to load measuring units. Please try again.");
+                    
+                    // Disable the combobox on error
+                    if (measuringUnitCombo) {
+                        measuringUnitCombo.enable(false);
+                        measuringUnitCombo.readonly(true);
+                    }
+                }
+            });
+        }
+    });
+</script>

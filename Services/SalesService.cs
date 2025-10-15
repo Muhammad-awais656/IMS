@@ -21,6 +21,7 @@ namespace IMS.Services
         public async Task<SalesViewModel> GetAllSalesAsync(int pageNumber, int? pageSize, SalesFilters? filters)
         {
             var viewModel = new SalesViewModel();
+            var totalRecords = 0;
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
@@ -34,10 +35,10 @@ namespace IMS.Services
                         
                         // Set default values that won't filter out all records
                         command.Parameters.AddWithValue("@pIsDeleted", 0); // Only show non-deleted records
-                        command.Parameters.AddWithValue("@pBillNumber", DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleFrom", DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleDateTo", DBNull.Value);
-                        command.Parameters.AddWithValue("@pDescription", DBNull.Value);
+                        command.Parameters.AddWithValue("@pBillNumber", filters.BillNumber == null ? DBNull.Value :filters.BillNumber);
+                        command.Parameters.AddWithValue("@pSaleFrom", filters.SaleFrom==null ? DBNull.Value: filters.SaleFrom);
+                        command.Parameters.AddWithValue("@pSaleDateTo", filters.SaleDateTo==null ? DBNull.Value:filters.SaleDateTo);
+                        command.Parameters.AddWithValue("@pDescription", string.IsNullOrEmpty(filters.Description) ?DBNull.Value : filters.Description);
                         command.Parameters.AddWithValue("@PageNo", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         
@@ -76,13 +77,19 @@ namespace IMS.Services
                                 };
                                 salesList.Add(sale);
                             }
+                            await reader.NextResultAsync();
+
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
 
                             // Apply pagination manually
-                            var totalCount = salesList.Count;
+                            var totalCount = totalRecords;
                             var offset = (pageNumber - 1) * (pageSize ?? 10);
-                            var pagedSalesList = salesList.Skip(offset).Take(pageSize ?? 10).ToList();
+                            var pagedSalesList = offset;
 
-                            viewModel.SalesList = pagedSalesList;
+                            viewModel.SalesList = salesList;
                             viewModel.CurrentPage = pageNumber;
                             viewModel.PageSize = pageSize ?? 10;
                             viewModel.TotalCount = totalCount;
@@ -479,6 +486,85 @@ namespace IMS.Services
             return saleDetails;
         }
 
+        public async Task<SalePrintViewModel> GetSaleForPrintAsync(long saleId)
+        {
+            var salePrint = new SalePrintViewModel();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    // Get sale information
+                    var saleSql = @"SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
+                                          s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SaleDescription,
+                                          c.CustomerName
+                                   FROM Sales s
+                                   LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+                                   WHERE s.SaleId = @SaleId";
+                    
+                    using (var command = new SqlCommand(saleSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                salePrint.SaleId = reader.GetInt64("SaleId");
+                                salePrint.BillNumber = reader.GetInt64("BillNumber");
+                                salePrint.SaleDate = reader.GetDateTime("SaleDate");
+                                salePrint.TotalAmount = reader.GetDecimal("TotalAmount");
+                                salePrint.DiscountAmount = reader.GetDecimal("DiscountAmount");
+                                salePrint.TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount");
+                                salePrint.TotalDueAmount = reader.GetDecimal("TotalDueAmount");
+                                salePrint.CustomerIdFk = reader.GetInt64("CustomerId_FK");
+                                salePrint.CustomerName = reader.IsDBNull("CustomerName") ? "Unknown Customer" : reader.GetString("CustomerName");
+                                salePrint.SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription");
+                            }
+                        }
+                    }
+
+                    // Get sale details with product names
+                    var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
+                                             sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
+                                             p.ProductName
+                                      FROM SaleDetails sd
+                                      LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                                      WHERE sd.SaleId_FK = @SaleId";
+                    
+                    using (var command = new SqlCommand(detailsSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                salePrint.SaleDetails.Add(new SaleDetailPrintViewModel
+                                {
+                                    ProductId = reader.GetInt64("PrductId_FK"),
+                                    ProductName = reader.IsDBNull("ProductName") ? "Unknown Product" : reader.GetString("ProductName"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.GetInt64("Quantity"),
+                                    SalePrice = reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.GetDecimal("PayableAmount"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sale for print");
+                throw;
+            }
+            return salePrint;
+        }
+
         public async Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId)
         {
             int response = 0;
@@ -590,19 +676,28 @@ namespace IMS.Services
             var productSizes = new List<ProductSizeViewModel>();
             try
             {
+                _logger.LogInformation("=== DEBUGGING: GetProductUnitPriceRangeByProductIdAsync called with productId: {ProductId}", productId);
+                
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
+                    _logger.LogInformation("Database connection opened successfully");
                     
                     using (var command = new SqlCommand("GetProductUnitPriceRangeByProductId", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductId", productId);
+                        _logger.LogInformation("Executing stored procedure GetProductUnitPriceRangeByProductId with productId: {ProductId}", productId);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
+                            int recordCount = 0;
                             while (await reader.ReadAsync())
                             {
+                                recordCount++;
+                                _logger.LogInformation("Reading record {Count} - ProductRangeId: {ProductRangeId}, RangeFrom: {RangeFrom}, RangeTo: {RangeTo}, UnitPrice: {UnitPrice}, MeasuringUnit: {MeasuringUnitName}", 
+                                    recordCount, reader.GetInt64("ProductRangeId"), reader.GetDecimal("RangeFrom"), reader.GetDecimal("RangeTo"), reader.GetDecimal("UnitPrice"), reader.GetString("MeasuringUnitName"));
+                                
                                 var productSize = new ProductSizeViewModel
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
@@ -616,9 +711,11 @@ namespace IMS.Services
                                 };
                                 productSizes.Add(productSize);
                             }
+                            _logger.LogInformation("Total records read from database: {Count}", recordCount);
                         }
                     }
                 }
+                _logger.LogInformation("Returning {Count} product sizes from GetProductUnitPriceRangeByProductIdAsync", productSizes.Count);
             }
             catch (Exception ex)
             {

@@ -453,6 +453,43 @@ namespace IMS.Controllers
             return PartialView("_AddSize", new ProductRange());
         }
 
+        // AJAX endpoint to get measuring units by type for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetMeasuringUnitsByType(long? measuringUnitTypeId)
+        {
+            try
+            {
+                _logger.LogInformation("GetMeasuringUnitsByType called with measuringUnitTypeId: {MeasuringUnitTypeId}", measuringUnitTypeId);
+                
+                if (!measuringUnitTypeId.HasValue)
+                {
+                    _logger.LogWarning("No measuringUnitTypeId provided");
+                    return Json(new List<object>());
+                }
+
+                var measuringUnits = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                _logger.LogInformation("Found {Count} measuring units for type {MeasuringUnitTypeId}", measuringUnits.Count, measuringUnitTypeId);
+                
+                // Filter only enabled measuring units
+                var enabledMeasuringUnits = measuringUnits.Where(mu => mu.IsEnabled).ToList();
+                _logger.LogInformation("Found {Count} enabled measuring units for type {MeasuringUnitTypeId}", enabledMeasuringUnits.Count, measuringUnitTypeId);
+                
+                var result = enabledMeasuringUnits.Select(mu => new
+                {
+                    value = mu.MeasuringUnitId.ToString(),
+                    text = mu.MeasuringUnitName
+                }).ToList();
+                
+                _logger.LogInformation("Returning {Count} enabled measuring units", result.Count);
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting measuring units by type for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> CheckProductCode(string productCode, long? excludeProductId = null)
         {
@@ -464,5 +501,94 @@ namespace IMS.Controllers
             var exists = await _productService.ProductCodeExistsAsync(productCode, excludeProductId);
             return Json(exists);
         }
+
+        // AJAX endpoint to get categories for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetCategories()
+        {
+            try
+            {
+                var categories = await _categoryService.GetAllEnabledCategoriesAsync();
+                var result = categories.Select(c => new
+                {
+                    value = c.CategoryId.ToString(),
+                    text = c.CategoryName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting categories for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get labels for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetLabels()
+        {
+            try
+            {
+                var labels = await _adminLablesService.GetAllEnabledAdminLablesAsync();
+                var result = labels.Select(l => new
+                {
+                    value = l.LabelId.ToString(),
+                    text = l.LabelName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting labels for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get measuring unit types for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetMeasuringUnitTypes()
+        {
+            try
+            {
+                var measuringUnitTypes = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync();
+                var result = measuringUnitTypes.Select(m => new
+                {
+                    value = m.MeasuringUnitTypeId.ToString(),
+                    text = m.MeasuringUnitTypeName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting measuring unit types for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get vendors for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetVendors()
+        {
+            try
+            {
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                var result = vendors.Select(v => new
+                {
+                    value = v.SupplierId.ToString(),
+                    text = v.SupplierName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendors for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
     }
 }

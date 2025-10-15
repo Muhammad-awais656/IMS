@@ -21,5 +21,10 @@ namespace IMS.Common_Interfaces
         Task<List<ProductRange>> GetProductSizesAsync(long productId);
         Task<decimal> GetPreviousDueAmountAsync(long vendorId);
         Task<long> CreateBillAsync(GenerateBillViewModel model);
+        
+        // Edit functionality methods
+        Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId);
+        Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId);
+        Task<bool> UpdateVendorBillAsync(long billId, GenerateBillViewModel model);
     }
 }

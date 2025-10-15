@@ -73,7 +73,11 @@ namespace IMS.Controllers
                 {
                     stockFilters.Description = description;
                 }
-
+                if (saleFrom == null && saleDateTo==null)
+                {
+                    stockFilters.SaleFrom = DateTime.Now;
+                    stockFilters.SaleDateTo = DateTime.Now;
+                }
                 var viewModel = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
                 
                 // Load customers for the filter dropdown
@@ -396,7 +400,9 @@ namespace IMS.Controllers
                     ReceivedAmount = sale.TotalReceivedAmount,
                     DueAmount = sale.TotalDueAmount,
                     Description = sale.SaleDescription,
-                    SaleId = sale.SaleId // Add this to track the sale being edited
+                    SaleId = sale.SaleId, // Add this to track the sale being edited
+                    PaymentMethod = "Cash", // Default to Cash since we don't store this in the database
+                    OnlineAccountId = null // Default to null since we don't store this in the database
                 };
 
                 // Get previous due amount for the customer
@@ -416,33 +422,6 @@ namespace IMS.Controllers
                 _logger.LogError(ex, "Error loading Edit Sale page for ID: {SaleId}", id);
                 TempData["ErrorMessage"] = "Error loading the sale for editing. Please try again.";
                 return RedirectToAction("Index");
-            }
-        }
-        [HttpGet]
-        public async Task<JsonResult> GetProductSizes(long productId)
-        {
-            try
-            {
-                var productSizes = await _salesService.GetProductUnitPriceRangeByProductIdAsync(productId);
-                var sizeOptions = productSizes.Select(ps => new
-                {
-                    value = ps.ProductRangeId,
-                    text = $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom}-{ps.RangeTo} - ${ps.UnitPrice:F2}",
-                    productRangeId = ps.ProductRangeId,
-                    measuringUnitId = ps.MeasuringUnitId_FK,
-                    rangeFrom = ps.RangeFrom,
-                    rangeTo = ps.RangeTo,
-                    unitPrice = ps.UnitPrice,
-                    measuringUnitName = ps.MeasuringUnitName,
-                    measuringUnitAbbreviation = ps.MeasuringUnitAbbreviation
-                }).ToList();
-
-                return Json(sizeOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting product sizes");
-                return Json(new List<object>());
             }
         }
 
@@ -506,6 +485,8 @@ namespace IMS.Controllers
                 var onlineAccounts = await _personalPaymentService.GetAllPersonalPaymentsAsync(1, 1000, new PersonalPaymentFilters { IsActive = true });
                 var accountOptions = onlineAccounts.PersonalPaymentList.Select(account => new
                 {
+                    value = account.PersonalPaymentId.ToString(),
+                    text = $"{account.BankName} - {account.AccountNumber}",
                     personalPaymentId = account.PersonalPaymentId,
                     bankName = account.BankName,
                     accountNumber = account.AccountNumber,
@@ -814,5 +795,141 @@ namespace IMS.Controllers
                 return View(model);
         }
 
+        // AJAX endpoint to get products for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetProducts()
+        {
+            try
+            {
+                var products = await _productService.GetAllEnabledProductsAsync();
+                var result = products.Select(p => new
+                {
+                    value = p.ProductId.ToString(),
+                    text = p.ProductName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting products for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get customers for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetCustomers()
+        {
+            try
+            {
+                var customers = await _customerService.GetAllEnabledCustomers();
+                var result = customers.Select(c => new
+                {
+                    value = c.CustomerId.ToString(),
+                    text = c.CustomerName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customers for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // GET: SalesController/PrintReceipt/5
+        public async Task<ActionResult> PrintReceipt(long id)
+        {
+            try
+            {
+                var salePrint = await _salesService.GetSaleForPrintAsync(id);
+                if (salePrint == null)
+                {
+                    return NotFound();
+                }
+                
+                return View(salePrint);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading print receipt for sale {SaleId}", id);
+                TempData["ErrorMessage"] = "Error loading receipt for printing.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // AJAX endpoint to get product sizes for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetProductSizes(long? productId)
+        {
+            try
+            {
+                if (!productId.HasValue)
+                {
+                    _logger.LogWarning("GetProductSizes called without productId");
+                    return Json(new List<object>());
+                }
+
+                _logger.LogInformation("Getting product sizes for productId: {ProductId}", productId.Value);
+
+                // Use the existing method from SalesService
+                var productSizes = await _salesService.GetProductUnitPriceRangeByProductIdAsync(productId.Value);
+                _logger.LogInformation("Retrieved {Count} product sizes from database", productSizes.Count);
+
+                // Log the raw data for debugging
+                foreach (var ps in productSizes)
+                {
+                    _logger.LogInformation("ProductSize - ID: {ProductRangeId}, RangeFrom: {RangeFrom}, RangeTo: {RangeTo}, UnitPrice: {UnitPrice}, MeasuringUnit: {MeasuringUnitName}", 
+                        ps.ProductRangeId, ps.RangeFrom, ps.RangeTo, ps.UnitPrice, ps.MeasuringUnitName);
+                }
+
+                // Log all records before filtering for debugging
+                _logger.LogInformation("=== DEBUGGING: All product sizes before filtering ===");
+                foreach (var ps in productSizes)
+                {
+                    _logger.LogInformation("BEFORE FILTER - ID: {ProductRangeId}, RangeFrom: {RangeFrom}, RangeTo: {RangeTo}, UnitPrice: {UnitPrice}, MeasuringUnit: {MeasuringUnitName}", 
+                        ps.ProductRangeId, ps.RangeFrom, ps.RangeTo, ps.UnitPrice, ps.MeasuringUnitName);
+                }
+
+                // TEMPORARILY DISABLE FILTERING FOR DEBUGGING
+                // Filter out entries with zero ranges and create result
+                // var validProductSizes = productSizes.Where(ps => ps.RangeFrom > 0 || ps.RangeTo > 0).ToList();
+                var validProductSizes = productSizes.ToList(); // Use all records for debugging
+                _logger.LogInformation("Filtered to {Count} valid product sizes", validProductSizes.Count);
+                
+                // Log valid records after filtering
+                _logger.LogInformation("=== DEBUGGING: Valid product sizes after filtering ===");
+                foreach (var ps in validProductSizes)
+                {
+                    _logger.LogInformation("AFTER FILTER - ID: {ProductRangeId}, RangeFrom: {RangeFrom}, RangeTo: {RangeTo}, UnitPrice: {UnitPrice}, MeasuringUnit: {MeasuringUnitName}", 
+                        ps.ProductRangeId, ps.RangeFrom, ps.RangeTo, ps.UnitPrice, ps.MeasuringUnitName);
+                }
+
+                var result = validProductSizes.Select(ps => new
+                {
+                    value = ps.ProductRangeId.ToString(),
+                    text = ps.RangeFrom == ps.RangeTo ? 
+                        $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom} - ${ps.UnitPrice:F2}" :
+                        $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom} to {ps.RangeTo} - ${ps.UnitPrice:F2}",
+                    productRangeId = ps.ProductRangeId,
+                    measuringUnitId = ps.MeasuringUnitId_FK,
+                    rangeFrom = ps.RangeFrom,
+                    rangeTo = ps.RangeTo,
+                    unitPrice = ps.UnitPrice,
+                    measuringUnitName = ps.MeasuringUnitName ?? "",
+                    measuringUnitAbbreviation = ps.MeasuringUnitAbbreviation ?? ""
+                }).ToList();
+                
+                _logger.LogInformation("Returning {Count} product sizes to frontend", result.Count);
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product sizes for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
     }
 }

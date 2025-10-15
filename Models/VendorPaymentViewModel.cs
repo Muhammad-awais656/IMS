@@ -25,13 +25,16 @@ namespace IMS.Models
     {
         public long BillId { get; set; }
         public long BillNumber { get; set; }
+        public long VendorId { get; set; }
         public string VendorName { get; set; } = string.Empty;
         public DateTime BillDate { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal PaidAmount { get; set; }
+        public decimal DueAmount { get; set; }
         public decimal TotalPayableAmount { get; set; }
         public string? Description { get; set; }
+        public DateTime CreatedDate { get; set; }
     }
 
     public class VendorPaymentFilters

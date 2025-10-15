@@ -1,0 +1,265 @@
+@model IMS.Models.ModernReceiptViewModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.Header.Title</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Calibri', 'Helvetica', sans-serif;
+            font-size: 10px;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+        }
+
+        .receipt-container {
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .company-logo {
+            width: 108px;
+            height: auto;
+        }
+
+        .company-info {
+            text-align: center;
+            flex: 1;
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px 0;
+            color: #2e3192;
+        }
+
+        .company-details {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        .customer-section {
+            margin-bottom: 20px;
+        }
+
+        .customer-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+
+        .customer-label {
+            width: 100px;
+            font-weight: bold;
+        }
+
+        .customer-value {
+            flex: 1;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            text-align: center;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 10px;
+        }
+
+        .items-table th,
+        .items-table td {
+            border: 1px solid #000;
+            padding: 3px;
+            text-align: left;
+        }
+
+        .items-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .items-table .text-right {
+            text-align: right;
+        }
+
+        .items-table .text-center {
+            text-align: center;
+        }
+
+        .totals-table {
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 10px;
+        }
+
+        .totals-table td {
+            padding: 3px 0;
+        }
+
+        .totals-table .label {
+            text-align: left;
+            width: 80%;
+            font-weight: bold;
+        }
+
+        .totals-table .value {
+            text-align: right;
+            width: 20%;
+        }
+
+        .totals-table .highlight {
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer .generated-by {
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .footer .powered-by {
+            font-size: 9px;
+            color: #666;
+        }
+
+        .footer .powered-by a {
+            color: #2e3192;
+            text-decoration: none;
+        }
+
+        @* Print styles *@
+        <style>
+            @@media print {
+                body {
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                .receipt-container {
+                    max-width: none;
+                    margin: 0;
+                    padding: 20px;
+                }
+            }
+        </style>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="header-section">
+            <div>
+                <img src="@Model.CompanyInfo.LogoPath" alt="Company Logo" class="company-logo" />
+            </div>
+            <div class="company-info">
+                <div class="company-name">@Model.CompanyInfo.CompanyName</div>
+                <div class="company-details">
+                    @Model.CompanyInfo.Address<br />
+                    @Model.CompanyInfo.Phone<br />
+                    @Model.CompanyInfo.Email
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-section">
+            <div class="customer-row">
+                <div class="customer-label">Name:</div>
+                <div class="customer-value">@Model.CustomerInfo.CustomerName</div>
+            </div>
+            <div class="customer-row">
+                <div class="customer-label">Bill No.:</div>
+                <div class="customer-value">@Model.SaleInfo.BillNo</div>
+            </div>
+            <div class="customer-row">
+                <div class="customer-label">Date:</div>
+                <div class="customer-value">@Model.SaleInfo.SaleDateFormatted</div>
+            </div>
+        </div>
+
+        <div class="section-title">Customer Copy</div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">S#</th>
+                    <th style="width: 35%;">Description</th>
+                    <th class="text-right" style="width: 15%;">Quantity</th>
+                    <th class="text-right" style="width: 15%;">Rate</th>
+                    <th class="text-right" style="width: 15%;">Discount</th>
+                    <th class="text-right" style="width: 15%;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td class="text-center">@item.SerialNumber</td>
+                        <td>@item.ProductName</td>
+                        <td class="text-right">@item.Quantity.ToString("N2")</td>
+                        <td class="text-right">@item.SalePrice.ToString("N2")</td>
+                        <td class="text-right">@item.DiscountAmount.ToString("N2")</td>
+                        <td class="text-right">@item.PayableAmount.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <table class="totals-table">
+            <tr>
+                <td class="label">Total:</td>
+                <td class="value">@Model.Totals.TotalAmount.ToString("N2")</td>
+            </tr>
+            <tr>
+                <td class="label">Discount:</td>
+                <td class="value">@Model.Totals.InvoiceDiscount.ToString("N2")</td>
+            </tr>
+            <tr>
+                <td class="label">To be Paid:</td>
+                <td class="value">@Model.Totals.TotalDue.ToString("N2")</td>
+            </tr>
+            <tr class="highlight">
+                <td class="label">Paid:</td>
+                <td class="value">@Model.Totals.CashReceived.ToString("N2")</td>
+            </tr>
+        </table>
+
+        <div class="footer">
+            <div class="generated-by">
+                Generated By: <strong>@Model.CustomerInfo.CreatedByUserName</strong>
+            </div>
+            <div class="powered-by">
+                Powered by <strong><a href="@Model.Footer.Website" target="_blank">@Model.Footer.PoweredBy</a></strong>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
