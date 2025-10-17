@@ -164,6 +164,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeId", productFilters.MeasuringUnitTypeId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@PageNumber", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
+                        command.Parameters.AddWithValue("@productId", productFilters.ProductId ?? (object)DBNull.Value);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {

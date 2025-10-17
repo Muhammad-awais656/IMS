@@ -154,12 +154,12 @@ namespace IMS.Controllers
             try
             {
                 var billNumber = await _vendorBillsService.GetNextBillNumberAsync(supplierId);
-                return Json(new { billNumber });
+                return Json(new { success = true, billNumber = billNumber });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting next bill number for supplier {SupplierId}", supplierId);
-                return Json(new { billNumber = 1 });
+                return Json(new { success = false, message = "Error retrieving next bill number", billNumber = 1 });
             }
         }
 
@@ -188,12 +188,18 @@ namespace IMS.Controllers
                 var products = await _vendorBillsService.GetAllProductsAsync();
                 ViewBag.Products = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(products, "ProductId", "ProductName");
                 
+                // Get next bill number (default to 1 if no vendor selected)
+                var nextBillNumber = 1;
+                
                 var viewModel = new GenerateBillViewModel
                 {
                     VendorList = await _vendorBillsService.GetAllVendorsAsync(),
                     ProductList = products,
-                    BillDate = DateTime.Today
+                    BillDate = DateTime.Today,
+                    BillNumber = nextBillNumber
                 };
+                
+                ViewBag.NextBillNumber = nextBillNumber;
                 return View(viewModel);
             }
             catch (Exception ex)
@@ -211,17 +217,25 @@ namespace IMS.Controllers
         {
             try
             {
+                _logger.LogInformation("Create POST called with ActionType: '{ActionType}'", model.ActionType ?? "NULL");
+                
                 if (ModelState.IsValid)
                 {
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    long userId = long.Parse(userIdStr);
+                    model.CreatedBy = userId;
                     // Process the bill creation
                     var result = await _vendorBillsService.CreateBillAsync(model);
                     
                     if (result > 0)
                     {
                         TempData["SuccessMessage"] = "Bill created successfully!";
+                        _logger.LogInformation("Bill created successfully with ID: {BillId}, ActionType: '{ActionType}'", result, model.ActionType ?? "NULL");
+                        
                         if (model.ActionType == "saveAndPrint")
                         {
-                            return RedirectToAction("Details", new { id = result, print = true });
+                            _logger.LogInformation("Redirecting to PrintReceipt for BillId: {BillId}", result);
+                            return RedirectToAction("PrintReceipt", new { id = result });
                         }
                         return RedirectToAction("Index");
                     }
@@ -229,6 +243,10 @@ namespace IMS.Controllers
                     {
                         TempData["ErrorMessage"] = "Failed to create bill.";
                     }
+                }
+                else
+                {
+                    _logger.LogWarning("ModelState is invalid. Errors: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
                 }
                 
                 // Reload data for the view
@@ -278,27 +296,6 @@ namespace IMS.Controllers
                 return Json(new List<object>());
             }
         }
-
-        // AJAX endpoint to get previous due amount
-        //[HttpGet]
-        //public async Task<IActionResult> GetPreviousDue(long vendorId)
-        //{
-        //    try
-        //    {
-        //        var previousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
-        //        var result = new
-        //        {
-        //            previousDue = previousDue
-        //        };
-                
-        //        return Json(result);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error getting previous due for vendor {VendorId}", vendorId);
-        //        return Json(new { previousDue = 0 });
-        //    }
-        //}
 
         // GET: VendorBillsController/Edit/5
         public async Task<ActionResult> Edit(long id)
@@ -412,6 +409,40 @@ namespace IMS.Controllers
             catch
             {
                 return View();
+            }
+        }
+
+        // GET: VendorBillsController/PrintReceipt/5
+        public async Task<ActionResult> PrintReceipt(long id)
+        {
+            try
+            {
+                _logger.LogInformation("PrintReceipt called with BillId: {BillId}", id);
+                
+                var vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (vendorBill == null)
+                {
+                    _logger.LogWarning("VendorBill not found for BillId: {BillId}", id);
+                    return NotFound();
+                }
+                
+                var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
+                _logger.LogInformation("Found {ItemCount} bill items for BillId: {BillId}", billItems?.Count ?? 0, id);
+                
+                var printModel = new
+                {
+                    Bill = vendorBill,
+                    BillItems = billItems
+                };
+                
+                _logger.LogInformation("Returning PrintReceipt view for BillId: {BillId}", id);
+                return View(printModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading print receipt for bill {BillId}", id);
+                TempData["ErrorMessage"] = "Error loading receipt for printing.";
+                return RedirectToAction(nameof(Index));
             }
         }
     }

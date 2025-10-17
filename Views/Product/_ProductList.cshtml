@@ -1,4 +1,5 @@
-﻿@model IMS.Models.ProductViewModel;
+﻿@using System.Globalization
+@model IMS.Models.ProductViewModel;
 <div class="table-responsive">
     <table class="table table-striped table-bordered custom-table">
     <thead>
@@ -21,7 +22,7 @@
                     <tr>
                         <td>@product.ProductName</td>
                         <td>@product.ProductCode</td>
-                        <td>@product.Price.ToString("C")</td>
+                        <td>@product.Price.ToString("C", new CultureInfo("ur-PK"))</td>
                         <td>@product.CategoryName</td>
                         <td>@product.LabelName</td>
                         <td>@product.MeasuringUnitTypeName</td>

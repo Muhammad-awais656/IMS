@@ -8,7 +8,7 @@
     <div class="card-body">
         <form asp-action="CreateExpenseType">
             <div class="mb-3">
-                <label asp-for="ExpenseTypeName" class="form-label"></label>
+                <label asp-for="ExpenseTypeName" class="form-label"></label><span class="text-warning">*</span>
                 <input asp-for="ExpenseTypeName" class="form-control" />
                 <span asp-validation-for="ExpenseTypeName" class="text-danger"></span>
             </div>

@@ -478,10 +478,11 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                 {
                     await connection.OpenAsync();
                     using (var command = new SqlCommand(@"
-                        SELECT PurchaseOrderId, BillNumber, SupplierId_FK, BillNumber, PurchaseOrderDate, TotalAmount, DiscountAmount, 
-        TotalReceivedAmount,TotalAmount, TotalDueAmount, PurchaseOrderDescription, CreatedDate
- FROM PurchaseOrders 
- WHERE PurchaseOrderId = @BillId AND IsDeleted = 0
+                       SELECT PurchaseOrderId, BillNumber, SupplierId_FK, BillNumber, PurchaseOrderDate, TotalAmount, DiscountAmount, 
+        TotalReceivedAmount,TotalAmount, TotalDueAmount, PurchaseOrderDescription, po.CreatedDate,asp.SupplierName as VendorName
+ FROM PurchaseOrders po
+ left join AdminSuppliers asp on asp.SupplierId = po.SupplierId_FK
+ WHERE PurchaseOrderId = @BillId AND po.IsDeleted = 0
 ", connection))
                     {
                         command.Parameters.AddWithValue("@BillId", billId);
@@ -493,6 +494,7 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                 {
                                     BillId = reader.GetInt64("PurchaseOrderId"),
                                     VendorId = reader.GetInt64("SupplierId_FK"),
+                                    VendorName = reader.GetString("VendorName"),
                                     BillNumber = reader.GetInt64("BillNumber"),
                                     BillDate = reader.GetDateTime("PurchaseOrderDate"),
                                     TotalAmount = reader.GetDecimal("TotalAmount"),
@@ -524,11 +526,11 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                 {
                     await connection.OpenAsync();
                     using (var command = new SqlCommand(@"
-                        SELECT bi.BillItemId, bi.ProductId, bi.ProductRangeId, bi.UnitPrice, 
-                               bi.Quantity, bi.DiscountAmount, bi.PayableAmount, p.ProductName
+                        SELECT bi.PurchaseOrderId_FK, bi.PrductId_FK, bi.ProductRangeId_FK, bi.UnitPrice, 
+                               bi.Quantity, bi.LineDiscountAmount, bi.PayableAmount, p.ProductName
                         FROM PurchaseOrderItems bi
-                        LEFT JOIN Product p ON bi.ProductId = p.ProductId
-                        WHERE bi.BillId = @BillId AND bi.IsDeleted = 0", connection))
+                        LEFT JOIN Products p ON bi.PrductId_FK = p.ProductId
+                        WHERE bi.PurchaseOrderId_FK = @BillId ", connection))
                     {
                         command.Parameters.AddWithValue("@BillId", billId);
                         using (var reader = await command.ExecuteReaderAsync())
@@ -537,12 +539,12 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                             {
                                 billItems.Add(new BillItemViewModel
                                 {
-                                    BillItemId = reader.GetInt64("BillItemId"),
-                                    ProductId = reader.GetInt64("ProductId"),
-                                    ProductRangeId = reader.GetInt64("ProductRangeId"),
+                                    BillItemId = reader.GetInt64("PurchaseOrderId_FK"),
+                                    ProductId = reader.GetInt64("PrductId_FK"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
                                     Quantity = reader.GetDecimal("Quantity"),
-                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
+                                    DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
                                     ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName")
                                 });
@@ -661,9 +663,9 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                 command.Parameters.AddWithValue("@pTotalDueAmount", model.DueAmount);
                                 command.Parameters.AddWithValue("@pSupplierId_FK", model.VendorId);
                                 command.Parameters.AddWithValue("@pCreatedDate", createdDate);
-                                command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                                command.Parameters.AddWithValue("@pCreatedBy", model.CreatedBy==null ? createdBy : model.CreatedBy);
                                 command.Parameters.AddWithValue("@pModifiedDate", createdDate);
-                                command.Parameters.AddWithValue("@pModifiedBy", createdBy);
+                                command.Parameters.AddWithValue("@pModifiedBy", model.CreatedBy == null ? createdBy : model.CreatedBy);
                                 command.Parameters.AddWithValue("@pDiscountAmount", model.DiscountAmount);
                                 command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
                                 command.Parameters.AddWithValue("@pBillDescription", model.Description ?? "");

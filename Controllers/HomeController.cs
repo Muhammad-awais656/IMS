@@ -31,17 +31,18 @@ namespace IMS.Controllers
          var VendorCount   =_dashboardService.GetTotalVendorsCount();
           var categoryCount = _dashboardService.GetTotalCategoryCount();
             var last12monthsale = _dashboardService.GetLast12MonthsSalesAsync();
+            var currentMonthRevenue = _dashboardService.GetCurrentMonthRevenueAsync();
             //var stockStatus= _dashboardService.GetStockStatusAsync();
             var enabledProducts = _productService.GetAllEnabledProductsAsync();
             await Task.WhenAll(productCount, VendorCount, categoryCount,
-                last12monthsale, enabledProducts);
+                last12monthsale, currentMonthRevenue, enabledProducts);
             
             var model = new DashboardViewModel
             {
                 TotalProducts = productCount.Result,
                 TotalCategories = categoryCount.Result,
                 TotalVendors = VendorCount.Result,
-                MonthlyRevenue = last12monthsale.Result.Sales.LastOrDefault(),//48250.75m,
+                MonthlyRevenue = currentMonthRevenue.Result, // Use current month revenue instead of last month
                 MonthlyLabels = last12monthsale.Result.Months , //new List<string> { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" },
                 MonthlySales = last12monthsale.Result.Sales,            //new List<decimal> { 4200, 3800, 5200, 6000, 4800, 5100, 7200, 6500, 7800,0,0,0 },
                 ProductList = new List<SelectListItem>
@@ -140,6 +141,28 @@ namespace IMS.Controllers
             // Touch session to keep it alive
             HttpContext.Session.SetString("Ping", DateTime.Now.ToString());
             return Ok();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetDashboardData()
+        {
+            try
+            {
+                var currentMonthRevenue = await _dashboardService.GetCurrentMonthRevenueAsync();
+                var last12MonthsSales = await _dashboardService.GetLast12MonthsSalesAsync();
+                
+                return Json(new 
+                { 
+                    success = true,
+                    currentMonthRevenue = currentMonthRevenue,
+                    monthlySales = last12MonthsSales.Sales,
+                    monthlyLabels = last12MonthsSales.Months
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error fetching dashboard data" });
+            }
         }
         public IActionResult Privacy()
         {

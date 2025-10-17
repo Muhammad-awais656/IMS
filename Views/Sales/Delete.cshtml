@@ -1,3 +1,4 @@
+@using System.Globalization
 @model IMS.DAL.PrimaryDBContext.Sale
 @{
     ViewData["Title"] = "Delete Sale";
@@ -31,7 +32,7 @@
                                 <dd class="col-sm-8">@Model.SaleDate.ToString("dd/MM/yyyy")</dd>
 
                                 <dt class="col-sm-4">Total Amount:</dt>
-                                <dd class="col-sm-8">@Model.TotalAmount.ToString("C")</dd>
+                                <dd class="col-sm-8">@Model.TotalAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                                 <dt class="col-sm-4">Customer ID:</dt>
                                 <dd class="col-sm-8">@Model.CustomerIdFk</dd>
@@ -40,13 +41,13 @@
                         <div class="col-md-6">
                             <dl class="row">
                                 <dt class="col-sm-4">Discount Amount:</dt>
-                                <dd class="col-sm-8">@Model.DiscountAmount.ToString("C")</dd>
+                                <dd class="col-sm-8">@Model.DiscountAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                                 <dt class="col-sm-4">Received Amount:</dt>
-                                <dd class="col-sm-8">@Model.TotalReceivedAmount.ToString("C")</dd>
+                                <dd class="col-sm-8">@Model.TotalReceivedAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                                 <dt class="col-sm-4">Due Amount:</dt>
-                                <dd class="col-sm-8">@Model.TotalDueAmount.ToString("C")</dd>
+                                <dd class="col-sm-8">@Model.TotalDueAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                                 <dt class="col-sm-4">Description:</dt>
                                 <dd class="col-sm-8">@(string.IsNullOrEmpty(Model.SaleDescription) ? "N/A" : Model.SaleDescription)</dd>

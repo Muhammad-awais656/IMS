@@ -60,6 +60,7 @@ namespace IMS.Models
             public decimal? PriceTo { get; set; }
             public bool IsEnabled { get; set; }
             public long? SizeId { get; set; }
+            public long? ProductId { get; set; }
             public long? CategoryId { get; set; }
             public string? CategoryName { get; set; }
             public long? LabelId { get; set; }

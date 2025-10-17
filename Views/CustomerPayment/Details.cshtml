@@ -1,3 +1,4 @@
+@using System.Globalization
 @model IMS.DAL.PrimaryDBContext.Payment
 
 @{
@@ -18,7 +19,7 @@
                         <dd class="col-sm-8">@Model.PaymentId</dd>
 
                         <dt class="col-sm-4">Payment Amount:</dt>
-                        <dd class="col-sm-8">@Model.PaymentAmount.ToString("C")</dd>
+                        <dd class="col-sm-8">@Model.PaymentAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                         <dt class="col-sm-4">Sale ID:</dt>
                         <dd class="col-sm-8">@Model.SaleId</dd>

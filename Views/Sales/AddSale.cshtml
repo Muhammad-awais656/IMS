@@ -4,7 +4,7 @@
     ViewData["Title"] = "Add Sale";
 }
 <link href="~/css/dist/addsales.css" rel="stylesheet" />
-@* <div class="sale-container"> *@
+<div class="container-fluid">
     <div class="card shadow-sm">
         <div class="card-header bg-success text-white">
             <h2 class="mb-0 text-center">
@@ -147,7 +147,7 @@
                     </div>
                     <div class="col-md-3">
                         <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
-                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" />
+                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" readonly />
                     </div>
                     <div class="col-md-3">
                         <label asp-for="DueAmount" class="form-label">Due Amount:</label>
@@ -274,7 +274,7 @@
             </form>
         </div>
     </div>
-@* </div> *@
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -1119,11 +1119,11 @@
             newRow.innerHTML = `
                 <td>${selectedProductSize.measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
-                <td>$${discount.toFixed(2)}</td>
-                <td>$${salePrice.toFixed(2)}</td>
+                <td>Rs${discount.toFixed(2)}</td>
+                <td>Rs${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
-                <td>$${totalDiscount.toFixed(2)}</td>
-                <td>$${payable.toFixed(2)}</td>
+                <td>Rs${totalDiscount.toFixed(2)}</td>
+                <td>Rs${payable.toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1153,6 +1153,7 @@
 
             // Show success message
             showSuccessMessage('Product added to sale successfully!');
+            
 
             // Focus on product selection for next item
             if (productCombo) {
@@ -1330,7 +1331,8 @@
 
             // Calculate due amount (Total Amount is already net after line discounts, so we don't subtract totalDiscount again)
             // Due Amount = Total Amount - Received Amount + Previous Due
-            const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
+            // const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
+            const dueAmount = Math.max(0, totalAmount - receivedAmount);
 
             // Update Due Amount
             document.getElementById('DueAmount').value = dueAmount.toFixed(2);

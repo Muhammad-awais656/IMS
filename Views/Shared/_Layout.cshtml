@@ -6,14 +6,7 @@
     <title>@ViewData["Title"] - IMS</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="~/favicon-48x48.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png" />
-    <link rel="manifest" href="~/site.webmanifest" />
-    <meta name="theme-color" content="#2c3e50" />
-    
+     
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/IMS.styles.css" asp-append-version="true" />
@@ -37,26 +30,7 @@
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             white-space: wrap;
         }
-        /* Make sidebar take full height of page */
-/* .sidebar {
-    width:150px;
-    min-height: 100vh;  
-    height: 100%;      
-    background-color: #198754; 
-    position: fixed;    
-    top: 0;
-    left: 0;
-            overflow-y: auto;
-            white-space: wrap;
-} */
 
-/* Push content to the right of sidebar */
-/* .content {
-    margin-left: 145px; 
-    padding: 1px;
-    display:flex;
-          
-} */
 
 
             .sidebar.collapsed {
@@ -275,9 +249,7 @@
     @if (!string.IsNullOrEmpty(role))
     {
 
-
-        @* Header Partial *@
-        @* @Html.Partial("_HeaderPartial") *@
+     
         <div class="sidebar" id="sidebar">
             <div class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></div>
 
@@ -372,10 +344,7 @@
                     <a asp-controller="MeasuringUnit" asp-action="Index"><i class="fa-solid fa-helmet-un"></i><span>Measuring Units</span></a>
                 </div>
             </div>
-            @* <div class="menu-item">
-
-            <a asp-controller="Account" asp-action="Logout"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
-        </div> *@
+         
 
         </div>
 
@@ -438,11 +407,7 @@
 
                 </div>
             </div>
-            @* <div style="width:inherit; height:fit-content; background-color: lightgray;text-align:center;  ">
-            <h1 style="text-decoration:double; color:orangered">Inventary Management System</h1>
-            
-         
-        </div> *@
+        
             <div style="width: inherit; height: fit-content; background-color: gold; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px;">
                 <!-- Empty left side for balance -->
                 <div style="flex: 1;"></div>
@@ -464,10 +429,7 @@
                             (@role)
 
 
-                        </span>
-                        @* <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">
-                        Logout
-                    </a> *@
+                        </span>                 
                         <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
                     }
                     else
@@ -477,10 +439,7 @@
                         </a>
                     }
                 </div>
-            </div>
-            @* <div class="content">
-                @RenderBody()
-            </div> *@
+            </div>          
             @RenderBody()
            
         </div>

@@ -1,4 +1,6 @@
+@using System.Globalization
 @model IMS.DAL.PrimaryDBContext.Sale
+
 @{
     ViewData["Title"] = "Sale Details";
     bool shouldPrint = ViewBag.Print == true;
@@ -50,7 +52,7 @@
                             <div class="card bg-primary text-white">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Total Amount</h5>
-                                    <h3 class="mb-0">@Model.TotalAmount.ToString("C")</h3>
+                                    <h3 class="mb-0">@Model.TotalAmount.ToString("C", new CultureInfo("ur-PK"))</h3>
                                 </div>
                             </div>
                         </div>
@@ -58,7 +60,7 @@
                             <div class="card bg-warning text-white">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Discount</h5>
-                                    <h3 class="mb-0">@Model.DiscountAmount.ToString("C")</h3>
+                                    <h3 class="mb-0">@Model.DiscountAmount.ToString("C", new CultureInfo("ur-PK"))</h3>
                                 </div>
                             </div>
                         </div>
@@ -66,7 +68,7 @@
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Received</h5>
-                                    <h3 class="mb-0">@Model.TotalReceivedAmount.ToString("C")</h3>
+                                    <h3 class="mb-0">@Model.TotalReceivedAmount.ToString("C", new CultureInfo("ur-PK"))</h3>
                                 </div>
                             </div>
                         </div>
@@ -74,7 +76,7 @@
                             <div class="card @(Model.TotalDueAmount > 0 ? "bg-danger" : "bg-info") text-white">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Due Amount</h5>
-                                    <h3 class="mb-0">@(Model.TotalDueAmount > 0 ? Model.TotalDueAmount.ToString("C") : "Paid")</h3>
+                                    <h3 class="mb-0">@(Model.TotalDueAmount > 0 ? Model.TotalDueAmount.ToString("C", new CultureInfo("ur-PK")) : "Paid")</h3>
                                 </div>
                             </div>
                         </div>

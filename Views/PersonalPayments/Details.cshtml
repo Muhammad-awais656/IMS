@@ -1,3 +1,4 @@
+@using System.Globalization
 @model IMS.DAL.PrimaryDBContext.PersonalPayment
 @{
     ViewData["Title"] = "Payment Details";
@@ -64,14 +65,14 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Credit Amount:</label>
-                                <p class="form-control-plaintext fs-5 text-success fw-bold">@(Model.CreditAmount > 0 ? Model.CreditAmount.ToString("C") : "-")</p>
+                                <p class="form-control-plaintext fs-5 text-success fw-bold">@(Model.CreditAmount > 0 ? Model.CreditAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</p>
                             </div>
                         </div>
                         
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Debit Amount:</label>
-                                <p class="form-control-plaintext fs-5 text-danger fw-bold">@(Model.DebitAmount > 0 ? Model.DebitAmount.ToString("C") : "-")</p>
+                                <p class="form-control-plaintext fs-5 text-danger fw-bold">@(Model.DebitAmount > 0 ? Model.DebitAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</p>
                             </div>
                         </div>
                         
@@ -79,7 +80,7 @@
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Net Amount:</label>
                                 <p class="form-control-plaintext fs-5 fw-bold @((Model.CreditAmount - Model.DebitAmount) >= 0 ? "text-success" : "text-danger")">
-                                    @((Model.CreditAmount - Model.DebitAmount).ToString("C"))
+                                    @((Model.CreditAmount - Model.DebitAmount).ToString("C", new CultureInfo("ur-PK")))
                                 </p>
                             </div>
                         </div>

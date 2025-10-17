@@ -106,20 +106,16 @@ namespace IMS.Services
             {
                 await connection.OpenAsync();
 
-            //    var query = @"
-            //SELECT FORMAT(SaleDate, 'MMM-yyyy') AS Month,
-            //       SUM(TotalAmount) AS TotalSales
-            //FROM Sales
-            //WHERE SaleDate >= DATEADD(MONTH, -11, CAST(GETDATE() AS date))
-            //GROUP BY FORMAT(SaleDate, 'MMM-yyyy'), YEAR(SaleDate), MONTH(SaleDate)
-            //ORDER BY YEAR(SaleDate), MONTH(SaleDate);";
+                // Improved query that handles timezone and date filtering better
                 var query = @"
             ;WITH Last12Months AS
 (
     SELECT TOP (12)
-        FORMAT(DATEADD(MONTH, - (n-1), CAST(GETDATE() AS date)), 'MMM-yyyy') AS Month,
-        YEAR(DATEADD(MONTH, - (n-1), CAST(GETDATE() AS date))) AS Yr,
-        MONTH(DATEADD(MONTH, - (n-1), CAST(GETDATE() AS date))) AS Mn
+        FORMAT(DATEADD(MONTH, - (n-1), GETDATE()), 'MMM-yyyy') AS Month,
+        YEAR(DATEADD(MONTH, - (n-1), GETDATE())) AS Yr,
+        MONTH(DATEADD(MONTH, - (n-1), GETDATE())) AS Mn,
+        DATEADD(MONTH, - (n-1), DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS MonthStart,
+        EOMONTH(DATEADD(MONTH, - (n-1), GETDATE())) AS MonthEnd
     FROM (SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
           FROM sys.objects) AS Numbers
 )
@@ -127,8 +123,9 @@ SELECT m.Month,
        ISNULL(SUM(s.TotalAmount), 0) AS TotalSales
 FROM Last12Months m
 LEFT JOIN Sales s
-    ON YEAR(s.SaleDate) = m.Yr
-   AND MONTH(s.SaleDate) = m.Mn
+    ON s.SaleDate >= m.MonthStart 
+   AND s.SaleDate <= m.MonthEnd
+   AND s.IsDeleted = 0
 GROUP BY m.Month, m.Yr, m.Mn
 ORDER BY m.Yr, m.Mn;
 ";
@@ -147,6 +144,41 @@ ORDER BY m.Yr, m.Mn;
             }
 
             return viewModel;
+        }
+
+        public async Task<decimal> GetCurrentMonthRevenueAsync()
+        {
+            decimal currentMonthRevenue = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var query = @"
+                        SELECT ISNULL(SUM(TotalAmount), 0) AS CurrentMonthRevenue
+                        FROM Sales 
+                        WHERE YEAR(SaleDate) = YEAR(GETDATE()) 
+                          AND MONTH(SaleDate) = MONTH(GETDATE())
+                          AND IsDeleted = 0";
+                    
+                    using (var command = new SqlCommand(query, connection))
+                    {
+                        var result = await command.ExecuteScalarAsync();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            currentMonthRevenue = Convert.ToDecimal(result);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error if needed
+                currentMonthRevenue = 0;
+            }
+            
+            return currentMonthRevenue;
         }
 
         public async Task<List<StockStaus>> GetStockStatusAsync(long? productId)

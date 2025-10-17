@@ -14,16 +14,15 @@
             </div>
             <div class="mb-3">
                 <label asp-for="LabelDescription" class="form-label"></label>
-
-                <input asp-for="LabelDescription" class="form-control" placeholder="Must enter some desciption" />
+                <input asp-for="LabelDescription" class="form-control" placeholder="Must enter some description" />
                 <span asp-validation-for="LabelDescription" class="text-danger"></span>
             </div>
             <div class="mb-3 form-check form-switch">
                 <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
-                <label asp-for="IsEnabled" class="form-check-label" class="form-control"></label>
+                <label asp-for="IsEnabled" class="form-check-label"></label>
                 <span asp-validation-for="IsEnabled" class="text-danger"></span>
             </div>
-
+           
             <div class="mb-3">
                 <button type="submit" class="btn btn-success">Create</button>
                 <a asp-action="Index" class="btn btn-secondary">Cancel</a>

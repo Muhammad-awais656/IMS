@@ -59,7 +59,7 @@ namespace IMS.Controllers
             }
             if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpName"].ToString()))
             {
-                model.productFilters.ProductName = HttpContext.Request.Query["searchpName"].ToString();
+                model.productFilters.ProductId = Convert.ToInt64(HttpContext.Request.Query["searchpName"]);
             }
             if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpCode"].ToString()))
             {
@@ -564,6 +564,29 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting measuring unit types for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get products for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetProducts()
+        {
+            try
+            {
+                var products = await _productService.GetAllEnabledProductsAsync();
+                var result = products.Select(p => new
+                {
+                    value = p.ProductId.ToString(),
+                    text = p.ProductName,
+                    code = p.ProductCode
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting products for Kendo combobox");
                 return Json(new List<object>());
             }
         }

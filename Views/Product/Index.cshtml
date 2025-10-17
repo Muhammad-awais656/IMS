@@ -4,10 +4,25 @@
     string role = isAdmin ? "Admin" : "User";
 }
 
-@* <div class="container mt-4"> *@
+<div class="container-fluid">
     <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            <h2 class="mb-0" style="text-align:center">Product Management</h2>
+        <div class="card-header bg-gradient bg-success text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-box me-3 fs-4"></i>
+                    <h2 class="mb-0">Product Management</h2>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-light text-dark me-2">
+                        <i class="fa-solid fa-list me-1"></i>
+                        Total: @Model.TotalCount
+                    </span>
+                    <a asp-action="Create" class="btn btn-light btn-sm">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Add Product
+                    </a>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             <div class="justify-content-md-start align-items-md-start mb-3">
@@ -15,30 +30,30 @@
                     <a asp-action="Create" class="btn btn-success" style="margin:0">Create </a>
                 </div> *@
                 <div>
-                    <form style="border:ridge; background: aliceblue;"
-                          asp-action="Index"
-                              asp-controller="Product"
-                              asp-route-searchpName="@ViewData["searchpName"]"
-                              asp-route-searchpCode="@ViewData["searchpCode"]"
-                              asp-route-searchpFrom="@ViewData["searchpFrom"]"
-                              asp-route-catId="@ViewData["catId"]"
-                              asp-route-searchULabelId="@ViewData["searchULabelId"]"
-                              asp-route-searchUMUTId="@ViewData["searchUMUTId"]"
-                          method="get"
-                          class="d-flex align-items-center gap-2">
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="fa-solid fa-filter me-2"></i>
+                                Search & Filter Products
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form asp-action="Index"
+                                  asp-controller="Product"
+                                  asp-route-searchpName="@ViewData["searchpName"]"
+                                  asp-route-searchpCode="@ViewData["searchpCode"]"
+                                  asp-route-searchpFrom="@ViewData["searchpFrom"]"
+                                  asp-route-catId="@ViewData["catId"]"
+                                  asp-route-searchULabelId="@ViewData["searchULabelId"]"
+                                  asp-route-searchUMUTId="@ViewData["searchUMUTId"]"
+                                  method="get">
 
                         <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
 
                             <div class="col">
-                                <label for="searchpName" class="form-label">Product Name:</label>
-                                        <input type="text"
-                                               id="searchpName"
-                                               name="searchpName"
-                                               value="@Context.Request.Query["searchpName"]"
-                                       class="form-control"
-                                               placeholder="Enter Product Name"
-                                               onchange="SearchNameChange()" />
-                                </div>
+                                <label for="productDropdown" class="form-label">Product Name:</label>
+                                <input id="productDropdown" name="searchpName" style="width: 100%;" />
+                            </div>
                                 
                             <div class="col">
                                 <label for="searchpCode" class="form-label">Product Code:</label>
@@ -85,24 +100,29 @@
                             </div>
                             
 
-                            <div class="col">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                </button>
-                                <button type="submit" class="btn btn-info">
-                                    Refresh
-                                            </button>
-                            <a asp-action="Create" class="btn btn-success">Create </a>
+                            <div class="col-12">
+                                <div class="d-flex gap-2 mt-3">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-magnifying-glass me-1"></i>
+                                        Search
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                        <i class="fa-solid fa-eraser me-1"></i>
+                                        Clear
+                                    </button>
+                                    <a asp-action="Index" class="btn btn-outline-info">
+                                        <i class="fa-solid fa-refresh me-1"></i>
+                                        Refresh
+                                    </a>
+                                </div>
                             </div>
                       
 
 
                         </div>
-
-
-
-
-                        </form>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 
 
@@ -220,7 +240,7 @@
                 }
             </div>
         </div>
-   @*  </div> *@
+    </div>
 </div>
 
 @section Scripts {
@@ -254,6 +274,26 @@
 
             // Initialize Kendo UI ComboBoxes with search functionality
             try {
+                console.log("Initializing product dropdown...");
+                $("#productDropdown").kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/Product/GetProducts",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Product --",
+                    value: "@Context.Request.Query["searchpName"]",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1
+                });
+                console.log("Product dropdown initialized successfully");
+
                 console.log("Initializing category dropdown...");
                 $("#categoryDropdown").kendoComboBox({
                     dataSource: {
@@ -329,6 +369,28 @@
                 console.log("Kendo, jQuery, and kendoComboBox available, initializing comboboxes...");
                 
                 try {
+                    // Initialize product dropdown
+                    if ($("#productDropdown").length > 0 && !$("#productDropdown").data("kendoComboBox")) {
+                        $("#productDropdown").kendoComboBox({
+                            dataSource: {
+                                transport: {
+                                    read: {
+                                        url: "/Product/GetProducts",
+                                        dataType: "json"
+                                    }
+                                }
+                            },
+                            dataTextField: "text",
+                            dataValueField: "value",
+                            placeholder: "-- Select Product --",
+                            value: "@Context.Request.Query["searchpName"]",
+                            filter: "contains",
+                            suggest: true,
+                            minLength: 1
+                        });
+                        console.log("Product dropdown initialized via fallback");
+                    }
+
                     // Initialize category dropdown
                     if ($("#categoryDropdown").length > 0 && !$("#categoryDropdown").data("kendoComboBox")) {
                         $("#categoryDropdown").kendoComboBox({
@@ -489,12 +551,11 @@
 
         function SearchNameChange(){
             debugger;
-            const search = document.querySelector('input[name="searchpName"]').value;
+            // Get Kendo combobox values
+            const productValue = $("#productDropdown").data("kendoComboBox").value();
             const searchCode = document.querySelector('input[name="searchpCode"]').value;
             const searchFrom = document.querySelector('input[name="searchpFrom"]').value;
             const searchTo = document.querySelector('input[name="searchpTo"]').value;
-            
-            // Get Kendo combobox values
             const categoryValue = $("#categoryDropdown").data("kendoComboBox").value();
             const labelValue = $("#labelDropdown").data("kendoComboBox").value();
             const mutValue = $("#mutDropdown").data("kendoComboBox").value();
@@ -503,7 +564,7 @@
             
             let url = '@Url.Action("Index", "Product")' + '?pageNumber=1&pageSize=' + pageSize;
             
-            if (search) url += '&searchpName=' + encodeURIComponent(search);
+            if (productValue) url += '&searchpName=' + encodeURIComponent(productValue);
             if (searchCode) url += '&searchpCode=' + encodeURIComponent(searchCode);
             if (searchFrom) url += '&searchpFrom=' + encodeURIComponent(searchFrom);
             if (searchTo) url += '&searchpTo=' + encodeURIComponent(searchTo);
@@ -516,19 +577,18 @@
 
         function changePageSize(select) {
             debugger;
-            const search = document.querySelector('input[name="searchpName"]').value;
+            // Get Kendo combobox values
+            const productValue = $("#productDropdown").data("kendoComboBox").value();
             const searchCode = document.querySelector('input[name="searchpCode"]').value;
             const searchFrom = document.querySelector('input[name="searchpFrom"]').value;
             const searchTo = document.querySelector('input[name="searchpTo"]').value;
-            
-            // Get Kendo combobox values
             const categoryValue = $("#categoryDropdown").data("kendoComboBox").value();
             const labelValue = $("#labelDropdown").data("kendoComboBox").value();
             const mutValue = $("#mutDropdown").data("kendoComboBox").value();
             
             let url = '@Url.Action("Index", "Product")' + '?pageNumber=1&pageSize=' + select.value;
             
-            if (search) url += '&searchpName=' + encodeURIComponent(search);
+            if (productValue) url += '&searchpName=' + encodeURIComponent(productValue);
             if (searchCode) url += '&searchpCode=' + encodeURIComponent(searchCode);
             if (searchFrom) url += '&searchpFrom=' + encodeURIComponent(searchFrom);
             if (searchTo) url += '&searchpTo=' + encodeURIComponent(searchTo);
@@ -537,6 +597,20 @@
             if (mutValue) url += '&searchUMUTId=' + encodeURIComponent(mutValue);
             
             window.location.href = url;
+        }
+
+        function clearFilters() {
+            // Clear all form fields
+            $("#productDropdown").data("kendoComboBox").value("");
+            document.querySelector('input[name="searchpCode"]').value = "";
+            document.querySelector('input[name="searchpFrom"]').value = "";
+            document.querySelector('input[name="searchpTo"]').value = "";
+            $("#categoryDropdown").data("kendoComboBox").value("");
+            $("#labelDropdown").data("kendoComboBox").value("");
+            $("#mutDropdown").data("kendoComboBox").value("");
+            
+            // Redirect to clean URL
+            window.location.href = '@Url.Action("Index", "Product")';
         }
     </script>
 }

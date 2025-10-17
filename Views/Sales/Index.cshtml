@@ -1,5 +1,6 @@
 ﻿@model IMS.Models.SalesViewModel
 @using System.Linq
+@using System.Globalization
 
 @{
     ViewData["Title"] = "Sales Management";
@@ -116,7 +117,7 @@
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                     <div class="d-flex align-items-center justify-content-between">
-                        <h6 class="mb-0 text-white">
+                        <h6 class="mb-0">
                             <i class="fa-solid fa-filter me-2"></i>Advanced Filters
                         </h6>
                         <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
@@ -212,12 +213,12 @@
                                         <strong>@sale.CustomerName</strong>
                                     </td>
                                     <td class="text-end">
-                                        <span class="fw-bold text-success">@sale.TotalAmount.ToString("C")</span>
+                                    <span class="fw-bold text-success">@sale.TotalAmount.ToString("C", new CultureInfo("ur-PK"))</span>
                                     </td>
                                     <td class="text-end">
                                         @if (sale.DiscountAmount > 0)
                                         {
-                                            <span class="text-warning">@sale.DiscountAmount.ToString("C")</span>
+                                        <span class="text-warning">@sale.DiscountAmount.ToString("C", new CultureInfo("ur-PK"))</span>
                                         }
                                         else
                                         {
@@ -225,12 +226,12 @@
                                         }
                                     </td>
                                     <td class="text-end">
-                                        <span class="text-success">@sale.TotalReceivedAmount.ToString("C")</span>
+                                    <span class="text-success">@sale.TotalReceivedAmount.ToString("C", new CultureInfo("ur-PK"))</span>
                                     </td>
                                     <td class="text-end">
                                         @if (sale.TotalDueAmount > 0)
                                         {
-                                            <span class="text-danger fw-bold">@sale.TotalDueAmount.ToString("C")</span>
+                                        <span class="text-danger fw-bold">@sale.TotalDueAmount.ToString("C", new CultureInfo("ur-PK"))</span>
                                         }
                                         else
                                         {

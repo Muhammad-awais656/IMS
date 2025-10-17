@@ -60,3 +60,4 @@ namespace IMS.Models
         public string ProductSize { get; set; } = string.Empty;
     }
 }
+

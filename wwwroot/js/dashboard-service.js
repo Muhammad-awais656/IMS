@@ -15,6 +15,7 @@ class DashboardService {
      */
     init() {
         this.bindEvents();
+        this.initializeChartFromGlobal();
         // Try to initialize Kendo UI combobox, but don't fail if it doesn't work
         try {
             this.initializeKendoComboBox();
@@ -26,6 +27,9 @@ class DashboardService {
                 productDropdown.style.display = 'block';
             }
         }
+        
+        // Set up periodic refresh for dashboard data
+        this.setupPeriodicRefresh();
     }
 
     /**
@@ -71,20 +75,24 @@ class DashboardService {
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
+                value: "0", // Set default value
                 change: (e) => {
                     console.log('Product selection changed:', e.sender.value());
                     const selectedItem = e.sender.dataItem();
-                    if (selectedItem) {
+                    if (selectedItem && selectedItem.Value !== "0") {
                         this.handleProductSelection({
                             value: selectedItem.Value,
                             text: selectedItem.Text
                         });
+                    } else {
+                        // Reset to default values when no product is selected
+                        this.resetStockDisplay();
                     }
                 },
                 select: (e) => {
                     console.log('Product selected:', e.item);
                     const selectedItem = e.sender.dataItem();
-                    if (selectedItem) {
+                    if (selectedItem && selectedItem.Value !== "0") {
                         this.handleProductSelection({
                             value: selectedItem.Value,
                             text: selectedItem.Text
@@ -95,6 +103,9 @@ class DashboardService {
             
             this.searchableDropdown = $(productDropdown).data("kendoComboBox");
             console.log('Kendo UI combobox initialized successfully');
+            
+            // Set the initial value to show the default option
+            this.searchableDropdown.value("0");
             
         } catch (error) {
             console.error('Error initializing Kendo UI combobox:', error);
@@ -165,6 +176,7 @@ class DashboardService {
         
         if (!productId || productId === "0") {
             console.log('No product selected or invalid product ID');
+            this.resetStockDisplay();
             return;
         }
 
@@ -237,6 +249,66 @@ class DashboardService {
     }
 
     /**
+     * Reset stock display to default values
+     */
+    resetStockDisplay() {
+        console.log('Resetting stock display to default values');
+        
+        // Update chart with default values
+        if (this.stockChart) {
+            this.updateChart(0, 0, 0);
+        }
+
+        // Update labels with default values
+        this.updateLabels(0, 0, 0);
+    }
+
+    /**
+     * Set up periodic refresh for dashboard data
+     */
+    setupPeriodicRefresh() {
+        // Refresh dashboard data every 30 seconds
+        setInterval(() => {
+            this.refreshDashboardData();
+        }, 30000);
+    }
+
+    /**
+     * Refresh dashboard data from server
+     */
+    async refreshDashboardData() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/GetDashboardData`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateDashboardCharts(data);
+                console.log('Dashboard data refreshed successfully');
+            }
+        } catch (error) {
+            console.error('Error refreshing dashboard data:', error);
+        }
+    }
+
+    /**
+     * Update dashboard charts with new data
+     */
+    updateDashboardCharts(data) {
+        // Update monthly revenue
+        const revenueElement = document.querySelector('.stat-value');
+        if (revenueElement && data.currentMonthRevenue !== undefined) {
+            revenueElement.textContent = `Rs. ${data.currentMonthRevenue.toLocaleString()}`;
+        }
+
+        // Update sales chart if it exists
+        if (window.salesChart && data.monthlySales && data.monthlyLabels) {
+            window.salesChart.data.labels = data.monthlyLabels;
+            window.salesChart.data.datasets[0].data = data.monthlySales;
+            window.salesChart.update();
+        }
+    }
+
+    /**
      * Parse numeric value safely
      * @param {any} value - Value to parse
      * @returns {number} Parsed number or 0
@@ -292,9 +364,18 @@ class DashboardService {
     updateLabels(inStock, outOfStock, available) {
         debugger;
         const labelsHtml = `
-            <div><span class="badge bg-success me-1">&nbsp;</span>In stock: ${inStock}</div>
-            <div><span class="badge bg-warning me-1">&nbsp;</span>Available: ${available}</div>
-            <div><span class="badge bg-danger me-1">&nbsp;</span>Used: ${outOfStock}</div>
+            <div class="stock-label">
+                <span class="stock-badge" style="background: #28a745;"></span>
+                In Stock: <span id="inStockCount">${inStock}</span>
+            </div>
+            <div class="stock-label">
+                <span class="stock-badge" style="background: #ffc107;"></span>
+                Available: <span id="availableCount">${available}</span>
+            </div>
+            <div class="stock-label">
+                <span class="stock-badge" style="background: #dc3545;"></span>
+                Used: <span id="usedCount">${outOfStock}</span>
+            </div>
         `;
         
         $('#stockLabels').html(labelsHtml);
@@ -306,11 +387,11 @@ class DashboardService {
      */
     showLoadingState() {
         $('#stockLabels').html(`
-            <div class="text-center">
-                <div class="spinner-border spinner-border-sm" role="status">
+            <div class="stock-label" style="justify-content: center; width: 100%;">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <div>Loading stock data...</div>
+                <span>Loading stock data...</span>
             </div>
         `);
     }
@@ -321,9 +402,9 @@ class DashboardService {
      */
     showErrorState(message) {
         $('#stockLabels').html(`
-            <div class="text-center text-danger">
-                <i class="fas fa-exclamation-triangle"></i>
-                <div>${message}</div>
+            <div class="stock-label" style="justify-content: center; width: 100%; color: #dc3545;">
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                <span>${message}</span>
             </div>
         `);
     }
@@ -335,6 +416,16 @@ class DashboardService {
     setChart(chart) {
         this.stockChart = chart;
         console.log('Chart instance set in dashboard service:', chart);
+    }
+
+    /**
+     * Initialize chart from global variable if available
+     */
+    initializeChartFromGlobal() {
+        if (window.dashboardStockChart && !this.stockChart) {
+            this.stockChart = window.dashboardStockChart;
+            console.log('Chart instance loaded from global variable:', this.stockChart);
+        }
     }
 
     /**

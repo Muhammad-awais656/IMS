@@ -1,3 +1,4 @@
+@using System.Globalization
 @model IMS.Models.PersonalPaymentViewModel
 @{
     ViewData["Title"] = "Personal Payments";
@@ -131,9 +132,9 @@
                                                     <td>@payment.BankName</td>
                                                     <td>@payment.AccountNumber</td>
                                                     <td>@payment.AccountHolderName</td>
-                                                    <td class="text-end text-success">@(payment.CreditAmount > 0 ? payment.CreditAmount.ToString("C") : "-")</td>
-                                                    <td class="text-end text-danger">@(payment.DebitAmount > 0 ? payment.DebitAmount.ToString("C") : "-")</td>
-                                                    <td class="text-end fw-bold @(payment.NetAmount >= 0 ? "text-success" : "text-danger")">@payment.NetAmount.ToString("C")</td>
+                                                    <td class="text-end text-success">@(payment.CreditAmount > 0 ? payment.CreditAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</td>
+                                                    <td class="text-end text-danger">@(payment.DebitAmount > 0 ? payment.DebitAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</td>
+                                                    <td class="text-end fw-bold @(payment.NetAmount >= 0 ? "text-success" : "text-danger")">@payment.NetAmount.ToString("C", new CultureInfo("ur-PK"))</td>
                                                     <td>@payment.PaymentDescription</td>
                                                     <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
                                                     <td>
