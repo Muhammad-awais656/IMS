@@ -69,7 +69,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.AdminLabels.Any())
+                    @if (Model?.AdminLabels?.Any() == true)
                     {
                         @foreach (var item in Model.AdminLabels)
                         {

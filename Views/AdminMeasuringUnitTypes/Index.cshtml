@@ -69,7 +69,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.AdminMeasuringUnitTypes.Any())
+                    @if (Model?.AdminMeasuringUnitTypes?.Any() == true)
                     {
                         @foreach (var item in Model.AdminMeasuringUnitTypes)
                         {

@@ -74,7 +74,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.Items.Any() && Model!=null)
+                    @if (Model != null && Model.Items != null && Model.Items.Any())
                     {
                         @foreach (var item in Model.Items)
                         {

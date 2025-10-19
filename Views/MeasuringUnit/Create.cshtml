@@ -2,48 +2,115 @@
 @model AdminMeasuringUnit;
 
 <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <h2 class="mb-0">Create Admin Measuring Unit</h2>
-    </div>
-    <div class="card-body">
-        <form asp-action="Create">
-            <div class="mb-3">
-                <label asp-for="MeasuringUnitName" class="form-label"></label>
-                <input asp-for="MeasuringUnitName" class="form-control" />
-                <span asp-validation-for="MeasuringUnitName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="MeasuringUnitDescription" class="form-label"></label>
-                <input asp-for="MeasuringUnitDescription" class="form-control" placeholder="Must enter some desciption" />
-                <span asp-validation-for="MeasuringUnitDescription" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label for="MeasuringUnitTypeIdFk" class="form-label">Admin Measuring Unit Type</label>
-                <select asp-for="MeasuringUnitTypeIdFk"
-                        asp-items="ViewBag.MeasuringUnitTypes"
-                        class="form-control">
-                    <option value=""><-- Select Measuring Unit Type --></></option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label asp-for="MeasuringUnitAbbreviation" class="form-label"></label>
-                <input asp-for="MeasuringUnitAbbreviation" class="form-control" placeholder="Must enter some desciption" />
-                <span asp-validation-for="MeasuringUnitAbbreviation" class="text-danger"></span>
-            </div>
-            <div class="mb-3 form-check form-switch">
-                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
-                <label asp-for="IsEnabled" class="form-check-label" class="form-control"></label>
-                <span asp-validation-for="IsEnabled" class="text-danger"></span>
-            </div>
+                <div class="card-header bg-primary text-white py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fa fa-plus-circle me-2"></i>
+                        <h4 class="mb-0">Create Measuring Unit</h4>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Create" id="measuringUnitForm" novalidate>
+                        <div class="row">
+                            <!-- Measuring Unit Name -->
+                            <div class="col-12 mb-4">
+                                <div class="form-floating">
+                                    <input asp-for="MeasuringUnitName" class="form-control form-control-lg" 
+                                           placeholder="Enter measuring unit name" 
+                                           required />
+                                    <label asp-for="MeasuringUnitName" class="fw-semibold">
+                                        <i class="fa fa-ruler me-1 text-primary"></i>@Html.DisplayNameFor(m => m.MeasuringUnitName)
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                                <span asp-validation-for="MeasuringUnitName" class="text-danger small"></span>
+                            </div>
+                            
+                            <!-- Description -->
+                            <div class="col-12 mb-4">
+                                <label asp-for="MeasuringUnitDescription" class="form-label fw-semibold">
+                                    <i class="fa fa-align-left me-1 text-primary"></i>@Html.DisplayNameFor(m => m.MeasuringUnitDescription)
+                                </label>
+                                <textarea asp-for="MeasuringUnitDescription" class="form-control" 
+                                          rows="3" 
+                                          placeholder="Enter description (optional)"></textarea>
+                                <span asp-validation-for="MeasuringUnitDescription" class="text-danger small"></span>
+                            </div>
+                            
+                            <!-- Measuring Unit Type and Abbreviation Row -->
+                            <div class="col-md-6 mb-4">
+                                <label asp-for="MeasuringUnitTypeIdFk" class="form-label fw-semibold">
+                                    <i class="fa fa-list me-1 text-primary"></i>@Html.DisplayNameFor(m => m.MeasuringUnitTypeIdFk)
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="MeasuringUnitTypeIdFk"
+                                        asp-items="ViewBag.MeasuringUnitTypes"
+                                        class="form-control form-control-lg"
+                                        id="measuringUnitTypeComboBox"
+                                        required>
+                                    <option value="">-- Select Measuring Unit Type --</option>
+                                </select>
+                                <span asp-validation-for="MeasuringUnitTypeIdFk" class="text-danger small"></span>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    <input asp-for="MeasuringUnitAbbreviation" class="form-control form-control-lg" 
+                                           placeholder="Enter abbreviation (e.g., kg, m, L)" 
+                                           maxlength="10"
+                                           required />
+                                    <label asp-for="MeasuringUnitAbbreviation" class="fw-semibold">
+                                        <i class="fa fa-text-width me-1 text-primary"></i>@Html.DisplayNameFor(m => m.MeasuringUnitAbbreviation)
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                                <span asp-validation-for="MeasuringUnitAbbreviation" class="text-danger small"></span>
+                            </div>
+                            
+                            <!-- Enabled Toggle -->
+                            <div class="col-12 mb-4">
+                                <div class="card bg-light">
+                                    <div class="card-body py-3">
+                                        <div class="form-check form-switch d-flex align-items-center">
+                                            <input type="checkbox" asp-for="IsEnabled" class="form-check-input me-3" id="isEnabledSwitch" style="transform: scale(1.2);" />
+                                            <label asp-for="IsEnabled" class="form-check-label fw-semibold mb-0" for="isEnabledSwitch">
+                                                <i class="fa fa-toggle-on me-1 text-success"></i>@Html.DisplayNameFor(m => m.IsEnabled)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span asp-validation-for="IsEnabled" class="text-danger small"></span>
+                            </div>
+                        </div>
 
-            <div class="mb-3">
-                <button type="submit" class="btn btn-success">Create</button>
-                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                                <i class="fa fa-times me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fa fa-save me-1"></i>Create Measuring Unit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+           
 </div>
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/form-validation.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize Kendo UI ComboBox for Measuring Unit Type
+            $("#measuringUnitTypeComboBox").kendoComboBox({
+                placeholder: "-- Select Measuring Unit Type --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "Text",
+                dataValueField: "Value",
+                change: function(e) {
+                    console.log("Measuring Unit Type selected:", e.sender.value());
+                }
+            });
+        });
+    </script>
 }

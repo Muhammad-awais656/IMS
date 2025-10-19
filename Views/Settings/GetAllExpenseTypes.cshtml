@@ -74,7 +74,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.ExpenseTypes.Any())
+                    @if (Model?.ExpenseTypes?.Any() == true)
                     {
                         @foreach (var item in Model.ExpenseTypes)
                         {

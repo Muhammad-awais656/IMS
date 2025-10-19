@@ -104,13 +104,40 @@ class DashboardService {
             this.searchableDropdown = $(productDropdown).data("kendoComboBox");
             console.log('Kendo UI combobox initialized successfully');
             
-            // Set the initial value to show the default option
-            this.searchableDropdown.value("0");
+            // Set the initial value to show the first product (if available)
+            if (this.productData && this.productData.length > 1) {
+                const firstProduct = this.productData.find(item => item.Value !== "0");
+                if (firstProduct) {
+                    this.searchableDropdown.value(firstProduct.Value);
+                    // Load data for the first product
+                    this.handleProductSelection({
+                        value: firstProduct.Value,
+                        text: firstProduct.Text
+                    });
+                } else {
+                    this.searchableDropdown.value("0");
+                }
+            } else {
+                this.searchableDropdown.value("0");
+            }
             
         } catch (error) {
             console.error('Error initializing Kendo UI combobox:', error);
             // Show original dropdown if Kendo UI fails
             productDropdown.style.display = 'block';
+            
+            // Set the first product as selected in the original dropdown
+            if (this.productData && this.productData.length > 1) {
+                const firstProduct = this.productData.find(item => item.Value !== "0");
+                if (firstProduct) {
+                    productDropdown.value = firstProduct.Value;
+                    // Load data for the first product
+                    this.handleProductSelection({
+                        value: firstProduct.Value,
+                        text: firstProduct.Text
+                    });
+                }
+            }
         }
     }
 
@@ -267,10 +294,12 @@ class DashboardService {
      * Set up periodic refresh for dashboard data
      */
     setupPeriodicRefresh() {
-        // Refresh dashboard data every 30 seconds
-        setInterval(() => {
-            this.refreshDashboardData();
-        }, 30000);
+        // Disable periodic refresh for now as it's causing data mixing issues
+        // The dashboard data doesn't need to be refreshed every 30 seconds
+        // setInterval(() => {
+        //     this.refreshDashboardData();
+        // }, 30000);
+        console.log('Periodic refresh disabled to prevent data mixing issues');
     }
 
     /**
@@ -294,10 +323,28 @@ class DashboardService {
      * Update dashboard charts with new data
      */
     updateDashboardCharts(data) {
-        // Update monthly revenue
-        const revenueElement = document.querySelector('.stat-value');
-        if (revenueElement && data.currentMonthRevenue !== undefined) {
-            revenueElement.textContent = `Rs. ${data.currentMonthRevenue.toLocaleString()}`;
+        // Update monthly revenue - target the specific revenue card
+        const revenueCard = document.querySelector('.stat-card.info .stat-value');
+        if (revenueCard && data.currentMonthRevenue !== undefined) {
+            revenueCard.textContent = `Rs. ${data.currentMonthRevenue.toLocaleString()}`;
+        }
+
+        // Update total products - target the specific products card
+        const productsCard = document.querySelector('.stat-card.primary .stat-value');
+        if (productsCard && data.totalProducts !== undefined) {
+            productsCard.textContent = data.totalProducts;
+        }
+
+        // Update total categories - target the specific categories card
+        const categoriesCard = document.querySelector('.stat-card.success .stat-value');
+        if (categoriesCard && data.totalCategories !== undefined) {
+            categoriesCard.textContent = data.totalCategories;
+        }
+
+        // Update total vendors - target the specific vendors card
+        const vendorsCard = document.querySelector('.stat-card.warning .stat-value');
+        if (vendorsCard && data.totalVendors !== undefined) {
+            vendorsCard.textContent = data.totalVendors;
         }
 
         // Update sales chart if it exists

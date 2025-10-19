@@ -124,7 +124,7 @@ namespace IMS.Controllers
                 
                 return Json(model);
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 // Log the exception (you might want to use a proper logging framework)
                 return Json(new { 

@@ -31,7 +31,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pExpenseTypeName", ExpenseType.ExpenseTypeName);
-                        command.Parameters.AddWithValue("@pExpenseTypeDescription", ExpenseType.ExpenseTypeDescription);
+                        command.Parameters.AddWithValue("@pExpenseTypeDescription", ExpenseType.ExpenseTypeDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", ExpenseType.IsEnabled);
                         command.Parameters.AddWithValue("@pCreatedDate", ExpenseType?.CreatedDate == default(DateTime) ? DBNull.Value : ExpenseType?.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", ExpenseType?.CreatedBy!=null ? ExpenseType.CreatedBy : DBNull.Value);
@@ -189,7 +189,7 @@ namespace IMS.Services
                                         {
                                             ExpenseTypeId = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId")),
                                             ExpenseTypeName = reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
-                                            ExpenseTypeDescription = reader.GetString(reader.GetOrdinal("ExpenseTypeDescription")),
+                                            ExpenseTypeDescription = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeDescription")) ? null : reader.GetString(reader.GetOrdinal("ExpenseTypeDescription")),
                                             CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                             CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                             ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -251,7 +251,7 @@ namespace IMS.Services
                                     {
                                         ExpenseTypeId = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId")),
                                         ExpenseTypeName = reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
-                                        ExpenseTypeDescription = reader.GetString(reader.GetOrdinal("ExpenseTypeDescription")),
+                                        ExpenseTypeDescription = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeDescription")) ? null : reader.GetString(reader.GetOrdinal("ExpenseTypeDescription")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -291,7 +291,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pExpenseTypeName", ExpenseType.ExpenseTypeName);
-                        command.Parameters.AddWithValue("@pExpenseTypeDescription", ExpenseType.ExpenseTypeDescription);
+                        command.Parameters.AddWithValue("@pExpenseTypeDescription", ExpenseType.ExpenseTypeDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", ExpenseType.IsEnabled);
                         command.Parameters.AddWithValue("@pModifiedDate", ExpenseType?.ModifiedDate == default(DateTime) ? DBNull.Value : ExpenseType?.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", ExpenseType?.ModifiedBy != null ? ExpenseType.ModifiedBy : DBNull.Value);

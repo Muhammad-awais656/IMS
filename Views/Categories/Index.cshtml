@@ -75,7 +75,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.AdminCategories.Any())
+                    @if (Model?.AdminCategories?.Any() == true)
                     {
                         @foreach (var item in Model.AdminCategories)
                         {

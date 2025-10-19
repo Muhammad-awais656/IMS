@@ -80,7 +80,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pMeasuringUnitName", adminMeasuringUnit.MeasuringUnitName);
-                        command.Parameters.AddWithValue("@pMeasuringUnitDescription", adminMeasuringUnit.MeasuringUnitDescription);
+                        command.Parameters.AddWithValue("@pMeasuringUnitDescription", adminMeasuringUnit.MeasuringUnitDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeId_FK", adminMeasuringUnit.MeasuringUnitTypeIdFk);
                         command.Parameters.AddWithValue("@pIsSmallestUnit", adminMeasuringUnit?.IsSmallestUnit==null ? 0:adminMeasuringUnit.IsSmallestUnit);
                         command.Parameters.AddWithValue("@pMeasuringUnitAbbreviation", adminMeasuringUnit.MeasuringUnitAbbreviation);
@@ -167,7 +167,7 @@ namespace IMS.Services
                                     {
                                         MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
                                         MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
-                                        MeasuringUnitDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
+                                        MeasuringUnitDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
                                         MeasuringUnitAbbreviation = reader.GetString(reader.GetOrdinal("MeasuringUnitAbbreviation")),
                                         MeasuringUnitTypeIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
                                         
@@ -229,7 +229,7 @@ namespace IMS.Services
                                 {
                                     MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
                                     MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
-                                    MeasuringUnitDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
+                                    MeasuringUnitDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
                                     CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                     CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                     ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -335,7 +335,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pMeasuringUnitName", adminMeasuringUnit.MeasuringUnitName);
-                        command.Parameters.AddWithValue("@pMeasuringUnitDescription", adminMeasuringUnit.MeasuringUnitDescription);
+                        command.Parameters.AddWithValue("@pMeasuringUnitDescription", adminMeasuringUnit.MeasuringUnitDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeId_FK", adminMeasuringUnit.MeasuringUnitTypeIdFk);
                         command.Parameters.AddWithValue("@pIsSmallestUnit", adminMeasuringUnit?.IsSmallestUnit==null ? 0: adminMeasuringUnit.IsSmallestUnit);
                         command.Parameters.AddWithValue("@pMeasuringUnitAbbreviation", adminMeasuringUnit?.MeasuringUnitAbbreviation);
