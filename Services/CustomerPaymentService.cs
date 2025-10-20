@@ -59,6 +59,7 @@ namespace IMS.Services
                                     CreatedBy = reader.GetInt64("CreatedBy"),
                                     CreatedDate = reader.GetDateTime("CreatedDate"),
                                     Description = reader.IsDBNull("Description") ? null : reader.GetString("Description"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
                                     ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate")
                                 };

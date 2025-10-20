@@ -78,6 +78,7 @@ namespace IMS.Models
         public long CustomerIdFk { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string? SaleDescription { get; set; }
+        public string? PaymentMethod { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime? CreatedDate { get; set; }
         public long? CreatedBy { get; set; }

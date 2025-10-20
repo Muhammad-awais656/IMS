@@ -196,6 +196,7 @@
                             <th class="text-end">Received</th>
                             <th class="text-end">Total Dues</th>
                             <th>Description</th>
+                            <th>Payment Method</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -250,6 +251,24 @@
                                             <span class="text-muted">-</span>
                                         }
                             </td>
+                            <td>
+                                @if (sale.PaymentMethod == "Cash")
+                                {
+                                    <span class="badge bg-success">Cash</span>
+                                }
+                                else if (sale.PaymentMethod == "Online")
+                                {
+                                    <span class="badge bg-primary">Online</span>
+                                }
+                                else if (sale.PaymentMethod == "Pay Later")
+                                {
+                                    <span class="badge bg-warning text-dark">Pay Later</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@sale.PaymentMethod</span>
+                                }
+                                </td>
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
                                             <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-info" title="View Details">

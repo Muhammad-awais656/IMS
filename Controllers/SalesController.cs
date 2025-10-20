@@ -824,7 +824,7 @@ namespace IMS.Controllers
             try
             {
                 var customers = await _customerService.GetAllEnabledCustomers();
-                var result = customers.Select(c => new
+                var result = customers?.Select(c => new
                 {
                     value = c.CustomerId.ToString(),
                     text = c.CustomerName

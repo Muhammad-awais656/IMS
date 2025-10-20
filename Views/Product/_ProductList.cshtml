@@ -22,7 +22,7 @@
                     <tr>
                         <td>@product.ProductName</td>
                         <td>@product.ProductCode</td>
-                        <td>@product.Price.ToString("C", new CultureInfo("ur-PK"))</td>
+                        <td>@product.Price?.ToString("C", new CultureInfo("ur-PK"))</td>
                         <td>@product.CategoryName</td>
                         <td>@product.LabelName</td>
                         <td>@product.MeasuringUnitTypeName</td>

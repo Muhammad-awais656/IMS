@@ -1,74 +1,131 @@
 ﻿@using IMS.DAL.PrimaryDBContext
 @model Customer;
 
-
-
-@* <div class="container mt-4"> *@
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <form asp-action="Create">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Create Customer</h2>
-                </div>
-                <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
-
-                        <div class="col">
-                            <label asp-for="CustomerName" class="form-label"> Customer Name:</label>
-                            <input asp-for="CustomerName" class="form-control" />
-                            <span asp-validation-for="CustomerName" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="CustomerContactNumber" class="form-label"> Contact No:</label>
-                            <input asp-for="CustomerContactNumber" class="form-control" />
-                            <span asp-validation-for="CustomerContactNumber" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="CustomerEmail" class="form-label"> Email:</label>
-                            <input asp-for="CustomerEmail" class="form-control" />
-                            <span asp-validation-for="CustomerEmail" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="CustomerEmailCc" class="form-label"> Email Cc:</label>
-                            <input asp-for="CustomerEmailCc" class="form-control" />
-                            <span asp-validation-for="CustomerEmailCc" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="CustomerAddress" class="form-label"> Address :</label>
-                            <input asp-for="CustomerAddress" class="form-control" />
-                            <span asp-validation-for="CustomerAddress" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="InvoiceCreditPeriod" class="form-label"> Invoice Credit Period :</label>
-                            <input asp-for="InvoiceCreditPeriod" class="form-control" />
-                            <span asp-validation-for="InvoiceCreditPeriod" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="StartWorkingTime" class="form-label"> Start Working Time :</label>
-                            @Html.TextBox("StartWorkingTime", null, new { @class = "form-control", type = "time" })
-                            @Html.ValidationMessageFor(m => m.StartWorkingTime, "", new { @class = "text-danger" })
-                        </div>
-                        <div class="col">
-                            <label asp-for="EndWorkingTime" class="form-label"> End Working Time :</label>
-                            @Html.TextBox("EndWorkingTime", null, new { @class = "form-control", type = "time" })
-                            @Html.ValidationMessageFor(m => m.EndWorkingTime, "", new { @class = "text-danger" })
-                        </div>
-                        <div class="mb-3 form-check form-switch">
-                            <label asp-for="IsEnabled" class="form-check-label" class="form-control">Is Enbled :</label>
-                            <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
-                            <span asp-validation-for="IsEnabled" class="text-danger"></span>
-                        </div>
-
-                    </div>
-                </div>
-                <div class="mb-3" style="padding:inherit">
-                    <button type="submit" class="btn btn-success">Create</button>
-                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-plus-circle me-2"></i>
+            <h4 class="mb-0">Create Customer</h4>
         </div>
     </div>
-@* </div> *@
+    <div class="card-body p-4">
+        <form asp-action="Create" novalidate>
+            <div class="row">
+                <!-- Customer Name -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="CustomerName" class="form-label fw-semibold">
+                        <i class="fa fa-user me-1 text-primary"></i>Customer Name
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="CustomerName" class="form-control form-control-lg" 
+                           placeholder="Enter customer name" 
+                           required />
+                    <span asp-validation-for="CustomerName" class="text-danger small"></span>
+                </div>
+
+                <!-- Contact Number -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="CustomerContactNumber" class="form-label fw-semibold">
+                        <i class="fa fa-phone me-1 text-primary"></i>Contact Number
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="CustomerContactNumber" class="form-control form-control-lg" 
+                           placeholder="Enter contact number" 
+                           required />
+                    <span asp-validation-for="CustomerContactNumber" class="text-danger small"></span>
+                </div>
+
+                <!-- Email -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="CustomerEmail" class="form-label fw-semibold">
+                        <i class="fa fa-envelope me-1 text-primary"></i>Email Address
+                    </label>
+                    <input asp-for="CustomerEmail" class="form-control form-control-lg" 
+                           type="email" 
+                           placeholder="Enter email address" />
+                    <span asp-validation-for="CustomerEmail" class="text-danger small"></span>
+                </div>
+
+                <!-- Email CC -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="CustomerEmailCc" class="form-label fw-semibold">
+                        <i class="fa fa-envelope-open me-1 text-primary"></i>Email CC
+                    </label>
+                    <input asp-for="CustomerEmailCc" class="form-control form-control-lg" 
+                           type="email" 
+                           placeholder="Enter CC email address" />
+                    <span asp-validation-for="CustomerEmailCc" class="text-danger small"></span>
+                </div>
+
+                <!-- Address -->
+                <div class="col-12 mb-4">
+                    <label asp-for="CustomerAddress" class="form-label fw-semibold">
+                        <i class="fa fa-map-marker-alt me-1 text-primary"></i>Address
+                    </label>
+                    <textarea asp-for="CustomerAddress" class="form-control" 
+                              rows="3" 
+                              placeholder="Enter customer address (optional)"></textarea>
+                    <span asp-validation-for="CustomerAddress" class="text-danger small"></span>
+                </div>
+
+                <!-- Invoice Credit Period -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="InvoiceCreditPeriod" class="form-label fw-semibold">
+                        <i class="fa fa-calendar-alt me-1 text-primary"></i>Invoice Credit Period (Days)
+                    </label>
+                    <input asp-for="InvoiceCreditPeriod" class="form-control form-control-lg" 
+                           type="number" 
+                           placeholder="Enter credit period in days" />
+                    <span asp-validation-for="InvoiceCreditPeriod" class="text-danger small"></span>
+                </div>
+
+                <!-- Start Working Time -->
+                <div class="col-md-3 mb-4">
+                    <label asp-for="StartWorkingTime" class="form-label fw-semibold">
+                        <i class="fa fa-clock me-1 text-primary"></i>Start Working Time
+                    </label>
+                    @Html.TextBox("StartWorkingTime", null, new { @class = "form-control form-control-lg", type = "time" })
+                    @Html.ValidationMessageFor(m => m.StartWorkingTime, "", new { @class = "text-danger small" })
+                </div>
+
+                <!-- End Working Time -->
+                <div class="col-md-3 mb-4">
+                    <label asp-for="EndWorkingTime" class="form-label fw-semibold">
+                        <i class="fa fa-clock me-1 text-primary"></i>End Working Time
+                    </label>
+                    @Html.TextBox("EndWorkingTime", null, new { @class = "form-control form-control-lg", type = "time" })
+                    @Html.ValidationMessageFor(m => m.EndWorkingTime, "", new { @class = "text-danger small" })
+                </div>
+
+                <!-- Enabled Toggle -->
+                <div class="col-12 mb-4">
+                    <div class="card bg-light">
+                        <div class="card-body py-3">
+                            <div class="form-check form-switch d-flex align-items-center">
+                                <input type="checkbox" asp-for="IsEnabled" class="form-check-input me-3" id="isEnabledSwitch" style="transform: scale(1.2);" />
+                                <label asp-for="IsEnabled" class="form-check-label fw-semibold mb-0" for="isEnabledSwitch">
+                                    <i class="fa fa-toggle-on me-1 text-success"></i>Enabled
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <span asp-validation-for="IsEnabled" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Create Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/form-validation.js"></script>
 }

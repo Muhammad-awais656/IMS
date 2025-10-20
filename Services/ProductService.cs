@@ -31,15 +31,16 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductName", product.ProductName);
-                        command.Parameters.AddWithValue("@pProductDescription", product.ProductDescription);
+                        command.Parameters.AddWithValue("@pProductDescription", product.ProductDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSizeId_FK", product.SizeIdFk);
                         command.Parameters.AddWithValue("@pLabelId_FK", product.LabelIdFk);
                         command.Parameters.AddWithValue("@pUnitPrice", product.UnitPrice);
-                        command.Parameters.AddWithValue("@pProductCode", product.ProductCode);
+                        command.Parameters.AddWithValue("@pProductCode", product.ProductCode ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", product.IsEnabled);
                         command.Parameters.AddWithValue("@pCategoryId_FK", product.CategoryIdFk);
-                        command.Parameters.AddWithValue("@pMeasuringUnitTypeId", product.MeasuringUnitTypeIdFk);
-                        command.Parameters.AddWithValue("@SupplierId_FK", product.SupplierIdFk);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeId", product.MeasuringUnitTypeIdFk ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@SupplierId_FK", product.SupplierIdFk ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pLocation", product.Location ?? (object)DBNull.Value);
 
                         
 
@@ -176,10 +177,11 @@ namespace IMS.Services
                                     ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     ProductDescription = reader.IsDBNull(reader.GetOrdinal("ProductDescription")) ? null : reader.GetString(reader.GetOrdinal("ProductDescription")),
-                                    Price = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                                    IsEnabled = Convert.ToBoolean(reader.GetByte(reader.GetOrdinal("IsEnabled"))), // Use GetBoolean for BIT
+                                    Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
+                                    Price = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                     CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
                                     LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
+                                    IsEnabledProduct = reader.GetByte(reader.GetOrdinal("IsEnabled")),
                                     MeasuringUnitTypeName = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeName")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName"))
                                 });
                             }
@@ -287,24 +289,25 @@ namespace IMS.Services
                                         ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
                                         ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                                         ProductDescription = reader.IsDBNull(reader.GetOrdinal("ProductDescription")) ? null : reader.GetString(reader.GetOrdinal("ProductDescription")),
-                                        SizeIdFk = reader.GetInt64(reader.GetOrdinal("SizeId_FK")),
-                                        LabelIdFk = reader.GetInt64(reader.GetOrdinal("LabelId_FK")),
-                                        UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                        Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
+                                        SizeIdFk = reader.IsDBNull(reader.GetOrdinal("SizeId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("SizeId_FK")),
+                                        LabelIdFk = reader.IsDBNull(reader.GetOrdinal("LabelId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("LabelId_FK")),
+                                        UnitPrice = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                         ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
                                         IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled")),
-                                        CategoryIdFk = reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
+                                        CategoryIdFk = reader.IsDBNull(reader.GetOrdinal("CategoryId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
                                         MeasuringUnitTypeIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
                                         SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK"))
                                     };
-                                    if (reader.GetInt64(reader.GetOrdinal("ProductId_FK")).ToString()!=null)
+                                    if (!reader.IsDBNull(reader.GetOrdinal("ProductId_FK")))
                                     {
                                         productRanges.Add(new ProductRange
                                         {
                                             ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
-                                            MeasuringUnitIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId_Fk")),
-                                            RangeFrom = reader.GetDecimal(reader.GetOrdinal("RangeFrom")),
-                                            RangeTo = reader.GetDecimal(reader.GetOrdinal("RangeTo")),
-                                            UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice"))
+                                            MeasuringUnitIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitId_Fk")) ? 0 : reader.GetInt64(reader.GetOrdinal("MeasuringUnitId_Fk")),
+                                            RangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeFrom")),
+                                            RangeTo = reader.IsDBNull(reader.GetOrdinal("RangeTo")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeTo")),
+                                            UnitPrice = reader.IsDBNull(reader.GetOrdinal("RangeUnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeUnitPrice"))
                                            
                                         });
 
@@ -329,7 +332,7 @@ namespace IMS.Services
             }
             return new ProductViewModel {
                 ProductList = productList,
-                ProductRange = productRanges.LastOrDefault().RangeTo!=0 ? productRanges.LastOrDefault() : updatedRoductRange,
+                productRanges = productRanges,
                 //SizeNameList = sizeNameList
 
             };
@@ -348,20 +351,21 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductName", product.ProductName);
-                        command.Parameters.AddWithValue("@pProductDescription", product.ProductDescription);
+                        command.Parameters.AddWithValue("@pProductDescription", product.ProductDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSizeId_FK", product.SizeIdFk);
                         command.Parameters.AddWithValue("@pLabelId_FK", product.LabelIdFk);
-                        command.Parameters.AddWithValue("@pModifiedDate", product?.ModifiedDate == default(DateTime) ? DBNull.Value : product?.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedDate", product.ModifiedDate == default(DateTime) ? DBNull.Value : product.ModifiedDate);
                         
-                        command.Parameters.AddWithValue("@pModifiedBy", product?.ModifiedBy);
+                        command.Parameters.AddWithValue("@pModifiedBy", product.ModifiedBy);
                         
-                        command.Parameters.AddWithValue("@pProductId", product?.ProductId);
-                        command.Parameters.AddWithValue("@pUnitPrice", product?.UnitPrice);
-                        command.Parameters.AddWithValue("@pProductCode", product?.ProductCode);
-                        command.Parameters.AddWithValue("@pIsEnabled", product?.IsEnabled);
-                        command.Parameters.AddWithValue("@pCategoryId_FK", product?.CategoryIdFk);
-                        command.Parameters.AddWithValue("@MeasuringUnitTypeId_FK", product?.MeasuringUnitTypeIdFk);
-                        command.Parameters.AddWithValue("@SupplierId_FK", product?.SupplierIdFk);
+                        command.Parameters.AddWithValue("@pProductId", product.ProductId);
+                        command.Parameters.AddWithValue("@pUnitPrice", product.UnitPrice);
+                        command.Parameters.AddWithValue("@pProductCode", product.ProductCode ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pIsEnabled", product.IsEnabled);
+                        command.Parameters.AddWithValue("@pCategoryId_FK", product.CategoryIdFk);
+                        command.Parameters.AddWithValue("@MeasuringUnitTypeId_FK", product.MeasuringUnitTypeIdFk ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@SupplierId_FK", product.SupplierIdFk ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pLocation", product.Location ?? (object)DBNull.Value);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {
@@ -447,13 +451,13 @@ namespace IMS.Services
                                     ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     ProductDescription = reader.IsDBNull(reader.GetOrdinal("ProductDescription")) ? null : reader.GetString(reader.GetOrdinal("ProductDescription")),
-                                    CategoryIdFk = reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
-                                    LabelIdFk = reader.GetInt64(reader.GetOrdinal("LabelId_FK")),
+                                    CategoryIdFk = reader.IsDBNull(reader.GetOrdinal("CategoryId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
+                                    LabelIdFk = reader.IsDBNull(reader.GetOrdinal("LabelId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("LabelId_FK")),
                                     MeasuringUnitTypeIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
                                     SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK")),
-                                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    UnitPrice = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                     IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled")),
-                                    SizeIdFk = reader.GetInt64(reader.GetOrdinal("SizeId_FK")),
+                                    SizeIdFk = reader.IsDBNull(reader.GetOrdinal("SizeId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("SizeId_FK")),
                                     CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                     CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                     ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),

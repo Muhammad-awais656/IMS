@@ -298,12 +298,62 @@ namespace IMS.Services
                             while (await reader.ReadAsync())
                             {
                                 // Main Measuring Unit
-                                adminMeasuringUnits.Add(new AdminMeasuringUnit
-                                {
-                                    MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
-                                    MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
-                                    
-                                });
+                        adminMeasuringUnits.Add(new AdminMeasuringUnit
+                        {
+                            MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
+                            MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                            IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                            
+                        });
+
+                               
+                            }
+                        }
+                    }
+
+                   
+                }
+            }
+            catch 
+            {
+                
+            }
+
+            return adminMeasuringUnits;
+        }
+
+        public async Task<List<AdminMeasuringUnit>> GetAllEnabledMeasuringUnitsByMUTIdAsync(long? id)
+        {
+            var adminMeasuringUnits = new List<AdminMeasuringUnit>();
+   
+           
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                   
+
+                    using (var cmd = new SqlCommand("GetAllEnabledMeasuringUnitsByMUTId", connection))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                 
+                        cmd.Parameters.AddWithValue("@pMeasuringTypeId", id ?? (object)DBNull.Value);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                // Main Measuring Unit
+                        adminMeasuringUnits.Add(new AdminMeasuringUnit
+                        {
+                            MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
+                            MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                            IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                            
+                        });
 
                                
                             }

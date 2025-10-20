@@ -150,7 +150,8 @@
                         <th>@Html.DisplayNameFor(model => model.Items[0].CategoryName)</th>
                         <th>@Html.DisplayNameFor(model => model.Items[0].LabelName)</th>
                         <th>@Html.DisplayNameFor(model => model.Items[0].MeasuringUnitTypeName)</th>
-                        <th>@Html.DisplayNameFor(model => model.Items[0].IsEnabled)</th>
+                        <th>@Html.DisplayNameFor(model => model.Items[0].Location)</th>
+                        <th>@Html.DisplayNameFor(model => model.Items[0].IsEnabledProduct)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -168,11 +169,12 @@
                                     <td>@Html.DisplayFor(modelItem => item.CategoryName)</td>
                                     <td>@Html.DisplayFor(modelItem => item.LabelName)</td>
                                     <td>@Html.DisplayFor(modelItem => item.MeasuringUnitTypeName)</td>
+                                    <td>@Html.DisplayFor(modelItem => item.Location)</td>
                                     <td>
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input @(item.IsEnabled ? "bg-success" : "bg-danger")"
+                                <input class="form-check-input @(Convert.ToBoolean( item.IsEnabledProduct) ? "bg-success" : "bg-danger")"
                                                    type="checkbox"
-                                                   @(item.IsEnabled ? "checked" : "")
+                                       @(Convert.ToBoolean(item.IsEnabledProduct) ? "checked" : "")
                                                    disabled>
                                         </div>
                                     </td>

@@ -36,6 +36,7 @@ namespace IMS.Models
         public long CreatedBy { get; set; }
         public DateTime CreatedDate { get; set; }
         public string? Description { get; set; }
+        public string? PaymentMethod { get; set; }
         public long? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
     }

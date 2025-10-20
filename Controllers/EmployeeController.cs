@@ -88,8 +88,31 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
                     employee.CreatedByUserIdFk = userId;
                     employee.CreatedDate = DateTime.Now;
+                    employee.ModifiedByUserIdFk = userId;
+                    employee.ModifiedDate = DateTime.Now;
+                    
+                    // Ensure optional fields are properly handled (Address is now required)
+                    if (string.IsNullOrWhiteSpace(employee.LastName))
+                        employee.LastName = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.Cnic))
+                        employee.Cnic = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.EmailAddress))
+                        employee.EmailAddress = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.MaritalStatus))
+                        employee.MaritalStatus = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.HusbandFatherName))
+                        employee.HusbandFatherName = null;
+                    
+                    if (employee.Salary == 0)
+                        employee.Salary = null;
 
                     var result = await _employeeService.CreateEmployeeAsync(employee);
                     if (result)
@@ -100,16 +123,24 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(nameof(Index));
+                        return View(employee);
+                    }
+                }
+                else
+                {
+                    // Log validation errors for debugging
+                    foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        Console.WriteLine($"Validation Error: {error.ErrorMessage}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = ex.Message;
-                return View(nameof(Index));
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                return View(employee);
             }
-            return View(nameof(Index));
+            return View(employee);
         }
 
         // GET: EmployeeController/Edit/5
@@ -157,10 +188,6 @@ emp.MaritalStatus
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Edit(long id, Employee employee)
         {
-            //var empViewModel = new EmployeeViewModel();
-            //var employee = employeeViewModel.EmployeesList.FirstOrDefault();
-            //employee.Gender = employeeViewModel.GenderType;
-            //employee.MaritalStatus = employeeViewModel.MaritalStatus;
             if (id != employee.EmployeeId)
             {
                 return BadRequest();
@@ -170,13 +197,33 @@ emp.MaritalStatus
             {
                 try
                 {
-                    employee.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
-                    employee.ModifiedByUserIdFk = userId;
-                    var response = await _employeeService.UpdateEmployeeAsync(employee);
-                
                     
+                    // Handle null values for optional fields
+                    employee.ModifiedDate = DateTime.Now;
+                    employee.ModifiedByUserIdFk = userId;
+                    
+                    // Ensure optional fields are properly handled (Address is now required)
+                    if (string.IsNullOrWhiteSpace(employee.LastName))
+                        employee.LastName = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.Cnic))
+                        employee.Cnic = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.EmailAddress))
+                        employee.EmailAddress = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.MaritalStatus))
+                        employee.MaritalStatus = null;
+                    
+                    if (string.IsNullOrWhiteSpace(employee.HusbandFatherName))
+                        employee.HusbandFatherName = null;
+                    
+                    if (employee.Salary == 0)
+                        employee.Salary = null;
+                    
+                    var response = await _employeeService.UpdateEmployeeAsync(employee);
                     
                     if (response != 0)
                     {
@@ -188,14 +235,20 @@ emp.MaritalStatus
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
                         return View(employee);
                     }
-
                 }
                 catch (Exception ex)
                 {
-                    TempData["ErrorMessage"] = ex.Message;
-
+                    TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                    return View(employee);
                 }
-
+            }
+            else
+            {
+                // Log validation errors for debugging
+                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    Console.WriteLine($"Validation Error: {error.ErrorMessage}");
+                }
             }
             return View(employee);
         }

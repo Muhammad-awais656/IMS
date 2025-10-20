@@ -323,7 +323,9 @@
         });
 
         // Initialize form for edit mode
+
         function initializeEditMode() {
+            debugger;
             console.log('=== INITIALIZING EDIT MODE ===');
             
             // Get model values safely
@@ -954,7 +956,7 @@
                             if (amount > 0) {
                                 previousDueInput.style.backgroundColor = '#fff3cd';
                                 previousDueInput.style.color = '#856404';
-                                showSuccessMessage(`Previous due amount loaded: $${amount.toFixed(2)}`);
+                                showSuccessMessage(`Previous due amount loaded: Rs${amount.toFixed(2)}`);
                             } else {
                                 previousDueInput.style.backgroundColor = '#d1edff';
                                 previousDueInput.style.color = '#0c5460';
@@ -1273,11 +1275,11 @@
             newRow.innerHTML = `
                 <td>${detail.productSize || ''}</td>
                 <td>${productName}</td>
-                <td>$${itemLevelDiscount.toFixed(2)}</td>
-                <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
+                <td>Rs${itemLevelDiscount.toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.salePrice).toFixed(2)}</td>
                 <td>${detail.quantity}</td>
-                <td>$${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
-                <td>$${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.payableAmount).toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1305,10 +1307,24 @@
             let totalAmount = 0;
             let totalDiscount = 0;
 
+            console.log('=== UPDATE TOTALS CALLED ===');
+            console.log('Found rows:', rows.length);
+
             // Calculate total from all sale items
-            rows.forEach(row => {
-                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
-                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
+            rows.forEach((row, index) => {
+                const payableText = row.querySelector('td:nth-child(7)').textContent;
+                const discountText = row.querySelector('td:nth-child(6)').textContent;
+                
+                const payable = parseFloat(payableText.replace('Rs', '')) || 0;
+                const discount = parseFloat(discountText.replace('Rs', '')) || 0;
+                
+                console.log(`Row ${index}:`, {
+                    payableText: payableText,
+                    discountText: discountText,
+                    payable: payable,
+                    discount: discount
+                });
+                
                 totalAmount += payable;
                 totalDiscount += discount;
             });
@@ -1320,7 +1336,13 @@
             });
 
             // Update Total Amount
-            document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
+            const totalAmountElement = document.getElementById('TotalAmount');
+            if (totalAmountElement) {
+                totalAmountElement.value = totalAmount.toFixed(2);
+                console.log('Updated TotalAmount field to:', totalAmount.toFixed(2));
+            } else {
+                console.error('TotalAmount element not found!');
+            }
 
             // Update Total Discount
             document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
@@ -1366,7 +1388,6 @@
         }
 
         function updateAmountDisplay() {
-            debugger;
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
@@ -1711,6 +1732,7 @@
 
                     if (response.success) {
                         showSuccessMessage('Sale saved successfully!');
+                        alert('Sale saved successfully!');
                         // Reset form after successful save
                         resetAllFormFields();
                     } else {

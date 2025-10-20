@@ -223,6 +223,7 @@ namespace IMS.Services
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
                                     ProductName = reader.GetString("ProductName"),
                                     ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
+                                    StockLocaion = reader.IsDBNull("Location") ? null : reader.GetString("Location"),
                                     UnitPrice = reader.GetDecimal("UnitPrice")
                                 };
                                 stockList.Add(stock);

@@ -216,6 +216,7 @@
                             <th>Amount</th>
                             <th>Payment date</th>
                             <th>Description</th>
+                            <th>Payment Method</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -235,6 +236,25 @@
                                                                         ? payment.Description.Substring(0, 30) + "..."
                                                                         : payment.Description)
                                     </td>
+                        <td>
+                            @if (payment.PaymentMethod == "Cash")
+                                    {
+                                        <span class="badge bg-success">Cash</span>
+                                    }
+                                    else if (payment.PaymentMethod == "Online")
+                                    {
+                                        <span class="badge bg-primary">Online</span>
+                                    }
+                                    else if (payment.PaymentMethod == "Pay Later")
+                                    {
+                                        <span class="badge bg-warning text-dark">Pay Later</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@payment.PaymentMethod</span>
+                                    }
+                                </td>
+
                                     <td class="table-actions text-nowrap">
                                         <div class="btn-group" role="group">
                                             <a asp-action="Details" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-info" title="View Details">

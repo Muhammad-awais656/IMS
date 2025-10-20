@@ -62,6 +62,9 @@ namespace IMS.Common_Interfaces
 
         Task<List<AdminMeasuringUnitType>> AdminMeasuringUnitTypeCacheAsync();
         Task<List<AdminMeasuringUnit>> GetAllMeasuringUnitsByMUTIdAsync(long? id);
+        Task<List<AdminMeasuringUnit>> GetAllEnabledMeasuringUnitsByMUTIdAsync(long? id);
+
+
 
     }
 

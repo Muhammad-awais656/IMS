@@ -69,6 +69,7 @@ namespace IMS.Services
                                     CustomerIdFk = reader.GetInt64("CustomerId_FK"),
                                     CustomerName = reader.GetString("CustomerName"),
                                     SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     IsDeleted = reader.GetBoolean("IsDeleted"),
                                     CreatedDate = reader.IsDBNull("CreatedDate") ? null : reader.GetDateTime("CreatedDate"),
                                     CreatedBy = reader.IsDBNull("CreatedBy") ? null : reader.GetInt64("CreatedBy"),

@@ -71,7 +71,8 @@
                         <th>Used Quantity</th>
                         <th>Available Quantity</th>
                         <th>Unit Price</th>
-                        <th>Available Qty Amt</th>
+                        <th>Stock Locaion</th>
+                       @*  <th>Available Qty Amt</th> *@
 
                         <th>Actions</th>
                     </tr>
@@ -89,7 +90,8 @@
                                 <td>@Html.DisplayFor(modelItem => item.UsedQuantity)</td>
                                 <td>@Html.DisplayFor(modelItem => item.AvailableQuantity)</td>
                                 <td>@Html.DisplayFor(modelItem => item.UnitPrice)</td>
-                                    <td>@(item.AvailableQuantity* item.UnitPrice) </td>
+                                <td>@Html.DisplayFor(modelItem => item.StockLocaion)</td>
+                                  @*   <td>@(item.AvailableQuantity* item.UnitPrice) </td> *@
                                 <td class="table-actions">
                                     <div class="btn-group" role="group">
                                         <a asp-action="Details" asp-route-id="@item.StockMasterId" class="btn btn-sm btn-outline-info" title="View Details">

@@ -37,10 +37,10 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@Address", employee.Address);
                         command.Parameters.AddWithValue("@Gender", employee.Gender);
                         command.Parameters.AddWithValue("@Age", employee.Age);
-                        command.Parameters.AddWithValue("@Salary", employee.Salary);
-                        command.Parameters.AddWithValue("@HusbandFatherName", employee.HusbandFatherName);
-                        command.Parameters.AddWithValue("@EmailAddress", employee.EmailAddress);
-                        command.Parameters.AddWithValue("@MaritalStatus", employee.MaritalStatus);
+                        command.Parameters.AddWithValue("@Salary", employee.Salary ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@HusbandFatherName", employee.HusbandFatherName ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@EmailAddress", employee.EmailAddress ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@MaritalStatus", employee.MaritalStatus ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@IsDeleted", employee.IsDeleted);
 
                         command.Parameters.AddWithValue("@JoiningDate", employee.JoiningDate == default(DateTime) ? DBNull.Value : employee.JoiningDate);
@@ -145,7 +145,7 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                // Main Measuring Unit
+                                // Main Employee
                                 employees.Add(new Employee
                                 {
                                     EmployeeId = reader.GetInt64(reader.GetOrdinal("EmployeeId")),
@@ -156,15 +156,15 @@ namespace IMS.Services
                                     Address = reader.GetString(reader.GetOrdinal("Address")),
                                     Gender = reader.GetString(reader.GetOrdinal("Gender")),
                                     Age = reader.GetInt32(reader.GetOrdinal("Age")),
-                                    EmailAddress = reader.GetString(reader.GetOrdinal("EmailAddress")),
-                                    MaritalStatus = reader.GetString(reader.GetOrdinal("MaritalStatus")),
+                                    EmailAddress = reader.IsDBNull(reader.GetOrdinal("EmailAddress")) ? null : reader.GetString(reader.GetOrdinal("EmailAddress")),
+                                    MaritalStatus = reader.IsDBNull(reader.GetOrdinal("MaritalStatus")) ? null : reader.GetString(reader.GetOrdinal("MaritalStatus")),
                                     
                                     
                                     CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                     JoiningDate = reader.GetDateTime(reader.GetOrdinal("JoiningDate")),
-                                    Salary = reader.GetInt64(reader.GetOrdinal("Salary")),
+                                    Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetInt64(reader.GetOrdinal("Salary")),
                                     ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                                    HusbandFatherName = reader.GetString(reader.GetOrdinal("HusbandFatherName")),
+                                    HusbandFatherName = reader.IsDBNull(reader.GetOrdinal("HusbandFatherName")) ? null : reader.GetString(reader.GetOrdinal("HusbandFatherName")),
                                     IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
                                     CreatedByUserIdFk = reader.GetInt64(reader.GetOrdinal("CreatedByUserId_FK")),
                                     ModifiedByUserIdFk = reader.GetInt64(reader.GetOrdinal("ModifiedByUserId_FK"))
@@ -224,15 +224,15 @@ namespace IMS.Services
                                         Address = reader.GetString(reader.GetOrdinal("Address")),
                                         Gender = reader.GetString(reader.GetOrdinal("Gender")),
                                         Age = reader.GetInt32(reader.GetOrdinal("Age")),
-                                        EmailAddress = reader.GetString(reader.GetOrdinal("EmailAddress")),
-                                        MaritalStatus = reader.GetString(reader.GetOrdinal("MaritalStatus")),
+                                        EmailAddress = reader.IsDBNull(reader.GetOrdinal("EmailAddress")) ? null : reader.GetString(reader.GetOrdinal("EmailAddress")),
+                                        MaritalStatus = reader.IsDBNull(reader.GetOrdinal("MaritalStatus")) ? null : reader.GetString(reader.GetOrdinal("MaritalStatus")),
 
 
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         JoiningDate = reader.GetDateTime(reader.GetOrdinal("JoiningDate")),
-                                        Salary = reader.GetInt64(reader.GetOrdinal("Salary")),
+                                        Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetInt64(reader.GetOrdinal("Salary")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                                        HusbandFatherName = reader.GetString(reader.GetOrdinal("HusbandFatherName")),
+                                        HusbandFatherName = reader.IsDBNull(reader.GetOrdinal("HusbandFatherName")) ? null : reader.GetString(reader.GetOrdinal("HusbandFatherName")),
                                         IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
                                         CreatedByUserIdFk = reader.GetInt64(reader.GetOrdinal("CreatedByUserId_FK")),
                                         ModifiedByUserIdFk = reader.GetInt64(reader.GetOrdinal("ModifiedByUserId_FK"))
@@ -274,10 +274,10 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@Gender", employee.Gender);
                         command.Parameters.AddWithValue("@Age", employee.Age);
                         command.Parameters.AddWithValue("@JoiningDate", employee.JoiningDate == default(DateTime) ? DBNull.Value: employee.JoiningDate );
-                        command.Parameters.AddWithValue("@Salary", employee.Salary);
-                        command.Parameters.AddWithValue("@HusbandFatherName", employee.HusbandFatherName);
-                        command.Parameters.AddWithValue("@EmailAddress", employee.EmailAddress);
-                        command.Parameters.AddWithValue("@MaritalStatus", employee.MaritalStatus);
+                        command.Parameters.AddWithValue("@Salary", employee.Salary ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@HusbandFatherName", employee.HusbandFatherName ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@EmailAddress", employee.EmailAddress ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@MaritalStatus", employee.MaritalStatus ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@IsDeleted", employee.IsDeleted);
 
                         command.Parameters.AddWithValue("@ModifiedDate", employee?.ModifiedDate == default(DateTime) ? DBNull.Value : employee?.ModifiedDate);

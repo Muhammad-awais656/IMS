@@ -159,7 +159,7 @@ namespace IMS.Controllers
                     monthlyLabels = last12MonthsSales.Months
                 });
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 return Json(new { success = false, message = "Error fetching dashboard data" });
             }

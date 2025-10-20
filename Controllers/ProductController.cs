@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Linq;
 using static NuGet.Packaging.PackagingConstants;
 
 namespace IMS.Controllers
@@ -180,13 +181,14 @@ namespace IMS.Controllers
                     var product = new Product
                     {
                         ProductName = model.ProductName,
-                        ProductCode = model.ProductCode,
+                        ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,
-                        MeasuringUnitTypeIdFk = model.MUTId,
-                        SupplierIdFk = model.VendorId,
-                        UnitPrice = model.Price,
-                        ProductDescription = model.ProductDescription,
+                        MeasuringUnitTypeIdFk = model.MUTId ?? 0,
+                        SupplierIdFk = model.VendorId ?? 0,
+                        UnitPrice = model.Price ?? 0,
+                        ProductDescription = string.IsNullOrWhiteSpace(model.ProductDescription) ? null : model.ProductDescription,
+                        Location = string.IsNullOrWhiteSpace(model.Location) ? null : model.Location,
                         IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
                         SizeIdFk = 0 // Default value as per your SP
                     };
@@ -252,33 +254,43 @@ namespace IMS.Controllers
         // GET: ProductController/Edit/5
         public async Task<ActionResult> Edit(long id=0)
         {
-            var model = new ProductViewModel();
             var unit = await _productService.GetProductByIdAsync(id);
-            model.ProductId = unit.ProductList.ProductId;
-            model.ProductName = unit.ProductList.ProductName;
-            model.ProductCode=unit.ProductList.ProductCode;
-            model.ProductDescription = unit.ProductList.ProductDescription;
-            model.CategoryId = unit.ProductList.CategoryIdFk;
-            model.VendorId = unit.ProductList.SupplierIdFk;
-            model.LabelId = unit.ProductList.LabelIdFk;
-            model.IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled);
-            model.Price = unit.ProductRange.UnitPrice;
-            var model1 = new ProductViewModel
+            
+            if (unit == null || unit.ProductList == null)
             {
+                return NotFound();
+            }
+
+            var model = new ProductViewModel
+            {
+                ProductId = unit.ProductList.ProductId,
+                ProductName = unit.ProductList.ProductName,
+                ProductCode = unit.ProductList.ProductCode,
+                ProductDescription = unit.ProductList.ProductDescription,
+                Location = unit.ProductList.Location,
+                CategoryId = unit.ProductList.CategoryIdFk,
+                VendorId = unit.ProductList.SupplierIdFk,
+                LabelId = unit.ProductList.LabelIdFk,
+                MUTId = unit.ProductList.MeasuringUnitTypeIdFk,
+                IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled),
+                Price = unit.productRanges?.FirstOrDefault()?.UnitPrice ?? 0,
                 CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
                 LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
                 MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync(),
                 VendorsList = await _vendorService.GetAllEnabledVendors()
             };
-            ViewBag.Categories = new SelectList(model1.CategoryNameList, "CategoryId", "CategoryName", unit.ProductList.CategoryIdFk);
-            ViewBag.Labels = new SelectList(model1.LabelNameList, "LabelId", "LabelName", unit.ProductList.LabelIdFk);
-            ViewBag.MeasuringUnitTypes = new SelectList(model1.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName",unit.ProductList.MeasuringUnitTypeIdFk);
-            ViewBag.Vendors = new SelectList(model1.VendorsList, "SupplierId", "SupplierName", unit.ProductList.SupplierIdFk);
-            model.productRanges.Add(unit.ProductRange);
-            if (unit == null)
+
+            // Add product ranges if they exist
+            if (unit.productRanges != null && unit.productRanges.Count > 0)
             {
-                return NotFound();
+                model.productRanges.AddRange(unit.productRanges);
             }
+
+            ViewBag.Categories = new SelectList(model.CategoryNameList, "CategoryId", "CategoryName", unit.ProductList.CategoryIdFk);
+            ViewBag.Labels = new SelectList(model.LabelNameList, "LabelId", "LabelName", unit.ProductList.LabelIdFk);
+            ViewBag.MeasuringUnitTypes = new SelectList(model.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName", unit.ProductList.MeasuringUnitTypeIdFk);
+            ViewBag.Vendors = new SelectList(model.VendorsList, "SupplierId", "SupplierName", unit.ProductList.SupplierIdFk);
+            
             return View(model);
         }
 
@@ -346,13 +358,14 @@ namespace IMS.Controllers
                     {
                         ProductId = model.ProductId,
                         ProductName = model.ProductName,
-                        ProductCode = model.ProductCode,
+                        ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,
-                        MeasuringUnitTypeIdFk = model.MUTId,
-                        SupplierIdFk = model.VendorId,
-                        UnitPrice = model.Price,
-                        ProductDescription = model.ProductDescription,
+                        MeasuringUnitTypeIdFk = model.MUTId ?? 0,
+                        SupplierIdFk = model.VendorId ?? 0,
+                        UnitPrice = model.Price ?? 0,
+                        ProductDescription = string.IsNullOrWhiteSpace(model.ProductDescription) ? null : model.ProductDescription,
+                        Location = string.IsNullOrWhiteSpace(model.Location) ? null : model.Location,
                         IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
                         SizeIdFk = 0 // Default value as per your SP
                     };
@@ -445,11 +458,7 @@ namespace IMS.Controllers
 
         public async Task<ActionResult> AddSizePartial(long? measuringUnitTypeId)
         {
-            var model = new ProductViewModel
-            {
-                MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId)
-            };
-            ViewBag.MeasuringUnits = new SelectList(model.MeasuringUnitNameList, "MeasuringUnitId", "MeasuringUnitName");
+            ViewBag.MeasuringUnitTypeId = measuringUnitTypeId;
             return PartialView("_AddSize", new ProductRange());
         }
 
@@ -461,13 +470,13 @@ namespace IMS.Controllers
             {
                 _logger.LogInformation("GetMeasuringUnitsByType called with measuringUnitTypeId: {MeasuringUnitTypeId}", measuringUnitTypeId);
                 
-                if (!measuringUnitTypeId.HasValue)
+                if (!measuringUnitTypeId.HasValue || measuringUnitTypeId.Value == 0)
                 {
-                    _logger.LogWarning("No measuringUnitTypeId provided");
+                    _logger.LogWarning("No valid measuringUnitTypeId provided: {MeasuringUnitTypeId}", measuringUnitTypeId);
                     return Json(new List<object>());
                 }
 
-                var measuringUnits = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                var measuringUnits = await _adminMeasuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
                 _logger.LogInformation("Found {Count} measuring units for type {MeasuringUnitTypeId}", measuringUnits.Count, measuringUnitTypeId);
                 
                 // Filter only enabled measuring units
@@ -480,7 +489,7 @@ namespace IMS.Controllers
                     text = mu.MeasuringUnitName
                 }).ToList();
                 
-                _logger.LogInformation("Returning {Count} enabled measuring units", result.Count);
+                _logger.LogInformation("Returning {Count} enabled measuring units: {Result}", result.Count, string.Join(", ", result.Select(r => $"{r.text}({r.value})")));
                 return Json(result);
             }
             catch (Exception ex)
