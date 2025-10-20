@@ -1,0 +1,274 @@
+@model VendorBillPrintViewModel
+
+@{
+    ViewData["Title"] = "Print Vendor Bill";
+    Layout = null; // Remove layout for printing
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vendor Bill #@Model.BillNumber</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .bill-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .bill-header {
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .bill-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        .bill-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .bill-info-left, .bill-info-right {
+            flex: 1;
+        }
+        
+        .info-row {
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .info-value {
+            color: #666;
+        }
+        
+        .bill-details {
+            margin-bottom: 30px;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .details-table th,
+        .details-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .details-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .details-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .bill-summary {
+            border-top: 2px solid #007bff;
+            padding-top: 20px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+        
+        .summary-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .summary-value {
+            color: #666;
+        }
+        
+        .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            border-top: 2px solid #007bff;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.8;
+        }
+        
+        @@media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            
+            .bill-container {
+                box-shadow: none;
+                padding: 0;
+            }
+            
+            .print-button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print Bill
+        </button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="bill-container">
+        <div class="bill-header">
+            <div class="bill-title">VENDOR BILL</div>
+            <div>Bill #@Model.BillNumber</div>
+        </div>
+
+        <div class="bill-info">
+            <div class="bill-info-left">
+                <div class="info-row">
+                    <span class="info-label">Vendor:</span>
+                    <span class="info-value">@Model.VendorName</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Bill Date:</span>
+                    <span class="info-value">@Model.BillDate.ToString("dd/MM/yyyy")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.BillDescription))
+                {
+                    <div class="info-row">
+                        <span class="info-label">Description:</span>
+                        <span class="info-value">@Model.BillDescription</span>
+                    </div>
+                }
+            </div>
+            <div class="bill-info-right">
+                <div class="info-row">
+                    <span class="info-label">Bill ID:</span>
+                    <span class="info-value">@Model.BillId</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Generated On:</span>
+                    <span class="info-value">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bill-details">
+            <table class="details-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Unit Price</th>
+                        <th>Purchase Price</th>
+                        <th>Qty</th>
+                        <th>Discount</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.BillDetails)
+                    {
+                        <tr>
+                            <td>@item.ProductName</td>
+                            <td>@item.UnitPrice.ToString("C")</td>
+                            <td>@item.PurchasePrice.ToString("C")</td>
+                            <td>@item.Quantity</td>
+                            <td>@item.LineDiscountAmount.ToString("C")</td>
+                            <td>@item.PayableAmount.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bill-summary">
+            <div class="summary-row">
+                <span class="summary-label">Subtotal:</span>
+                <span class="summary-value">@Model.TotalAmount.ToString("C")</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Total Discount:</span>
+                <span class="summary-value">@Model.DiscountAmount.ToString("C")</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Paid Amount:</span>
+                <span class="summary-value">@Model.PaidAmount.ToString("C")</span>
+            </div>
+            <div class="summary-row total-row">
+                <span class="summary-label">Due Amount:</span>
+                <span class="summary-value">@Model.DueAmount.ToString("C")</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-print when page loads if requested
+        if (window.location.search.includes('autoprint=true')) {
+            window.onload = function() {
+                window.print();
+            }
+        }
+    </script>
+</body>
+</html>
