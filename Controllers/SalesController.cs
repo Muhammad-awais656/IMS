@@ -840,7 +840,7 @@ namespace IMS.Controllers
         }
 
         // GET: SalesController/PrintReceipt/5
-        public async Task<ActionResult> PrintReceipt(long id)
+        public async Task<ActionResult> PrintReceipt(long id, bool merchantCopy = false)
         {
             try
             {
@@ -850,6 +850,7 @@ namespace IMS.Controllers
                     return NotFound();
                 }
                 
+                ViewBag.MerchantCopy = merchantCopy;
                 return View(salePrint);
             }
             catch (Exception ex)

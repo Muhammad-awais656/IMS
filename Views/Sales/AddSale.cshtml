@@ -1752,9 +1752,9 @@
             }
         }
 
-        // AJAX Save and Print function
+        // AJAX Save and Print function - automatically prints both customer and merchant copies
         function saveAndPrintSale() {
-            console.log('=== AJAX Save and Print called ===');
+            console.log('=== AJAX Save and Print called - will print both copies ===');
             
             // Validate form
             if (!validateForm()) {
@@ -1780,10 +1780,20 @@
                         showSuccessMessage('Sale saved successfully!');
                         // Reset form after successful save
                         resetAllFormFields();
-                        // Open print window with simple receipt
+                        // Open print windows for both customer and merchant copies in separate tabs
                         if (response.saleId) {
-                            // Use the simple print receipt system
-                            window.open('@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true', '_blank');
+                            // Open customer copy in new tab and print
+                            const customerPrintUrl = '@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true&merchantCopy=false';
+                            const customerWindow = window.open(customerPrintUrl, '_blank');
+                            
+                            // Open merchant copy in another new tab after a delay
+                            setTimeout(function() {
+                                const merchantPrintUrl = '@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true&merchantCopy=true';
+                                const merchantWindow = window.open(merchantPrintUrl, '_blank');
+                                
+                                // Show notification about both copies being opened
+                                showSuccessMessage('Both Customer Copy and Merchant Copy have been opened in separate tabs!');
+                            }, 1000); // 1 second delay between tabs
                         }
                     } else {
                         showErrorMessage(response.message || 'Failed to save sale');
