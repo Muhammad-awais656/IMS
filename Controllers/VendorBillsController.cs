@@ -84,17 +84,32 @@ namespace IMS.Controllers
         }
 
         // GET: VendorBillsController/Details/5
-        public async Task<IActionResult> Details(long id)
+        public async Task<IActionResult> Details(long id, bool? print = false)
         {
             try
             {
-                // For now, redirect to index with the bill ID as a filter
-                return RedirectToAction(nameof(Index), new { billNumber = id });
+                var vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (vendorBill == null)
+                {
+                    return NotFound();
+                }
+                
+                var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
+                
+                var detailsModel = new
+                {
+                    Bill = vendorBill,
+                    BillItems = billItems
+                };
+                
+                // Pass print parameter to view
+                ViewBag.Print = print;
+                return View(detailsModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading bill details");
-                TempData["ErrorMessage"] = "An error occurred while loading bill details.";
+                _logger.LogError(ex, "Error loading bill details for bill {BillId}", id);
+                TempData["ErrorMessage"] = "Error loading bill details.";
                 return RedirectToAction(nameof(Index));
             }
         }
@@ -149,16 +164,16 @@ namespace IMS.Controllers
 
         // AJAX endpoint to get next bill number
         [HttpGet]
-        public async Task<IActionResult> GetNextBillNumber(long supplierId)
+        public async Task<IActionResult> GetNextBillNumber(long vendorId)
         {
             try
             {
-                var billNumber = await _vendorBillsService.GetNextBillNumberAsync(supplierId);
+                var billNumber = await _vendorBillsService.GetNextBillNumberAsync(vendorId);
                 return Json(new { success = true, billNumber = billNumber });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting next bill number for supplier {SupplierId}", supplierId);
+                _logger.LogError(ex, "Error getting next bill number for vendor {VendorId}", vendorId);
                 return Json(new { success = false, message = "Error retrieving next bill number", billNumber = 1 });
             }
         }
@@ -229,13 +244,15 @@ namespace IMS.Controllers
                     
                     if (result > 0)
                     {
-                        TempData["SuccessMessage"] = "Bill created successfully!";
+                        // Regular form submission - use TempData and redirect
+                        string successMessage = "Bill created successfully!";
+                        TempData["Success"] = successMessage;
                         _logger.LogInformation("Bill created successfully with ID: {BillId}, ActionType: '{ActionType}'", result, model.ActionType ?? "NULL");
                         
                         if (model.ActionType == "saveAndPrint")
                         {
-                            _logger.LogInformation("Redirecting to PrintReceipt for BillId: {BillId}", result);
-                            return RedirectToAction("PrintReceipt", new { id = result });
+                            _logger.LogInformation("Redirecting to Details for BillId: {BillId} with print=true", result);
+                            return RedirectToAction("Details", new { id = result, print = true });
                         }
                         return RedirectToAction("Index");
                     }
@@ -413,11 +430,11 @@ namespace IMS.Controllers
         }
 
         // GET: VendorBillsController/PrintReceipt/5
-        public async Task<ActionResult> PrintReceipt(long id)
+        public async Task<ActionResult> PrintReceipt(long id, bool merchantCopy = false, bool autoPrint = false)
         {
             try
             {
-                _logger.LogInformation("PrintReceipt called with BillId: {BillId}", id);
+                _logger.LogInformation("PrintReceipt called with BillId: {BillId}, MerchantCopy: {MerchantCopy}, AutoPrint: {AutoPrint}", id, merchantCopy, autoPrint);
                 
                 var vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
                 if (vendorBill == null)
@@ -435,7 +452,9 @@ namespace IMS.Controllers
                     BillItems = billItems
                 };
                 
-                _logger.LogInformation("Returning PrintReceipt view for BillId: {BillId}", id);
+                ViewBag.MerchantCopy = merchantCopy;
+                ViewBag.AutoPrint = autoPrint;
+                _logger.LogInformation("Returning PrintReceipt view for BillId: {BillId}, MerchantCopy: {MerchantCopy}, AutoPrint: {AutoPrint}", id, merchantCopy, autoPrint);
                 return View(printModel);
             }
             catch (Exception ex)

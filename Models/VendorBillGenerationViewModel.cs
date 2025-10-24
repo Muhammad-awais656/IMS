@@ -100,3 +100,4 @@ namespace IMS.Models
         public long ProductRangeId { get; set; }
     }
 }
+

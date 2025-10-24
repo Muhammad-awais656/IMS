@@ -579,8 +579,8 @@ namespace IMS.Controllers
                             
                             if (model.ActionType == "saveAndPrint")
                             {
-                                // Align behavior with SalesController: redirect to dedicated print action
-                                return RedirectToAction("PrintReceipt", "VendorBills", new { id = billId });
+                                // Align behavior with SalesController: redirect to Details with print=true
+                                return RedirectToAction("Details", "VendorBills", new { id = billId, print = true });
                             }
                             else
                             {

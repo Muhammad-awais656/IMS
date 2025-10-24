@@ -365,7 +365,7 @@ namespace IMS.Services
                     command.Parameters.AddWithValue("@pCreatedDate", createdDate);
                     command.Parameters.AddWithValue("@pCreatedBy", createdBy);
                     command.Parameters.AddWithValue("@pTransactionStatusId", transactionStatusId);
-                    command.Parameters.AddWithValue("@pSaleId", saleId);
+                    command.Parameters.AddWithValue("@pSaleId", saleId==0 ? DBNull.Value : saleId);
 
                     SqlParameter saleDetailsIdParam = new SqlParameter("@transactionId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
                     command.Parameters.Add(saleDetailsIdParam);
