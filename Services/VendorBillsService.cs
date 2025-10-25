@@ -109,9 +109,15 @@ namespace IMS.Services
             int totalRecords = 0;
             try
             {
-                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                _logger.LogInformation("Getting connection string...");
+                var connectionString = _dbContextFactory.DBConnectionString();
+                _logger.LogInformation("Connection string retrieved successfully");
+                
+                using (var connection = new SqlConnection(connectionString))
                 {
+                    _logger.LogInformation("Opening database connection...");
                     await connection.OpenAsync();
+                    _logger.LogInformation("Database connection opened successfully");
                     
                     using (var command = new SqlCommand("GetAllSupplier", connection))
                     {
@@ -123,6 +129,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pNTN", DBNull.Value);
                         command.Parameters.AddWithValue("@pIsDeleted", false);
                         
+                        _logger.LogInformation("Executing GetAllSupplier stored procedure...");
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
@@ -143,12 +150,13 @@ namespace IMS.Services
                                 totalRecords = reader.GetInt32(reader.GetOrdinal("TotalRecords"));
                             }
                         }
+                        _logger.LogInformation("Retrieved {VendorCount} vendors from database", vendors.Count);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting all vendors");
+                _logger.LogError(ex, "Error getting all vendors: {ErrorMessage}", ex.Message);
                 throw;
             }
             return vendors;
@@ -242,7 +250,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSupplierId", supplierId);
 
                         var result = await command.ExecuteScalarAsync();
-                        return result != null ? Convert.ToInt64(result) : 1;
+                        return result != null ? Convert.ToInt64(result)+1 : 1;
                     }
                 }
             }
@@ -561,7 +569,7 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
             return billItems;
         }
 
-        public async Task<bool> UpdateVendorBillAsync(long billId, GenerateBillViewModel model)
+        public async Task<bool> UpdateVendorBillAsync(long billId, VendorBillGenerationViewModel model)
         {
             try
             {
@@ -601,7 +609,7 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                             }
 
                             // Insert new bill items
-                            foreach (var item in model.BillItems)
+                            foreach (var item in model.BillDetails)
                             {
                                 using (var command = new SqlCommand(@"
                                     INSERT INTO PurchaseOrderItems (BillId, ProductId, ProductRangeId, UnitPrice, Quantity, DiscountAmount, PayableAmount, CreatedDate)
@@ -612,7 +620,7 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                     command.Parameters.AddWithValue("@ProductRangeId", item.ProductRangeId);
                                     command.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
                                     command.Parameters.AddWithValue("@Quantity", item.Quantity);
-                                    command.Parameters.AddWithValue("@DiscountAmount", item.DiscountAmount);
+                                    command.Parameters.AddWithValue("@DiscountAmount", item.LineDiscountAmount);
                                     command.Parameters.AddWithValue("@PayableAmount", item.PayableAmount);
                                     command.Parameters.AddWithValue("@CreatedDate", DateTime.Now);
 
@@ -722,6 +730,107 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating vendor bill");
+                throw;
+            }
+        }
+
+        public async Task<decimal> GetAccountBalanceAsync(long accountId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting account balance for account ID: {AccountId}", accountId);
+                
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("SELECT (CreditAmount - DebitAmount) as Balance FROM PersonalPayments WHERE PersonalPaymentId = @AccountId", connection))
+                    {
+                        command.Parameters.AddWithValue("@AccountId", accountId);
+                        
+                        var result = await command.ExecuteScalarAsync();
+                        var balance = result != null ? Convert.ToDecimal(result) : 0;
+                        
+                        _logger.LogInformation("Account balance retrieved: {Balance} for account ID: {AccountId}", balance, accountId);
+                        return balance;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting account balance for account ID: {AccountId}", accountId);
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteVendorBillAsync(long billId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    // Mark the bill as deleted (soft delete)
+                    using (var command = new SqlCommand(@"
+                        UPDATE PurchaseOrders 
+                        SET IsDeleted = 1, ModifiedDate = GETDATE() 
+                        WHERE PurchaseOrderId = @BillId", connection))
+                    {
+                        command.Parameters.AddWithValue("@BillId", billId);
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        
+                        _logger.LogInformation("Vendor bill soft deleted: {BillId}, Rows affected: {RowsAffected}", billId, rowsAffected);
+                        return rowsAffected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting vendor bill with ID: {BillId}", billId);
+                throw;
+            }
+        }
+
+        public async Task<List<VendorBillViewModel>> GetAllBillNumbersForVendorAsync(long vendorId)
+        {
+            var bills = new List<VendorBillViewModel>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT DISTINCT BillNumber, BillId, BillDate, TotalAmount, DueAmount
+                        FROM PurchaseOrders 
+                        WHERE SupplierId_FK = @VendorId 
+                        AND IsDeleted = 0
+                        ORDER BY BillNumber DESC", connection))
+                    {
+                        command.Parameters.AddWithValue("@VendorId", vendorId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                bills.Add(new VendorBillViewModel
+                                {
+                                    BillId = reader.GetInt64("BillId"),
+                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    BillDate = reader.GetDateTime("BillDate"),
+                                    TotalAmount = reader.GetDecimal("TotalAmount"),
+                                    DueAmount = reader.GetDecimal("DueAmount")
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                _logger.LogInformation("Retrieved {Count} bills for vendor {VendorId}", bills.Count, vendorId);
+                return bills;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting bill numbers for vendor {VendorId}", vendorId);
                 throw;
             }
         }

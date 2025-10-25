@@ -16,29 +16,49 @@ function initializeVendorBillGeneration() {
     
     // Initialize form
     initializeForm();
+    
+    // Check if we're in edit mode and populate form
+    if (typeof isEditMode !== 'undefined' && isEditMode) {
+        populateEditForm();
+    }
 }
 
 function initializeVendorComboBox() {
+    var initialValue = $("#vendorSelect").val();
+    
     $("#vendorSelect").kendoComboBox({
         placeholder: "Select vendor...",
         dataTextField: "text",
         dataValueField: "value",
         filter: "contains",
         minLength: 1,
+        value: initialValue, // Set initial value if exists
         dataSource: {
             transport: {
                 read: {
-                    url: "/Vendor/GetVendors",
+                    url: "/VendorBills/GetVendors",
                     dataType: "json"
                 }
+            },
+            schema: {
+                data: "data"
             }
         },
         change: function(e) {
             if (this.value()) {
                 loadVendorData(this.value());
+                // Clear validation styling when vendor is selected
+                $("#vendorSelect").removeClass('is-invalid');
             }
         }
     });
+    
+    // If we have an initial value, load vendor data
+    if (initialValue) {
+        setTimeout(function() {
+            loadVendorData(initialValue);
+        }, 500);
+    }
 }
 
 function initializeProductComboBox() {
@@ -51,10 +71,13 @@ function initializeProductComboBox() {
         dataSource: {
             transport: {
                 read: {
-                    // Use Product endpoint to also receive product code
-                    url: "/Product/GetProducts",
+                    // Use VendorBills endpoint for products
+                    url: "/VendorBills/GetProducts",
                     dataType: "json"
                 }
+            },
+            schema: {
+                data: "data"
             }
         },
         change: function(e) {
@@ -96,9 +119,12 @@ function initializeOnlineAccountComboBox() {
         dataSource: {
             transport: {
                 read: {
-                    url: "/Vendor/GetOnlineAccounts",
+                    url: "/VendorBills/GetOnlineAccounts",
                     dataType: "json"
                 }
+            },
+            schema: {
+                data: "data"
             }
         }
     });
@@ -118,18 +144,59 @@ function setupEventHandlers() {
     $("#discountAmount").on("input", calculatePayableAmount);
     
     // Pay now change
-    $("#payNow").on("input", calculateDueAmount);
+    $("#payNow").on("input", function() {
+        calculateDueAmount();
+        validateAccountBalance();
+    });
+    
+    // Online account change
+    $("#onlineAccountSelect").on("change", function() {
+        // Clear validation styling
+        $(this).removeClass('is-invalid');
+        
+        // Load account balance when account is selected
+        var accountCombo = $(this).data("kendoComboBox");
+        var accountId = accountCombo ? accountCombo.value() : null;
+        
+        if (accountId) {
+            loadAccountBalance(accountId);
+        } else {
+            $("#accountBalance").val("");
+            $("#billAmount").val("");
+        }
+    });
     
     // Total discount change
     $("#discountAmountTotal").on("input", calculateTotals);
     
     // Payment method change
     $("#paymentMethod").on("change", function() {
-        if ($(this).val() === "Online") {
+        var paymentMethod = $(this).val();
+        if (paymentMethod === "Online") {
             $("#onlineAccountSection").show();
+            $("#accountBalanceSection").show();
+            $("#billAmountSection").show();
+            // Load online accounts when Online is selected
+            loadOnlineAccounts();
         } else {
             $("#onlineAccountSection").hide();
+            $("#accountBalanceSection").hide();
+            $("#billAmountSection").hide();
         }
+        
+        // Handle Pay Later option
+        if (paymentMethod === "PayLater") {
+            $("#payNow").val(0).prop("disabled", true);
+        } else {
+            $("#payNow").prop("disabled", false);
+        }
+        
+        // Clear validation styling
+        $(this).removeClass('is-invalid');
+        $("#payNow").removeClass('is-invalid');
+        $("#onlineAccountSelect").removeClass('is-invalid');
+        
+        calculateDueAmount();
     });
     
     // Add to table button
@@ -165,6 +232,13 @@ function setupEventHandlers() {
         if (index != null && billDetails[index]) {
             const item = billDetails[index];
             editingIndex = index;
+            
+            // Remove the item from the table and array
+            billDetails.splice(index, 1);
+            updateBillDetailsTable();
+            calculateTotals();
+            
+            // Populate the form fields
             const productCb = $("#productSelect").data("kendoComboBox");
             const sizeCb = $("#productSizeSelect").data("kendoComboBox");
             productCb.value(item.productId);
@@ -175,7 +249,7 @@ function setupEventHandlers() {
             $("#quantity").val(item.quantity);
             $("#unitPrice").val(item.unitPrice);
             $("#purchasePrice").val(item.purchasePrice);
-            $("#discountAmount").val(item.lineDiscountAmount);
+            $("#discountAmount").val(item.lineDiscountAmount / item.quantity); // Convert back to per-unit discount
             $("#payableAmount").val(item.payableAmount);
             $("#addToTable").text("Update Item");
         }
@@ -190,15 +264,6 @@ function setupEventHandlers() {
         }
     });
 
-    // Pay later toggle
-    $(document).on("change", "#payLater", function(){
-        if (this.checked) {
-            $("#payNow").val(0).prop("disabled", true);
-        } else {
-            $("#payNow").prop("disabled", false);
-        }
-        calculateDueAmount();
-    });
 }
 
 function initializeForm() {
@@ -211,7 +276,7 @@ function initializeForm() {
 
 function loadVendorData(vendorId) {
     // Load previous due amount
-    $.get("/Vendor/GetPreviousDueAmount", { vendorId: vendorId })
+    $.get("/VendorBills/GetPreviousDueAmount", { vendorId: vendorId })
         .done(function(data) {
             if (data.success) {
                 $("#previousDue").val(data.previousDueAmount);
@@ -220,11 +285,14 @@ function loadVendorData(vendorId) {
         .fail(function() {
             console.error("Error loading vendor data");
         });
+    
+    // Load next bill number for the selected vendor
+    loadNextBillNumber(vendorId);
 }
 
 function loadProductSizes(productId) {
-    // Use Sales endpoint which returns standardized product size data
-    $.get("/Sales/GetProductSizes", { productId: productId })
+    // Use VendorBills endpoint for product sizes
+    $.get("/VendorBills/GetProductSizes", { productId: productId })
         .done(function(data) {
             var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
             // Ensure proper Kendo DataSource binding
@@ -249,8 +317,8 @@ function loadProductSizeData(productRangeId) {
 }
 
 function loadProductStock(productId) {
-    // Reuse Sales available stock endpoint (same stock table)
-    $.get("/Sales/GetAvailableStock", { productId: productId })
+    // Use VendorBills available stock endpoint
+    $.get("/VendorBills/GetAvailableStock", { productId: productId })
         .done(function(data) {
             if (data.success) {
                 // You can display stock information if needed
@@ -262,15 +330,27 @@ function loadProductStock(productId) {
         });
 }
 
-function loadNextBillNumber() {
-    $.get("/Vendor/GetNextBillNumber")
+function loadNextBillNumber(vendorId = null) {
+    var url = "/VendorBills/GetNextBillNumber";
+    if (vendorId) {
+        url += "?vendorId=" + vendorId;
+    }
+    
+    console.log("Loading next bill number for vendor:", vendorId, "URL:", url);
+    
+    $.get(url)
         .done(function(data) {
+            console.log("Next bill number response:", data);
             if (data.success) {
+                console.log("Setting bill number to:", data.billNumber);
                 $("#billNumber").val(data.billNumber);
+                console.log("Bill number field value after setting:", $("#billNumber").val());
+            } else {
+                console.error("Failed to get next bill number:", data.message);
             }
         })
-        .fail(function() {
-            console.error("Error loading next bill number");
+        .fail(function(xhr, status, error) {
+            console.error("Error loading next bill number:", error);
         });
 }
 
@@ -280,8 +360,9 @@ function calculatePayableAmount() {
     var purchasePrice = parseFloat($("#purchasePrice").val()) || 0;
     var discountAmount = parseFloat($("#discountAmount").val()) || 0;
     
-    var totalAmount = quantity * unitPrice;
-    var payableAmount = totalAmount - discountAmount;
+    var totalAmount = quantity * purchasePrice; // Use purchase price instead of unit price
+    var totalDiscount = discountAmount * quantity; // Calculate total discount
+    var payableAmount = totalAmount - totalDiscount; // Use total discount instead of per-unit discount
     
     $("#payableAmount").val(payableAmount.toFixed(2));
 }
@@ -290,11 +371,10 @@ function calculateDueAmount() {
     var totalAmount = parseFloat($("#totalAmount").val()) || 0;
     var discountAmountTotal = parseFloat($("#discountAmountTotal").val()) || 0;
     var payNow = parseFloat($("#payNow").val()) || 0;
-    var previousDue = parseFloat($("#previousDue").val()) || 0;
     
+    // Calculate due amount for current bill only (not including previous dues)
     var netTotal = totalAmount - discountAmountTotal;
-    var totalPayable = netTotal + previousDue;
-    var dueAmount = totalPayable - payNow;
+    var dueAmount = netTotal - payNow;
     
     $("#dueAmount").val(dueAmount.toFixed(2));
     $("#receivedAmount").val(payNow);
@@ -311,6 +391,12 @@ function calculateTotals() {
     
     $("#totalAmount").val(totalAmount.toFixed(2));
     $("#discountAmountTotal").val(totalDiscount.toFixed(2));
+    
+    // Update bill amount if online payment is selected
+    var paymentMethod = $("#paymentMethod").val();
+    if (paymentMethod === "Online") {
+        updateBillAmount();
+    }
     
     calculateDueAmount();
 }
@@ -347,17 +433,19 @@ function addProductToTable() {
         productId: parseInt(selectedProduct.value),
         productName: selectedProduct.text,
         productCode: selectedProduct.code || "",
+        measuringUnitAbbreviation: selectedProductSize.measuringUnitAbbreviation || "",
         unitPrice: unitPrice,
         purchasePrice: purchasePrice,
         quantity: quantity,
         salePrice: unitPrice,
-        lineDiscountAmount: discountAmount,
+        lineDiscountAmount: discountAmount * quantity,
         payableAmount: payableAmount,
         productRangeId: selectedProductSize.productRangeId
     };
 
     if (editingIndex >= 0) {
-        billDetails[editingIndex] = billDetail;
+        // Add the updated item back to the array
+        billDetails.push(billDetail);
         editingIndex = -1;
         $("#addToTable").text("Add to Bill");
     } else {
@@ -374,9 +462,9 @@ function updateBillDetailsTable() {
     
     billDetails.forEach(function(item, index) {
         var row = $("<tr>");
-        row.append("<td>" + (item.productCode || "") + "</td>");
+        row.append("<td>" + (item.measuringUnitAbbreviation || "") + "</td>");
         row.append("<td>" + item.productName + "</td>");
-        row.append("<td>" + item.lineDiscountAmount.toFixed(2) + "</td>");
+        row.append("<td>" + (item.lineDiscountAmount / item.quantity).toFixed(2) + "</td>");
         row.append("<td>" + item.unitPrice.toFixed(2) + "</td>");
         row.append("<td>" + item.purchasePrice.toFixed(2) + "</td>");
         row.append("<td>" + item.quantity + "</td>");
@@ -413,25 +501,503 @@ function resetProductFields() {
 $("#generateBillForm").on("submit", function(e) {
     e.preventDefault();
     
-    if (billDetails.length === 0) {
-        alert("Please add at least one product to the bill");
+    var actionType = $("#actionType").val();
+    
+    if (actionType === "saveAndPrint") {
+        saveAndPrintBill();
+    } else {
+        saveBill();
+    }
+});
+
+// Save Bill function
+function saveBill() {
+    if (!validateBillForm()) {
         return;
     }
     
-    // Add bill details to form (serialize as BillDetails[index].Field for MVC binding)
-    // First remove any previous hidden inputs we added
-    $(this).find("input[name^='BillDetails[']").remove();
-    billDetails.forEach(function(item, idx){
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].ProductId`, value:item.productId}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].ProductRangeId`, value:item.productRangeId}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].UnitPrice`, value:item.unitPrice}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].PurchasePrice`, value:item.purchasePrice}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].Quantity`, value:item.quantity}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].SalePrice`, value:item.salePrice}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].LineDiscountAmount`, value:item.lineDiscountAmount}));
-        $("#generateBillForm").append($('<input>', {type:'hidden', name:`BillDetails[${idx}].PayableAmount`, value:item.payableAmount}));
+    console.log('=== AJAX Save Bill called ===');
+    showLoadingState();
+    
+    try {
+        // Collect form data
+        const formData = collectBillFormData('save');
+        console.log('Form data collected:', formData);
+        
+        // Make AJAX call
+        $.ajax({
+            url: '/VendorBills/GenerateBill',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                console.log('AJAX Save Bill success:', response);
+                hideLoadingState();
+                
+                if (response.success) {
+                    showSuccessMessage('Bill saved successfully!');
+                    // Reset form after successful save
+                    resetBillForm();
+                } else {
+                    showErrorMessage(response.message || 'Failed to save bill');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Save Bill error:', error);
+                console.error('Response status:', xhr.status);
+                console.error('Response text:', xhr.responseText);
+                hideLoadingState();
+                
+                var errorMessage = 'Error saving bill: ' + error;
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                showErrorMessage(errorMessage);
+            }
+        });
+    } catch (error) {
+        console.error('Error in saveBill function:', error);
+        hideLoadingState();
+        showErrorMessage('Error preparing bill data: ' + error.message);
+    }
+}
+
+// Save and Print Bill function
+function saveAndPrintBill() {
+    if (!validateBillForm()) {
+        return;
+    }
+    
+    console.log('=== AJAX Save and Print Bill called ===');
+    showLoadingState();
+    
+    try {
+        // Collect form data
+        const formData = collectBillFormData('saveAndPrint');
+        console.log('Form data collected:', formData);
+        
+        // Make AJAX call
+        $.ajax({
+            url: '/VendorBills/GenerateBill',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                console.log('AJAX Save and Print Bill success:', response);
+                hideLoadingState();
+                
+                if (response.success) {
+                    showSuccessMessage('Bill saved successfully!');
+                    // Reset form after successful save
+                    resetBillForm();
+                    
+                    // Open print windows for both vendor and merchant copies in separate tabs
+                    if (response.billId) {
+                        // Open vendor copy in new tab and print
+                        const vendorPrintUrl = '/VendorBills/PrintReceipt/' + response.billId + '?print=true&merchantCopy=false';
+                        const vendorWindow = window.open(vendorPrintUrl, '_blank');
+                        
+                        // Open merchant copy in another new tab after a delay
+                        setTimeout(function() {
+                            const merchantPrintUrl = '/VendorBills/PrintReceipt/' + response.billId + '?print=true&merchantCopy=true';
+                            const merchantWindow = window.open(merchantPrintUrl, '_blank');
+                            
+                            // Show notification about both copies being opened
+                            showSuccessMessage('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+                        }, 1000); // 1 second delay between tabs
+                    }
+                } else {
+                    showErrorMessage(response.message || 'Failed to save bill');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Save and Print Bill error:', error);
+                console.error('Response status:', xhr.status);
+                console.error('Response text:', xhr.responseText);
+                hideLoadingState();
+                
+                var errorMessage = 'Error saving bill: ' + error;
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                showErrorMessage(errorMessage);
+            }
+        });
+    } catch (error) {
+        console.error('Error in saveAndPrintBill function:', error);
+        hideLoadingState();
+        showErrorMessage('Error preparing bill data: ' + error.message);
+    }
+}
+
+// Function to load online accounts
+function loadOnlineAccounts() {
+    const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+    if (onlineAccountCombo) {
+        console.log("Loading online accounts from server...");
+        fetch("/VendorBills/GetOnlineAccounts")
+            .then(response => {
+                console.log("Online accounts response status:", response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Online accounts data received:", data);
+                if (data && data.length > 0) {
+                    onlineAccountCombo.dataSource.data(data);
+                    onlineAccountCombo.enable(true);
+                    onlineAccountCombo.refresh();
+                    console.log("Online accounts loaded successfully");
+                } else {
+                    console.log("No online accounts found");
+                    onlineAccountCombo.dataSource.data([]);
+                    onlineAccountCombo.enable(false);
+                }
+            })
+            .catch(error => {
+                console.error("Error loading online accounts:", error);
+                onlineAccountCombo.dataSource.data([]);
+                onlineAccountCombo.enable(false);
+            });
+    }
+}
+
+// Function to load account balance
+function loadAccountBalance(accountId) {
+    console.log("Loading account balance for account:", accountId);
+    fetch(`/VendorBills/GetAccountBalance?accountId=${accountId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Account balance data received:", data);
+            if (data.success) {
+                $("#accountBalance").val(data.balance.toFixed(2));
+                updateBillAmount();
+            } else {
+                console.error("Error loading account balance:", data.message);
+                $("#accountBalance").val("");
+            }
+        })
+        .catch(error => {
+            console.error("Error loading account balance:", error);
+            $("#accountBalance").val("");
+        });
+}
+
+// Function to update bill amount
+function updateBillAmount() {
+    var totalAmount = parseFloat($("#totalAmount").val()) || 0;
+    var discountAmountTotal = parseFloat($("#discountAmountTotal").val()) || 0;
+    var payNow = parseFloat($("#payNow").val()) || 0;
+    
+    var billAmount = totalAmount - discountAmountTotal;
+    $("#billAmount").val(billAmount.toFixed(2));
+}
+
+// Function to validate account balance
+function validateAccountBalance() {
+    var paymentMethod = $("#paymentMethod").val();
+    
+    if (paymentMethod === "Online") {
+        var accountBalance = parseFloat($("#accountBalance").val()) || 0;
+        var payNow = parseFloat($("#payNow").val()) || 0;
+        
+        // Clear previous validation styling
+        $("#payNow").removeClass('is-invalid');
+        $("#accountBalance").removeClass('is-invalid');
+        
+        if (accountBalance <= 0) {
+            $("#accountBalance").addClass('is-invalid');
+            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+            return false;
+        }
+        
+        if (payNow > accountBalance) {
+            $("#payNow").addClass('is-invalid');
+            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+            return false;
+        }
+        
+        // Clear validation styling if balance is sufficient
+        $("#payNow").removeClass('is-invalid');
+        $("#accountBalance").removeClass('is-invalid');
+    }
+    
+    return true;
+}
+
+// Function to show warning message (toaster-style)
+function showWarningMessage(message) {
+    // Remove existing warning messages
+    $('.alert-warning').remove();
+    
+    // Create warning alert
+    var alertHtml = '<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+        '<i class="fa-solid fa-exclamation-triangle me-2"></i>' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+        '</div>';
+    
+    $('body').append(alertHtml);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(function() {
+        $('.alert-warning').fadeOut();
+    }, 5000);
+}
+
+// Function to validate bill form
+function validateBillForm() {
+    // Validate vendor selection
+    var vendorCombo = $("#vendorSelect").data("kendoComboBox");
+    var vendorId = vendorCombo ? vendorCombo.value() : null;
+    
+    if (!vendorId || vendorId === '') {
+        showWarningMessage("Please select a vendor from the dropdown.");
+        $("#vendorSelect").addClass('is-invalid');
+        return false;
+    }
+    
+    // Clear vendor validation styling if vendor is selected
+    $("#vendorSelect").removeClass('is-invalid');
+    
+    if (billDetails.length === 0) {
+        alert("Please add at least one product to the bill");
+        return false;
+    }
+    
+    // Validate Pay Now based on Payment Method
+    var paymentMethod = $("#paymentMethod").val();
+    var payNow = parseFloat($("#payNow").val()) || 0;
+    
+    if (paymentMethod !== "PayLater" && payNow <= 0) {
+        alert("Pay Now amount is required when payment method is not 'Pay Later'.");
+        return false;
+    }
+    
+    // Validate Online Account selection for Online payment method
+    if (paymentMethod === "Online") {
+        var onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+        var onlineAccountId = onlineAccountCombo ? onlineAccountCombo.value() : null;
+        
+        if (!onlineAccountId || onlineAccountId === '') {
+            alert("Please select an online account for online payment.");
+            return false;
+        }
+        
+        // Validate account balance
+        var accountBalance = parseFloat($("#accountBalance").val()) || 0;
+        var payNow = parseFloat($("#payNow").val()) || 0;
+        
+        if (accountBalance <= 0) {
+            alert("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+            return false;
+        }
+        
+        if (payNow > accountBalance) {
+            alert("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Function to collect form data for AJAX submission
+function collectBillFormData(actionType) {
+    // Get anti-forgery token
+    var token = $('input[name="__RequestVerificationToken"]').val();
+    
+    var formData = {
+        __RequestVerificationToken: token,
+        VendorId: parseInt($("#vendorSelect").val()) || 0,
+        BillNumber: parseInt($("#billNumber").val()) || 0,
+        BillDate: $("#billDate").val(),
+        TotalAmount: parseFloat($("#totalAmount").val()) || 0,
+        DiscountAmount: parseFloat($("#discountAmountTotal").val()) || 0,
+        PaidAmount: parseFloat($("#payNow").val()) || 0,
+        DueAmount: parseFloat($("#dueAmount").val()) || 0,
+        PreviousDue: parseFloat($("#previousDue").val()) || 0,
+        PayNow: parseFloat($("#payNow").val()) || 0,
+        Description: $("#description").val() || "",
+        PaymentMethod: $("#paymentMethod").val(),
+        OnlineAccountId: $("#onlineAccountSelect").val() ? parseInt($("#onlineAccountSelect").val()) : null,
+        ActionType: actionType,
+        BillDetails: []
+    };
+    
+    // Add bill details
+    billDetails.forEach(function(item) {
+        formData.BillDetails.push({
+            ProductId: parseInt(item.productId),
+            ProductRangeId: parseInt(item.productRangeId),
+            ProductSize: item.measuringUnitAbbreviation || "",
+            UnitPrice: parseFloat(item.unitPrice),
+            PurchasePrice: parseFloat(item.purchasePrice),
+            Quantity: parseInt(item.quantity),
+            SalePrice: parseFloat(item.salePrice),
+            LineDiscountAmount: parseFloat(item.lineDiscountAmount),
+            PayableAmount: parseFloat(item.payableAmount)
+        });
     });
     
-    // Submit form
-    this.submit();
-});
+    // Debug logging
+    console.log('Form data being sent:', JSON.stringify(formData, null, 2));
+    console.log('Bill details count:', formData.BillDetails.length);
+    console.log('VendorId:', formData.VendorId);
+    console.log('BillNumber:', formData.BillNumber);
+    console.log('PaymentMethod:', formData.PaymentMethod);
+    
+    return formData;
+}
+
+// Function to reset bill form
+function resetBillForm() {
+    // Clear bill details
+    billDetails = [];
+    updateBillDetailsTable();
+    
+    // Reset form fields
+    $("#vendorSelect").data("kendoComboBox").value("");
+    $("#billDate").val(new Date().toISOString().split('T')[0]);
+    $("#totalAmount").val("0");
+    $("#discountAmountTotal").val("0");
+    $("#payNow").val("0");
+    $("#dueAmount").val("0");
+    $("#previousDue").val("0");
+    $("#description").val("");
+    $("#receivedAmount").val("");
+    $("#paymentMethod").val("Cash");
+    $("#onlineAccountSelect").data("kendoComboBox").value("");
+    
+    // Hide online account sections
+    $("#onlineAccountSection").hide();
+    $("#accountBalanceSection").hide();
+    $("#billAmountSection").hide();
+    
+    // Reset product fields
+    resetProductFields();
+    
+    // Reset action type
+    $("#actionType").val("save");
+    
+    // Reload next bill number (without vendor ID since vendor is cleared)
+    console.log("Resetting form and loading next bill number...");
+    loadNextBillNumber();
+}
+
+// Function to show loading state
+function showLoadingState() {
+    $("#saveButton").prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...');
+    $("#saveAndPrintButton").prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...');
+}
+
+// Function to hide loading state
+function hideLoadingState() {
+    $("#saveButton").prop("disabled", false).html('<i class="fa-solid fa-save me-1"></i>Save');
+    $("#saveAndPrintButton").prop("disabled", false).html('<i class="fa-solid fa-print me-1"></i>Save & Print');
+}
+
+// Function to show success message
+function showSuccessMessage(message) {
+    // Remove existing success messages
+    $('.alert-success').remove();
+    
+    // Create success alert
+    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+        '<i class="fa-solid fa-check-circle me-2"></i>' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+        '</div>';
+    
+    $('body').append(alertHtml);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(function() {
+        $('.alert-success').fadeOut();
+    }, 3000);
+}
+
+// Function to show error message
+function showErrorMessage(message) {
+    // Remove existing error messages
+    $('.alert-danger').remove();
+    
+    // Create error alert
+    var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+        '<i class="fa-solid fa-exclamation-circle me-2"></i>' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+        '</div>';
+    
+    $('body').append(alertHtml);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(function() {
+        $('.alert-danger').fadeOut();
+    }, 5000);
+}
+
+// Function to populate form fields in edit mode
+function populateEditForm() {
+    console.log('Populating edit form with existing data...');
+    console.log('isEditMode:', isEditMode);
+    console.log('billDetailsData:', billDetailsData);
+    console.log('billDetailsData type:', typeof billDetailsData);
+    console.log('billDetailsData length:', billDetailsData ? billDetailsData.length : 'undefined');
+    
+    // Populate basic form fields
+    if ($("#vendorSelect").val()) {
+        var vendorCombo = $("#vendorSelect").data("kendoComboBox");
+        if (vendorCombo) {
+            vendorCombo.value($("#vendorSelect").val());
+            // Load vendor data after setting value
+            setTimeout(function() {
+                loadVendorData($("#vendorSelect").val());
+            }, 500);
+        }
+    }
+    
+    // Populate bill details from server-side data
+    if (typeof billDetailsData !== 'undefined' && billDetailsData && billDetailsData.length > 0) {
+        console.log('Loading bill details:', billDetailsData);
+        billDetails = billDetailsData.map(function(item) {
+            console.log('Processing item:', item);
+            return {
+                productId: item.ProductId,
+                productRangeId: item.ProductRangeId,
+                productName: item.ProductName || '', // This might be undefined
+                productSize: item.ProductSize || '',
+                measuringUnitAbbreviation: item.ProductSize || '',
+                unitPrice: item.UnitPrice,
+                purchasePrice: item.PurchasePrice,
+                quantity: item.Quantity,
+                salePrice: item.SalePrice,
+                lineDiscountAmount: item.LineDiscountAmount,
+                payableAmount: item.PayableAmount
+            };
+        });
+        
+        console.log('Mapped billDetails:', billDetails);
+        
+        // Update the bill details table
+        updateBillDetailsTable();
+        calculateTotals();
+    } else {
+        console.log('No bill details data found or data is empty');
+    }
+    
+    console.log('Edit form populated successfully');
+}

@@ -10,12 +10,19 @@
         <div class="card-header bg-primary text-white">
             <h2 class="mb-0 text-center">
                 <i class="fa-solid fa-file-invoice me-2"></i>
-                Generate Vendor Bill
+                @if (ViewBag.IsEdit == true)
+                {
+                    <text>Edit Vendor Bill</text>
+                }
+                else
+                {
+                    <text>Generate Vendor Bill</text>
+                }
             </h2>
         </div>
 
         <div class="card-body">
-            <form asp-action="GenerateBill" method="post" id="generateBillForm">
+            <form asp-action="@(ViewBag.IsEdit == true ? "Edit" : "GenerateBill")" asp-controller="VendorBills" method="post" id="generateBillForm">
                 @Html.AntiForgeryToken()
                 <!-- Hidden field to track which button was clicked -->
                 <input type="hidden" id="actionType" name="actionType" value="" />
@@ -31,7 +38,7 @@
                     </div>
                     <div class="col-md-4">
                         <label for="vendorSelect" class="form-label">Vendor:</label>
-                        <input id="vendorSelect" name="VendorId" style="width: 100%;" />
+                        <input id="vendorSelect" name="VendorId" asp-for="VendorId" style="width: 100%;" />
                     </div>
                     <div class="col-md-2">
                         <label for="billNumber" class="form-label">Bill Number:</label>
@@ -142,10 +149,6 @@
                     <div class="col-md-3">
                         <label for="payNow" class="form-label">Pay Now:</label>
                         <input type="number" id="payNow" asp-for="PayNow" class="form-control" step="0.01" />
-                        <div class="form-check mt-2">
-                            <input class="form-check-input" type="checkbox" id="payLater" />
-                            <label class="form-check-label" for="payLater">Pay Later</label>
-                        </div>
                     </div>
                     <div class="col-md-3">
                         <label for="dueAmount" class="form-label">Due Amount:</label>
@@ -160,18 +163,27 @@
                         <select id="paymentMethod" asp-for="PaymentMethod" class="form-select">
                             <option value="Cash">Cash</option>
                             <option value="Online">Online</option>
+                            <option value="PayLater">Pay Later</option>
                         </select>
                     </div>
                     <div class="col-md-3" id="onlineAccountSection" style="display: none;">
                         <label for="onlineAccountSelect" class="form-label">Online Account:</label>
                         <input id="onlineAccountSelect" name="OnlineAccountId" style="width: 100%;" />
                     </div>
+                    <div class="col-md-3" id="accountBalanceSection" style="display: none;">
+                        <label for="accountBalance" class="form-label">Account Balance:</label>
+                        <input type="number" id="accountBalance" class="form-control" readonly />
+                    </div>
+                    <div class="col-md-3" id="billAmountSection" style="display: none;">
+                        <label for="billAmount" class="form-label">Bill Amount:</label>
+                        <input type="number" id="billAmount" class="form-control" readonly />
+                    </div>
                     <div class="col-md-3">
                         <label for="previousDue" class="form-label">Previous Due:</label>
                         <input type="number" id="previousDue" asp-for="PreviousDue" class="form-control" readonly />
                     </div>
                     <div class="col-md-3">
-                        <label for="receivedAmount" class="form-label">Received Amount:</label>
+                        <label for="receivedAmount" class="form-label">Paid Amount:</label>
                         <input type="number" id="receivedAmount" asp-for="PaidAmount" class="form-control" readonly />
                     </div>
                 </div>
@@ -180,10 +192,26 @@
                 <div class="row">
                     <div class="col-12 text-center">
                         <button type="submit" class="btn btn-success me-2" id="saveButton">
-                            <i class="fa-solid fa-save me-1"></i>Save Bill
+                            <i class="fa-solid fa-save me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update Bill</text>
+                            }
+                            else
+                            {
+                                <text>Save Bill</text>
+                            }
                         </button>
                         <button type="submit" class="btn btn-primary me-2" id="saveAndPrintButton">
-                            <i class="fa-solid fa-print me-1"></i>Save & Print
+                            <i class="fa-solid fa-print me-1"></i>
+                            @if (ViewBag.IsEdit == true)
+                            {
+                                <text>Update & Print</text>
+                            }
+                            else
+                            {
+                                <text>Save & Print</text>
+                            }
                         </button>
                         <a href="@Url.Action("Index")" class="btn btn-secondary">
                             <i class="fa-solid fa-arrow-left me-1"></i>Back to List
@@ -198,6 +226,10 @@
 @section Scripts {
     <script src="~/js/vendor-bill-generation.js"></script>
     <script>
+        // Pass edit mode and bill details data to JavaScript
+        var isEditMode = @(ViewBag.IsEdit == true ? "true" : "false");
+        var billDetailsData = @Html.Raw(Json.Serialize(Model.BillDetails ?? new List<VendorBillDetailViewModel>()));
+        
         $(document).ready(function() {
             // Initialize Kendo UI components
             initializeVendorBillGeneration();

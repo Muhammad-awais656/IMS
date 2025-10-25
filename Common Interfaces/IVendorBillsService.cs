@@ -25,6 +25,15 @@ namespace IMS.Common_Interfaces
         // Edit functionality methods
         Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId);
         Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId);
-        Task<bool> UpdateVendorBillAsync(long billId, GenerateBillViewModel model);
+        Task<bool> UpdateVendorBillAsync(long billId, VendorBillGenerationViewModel model);
+        
+        // Account balance method
+        Task<decimal> GetAccountBalanceAsync(long accountId);
+        
+        // Delete method
+        Task<bool> DeleteVendorBillAsync(long billId);
+        
+        // Get all bill numbers for vendor
+        Task<List<VendorBillViewModel>> GetAllBillNumbersForVendorAsync(long vendorId);
     }
 }
