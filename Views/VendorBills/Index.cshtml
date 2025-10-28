@@ -125,7 +125,7 @@
 
         <!-- Data Grid Section -->
         <div class="table-responsive">
-            <table class="table table-striped table-bordered">
+            <table class="table table-striped table-bordered custom-table">
                 <thead class="table-dark">
                     <tr>
                         <th>Bill id</th>
@@ -137,6 +137,7 @@
                         <th>Paid amount</th>
                         <th>Total payable amount</th>
                         <th>Description</th>
+                        <th>Payment Method</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -155,6 +156,24 @@
                                 <td>@bill.PaidAmount.ToString("N3")</td>
                                 <td>@bill.TotalPayableAmount.ToString("N3")</td>
                                 <td>@bill.Description</td>
+                                <td>
+                                    @if (bill.PaymentMethod == "Cash")
+                                    {
+                                        <span class="badge bg-success">Cash</span>
+                                    }
+                                    else if (bill.PaymentMethod == "Online")
+                                    {
+                                        <span class="badge bg-primary">Online</span>
+                                    }
+                                    else if (bill.PaymentMethod == "Pay Later")
+                                    {
+                                        <span class="badge bg-warning text-dark">Pay Later</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@bill.PaymentMethod</span>
+                                    }
+                                </td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="@Url.Action("Details", "VendorBills", new { id = bill.BillId })" 

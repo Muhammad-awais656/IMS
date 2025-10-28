@@ -34,6 +34,7 @@ namespace IMS.Models
         public decimal DueAmount { get; set; }
         public decimal TotalPayableAmount { get; set; }
         public string? Description { get; set; }
+        public string? PaymentMethod { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 

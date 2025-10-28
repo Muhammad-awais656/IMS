@@ -63,7 +63,8 @@ namespace IMS.Services
                                     DiscountAmount = reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? 0 : reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
                                     PaidAmount = reader.IsDBNull(reader.GetOrdinal("TotalReceivedAmount")) ? 0 : reader.GetDecimal(reader.GetOrdinal("TotalReceivedAmount")),
                                     TotalPayableAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? 0 : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
-                                    Description = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("PurchaseOrderDescription"))
+                                    Description = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("PurchaseOrderDescription")),
+                                    PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod"))
                                 };
 
                                 billsList.Add(bill);

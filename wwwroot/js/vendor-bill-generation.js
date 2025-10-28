@@ -116,6 +116,7 @@ function initializeOnlineAccountComboBox() {
         dataValueField: "value",
         filter: "contains",
         minLength: 1,
+        enabled: false, // Start disabled until Online payment method is selected
         dataSource: {
             transport: {
                 read: {
@@ -406,12 +407,12 @@ function addProductToTable() {
     var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
     
     if (!productComboBox.value()) {
-        alert("Please select a product");
+        showWarningMessage("Please select a product");
         return;
     }
     
     if (!productSizeComboBox.value()) {
-        alert("Please select a product size");
+        showWarningMessage("Please select a product size");
         return;
     }
     
@@ -425,7 +426,7 @@ function addProductToTable() {
     var payableAmount = parseFloat($("#payableAmount").val()) || 0;
     
     if (quantity <= 0) {
-        alert("Please enter a valid quantity");
+        showWarningMessage("Please enter a valid quantity");
         return;
     }
     
@@ -638,6 +639,7 @@ function saveAndPrintBill() {
 
 // Function to load online accounts
 function loadOnlineAccounts() {
+    debugger;
     const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
     if (onlineAccountCombo) {
         console.log("Loading online accounts from server...");
@@ -651,8 +653,8 @@ function loadOnlineAccounts() {
             })
             .then(data => {
                 console.log("Online accounts data received:", data);
-                if (data && data.length > 0) {
-                    onlineAccountCombo.dataSource.data(data);
+                if (data && data.data && data.data.length > 0) {
+                    onlineAccountCombo.dataSource.data(data.data);
                     onlineAccountCombo.enable(true);
                     onlineAccountCombo.refresh();
                     console.log("Online accounts loaded successfully");
@@ -774,7 +776,7 @@ function validateBillForm() {
     $("#vendorSelect").removeClass('is-invalid');
     
     if (billDetails.length === 0) {
-        alert("Please add at least one product to the bill");
+        showWarningMessage("Please add at least one product to the bill");
         return false;
     }
     
@@ -783,7 +785,7 @@ function validateBillForm() {
     var payNow = parseFloat($("#payNow").val()) || 0;
     
     if (paymentMethod !== "PayLater" && payNow <= 0) {
-        alert("Pay Now amount is required when payment method is not 'Pay Later'.");
+        showWarningMessage("Pay Now amount is required when payment method is not 'Pay Later'.");
         return false;
     }
     
@@ -793,7 +795,7 @@ function validateBillForm() {
         var onlineAccountId = onlineAccountCombo ? onlineAccountCombo.value() : null;
         
         if (!onlineAccountId || onlineAccountId === '') {
-            alert("Please select an online account for online payment.");
+            showWarningMessage("Please select an online account for online payment.");
             return false;
         }
         
@@ -802,12 +804,12 @@ function validateBillForm() {
         var payNow = parseFloat($("#payNow").val()) || 0;
         
         if (accountBalance <= 0) {
-            alert("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
             return false;
         }
         
         if (payNow > accountBalance) {
-            alert("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
             return false;
         }
     }
