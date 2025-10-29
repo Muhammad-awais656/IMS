@@ -388,8 +388,9 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("SELECT ProductId, ProductCode, ProductName FROM Products WHERE Isenabled = 1", connection))
+                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
                     {
+                        command.CommandType = CommandType.StoredProcedure;
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
@@ -421,14 +422,10 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand(@"
-                        SELECT pr.ProductRangeId, pr.UnitPrice, pr.RangeFrom, pr.RangeTo, pr.MeasuringUnitId_FK,
-       mu.MeasuringUnitName, mu.MeasuringUnitAbbreviation
-FROM ProductRange pr
-LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
-                        WHERE pr.ProductId_FK = @ProductId", connection))
+                    using (var command = new SqlCommand("GetProductUnitPriceRangeByProductId", connection))
                     {
-                        command.Parameters.AddWithValue("@ProductId", productId);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pProductId", productId);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
@@ -464,8 +461,9 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                 {
                     await connection.OpenAsync();
                     
-                    using (var command = new SqlCommand("SELECT SUM(ISNULL(p.TotalDueAmount,0)) PreviousDueAmount FROM PurchaseOrders p WHERE p.SupplierId_FK = @pVendorId", connection))
+                    using (var command = new SqlCommand("GetPreviousDueAmountByBillId", connection))
                     {
+                        command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pVendorId", vendorId);
                         var result = await command.ExecuteScalarAsync();
                         return result != null ? Convert.ToDecimal(result) : 0;
@@ -486,19 +484,40 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand(@"
-                       SELECT PurchaseOrderId, BillNumber, SupplierId_FK, BillNumber, PurchaseOrderDate, TotalAmount, DiscountAmount, 
-        TotalReceivedAmount,TotalAmount, TotalDueAmount, PurchaseOrderDescription, po.CreatedDate,asp.SupplierName as VendorName
- FROM PurchaseOrders po
- left join AdminSuppliers asp on asp.SupplierId = po.SupplierId_FK
- WHERE PurchaseOrderId = @BillId AND po.IsDeleted = 0
-", connection))
+                    using (var command = new SqlCommand("GetBillByBillId", connection))
                     {
-                        command.Parameters.AddWithValue("@BillId", billId);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
+                                var paymentMethod = "";
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
+                                    {
+                                        paymentMethod = reader.GetString("PaymentMethod");
+                                    }
+                                }
+                                catch
+                                {
+                                    paymentMethod = "";
+                                }
+                                
+                                long? onlineAccountId = null;
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
+                                    {
+                                        onlineAccountId = reader.GetInt64("OnlineAccountId");
+                                    }
+                                }
+                                catch
+                                {
+                                    onlineAccountId = null;
+                                }
+                                
                                 return new VendorBillViewModel
                                 {
                                     BillId = reader.GetInt64("PurchaseOrderId"),
@@ -510,8 +529,9 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                     DiscountAmount = reader.GetDecimal("DiscountAmount"),
                                     PaidAmount = reader.GetDecimal("TotalReceivedAmount"),
                                     DueAmount = reader.GetDecimal("TotalDueAmount"),
-                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription")
-                                  
+                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription"),
+                                    PaymentMethod = paymentMethod,
+                                    OnlineAccountId = onlineAccountId
                                 };
                             }
                         }
@@ -534,18 +554,23 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand(@"
-                        SELECT bi.PurchaseOrderId_FK, bi.PrductId_FK, bi.ProductRangeId_FK, bi.UnitPrice, 
-                               bi.Quantity, bi.LineDiscountAmount, bi.PayableAmount, p.ProductName
-                        FROM PurchaseOrderItems bi
-                        LEFT JOIN Products p ON bi.PrductId_FK = p.ProductId
-                        WHERE bi.PurchaseOrderId_FK = @BillId ", connection))
+                    using (var command = new SqlCommand("GetBillDetailsByBillId", connection))
                     {
-                        command.Parameters.AddWithValue("@BillId", billId);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
                             {
+                                var productCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? "" : reader.GetString("ProductCode");
+                                var rangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal("RangeFrom");
+                                var rangeTo = reader.IsDBNull(reader.GetOrdinal("RangeTo")) ? 0 : reader.GetDecimal("RangeTo");
+                                var productSize = "";
+                                if (rangeFrom > 0 || rangeTo > 0)
+                                {
+                                    productSize = rangeFrom.ToString("0.##") + " - " + rangeTo.ToString("0.##");
+                                }
+                                
                                 billItems.Add(new BillItemViewModel
                                 {
                                     BillItemId = reader.GetInt64("PurchaseOrderId_FK"),
@@ -555,7 +580,9 @@ LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                     Quantity = reader.GetInt64("Quantity"),
                                     DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
-                                    ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName")
+                                    ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
+                                    ProductCode = productCode,
+                                    ProductSize = productSize
                                 });
                             }
                         }

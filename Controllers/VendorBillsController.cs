@@ -845,6 +845,8 @@ namespace IMS.Controllers
                     PaidAmount = vendorBill.PaidAmount,
                     DueAmount = vendorBill.DueAmount,
                     Description = vendorBill.Description,
+                    PaymentMethod = vendorBill.PaymentMethod,
+                    OnlineAccountId = vendorBill.OnlineAccountId,
                     BillDetails = billItems.Select(item => new VendorBillDetailViewModel
                     {
                         ProductId = item.ProductId,
@@ -856,7 +858,8 @@ namespace IMS.Controllers
                         SalePrice = item.UnitPrice,
                         LineDiscountAmount = item.DiscountAmount,
                         PayableAmount = item.PayableAmount,
-                        ProductRangeId = item.ProductRangeId
+                        ProductRangeId = item.ProductRangeId,
+                        ProductCode = item.ProductCode
                     }).ToList()
                 };
 

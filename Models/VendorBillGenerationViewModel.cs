@@ -33,6 +33,7 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
         public string ProductSize { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public decimal PurchasePrice { get; set; }

@@ -160,11 +160,7 @@
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label for="paymentMethod" class="form-label">Payment Method:</label>
-                        <select id="paymentMethod" asp-for="PaymentMethod" class="form-select">
-                            <option value="Cash">Cash</option>
-                            <option value="Online">Online</option>
-                            <option value="PayLater">Pay Later</option>
-                        </select>
+                        <input id="paymentMethod" name="PaymentMethod" asp-for="PaymentMethod" style="width: 100%;" />
                     </div>
                     <div class="col-md-3" id="onlineAccountSection" style="display: none;">
                         <label for="onlineAccountSelect" class="form-label">Online Account:</label>
@@ -228,7 +224,28 @@
     <script>
         // Pass edit mode and bill details data to JavaScript
         var isEditMode = '@(ViewBag.IsEdit == true ? "true" : "false")';
-        var billDetailsData = @Html.Raw(Json.Serialize(Model.BillDetails ?? new List<VendorBillDetailViewModel>()))
+        var billDetailsData = @Html.Raw(Json.Serialize(Model?.BillDetails ?? new List<VendorBillDetailViewModel>()));
+        var paymentMethodValue = '@(Model?.PaymentMethod ?? "")';
+        var onlineAccountIdValue = @(Model?.OnlineAccountId?.ToString() ?? "null");
+        
+        // Set payment method value as data attribute
+        @if (Model != null && !string.IsNullOrEmpty(Model.PaymentMethod))
+        {
+            <text>$("#paymentMethod").attr('data-value', '@Model.PaymentMethod');</text>
+        }
+        
+        @if (Model != null && Model.OnlineAccountId.HasValue)
+        {
+            <text>$("#onlineAccountSelect").attr('data-value', '@Model.OnlineAccountId.Value');</text>
+        }
+        
+        console.log('Script initialization:', {
+            isEditMode: isEditMode,
+            billDetailsDataLength: billDetailsData ? billDetailsData.length : 'undefined',
+            billDetailsData: billDetailsData,
+            paymentMethodValue: paymentMethodValue,
+            onlineAccountIdValue: onlineAccountIdValue
+        });
         
         $(document).ready(function() {
             // Initialize Kendo UI components

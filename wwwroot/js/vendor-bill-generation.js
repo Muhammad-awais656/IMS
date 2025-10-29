@@ -10,6 +10,7 @@ function initializeVendorBillGeneration() {
     initializeProductComboBox();
     initializeProductSizeComboBox();
     initializeOnlineAccountComboBox();
+    initializePaymentMethodComboBox();
     
     // Set up event handlers
     setupEventHandlers();
@@ -18,8 +19,13 @@ function initializeVendorBillGeneration() {
     initializeForm();
     
     // Check if we're in edit mode and populate form
-    if (typeof isEditMode !== 'undefined' && isEditMode) {
-        populateEditForm();
+    // isEditMode is passed as a string "true" or "false"
+    if (typeof isEditMode !== 'undefined' && (isEditMode === 'true' || isEditMode === true)) {
+        console.log('Edit mode detected, populating form...');
+        // Add a small delay to ensure all data is loaded
+        setTimeout(function() {
+            populateEditForm();
+        }, 100);
     }
 }
 
@@ -104,6 +110,31 @@ function initializeProductSizeComboBox() {
             if (this.value()) {
                 currentProductRangeId = this.value();
                 loadProductSizeData(this.value());
+            }
+        }
+    });
+}
+
+function initializePaymentMethodComboBox() {
+    $("#paymentMethod").kendoDropDownList({
+        dataSource: [
+            { text: "Cash", value: "Cash" },
+            { text: "Online", value: "Online" },
+            { text: "Pay Later", value: "PayLater" }
+        ],
+        dataTextField: "text",
+        dataValueField: "value",
+        value: "Cash",
+        change: function() {
+            var selectedValue = this.value();
+            if (selectedValue === "Online") {
+                $("#onlineAccountSection").show();
+                $("#accountBalanceSection").show();
+                $("#billAmountSection").show();
+            } else {
+                $("#onlineAccountSection").hide();
+                $("#accountBalanceSection").hide();
+                $("#billAmountSection").hide();
             }
         }
     });
@@ -268,11 +299,14 @@ function setupEventHandlers() {
 }
 
 function initializeForm() {
-    // Set today's date
-    $("#billDate").val(new Date().toISOString().split('T')[0]);
-    
-    // Load next bill number
-    loadNextBillNumber();
+    // Only load next bill number if not in edit mode
+    if (typeof isEditMode === 'undefined' || (isEditMode !== 'true' && isEditMode !== true)) {
+        // Set today's date
+        $("#billDate").val(new Date().toISOString().split('T')[0]);
+        
+        // Load next bill number
+        loadNextBillNumber();
+    }
 }
 
 function loadVendorData(vendorId) {
@@ -461,16 +495,38 @@ function updateBillDetailsTable() {
     var tbody = $("#billDetailsBody");
     tbody.empty();
     
+    console.log('updateBillDetailsTable called. billDetails length:', billDetails ? billDetails.length : 'billDetails is undefined');
+    
+    if (!billDetails || billDetails.length === 0) {
+        console.warn('No bill details to display. billDetails is empty or undefined.');
+        return;
+    }
+    
     billDetails.forEach(function(item, index) {
+        console.log('Processing item at index', index, ':', item);
         var row = $("<tr>");
-        row.append("<td>" + (item.measuringUnitAbbreviation || "") + "</td>");
-        row.append("<td>" + item.productName + "</td>");
-        row.append("<td>" + (item.lineDiscountAmount / item.quantity).toFixed(2) + "</td>");
-        row.append("<td>" + item.unitPrice.toFixed(2) + "</td>");
-        row.append("<td>" + item.purchasePrice.toFixed(2) + "</td>");
-        row.append("<td>" + item.quantity + "</td>");
-        row.append("<td>" + item.lineDiscountAmount.toFixed(2) + "</td>");
-        row.append("<td>" + item.payableAmount.toFixed(2) + "</td>");
+        // Helper function to safely format decimal values
+        function safeToFixed(value, decimals) {
+            if (value === null || value === undefined || isNaN(value)) {
+                return "0.00";
+            }
+            return parseFloat(value).toFixed(decimals || 2);
+        }
+        
+        // Calculate unit discount price safely
+        var unitDiscountPrice = 0;
+        if (item.quantity && item.quantity > 0 && item.lineDiscountAmount) {
+            unitDiscountPrice = item.lineDiscountAmount / item.quantity;
+        }
+        
+        row.append("<td>" + (item.productCode || "") + "</td>");
+        row.append("<td>" + (item.productName || "") + "</td>");
+        row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
+        row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
+        row.append("<td>" + safeToFixed(item.purchasePrice, 2) + "</td>");
+        row.append("<td>" + (item.quantity || 0) + "</td>");
+        row.append("<td>" + safeToFixed(item.lineDiscountAmount, 2) + "</td>");
+        row.append("<td>" + safeToFixed(item.payableAmount, 2) + "</td>");
         row.append("<td>"
             + "<button type='button' class='btn btn-sm btn-warning me-1 edit-row' data-index='" + index + "' title='Edit'><i class='fa-solid fa-edit'></i></button>"
             + "<button type='button' class='btn btn-sm btn-danger remove-row' data-index='" + index + "' title='Remove'><i class='fa-solid fa-trash'></i></button>"
@@ -960,6 +1016,35 @@ function populateEditForm() {
     console.log('billDetailsData type:', typeof billDetailsData);
     console.log('billDetailsData length:', billDetailsData ? billDetailsData.length : 'undefined');
     
+    // Populate Payment Method from model
+    var paymentMethodValue = $("#paymentMethod").attr('data-value') || $("#paymentMethod").val();
+    if (paymentMethodValue) {
+        setTimeout(function() {
+            var paymentMethodDD = $("#paymentMethod").data("kendoDropDownList");
+            if (paymentMethodDD) {
+                paymentMethodDD.value(paymentMethodValue);
+                // Trigger change event to show/hide online account section
+                if (paymentMethodValue === "Online") {
+                    $("#onlineAccountSection").show();
+                    $("#accountBalanceSection").show();
+                    $("#billAmountSection").show();
+                }
+            }
+        }, 200);
+    }
+    
+    // Populate Online Account if Payment Method is Online
+    var onlineAccountId = $("#onlineAccountSelect").attr('data-value') || $("#onlineAccountSelect").val();
+    if (onlineAccountId && paymentMethodValue === "Online") {
+        setTimeout(function() {
+            var onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+            if (onlineAccountCombo) {
+                onlineAccountCombo.value(onlineAccountId);
+                onlineAccountCombo.enable(true);
+            }
+        }, 400);
+    }
+    
     // Populate basic form fields
     if ($("#vendorSelect").val()) {
         var vendorCombo = $("#vendorSelect").data("kendoComboBox");
@@ -973,32 +1058,50 @@ function populateEditForm() {
     }
     
     // Populate bill details from server-side data
-    if (typeof billDetailsData !== 'undefined' && billDetailsData && billDetailsData.length > 0) {
-        console.log('Loading bill details:', billDetailsData);
-        billDetails = billDetailsData.map(function(item) {
-            console.log('Processing item:', item);
-            return {
-                productId: item.ProductId,
-                productRangeId: item.ProductRangeId,
-                productName: item.ProductName || '', // This might be undefined
-                productSize: item.ProductSize || '',
-                measuringUnitAbbreviation: item.ProductSize || '',
-                unitPrice: item.UnitPrice,
-                purchasePrice: item.PurchasePrice,
-                quantity: item.Quantity,
-                salePrice: item.SalePrice,
-                lineDiscountAmount: item.LineDiscountAmount,
-                payableAmount: item.PayableAmount
+    console.log('Checking billDetailsData:', {
+        defined: typeof billDetailsData !== 'undefined',
+        isArray: Array.isArray(billDetailsData),
+        length: billDetailsData ? billDetailsData.length : 'N/A',
+        data: billDetailsData
+    });
+    
+    if (typeof billDetailsData !== 'undefined' && billDetailsData && Array.isArray(billDetailsData) && billDetailsData.length > 0) {
+        console.log('Loading bill details. Count:', billDetailsData.length);
+        console.log('First item structure:', billDetailsData[0]);
+        
+        billDetails = billDetailsData.map(function(item, idx) {
+            console.log('Processing item', idx, ':', item);
+            // Handle both PascalCase (server) and camelCase formats
+            var mappedItem = {
+                productId: item.ProductId || item.productId || 0,
+                productRangeId: item.ProductRangeId || item.productRangeId || 0,
+                productCode: item.ProductCode || item.productCode || '',
+                productName: item.ProductName || item.productName || '',
+                productSize: item.ProductSize || item.productSize || '',
+                measuringUnitAbbreviation: (item.ProductSize || item.productSize || ''),
+                unitPrice: item.UnitPrice || item.unitPrice || 0,
+                purchasePrice: item.PurchasePrice || item.purchasePrice || 0,
+                quantity: item.Quantity || item.quantity || 0,
+                salePrice: item.SalePrice || item.salePrice || 0,
+                lineDiscountAmount: item.LineDiscountAmount || item.lineDiscountAmount || 0,
+                payableAmount: item.PayableAmount || item.payableAmount || 0
             };
+            console.log('Mapped item', idx, ':', mappedItem);
+            return mappedItem;
         });
         
+        console.log('Successfully mapped billDetails. Total items:', billDetails.length);
         console.log('Mapped billDetails:', billDetails);
         
         // Update the bill details table
         updateBillDetailsTable();
         calculateTotals();
     } else {
-        console.log('No bill details data found or data is empty');
+        console.warn('No bill details data found or data is empty', {
+            billDetailsData: billDetailsData,
+            isArray: Array.isArray(billDetailsData),
+            length: billDetailsData ? billDetailsData.length : 'undefined'
+        });
     }
     
     console.log('Edit form populated successfully');
