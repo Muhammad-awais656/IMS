@@ -150,9 +150,9 @@
                                         data-range-to="@item.RangeTo" 
                                         data-unit-price="@item.UnitPrice">
                                         <td>@item.MeasuringUnitIdFk</td>
-                                        <td>@item.RangeFrom</td>
-                                        <td>@item.RangeTo</td>
-                                        <td>@item.UnitPrice</td>
+                                        <td>@item.RangeFrom.ToString("0.##")</td>
+                                        <td>@item.RangeTo.ToString("0.##")</td>
+                                        <td>@item.UnitPrice.ToString("0.##")</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
                                             <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
@@ -196,23 +196,43 @@
             let sizeCounter = 0;
             let editingSizeId = null; // Track which size is being edited
 
-            // Initialize measuringUnitTypeId with current value on page load
-            measuringUnitTypeId = $("#MeasuringUnitTypeId").val();
-            console.log("Initial MeasuringUnitTypeId:", measuringUnitTypeId);
+            // Function to get measuring unit type id from Kendo ComboBox
+            function getMeasuringUnitTypeId() {
+                var mutCombo = $("#MeasuringUnitTypeId").data("kendoComboBox");
+                if (mutCombo) {
+                    return mutCombo.value();
+                }
+                return null;
+            }
 
-            // Capture MeasuringUnitTypeId on change
+            // Initialize measuringUnitTypeId after Kendo ComboBox is initialized
+            setTimeout(function() {
+                measuringUnitTypeId = getMeasuringUnitTypeId();
+                console.log("Initial MeasuringUnitTypeId:", measuringUnitTypeId);
+            }, 100);
+
+            // Capture MeasuringUnitTypeId on change (using Kendo ComboBox change event)
             $("#MeasuringUnitTypeId").on("change", function () {
-                measuringUnitTypeId = $(this).val();
+                measuringUnitTypeId = getMeasuringUnitTypeId();
                 console.log("MeasuringUnitTypeId changed to:", measuringUnitTypeId);
             });
 
             // Open Add Size Modal
             $("#addSizeBtn").click(function () {
-                if (!measuringUnitTypeId || measuringUnitTypeId === "" || measuringUnitTypeId === "0") {
+                // Get current value directly from Kendo ComboBox
+                var currentMutId = getMeasuringUnitTypeId();
+                
+                if (!currentMutId || currentMutId === "" || currentMutId === "0") {
                     alert("Please select a Measuring Unit Type first before adding sizes.");
-                    $("#MeasuringUnitTypeId").focus();
+                    var mutCombo = $("#MeasuringUnitTypeId").data("kendoComboBox");
+                    if (mutCombo) {
+                        mutCombo.focus();
+                    }
                     return;
                 }
+                
+                // Update the variable with current value
+                measuringUnitTypeId = currentMutId;
 
                 editingSizeId = null; // Reset editing mode
                 $.ajax({
@@ -268,24 +288,30 @@
             // Save Size from Modal (Add or Edit)
             $(document).on("click", "#saveSizeBtn", function (e) {
                 e.preventDefault();
-                debugger;
-                var measuringUnitId = $("#addSizeForm input[name='MeasuringUnitIdFk']").val();
+                var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
+                var measuringUnitId = measuringUnitCombo ? measuringUnitCombo.value() : $("#addSizeForm input[name='MeasuringUnitIdFk']").val();
                 var rangeFrom = $("#addSizeForm input[name='RangeFrom']").val();
                 var rangeTo = $("#addSizeForm input[name='RangeTo']").val();
                 var unitPrice = $("#addSizeForm input[name='UnitPrice']").val();
 
-                if (!measuringUnitId || !rangeFrom || !rangeTo || !unitPrice) {
-                    alert("Please fill in all fields.");
+                // Validate non-empty fields (allow 0 but not null/empty)
+                if (!measuringUnitId || measuringUnitId === "" || measuringUnitId === "0") {
+                    alert("Please select a Measuring Unit.");
                     return;
                 }
 
-                // Validate numeric values
-                if (parseFloat(rangeFrom) <= 0 || parseFloat(rangeTo) <= 0 || parseFloat(unitPrice) <= 0) {
-                    alert("All numeric values must be greater than 0.");
+                if (rangeFrom === "" || rangeFrom === null || rangeTo === "" || rangeTo === null || unitPrice === "" || unitPrice === null) {
+                    alert("Please fill in all fields. You can use 0 as a value, but fields cannot be empty.");
                     return;
                 }
 
-                if (parseFloat(rangeFrom) >= parseFloat(rangeTo)) {
+                // Validate numeric values (allow 0 but not negative, and RangeFrom must be less than RangeTo)
+                if (parseFloat(rangeFrom) < 0 || parseFloat(rangeTo) < 0 || parseFloat(unitPrice) < 0) {
+                    alert("Numeric values cannot be negative.");
+                    return;
+                }
+
+                if (parseFloat(rangeFrom) > parseFloat(rangeTo)) {
                     alert("Range From must be less than Range To.");
                     return;
                 }
@@ -304,6 +330,14 @@
                 editingSizeId = null;
             });
 
+            // Format number to show up to 2 decimal places without trailing zeros
+            function formatDecimal(value) {
+                var num = parseFloat(value);
+                if (isNaN(num)) return value;
+                // Format to max 2 decimal places and remove trailing zeros
+                return num.toFixed(2).replace(/\.?0+$/, '');
+            }
+
             // Add size to table
             function addSizeToTable(measuringUnitId, rangeFrom, rangeTo, unitPrice) {
                 sizeCounter++;
@@ -317,9 +351,9 @@
                     <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" 
                         data-range-from="${rangeFromNum}" data-range-to="${rangeToNum}" data-unit-price="${unitPriceNum}">
                         <td>${measuringUnitIdNum}</td>
-                        <td>${rangeFromNum}</td>
-                        <td>${rangeToNum}</td>
-                        <td>${unitPriceNum}</td>
+                        <td>${formatDecimal(rangeFromNum)}</td>
+                        <td>${formatDecimal(rangeToNum)}</td>
+                        <td>${formatDecimal(unitPriceNum)}</td>
                         <td>
                             <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
                             <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
@@ -337,15 +371,30 @@
                 var unitPriceNum = parseFloat(unitPrice);
                 
                 var $row = $(`tr[data-size-id="${sizeId}"]`);
+                
+                // Clear cached data to force refresh
+                $row.removeData("measuring-unit-id");
+                $row.removeData("range-from");
+                $row.removeData("range-to");
+                $row.removeData("unit-price");
+                
+                // Update both attributes and data (using data() to update cache, attr() for DOM)
                 $row.attr("data-measuring-unit-id", measuringUnitIdNum);
                 $row.attr("data-range-from", rangeFromNum);
                 $row.attr("data-range-to", rangeToNum);
                 $row.attr("data-unit-price", unitPriceNum);
                 
+                // Also update using data() to update the cache
+                $row.data("measuring-unit-id", measuringUnitIdNum);
+                $row.data("range-from", rangeFromNum);
+                $row.data("range-to", rangeToNum);
+                $row.data("unit-price", unitPriceNum);
+                
+                // Update visible table cells with formatted decimals
                 $row.find("td:eq(0)").text(measuringUnitIdNum);
-                $row.find("td:eq(1)").text(rangeFromNum);
-                $row.find("td:eq(2)").text(rangeToNum);
-                $row.find("td:eq(3)").text(unitPriceNum);
+                $row.find("td:eq(1)").text(formatDecimal(rangeFromNum));
+                $row.find("td:eq(2)").text(formatDecimal(rangeToNum));
+                $row.find("td:eq(3)").text(formatDecimal(unitPriceNum));
             }
 
             // Remove size from table
@@ -364,11 +413,20 @@
 
                 editingSizeId = sizeId; // Set editing mode
 
-                if (!measuringUnitTypeId || measuringUnitTypeId === "" || measuringUnitTypeId === "0") {
+                // Get current value directly from Kendo ComboBox
+                var currentMutId = getMeasuringUnitTypeId();
+                
+                if (!currentMutId || currentMutId === "" || currentMutId === "0") {
                     alert("Please select a Measuring Unit Type first before editing sizes.");
-                    $("#MeasuringUnitTypeId").focus();
+                    var mutCombo = $("#MeasuringUnitTypeId").data("kendoComboBox");
+                    if (mutCombo) {
+                        mutCombo.focus();
+                    }
                     return;
                 }
+                
+                // Update the variable with current value
+                measuringUnitTypeId = currentMutId;
 
                 $.ajax({
                     url: "/Product/AddSizePartial",
@@ -378,11 +436,34 @@
                         $("#sizeModalContent").html(data);
                         $("#sizeModal .modal-title").text("Edit Size");
                         
-                        // Populate form with existing data
-                        $("#addSizeForm select[id='modalMeasuringUnitId']").val(measuringUnitId);
-                        $("#addSizeForm input[name='RangeFrom']").val(rangeFrom);
-                        $("#addSizeForm input[name='RangeTo']").val(rangeTo);
-                        $("#addSizeForm input[name='UnitPrice']").val(unitPrice);
+                        // Wait for modal content to be fully loaded and Kendo ComboBoxes initialized
+                        setTimeout(function() {
+                            // Set Measuring Unit Type first
+                            var mutCombo = $("#modalMeasuringUnitTypeId").data("kendoComboBox");
+                            if (mutCombo) {
+                                mutCombo.value(measuringUnitTypeId);
+                                
+                                // Load measuring units and then set the value
+                                if (typeof window.loadMeasuringUnits === 'function') {
+                                    console.log("Loading measuring units for edit with MUTId:", measuringUnitTypeId);
+                                    window.loadMeasuringUnits(measuringUnitTypeId);
+                                    
+                                    // Wait for measuring units to load, then set the value
+                                    setTimeout(function() {
+                                        var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
+                                        if (measuringUnitCombo) {
+                                            measuringUnitCombo.value(measuringUnitId.toString());
+                                            console.log("Set measuring unit value to:", measuringUnitId);
+                                        }
+                                    }, 500);
+                                }
+                            }
+                            
+                            // Set other field values (formatted to remove trailing zeros)
+                            $("#addSizeForm input[name='RangeFrom']").val(formatDecimal(rangeFrom));
+                            $("#addSizeForm input[name='RangeTo']").val(formatDecimal(rangeTo));
+                            $("#addSizeForm input[name='UnitPrice']").val(formatDecimal(unitPrice));
+                        }, 300);
                         
                         $("#sizeModal").modal("show");
                     },
@@ -437,7 +518,11 @@
                     var rangeTo = $row.data("range-to");
                     var unitPrice = $row.data("unit-price");
 
-                    if (measuringUnitId && measuringUnitId > 0 && rangeFrom && rangeFrom > 0 && rangeTo && rangeTo > 0 && unitPrice && unitPrice > 0) {
+                    // Allow 0 but not null/empty (measuringUnitId must be > 0 though)
+                    if (measuringUnitId && measuringUnitId > 0 && 
+                        rangeFrom !== "" && rangeFrom !== null && rangeFrom !== undefined &&
+                        rangeTo !== "" && rangeTo !== null && rangeTo !== undefined &&
+                        unitPrice !== "" && unitPrice !== null && unitPrice !== undefined) {
                         // Add ProductRangeId for existing sizes (not new ones)
                         if (sizeId && !sizeId.toString().startsWith("new_")) {
                             $("<input>").attr({
@@ -495,7 +580,12 @@
                     placeholder: "-- Select MU Type --",
                     filter: "contains",
                     suggest: true,
-                    minLength: 1
+                    minLength: 1,
+                    change: function() {
+                        // Update the variable when ComboBox value changes
+                        measuringUnitTypeId = this.value();
+                        console.log("MeasuringUnitTypeId changed via ComboBox change event:", measuringUnitTypeId);
+                    }
                 });
             }
             
@@ -504,6 +594,12 @@
             
             // Initialize Measuring Unit Type Combobox
             initializeMeasuringUnitCombobox("#MeasuringUnitTypeId");
+            
+            // Initialize measuringUnitTypeId after ComboBox is ready
+            setTimeout(function() {
+                measuringUnitTypeId = getMeasuringUnitTypeId();
+                console.log("MeasuringUnitTypeId initialized after ComboBox setup:", measuringUnitTypeId);
+            }, 200);
 
             // Initialize Label Combobox
             $("#LabelId").kendoComboBox({

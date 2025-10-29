@@ -163,7 +163,7 @@ namespace IMS.Controllers
                         for (int i = 0; i < model.productRanges.Count; i++)
                         {
                             var range = model.productRanges[i];
-                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            if (range.MeasuringUnitIdFk == 0 || range.UnitPrice == 0)
                             {
                                 
                                 TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";
@@ -273,7 +273,7 @@ namespace IMS.Controllers
                 LabelId = unit.ProductList.LabelIdFk,
                 MUTId = unit.ProductList.MeasuringUnitTypeIdFk,
                 IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled),
-                Price = unit.productRanges?.FirstOrDefault()?.UnitPrice ?? 0,
+                Price = unit.ProductList?.UnitPrice ?? 0,
                 CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
                 LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
                 MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync(),
@@ -339,7 +339,7 @@ namespace IMS.Controllers
                         for (int i = 0; i < model.productRanges.Count; i++)
                         {
                             var range = model.productRanges[i];
-                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            if (range.MeasuringUnitIdFk == 0 || range.UnitPrice == 0)
                             {
                                
                                 TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";

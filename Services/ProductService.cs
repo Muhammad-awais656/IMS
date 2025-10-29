@@ -301,8 +301,22 @@ namespace IMS.Services
                                     };
                                     if (!reader.IsDBNull(reader.GetOrdinal("ProductId_FK")))
                                     {
+                                        // Safely get ProductRangeId if column exists
+                                        long productRangeId = 0;
+                                        try
+                                        {
+                                            int productRangeIdOrdinal = reader.GetOrdinal("ProductRangeId");
+                                            productRangeId = reader.IsDBNull(productRangeIdOrdinal) ? 0 : reader.GetInt64(productRangeIdOrdinal);
+                                        }
+                                        catch
+                                        {
+                                            // Column doesn't exist in result set, default to 0
+                                            productRangeId = 0;
+                                        }
+
                                         productRanges.Add(new ProductRange
                                         {
+                                            ProductRangeId = productRangeId,
                                             ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
                                             MeasuringUnitIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitId_Fk")) ? 0 : reader.GetInt64(reader.GetOrdinal("MeasuringUnitId_Fk")),
                                             RangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeFrom")),
@@ -405,8 +419,8 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductId_FK", productRange.ProductIdFk);
                         command.Parameters.AddWithValue("@pMeasuringUnitId_FK", productRange.MeasuringUnitIdFk);
-                        command.Parameters.AddWithValue("@pRangeFrom", productRange.RangeFrom);
-                        command.Parameters.AddWithValue("@pRangeTo", productRange.RangeTo);
+                        command.Parameters.AddWithValue("@pRangeFrom", productRange.RangeFrom==null ? 0: productRange.RangeFrom);
+                        command.Parameters.AddWithValue("@pRangeTo", productRange.RangeTo==null ? 0 : productRange.RangeTo);
                         command.Parameters.AddWithValue("@pUnitPrice", productRange.UnitPrice);
                   
                         var unitTypeyIdParam = new SqlParameter("@pProductRangeId", SqlDbType.BigInt)

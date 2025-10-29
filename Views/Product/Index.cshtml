@@ -20,12 +20,15 @@
                     <h5 class="mb-0 user-search-title">
                         <i class="fa-solid fa-search user-search-icon me-2"></i>Search & Actions
                     </h5>
+                    <a asp-action="Create" class="btn btn-user-create">
+                        <i class="fa-solid fa-plus me-2"></i>Create Product
+                    </a>
                 </div>
             </div>
             <div class="card-body user-search-section pt-0">
                 <form asp-action="Index" asp-controller="Product" method="get">
 
-                    <div class="row g-3 align-items-end">
+                    <div class="row">
                         <!-- Search Inputs -->
                         <div class="col-md-3">
                             <label class="text-muted">
@@ -33,10 +36,42 @@
                             </label>
                             <div class="form-floating user-search-floating">
                                 <input id="productDropdown" name="searchpName" style="width: 100%;" />
-                              
+
                             </div>
                         </div>
-                        
+                        <div class="col-md-3">
+                            <label class="text-muted">
+                                <i class="fa-solid fa-ruler me-1"></i>MU Type
+                            </label>
+                            <div class="form-floating user-search-floating">
+                                <input id="mutDropdown" name="searchUMUTId" style="width: 100%;" />
+
+                            </div>
+                        </div>
+                       
+
+                        <div class="col-md-3">
+                            <label class="text-muted">
+                                <i class="fa-solid fa-tags me-1"></i>Category
+                            </label>
+                            <div class="form-floating user-search-floating">
+                                <input id="categoryDropdown" name="catId" style="width: 100%;" />
+
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="text-muted">
+                                <i class="fa-solid fa-tag me-1"></i>Label
+                            </label>
+                            <div class="form-floating user-search-floating">
+                                <input id="labelDropdown" name="searchULabelId" style="width: 100%;" />
+
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+
                         <div class="col-md-3">
                             <label class="text-muted">
                                 <i class="fa-solid fa-barcode me-1"></i>Product Code
@@ -49,40 +84,9 @@
                                        class="form-control user-search-input"
                                        placeholder="Enter Product Code"
                                        onchange="SearchNameChange()" />
-                          
+
                             </div>
                         </div>
-                        
-                        <div class="col-md-3">
-                            <label class="text-muted">
-                                <i class="fa-solid fa-tags me-1"></i>Category
-                            </label>
-                            <div class="form-floating user-search-floating">
-                                <input id="categoryDropdown" name="catId" style="width: 100%;" />
-                             
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <label class="text-muted">
-                                <i class="fa-solid fa-tag me-1"></i>Label
-                            </label>
-                            <div class="form-floating user-search-floating">
-                                <input id="labelDropdown" name="searchULabelId" style="width: 100%;" />
-                             
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <label class="text-muted">
-                                <i class="fa-solid fa-ruler me-1"></i>MU Type
-                            </label>
-                            <div class="form-floating user-search-floating">
-                                <input id="mutDropdown" name="searchUMUTId" style="width: 100%;" />
-                            
-                            </div>
-                        </div>
-                        
                         <div class="col-md-3">
                             <label class="text-muted">
                                 <i class="fa-solid fa-dollar-sign me-1"></i>Price From
@@ -92,12 +96,12 @@
                                        name="searchpFrom"
                                        value="@Context.Request.Query["searchpFrom"]"
                                        class="form-control user-search-input"
-                                       placeholder="Enter Unit Price From" 
+                                       placeholder="Enter Unit Price From"
                                        onchange="SearchNameChange()" />
-                          
+
                             </div>
                         </div>
-                        
+
                         <div class="col-md-3">
                             <label class="text-muted">
                                 <i class="fa-solid fa-dollar-sign me-1"></i>Price To
@@ -108,14 +112,14 @@
                                        name="searchpTo"
                                        value="@Context.Request.Query["searchpTo"]"
                                        class="form-control user-search-input"
-                                       placeholder="Enter Unit Price To" 
+                                       placeholder="Enter Unit Price To"
                                        onchange="SearchNameChange()" />
-                            
+
                             </div>
                         </div>
-                        
+
                         <!-- Action Buttons -->
-                        <div class="col-md-3">
+                        <div class="col-md-3" style="margin-top:auto;">
                             <div class="d-flex user-button-group justify-content-end">
                                 <button type="submit" class="btn btn-user-search">
                                     <i class="fa-solid fa-magnifying-glass me-2"></i>Search
@@ -123,21 +127,13 @@
                                 <a asp-action="Index" class="btn btn-user-reset">
                                     <i class="fa-solid fa-refresh me-2"></i>Refresh
                                 </a>
-                                <a asp-action="Create" class="btn btn-user-create">
-                                    <i class="fa-solid fa-plus me-2"></i>Create Product
-                                </a>
+                             
                             </div>
                         </div>
                     </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                
-
-
-                
+                </form>
             </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-striped table-bordered custom-table">
                 <thead>
@@ -155,35 +151,35 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                    <tbody>
-                        @if (Model.Items!=null)
+                <tbody>
+                    @if (Model.Items != null)
+                    {
+                        @foreach (var item in Model.Items)
                         {
-                            @foreach (var item in Model.Items)
-                            {
-                                <tr>
-                                    <td>@Html.DisplayFor(modelItem => item.ProductId)</td>
-                                    <td>@Html.DisplayFor(modelitem => item.ProductName)</td>
-                                    <td>@Html.DisplayFor(modelitem => item.ProductCode)</td>
-                                    <td>@Html.DisplayFor(modelitem => item.ProductDescription)</td>
-                                    <td>@Html.DisplayFor(modelitem => item.Price)</td>
-                                    <td>@Html.DisplayFor(modelItem => item.CategoryName)</td>
-                                    <td>@Html.DisplayFor(modelItem => item.LabelName)</td>
-                                    <td>@Html.DisplayFor(modelItem => item.MeasuringUnitTypeName)</td>
-                                    <td>@Html.DisplayFor(modelItem => item.Location)</td>
-                                    <td>
-                                        <div class="form-check form-switch">
-                                <input class="form-check-input @(Convert.ToBoolean( item.IsEnabledProduct) ? "bg-success" : "bg-danger")"
-                                                   type="checkbox"
-                                       @(Convert.ToBoolean(item.IsEnabledProduct) ? "checked" : "")
-                                                   disabled>
-                                        </div>
-                                    </td>
+                            <tr>
+                                <td>@Html.DisplayFor(modelItem => item.ProductId)</td>
+                                <td>@Html.DisplayFor(modelitem => item.ProductName)</td>
+                                <td>@Html.DisplayFor(modelitem => item.ProductCode)</td>
+                                <td>@Html.DisplayFor(modelitem => item.ProductDescription)</td>
+                                <td>@Html.DisplayFor(modelitem => item.Price)</td>
+                                <td>@Html.DisplayFor(modelItem => item.CategoryName)</td>
+                                <td>@Html.DisplayFor(modelItem => item.LabelName)</td>
+                                <td>@Html.DisplayFor(modelItem => item.MeasuringUnitTypeName)</td>
+                                <td>@Html.DisplayFor(modelItem => item.Location)</td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input @(Convert.ToBoolean(item.IsEnabledProduct) ? "bg-success" : "bg-danger")"
+                                               type="checkbox"
+                                               @(Convert.ToBoolean(item.IsEnabledProduct) ? "checked" : "")
+                                               disabled>
+                                    </div>
+                                </td>
 
 
 
                                 <td class="table-actions">
                                     <div class="btn-group" role="group">
-                                    @*     <a asp-action="Details" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-info" title="View Details">
+                                        @*     <a asp-action="Details" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-info" title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </a> *@
                                         <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-warning" title="Edit Product">
@@ -196,75 +192,72 @@
                                 </td>
 
 
-                                </tr>
-                            }
-                            
-                            
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="6" class="text-center">No users found.</td>
                             </tr>
                         }
-                    </tbody>
-                </table>
-            </div>
+
+
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center">No users found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
-                <div class="end-0">
-                    <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
-                    <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
-                        <option value="5" selected="@(Model.PageSize == 5)">5</option>
-                        <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                        <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                    </select>
-                </div>
-                @if (Model.TotalPages > 1)
-                {
-                    <nav aria-label="User pagination">
-                        <ul class="pagination justify-content-center">
-                            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
-                                   asp-route-pageSize="@Model.PageSize" >First</a>
-                            </li>
-                            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                                   >Previous</a>
-                            </li>
-                            @{
-                                int startPage = Math.Max(1, Model.CurrentPage - 1);
-                                int endPage = Math.Min(Model.TotalPages, startPage + 2);
-                                if (endPage - startPage < 2)
-                                {
-                                    startPage = Math.Max(1, endPage - 2);
-                                }
-
-                            }
-                            @for (int i = startPage; i <= endPage; i++)
-                            {
-                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" >@i</a>
-                                </li>
-                            }
-                            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" >Next</a>
-                            </li>
-                            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" >Last</a>
-                            </li>
-                        </ul>
-                    </nav>
-                }
+            <div class="end-0">
+                <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
+                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                </select>
             </div>
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="User pagination">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize">First</a>
+                        </li>
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a>
+                        </li>
+                        @{
+                            int startPage = Math.Max(1, Model.CurrentPage - 1);
+                            int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                            if (endPage - startPage < 2)
+                            {
+                                startPage = Math.Max(1, endPage - 2);
+                            }
+
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a>
+                        </li>
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize">Last</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
         </div>
     </div>
-
-
+</div>
 @section Scripts {
     <script>
         // Enhanced Product Management JavaScript
-        
+
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             initializeProductManagement();
@@ -273,10 +266,10 @@
         function initializeProductManagement() {
             // Add loading states to buttons
             addLoadingStates();
-            
+
             // Add smooth animations
             addSmoothAnimations();
-            
+
             // Add form validation feedback
             addFormValidation();
         }
@@ -284,14 +277,14 @@
         function addLoadingStates() {
             const searchBtn = document.querySelector('.btn-user-search');
             const resetBtn = document.querySelector('.btn-user-reset');
-            
+
             if (searchBtn) {
                 searchBtn.addEventListener('click', function() {
                     this.classList.add('btn-loading');
                     this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...';
                 });
             }
-            
+
             if (resetBtn) {
                 resetBtn.addEventListener('click', function() {
                     this.classList.add('btn-loading');
@@ -308,7 +301,7 @@
                     this.style.transform = 'translateY(-2px)';
                     this.style.transition = 'transform 0.3s ease';
                 });
-                
+
                 element.addEventListener('mouseleave', function() {
                     this.style.transform = 'translateY(0)';
                 });
@@ -326,7 +319,7 @@
                         this.classList.remove('is-valid');
                     }
                 });
-                
+
                 input.addEventListener('input', function() {
                     if (this.classList.contains('is-invalid')) {
                         this.classList.remove('is-invalid');
@@ -337,27 +330,27 @@
 
         $(document).ready(function () {
             console.log("Document ready - initializing Kendo comboboxes...");
-            
+
             // Check if jQuery is loaded
             if (typeof $ === 'undefined') {
                 console.error('jQuery is not loaded.');
                 return;
             }
-            
+
             // Check if Kendo UI is loaded
             if (typeof kendo === 'undefined') {
                 console.error('Kendo UI is not loaded. Please check script references.');
                 console.log('Available global objects:', Object.keys(window));
                 return;
             }
-            
+
             // Check if kendoComboBox function is available
             if (typeof $.fn.kendoComboBox === 'undefined') {
                 console.error('kendoComboBox function is not available. Kendo UI combobox plugin not loaded.');
                 console.log('Available jQuery plugins:', Object.keys($.fn).filter(key => key.startsWith('kendo')));
                 return;
             }
-            
+
             console.log('Kendo UI loaded successfully:', typeof kendo);
             console.log('jQuery version:', $.fn.jquery);
             console.log('kendoComboBox available:', typeof $.fn.kendoComboBox);
@@ -443,9 +436,9 @@
                     minLength: 1
                 });
                 console.log("Measuring unit type dropdown initialized successfully");
-                
+
                 console.log("All Kendo comboboxes initialized successfully!");
-                
+
             } catch (error) {
                 console.error("Error initializing Kendo comboboxes:", error);
             }
@@ -454,10 +447,10 @@
         // Fallback initialization if scripts load after document ready
         function initializeKendoComboboxes() {
             console.log("Fallback initialization called...");
-            
+
             if (typeof kendo !== 'undefined' && typeof $ !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
                 console.log("Kendo, jQuery, and kendoComboBox available, initializing comboboxes...");
-                
+
                 try {
                     // Initialize product dropdown
                     if ($("#productDropdown").length > 0 && !$("#productDropdown").data("kendoComboBox")) {
@@ -546,7 +539,7 @@
                         });
                         console.log("Measuring unit type dropdown initialized via fallback");
                     }
-                    
+
                 } catch (error) {
                     console.error("Error in fallback initialization:", error);
                 }
@@ -565,23 +558,23 @@
             console.log("jQuery available:", typeof $ !== 'undefined');
             console.log("Kendo available:", typeof kendo !== 'undefined');
             console.log("kendoComboBox available:", typeof $.fn.kendoComboBox !== 'undefined');
-            
+
             if (typeof $ !== 'undefined') {
                 console.log("jQuery version:", $.fn.jquery);
                 console.log("Available Kendo plugins:", Object.keys($.fn).filter(key => key.startsWith('kendo')));
             }
-            
+
             if (typeof kendo !== 'undefined') {
                 console.log("Kendo version:", kendo.version);
                 console.log("Available Kendo widgets:", Object.keys(kendo.ui || {}));
-                
+
                 // Check for specific Kendo components
                 console.log("kendo.ui.ComboBox available:", typeof kendo.ui.ComboBox !== 'undefined');
                 console.log("kendo.ui.DropDownList available:", typeof kendo.ui.DropDownList !== 'undefined');
                 console.log("kendo.ui.Popup available:", typeof kendo.ui.Popup !== 'undefined');
                 console.log("kendo.ui.List available:", typeof kendo.ui.List !== 'undefined');
             }
-            
+
             console.log("=== End Test ===");
         }
 
@@ -591,7 +584,7 @@
         // Function to verify all required scripts are loaded
         function verifyScriptLoading() {
             console.log("=== Script Loading Verification ===");
-            
+
             const requiredScripts = [
                 'jQuery',
                 'kendo',
@@ -600,9 +593,9 @@
                 'kendo.ui.Popup',
                 'kendo.ui.List'
             ];
-            
+
             let allLoaded = true;
-            
+
             requiredScripts.forEach(script => {
                 let isLoaded = false;
                 switch(script) {
@@ -625,14 +618,14 @@
                         isLoaded = typeof kendo !== 'undefined' && typeof kendo.ui.List !== 'undefined';
                         break;
                 }
-                
+
                 console.log(`${script}: ${isLoaded ? '✅' : '❌'}`);
                 if (!isLoaded) allLoaded = false;
             });
-            
+
             console.log(`All scripts loaded: ${allLoaded ? '✅' : '❌'}`);
             console.log("=== End Verification ===");
-            
+
             return allLoaded;
         }
 
@@ -645,23 +638,23 @@
             if (searchBtn) {
                 searchBtn.classList.add('btn-loading');
             }
-            
+
             // Get form values
             const form = document.querySelector('form');
             const formData = new FormData(form);
             const params = new URLSearchParams();
-            
+
             // Add all form data to params
             for (let [key, value] of formData.entries()) {
                 if (value.trim() !== '') {
                     params.append(key, value);
                 }
             }
-            
+
             // Add pagination
             params.set('pageNumber', '1');
             params.set('pageSize', document.getElementById('pageSize')?.value || '10');
-            
+
             // Redirect with parameters
             window.location.href = '@Url.Action("Index", "Product")' + '?' + params.toString();
         }
@@ -672,23 +665,23 @@
             if (searchBtn) {
                 searchBtn.classList.add('btn-loading');
             }
-            
+
             // Get current form values
             const form = document.querySelector('form');
             const formData = new FormData(form);
             const params = new URLSearchParams();
-            
+
             // Add all form data to params
             for (let [key, value] of formData.entries()) {
                 if (value.trim() !== '') {
                     params.append(key, value);
                 }
             }
-            
+
             // Add pagination
             params.set('pageNumber', '1');
             params.set('pageSize', select.value);
-            
+
             // Redirect with parameters
             window.location.href = '@Url.Action("Index", "Product")' + '?' + params.toString();
         }
@@ -702,7 +695,7 @@
             $("#categoryDropdown").data("kendoComboBox").value("");
             $("#labelDropdown").data("kendoComboBox").value("");
             $("#mutDropdown").data("kendoComboBox").value("");
-            
+
             // Redirect to clean URL
             window.location.href = '@Url.Action("Index", "Product")';
         }
@@ -717,7 +710,7 @@
                     searchBtn.click();
                 }
             }
-            
+
             // Escape to reset
             if (e.key === 'Escape') {
                 const resetBtn = document.querySelector('.btn-user-reset');
