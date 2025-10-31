@@ -278,6 +278,33 @@ namespace IMS.Controllers
             }
         }
 
+        // GET: VendorPaymentsController/GetPurchaseTransactionHistory
+        [HttpGet]
+        public async Task<JsonResult> GetPurchaseTransactionHistory(long personalPaymentId, int pageNumber = 1, int pageSize = 10, 
+            DateTime? fromDate = null, DateTime? toDate = null, string? transactionType = null)
+        {
+            try
+            {
+                _logger.LogInformation("Getting purchase transaction history for PersonalPaymentId: {PersonalPaymentId}, Page: {PageNumber}", 
+                    personalPaymentId, pageNumber);
+                
+                var result = await _vendorPaymentService.GetPurchaseTransactionHistoryAsync(
+                    personalPaymentId, pageNumber, pageSize, fromDate, toDate, transactionType);
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting purchase transaction history for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return Json(new { 
+                    success = false, 
+                    message = "Error loading purchase transaction history: " + ex.Message,
+                    transactions = new List<object>(),
+                    accountSummary = new object()
+                });
+            }
+        }
+
         // GET: VendorPaymentsController/Edit/5
         public async Task<IActionResult> Edit(long id)
         {

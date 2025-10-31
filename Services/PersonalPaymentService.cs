@@ -435,59 +435,93 @@ namespace IMS.Services
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
-                            // First result set: transactions
-                            while (await reader.ReadAsync())
+                            try
                             {
-                                transactions.Add(new PersonalPaymentTransactionViewModel
+                                // First result set: transactions
+                                while (await reader.ReadAsync())
                                 {
-                                    PersonalPaymentSaleDetailId = reader.GetInt64("PersonalPaymentSaleDetailId"),
-                                    PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
-                                    SaleId = reader.GetInt64("SaleId"),
-                                    TransactionType = reader.GetString("TransactionType"),
-                                    Amount = reader.GetDecimal("Amount"),
-                                    Balance = reader.GetDecimal("Balance"),
-                                    TransactionDescription = reader.IsDBNull("TransactionDescription") ? null : reader.GetString("TransactionDescription"),
-                                    TransactionDate = reader.GetDateTime("TransactionDate"),
-                                    IsActive = reader.GetBoolean("IsActive"),
-                                    CreatedDate = reader.GetDateTime("CreatedDate"),
-                                    CreatedBy = reader.GetInt64("CreatedBy"),
-                                    ModifiedDate = reader.GetDateTime("ModifiedDate"),
-                                    ModifiedBy = reader.GetInt64("ModifiedBy"),
-                                    BankName = reader.GetString("BankName"),
-                                    AccountNumber = reader.GetString("AccountNumber"),
-                                    AccountHolderName = reader.GetString("AccountHolderName"),
-                                    SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
-                                    BillNumber = reader.IsDBNull("BillNumber") ? 0 : reader.GetInt64("BillNumber")
-                                });
+                                    try
+                                    {
+                                        transactions.Add(new PersonalPaymentTransactionViewModel
+                                        {
+                                            PersonalPaymentSaleDetailId = reader.GetInt64("PersonalPaymentSaleDetailId"),
+                                            PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
+                                            SaleId = reader.GetInt64("SaleId"),  // Contains SaleId for Credit or PurchaseId for Debit
+                                            TransactionType = reader.GetString("TransactionType"),
+                                            Amount = reader.GetDecimal("Amount"),
+                                            Balance = reader.GetDecimal("Balance"),
+                                            TransactionDescription = reader.IsDBNull("TransactionDescription") ? null : reader.GetString("TransactionDescription"),
+                                            TransactionDate = reader.GetDateTime("TransactionDate"),
+                                            IsActive = reader.GetBoolean("IsActive"),
+                                            CreatedDate = reader.GetDateTime("CreatedDate"),
+                                            CreatedBy = reader.GetInt64("CreatedBy"),
+                                            ModifiedDate = reader.GetDateTime("ModifiedDate"),
+                                            ModifiedBy = reader.GetInt64("ModifiedBy"),
+                                            BankName = reader.GetString("BankName"),
+                                            AccountNumber = reader.GetString("AccountNumber"),
+                                            AccountHolderName = reader.GetString("AccountHolderName"),
+                                            SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),  // Contains SaleDescription or PurchaseOrderDescription
+                                            BillNumber = reader.IsDBNull("BillNumber") ? 0 : reader.GetInt64("BillNumber")
+                                        });
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogError(ex, "Error reading transaction row for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                                        // Continue reading other rows
+                                    }
+                                }
+                                
+                                _logger.LogInformation("Read {Count} transactions from first result set", transactions.Count);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error reading first result set (transactions) for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
                             }
 
                             // Second result set: total count
-                            if (await reader.NextResultAsync())
+                            try
                             {
-                                if (await reader.ReadAsync())
+                                if (await reader.NextResultAsync())
                                 {
-                                    totalCount = reader.GetInt32("TotalCount");
+                                    if (await reader.ReadAsync())
+                                    {
+                                        totalCount = reader.GetInt32("TotalCount");
+                                        _logger.LogInformation("Total count from second result set: {TotalCount}", totalCount);
+                                    }
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error reading second result set (total count) for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
                             }
 
                             // Third result set: account summary
-                            if (await reader.NextResultAsync())
+                            try
                             {
-                                if (await reader.ReadAsync())
+                                if (await reader.NextResultAsync())
                                 {
-                                    accountSummary = new PersonalPaymentAccountSummary
+                                    if (await reader.ReadAsync())
                                     {
-                                        PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
-                                        BankName = reader.GetString("BankName"),
-                                        AccountNumber = reader.GetString("AccountNumber"),
-                                        AccountHolderName = reader.GetString("AccountHolderName"),
-                                        CurrentBalance = reader.GetDecimal("CurrentBalance"),
-                                        TotalCredit = reader.GetDecimal("TotalCredit"),
-                                        TotalDebit = reader.GetDecimal("TotalDebit"),
-                                        TransactionCount = reader.GetInt32("TransactionCount"),
-                                        LastTransactionDate = reader.GetDateTime("LastTransactionDate")
-                                    };
+                                        accountSummary = new PersonalPaymentAccountSummary
+                                        {
+                                            PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
+                                            BankName = reader.GetString("BankName"),
+                                            AccountNumber = reader.GetString("AccountNumber"),
+                                            AccountHolderName = reader.GetString("AccountHolderName"),
+                                            CurrentBalance = reader.GetDecimal("CurrentBalance"),
+                                            TotalCredit = reader.GetDecimal("TotalCredit"),
+                                            TotalDebit = reader.GetDecimal("TotalDebit"),
+                                            TransactionCount = reader.GetInt32("TransactionCount"),
+                                            LastTransactionDate = reader.GetDateTime("LastTransactionDate")
+                                        };
+                                        _logger.LogInformation("Account summary loaded. Balance: {Balance}, Transactions: {Count}", 
+                                            accountSummary.CurrentBalance, accountSummary.TransactionCount);
+                                    }
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error reading third result set (account summary) for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
                             }
                         }
 
@@ -519,5 +553,6 @@ namespace IMS.Services
                 };
             }
         }
+
     }
 }

@@ -230,5 +230,117 @@ namespace IMS.Services
             }
             return response;
         }
+
+        public async Task<object> GetPurchaseTransactionHistoryAsync(long personalPaymentId, int pageNumber, int pageSize, 
+            DateTime? fromDate, DateTime? toDate, string? transactionType)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetPersonalPaymentPurchaseTransactionHistory", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pPersonalPaymentId", personalPaymentId);
+                        command.Parameters.AddWithValue("@pPageNumber", pageNumber);
+                        command.Parameters.AddWithValue("@pPageSize", pageSize);
+                        command.Parameters.AddWithValue("@pFromDate", fromDate ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pToDate", toDate ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pTransactionType", string.IsNullOrEmpty(transactionType) ? (object)DBNull.Value : transactionType);
+
+                        var transactions = new List<VendorPaymentPurchaseTransactionViewModel>();
+                        var accountSummary = new VendorPaymentPurchaseAccountSummary();
+                        var totalCount = 0;
+                        var currentPage = pageNumber;
+                        var totalPages = 0;
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // First result set: transactions
+                            while (await reader.ReadAsync())
+                            {
+                                transactions.Add(new VendorPaymentPurchaseTransactionViewModel
+                                {
+                                    PersonalPaymentPurchaseDetailId = reader.GetInt64("PersonalPaymentPurchaseDetailId"),
+                                    PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
+                                    PurchaseId = reader.GetInt64("PurchaseId"),
+                                    TransactionType = reader.GetString("TransactionType"),
+                                    Amount = reader.GetDecimal("Amount"),
+                                    Balance = reader.GetDecimal("Balance"),
+                                    TransactionDescription = reader.IsDBNull("TransactionDescription") ? null : reader.GetString("TransactionDescription"),
+                                    TransactionDate = reader.GetDateTime("TransactionDate"),
+                                    IsActive = reader.GetBoolean("IsActive"),
+                                    CreatedDate = reader.GetDateTime("CreatedDate"),
+                                    CreatedBy = reader.GetInt64("CreatedBy"),
+                                    ModifiedDate = reader.GetDateTime("ModifiedDate"),
+                                    ModifiedBy = reader.GetInt64("ModifiedBy"),
+                                    BankName = reader.GetString("BankName"),
+                                    AccountNumber = reader.GetString("AccountNumber"),
+                                    AccountHolderName = reader.GetString("AccountHolderName"),
+                                    PurchaseOrderDescription = reader.IsDBNull("PurchaseOrderDescription") ? null : reader.GetString("PurchaseOrderDescription"),
+                                    BillNumber = reader.IsDBNull("BillNumber") ? 0 : reader.GetInt64("BillNumber")
+                                });
+                            }
+
+                            // Second result set: total count
+                            if (await reader.NextResultAsync())
+                            {
+                                if (await reader.ReadAsync())
+                                {
+                                    totalCount = reader.GetInt32("TotalCount");
+                                }
+                            }
+
+                            // Third result set: account summary
+                            if (await reader.NextResultAsync())
+                            {
+                                if (await reader.ReadAsync())
+                                {
+                                    accountSummary = new VendorPaymentPurchaseAccountSummary
+                                    {
+                                        PersonalPaymentId = reader.GetInt64("PersonalPaymentId"),
+                                        BankName = reader.GetString("BankName"),
+                                        AccountNumber = reader.GetString("AccountNumber"),
+                                        AccountHolderName = reader.GetString("AccountHolderName"),
+                                        CurrentBalance = reader.GetDecimal("CurrentBalance"),
+                                        TotalCredit = reader.GetDecimal("TotalCredit"),
+                                        TotalDebit = reader.GetDecimal("TotalDebit"),
+                                        TransactionCount = reader.GetInt32("TransactionCount"),
+                                        LastTransactionDate = reader.GetDateTime("LastTransactionDate")
+                                    };
+                                }
+                            }
+                        }
+
+                        // Calculate pagination
+                        totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                        return new
+                        {
+                            success = true,
+                            transactions = transactions,
+                            accountSummary = accountSummary,
+                            currentPage = currentPage,
+                            totalPages = totalPages,
+                            totalCount = totalCount,
+                            pageSize = pageSize
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting purchase transaction history for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return new
+                {
+                    success = false,
+                    message = "Error loading purchase transaction history: " + ex.Message,
+                    transactions = new List<object>(),
+                    accountSummary = new object()
+                };
+            }
+        }
     }
 }

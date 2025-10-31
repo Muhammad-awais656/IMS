@@ -286,6 +286,14 @@
                         <h6><strong>Account Summary:</strong></h6>
                         <p class="mb-1"><strong>Current Balance:</strong> <span id="modalCurrentBalance" class="fw-bold"></span></p>
                         <p class="mb-1"><strong>Total Transactions:</strong> <span id="modalTransactionCount"></span></p>
+                        <div class="mt-2">
+                            <span class="badge bg-success me-2">
+                                <i class="fa-solid fa-arrow-up me-1"></i>Credit: <span id="modalTotalCredit">Rs0.00</span>
+                            </span>
+                            <span class="badge bg-danger">
+                                <i class="fa-solid fa-arrow-down me-1"></i>Debit: <span id="modalTotalDebit">Rs0.00</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 
@@ -398,6 +406,12 @@
         document.getElementById('historyToDate').value = '';
         document.getElementById('historyTransactionType').value = '';
         
+        // Reset summary display
+        document.getElementById('modalCurrentBalance').textContent = 'Rs0.00';
+        document.getElementById('modalTransactionCount').textContent = '0';
+        document.getElementById('modalTotalCredit').textContent = 'Rs0.00';
+        document.getElementById('modalTotalDebit').textContent = 'Rs0.00';
+        
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('transactionHistoryModal'));
         modal.show();
@@ -434,13 +448,24 @@
         
         // Make AJAX call
         fetch(`/PersonalPayments/GetTransactionHistory?${params.toString()}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Transaction history data received:', data);
+                if (!data.success) {
+                    console.error('API returned success=false:', data.message);
+                    showHistoryError(data.message || 'Failed to load transaction history.');
+                    return;
+                }
                 displayTransactionHistory(data);
             })
             .catch(error => {
                 console.error('Error loading transaction history:', error);
-                showHistoryError('Failed to load transaction history. Please try again.');
+                showHistoryError('Failed to load transaction history: ' + error.message);
             })
             .finally(() => {
                 document.getElementById('historyLoading').style.display = 'none';
@@ -452,12 +477,20 @@
         const tbody = document.getElementById('transactionHistoryBody');
         tbody.innerHTML = '';
         
+        console.log('Displaying transaction history. Data:', data);
+        console.log('Transactions array:', data.transactions);
+        console.log('Transactions count:', data.transactions ? data.transactions.length : 0);
+        
         if (data.transactions && data.transactions.length > 0) {
             // Update account summary
             if (data.accountSummary) {
                 document.getElementById('modalCurrentBalance').textContent = 
                     'Rs' + parseFloat(data.accountSummary.currentBalance).toFixed(2);
                 document.getElementById('modalTransactionCount').textContent = data.accountSummary.transactionCount;
+                document.getElementById('modalTotalCredit').textContent = 
+                    'Rs' + parseFloat(data.accountSummary.totalCredit || 0).toFixed(2);
+                document.getElementById('modalTotalDebit').textContent = 
+                    'Rs' + parseFloat(data.accountSummary.totalDebit || 0).toFixed(2);
             }
             
             // Display transactions
