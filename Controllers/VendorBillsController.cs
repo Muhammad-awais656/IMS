@@ -1035,5 +1035,26 @@ namespace IMS.Controllers
                 return Json(new { success = false, message = "Error retrieving bill numbers", data = new List<object>() });
             }
         }
+
+        // AJAX endpoint to get active bill numbers for a supplier using GetAllVendorActiveBillNumbers stored procedure
+        [HttpGet]
+        public async Task<IActionResult> GetBillNumbers(long supplierId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting active bill numbers for supplier: {SupplierId}", supplierId);
+                
+                var billNumbers = await _vendorBillsService.GetActiveBillNumbersAsync(supplierId);
+                
+                _logger.LogInformation("Retrieved {Count} active bill numbers for supplier {SupplierId}", billNumbers.Count, supplierId);
+                
+                return Json(billNumbers);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active bill numbers for supplier {SupplierId}", supplierId);
+                return Json(new List<SupplierBillNumber>());
+            }
+        }
     }
 }

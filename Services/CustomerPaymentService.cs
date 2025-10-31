@@ -156,26 +156,29 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    var sql = @"INSERT INTO Payments (PaymentAmount, SaleId, CustomerId, PaymentDate, 
-                                                    CreatedBy, CreatedDate, Description, ModifiedBy, ModifiedDate)
-                               VALUES (@PaymentAmount, @SaleId, @CustomerId, @PaymentDate, 
-                                       @CreatedBy, @CreatedDate, @Description, @ModifiedBy, @ModifiedDate);
-                               SELECT SCOPE_IDENTITY();";
+                   
                     
-                    using (var command = new SqlCommand(sql, connection))
+                    using (var command = new SqlCommand("AddPayment", connection))
                     {
-                        command.Parameters.AddWithValue("@PaymentAmount", payment.PaymentAmount);
-                        command.Parameters.AddWithValue("@SaleId", payment.SaleId);
-                        command.Parameters.AddWithValue("@CustomerId", payment.CustomerId);
-                        command.Parameters.AddWithValue("@PaymentDate", payment.PaymentDate);
-                        command.Parameters.AddWithValue("@CreatedBy", payment.CreatedBy);
-                        command.Parameters.AddWithValue("@CreatedDate", payment.CreatedDate == default(DateTime) ? DateTime.Now : payment.CreatedDate);
-                        command.Parameters.AddWithValue("@Description", payment.Description ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ModifiedBy", payment.ModifiedBy ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ModifiedDate", payment.ModifiedDate ?? (object)DBNull.Value);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pPaymentAmount", payment.PaymentAmount);
+                        command.Parameters.AddWithValue("@pSaleId", payment.SaleId);
+                        command.Parameters.AddWithValue("@pCustomerId", payment.CustomerId);
+                        command.Parameters.AddWithValue("@pPaymentDate", payment.PaymentDate);
+                        command.Parameters.AddWithValue("@pCreatedBy", payment.CreatedBy);
+                        command.Parameters.AddWithValue("@pCreatedDate", payment.CreatedDate == default(DateTime) ? DateTime.Now : payment.CreatedDate);
+                        command.Parameters.AddWithValue("@pDescription", payment.Description ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@PaymentMethod", payment.paymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@onlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
+                        var salesIdParam = new SqlParameter("@pPaymentId", SqlDbType.BigInt)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(salesIdParam);
 
-                        var result = await command.ExecuteScalarAsync();
-                        response = result != null && Convert.ToInt64(result) > 0;
+                        await command.ExecuteNonQueryAsync();
+                        var PaymentId = (long)salesIdParam.Value;
+                        response = true;
                     }
                 }
             }
@@ -353,7 +356,8 @@ namespace IMS.Services
                                 var sale = new Sale
                                 {
                                     SaleId = reader.GetInt64("SaleId"),
-                                    BillNumber = reader.GetInt64("BillNumber")
+                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    TotalDueAmount = reader.GetDecimal("TotalDueAmount")
                                 };
                                 sales.Add(sale);
                             }

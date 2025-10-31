@@ -18,26 +18,14 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="CustomerId" class="form-label">Customer Name *</label>
-                            <select asp-for="CustomerId" class="form-select" required>
-                                <option value="">--Select Customer--</option>
-                                @foreach (var customer in Model.CustomerList)
-                                {
-                                    <option value="@customer.CustomerId" selected="@(customer.CustomerId == Model.CustomerId)">@customer.CustomerName</option>
-                                }
-                            </select>
+                            <input asp-for="CustomerId" id="customerComboBox" style="width: 100%;" required />
                             <span asp-validation-for="CustomerId" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="SaleId" class="form-label">Bill Number *</label>
-                            <select asp-for="SaleId" class="form-select" required>
-                                <option value="">--Select Bill--</option>
-                                @foreach (var sale in Model.SalesList)
-                                {
-                                    <option value="@sale.SaleId" selected="@(sale.SaleId == Model.SaleId)">@sale.BillNumber</option>
-                                }
-                            </select>
+                            <input asp-for="SaleId" id="billComboBox" style="width: 100%;" required />
                             <span asp-validation-for="SaleId" class="text-danger"></span>
                         </div>
                     </div>
@@ -56,6 +44,23 @@
                             <label asp-for="PaymentDate" class="form-label">Payment Date *</label>
                             <input asp-for="PaymentDate" class="form-control" type="datetime-local" required />
                             <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method *</label>
+                            <input asp-for="PaymentMethod" id="paymentMethodSelect" style="width: 100%;" />
+                            <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6" id="onlineAccountDiv" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Online Account *</label>
+                            <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
+                            <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
@@ -81,4 +86,247 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            // Initialize Customer ComboBox
+            $("#customerComboBox").kendoComboBox({
+                placeholder: "Select Customer...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                dataSource: [
+                    { value: "", text: "--Select Customer--" }
+                    @if (Model.CustomerList != null)
+                    {
+                        @foreach (var customer in Model.CustomerList)
+                        {
+                            <text>,</text>
+                            <text>{ value: "@customer.CustomerId", text: "@customer.CustomerName" }</text>
+                        }
+                    }
+                ],
+                value: "@(Model.CustomerId > 0 ? Model.CustomerId.ToString() : "")",
+                change: function () {
+                    const customerId = this.value();
+                    const billCombo = $("#billComboBox").data("kendoComboBox");
+
+                    if (billCombo) {
+                        billCombo.dataSource.data([]);
+                        billCombo.value("");
+
+                        if (customerId) {
+                            billCombo.dataSource.add({ value: "", text: "Loading bills..." });
+                            billCombo.enable(false);
+
+                            fetch('@Url.Action("GetCustomerBills", "CustomerPayment")' + '?customerId=' + customerId)
+                                .then(response => response.json())
+                                .then(data => {
+                                    billCombo.dataSource.data([]);
+
+                                    if (data.success && data.bills && data.bills.length > 0) {
+                                        billCombo.dataSource.add({ value: "", text: "--Select Bill--" });
+                                        data.bills.forEach(function (bill) {
+                                            billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber, amount: bill.totalDueAmount });
+                                        });
+                                    } else {
+                                        billCombo.dataSource.add({ value: "", text: "No bills found for this customer" });
+                                    }
+
+                                    billCombo.enable(true);
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching customer bills:', error);
+                                    billCombo.dataSource.data([]);
+                                    billCombo.dataSource.add({ value: "", text: "Error loading bills" });
+                                    billCombo.enable(true);
+                                });
+                        }
+                    }
+                }
+            });
+
+            // Initialize Bill ComboBox
+            $("#billComboBox").kendoComboBox({
+                placeholder: "Select Bill...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                dataSource: [
+                    { value: "", text: "--Select Bill--" }
+                    @if (Model.SalesList != null)
+                    {
+                        @foreach (var sale in Model.SalesList)
+                        {
+                            <text>,</text>
+                            <text>{ value: "@sale.SaleId", text: "@sale.BillNumber", amount: @sale.TotalDueAmount }</text>
+                        }
+                    }
+                ],
+                value: "@(Model.SaleId > 0 ? Model.SaleId.ToString() : "")",
+                change: function () {
+                    const item = this.dataItem(this.selectedIndex);
+                    const $amount = $("#PaymentAmount");
+                    if (item && item.value) {
+                        if (typeof item.amount !== 'undefined' && item.amount !== null) {
+                            $amount.val(item.amount);
+                        }
+                    } else {
+                        $amount.val("");
+                    }
+                }
+            });
+
+            // Handle form submission to ensure Kendo ComboBox values are properly submitted and validate
+            $('form').on('submit', function (event) {
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
+                const billCombo = $("#billComboBox").data("kendoComboBox");
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+
+                if (customerCombo) { $("#customerComboBox").val(customerCombo.value()); }
+                if (billCombo) { $("#billComboBox").val(billCombo.value()); }
+                if (paymentMethodCombo) { $("#paymentMethodSelect").val(paymentMethodCombo.value()); }
+                if (onlineAccountCombo) { $("#onlineAccountSelect").val(onlineAccountCombo.value()); }
+
+                // Require Payment Method
+                const pm = paymentMethodCombo ? paymentMethodCombo.value() : '';
+                if (!pm) {
+                    event.preventDefault();
+                    showWarningMessage('Please select Payment Method.');
+                    $("#paymentMethodSelect").addClass('is-invalid');
+                    return false;
+                } else {
+                    $("#paymentMethodSelect").removeClass('is-invalid');
+                }
+
+                // If Online, require Online Account
+                if (pm === 'Online') {
+                    const acc = onlineAccountCombo ? onlineAccountCombo.value() : '';
+                    if (!acc) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Online Account for Online payment method.');
+                        $("#onlineAccountSelect").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#onlineAccountSelect").removeClass('is-invalid');
+                    }
+                }
+            });
+
+            // Add loading state to submit button
+            $('form').on('submit', function (event) {
+                if (event.isDefaultPrevented && event.isDefaultPrevented()) {
+                    return;
+                }
+                const submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true);
+                submitBtn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Updating Payment...');
+            });
+
+            // Initialize payment method and online account
+            initializePaymentMethodCombo();
+            setInitialPaymentSelections();
+
+            function initializePaymentMethodCombo() {
+                $("#paymentMethodSelect").kendoComboBox({
+                    dataSource: {
+                        data: [
+                            { value: "Cash", text: "Cash" },
+                            { value: "Online", text: "Online" }
+                        ]
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Payment Method --",
+                    filter: "contains",
+                    suggest: true,
+                    change: function () {
+                        toggleOnlineAccountDiv();
+                    }
+                });
+
+                $("#onlineAccountSelect").kendoComboBox({
+                    dataSource: [],
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Online Account --",
+                    filter: "contains",
+                    suggest: true,
+                    enabled: false
+                });
+            }
+
+            function setInitialPaymentSelections() {
+                const paymentMethod = @(Model.PaymentMethod != null ? Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentMethod)) : Html.Raw("null"));
+                const onlineAccountId = @(Model.OnlineAccountId.HasValue ? Html.Raw(Model.OnlineAccountId.Value.ToString()) : Html.Raw("null"));
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                if (paymentMethodCombo && paymentMethod) {
+                    paymentMethodCombo.value(paymentMethod);
+                    if (paymentMethod === "Online") {
+                        $("#onlineAccountDiv").show();
+                        if (onlineAccountCombo) {
+                            onlineAccountCombo.enable(true);
+                            loadOnlineAccounts(function () {
+                                if (onlineAccountId) {
+                                    onlineAccountCombo.value(onlineAccountId.toString());
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            function toggleOnlineAccountDiv() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                const onlineAccountDiv = $("#onlineAccountDiv");
+                if (!paymentMethodCombo || !onlineAccountCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "Online") {
+                    onlineAccountDiv.show();
+                    onlineAccountCombo.enable(true);
+                    if (onlineAccountCombo.dataSource.data().length === 0) {
+                        loadOnlineAccounts();
+                    }
+                } else {
+                    onlineAccountDiv.hide();
+                    onlineAccountCombo.enable(false);
+                    onlineAccountCombo.value("");
+                }
+            }
+
+            function loadOnlineAccounts(callback) {
+                fetch('@Url.Action("GetOnlineAccounts", "Sales")')
+                    .then(r => r.json())
+                    .then(data => {
+                        const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                        if (!onlineAccountCombo) return;
+                        onlineAccountCombo.dataSource.data([]);
+                        data.forEach(function (acc) {
+                            onlineAccountCombo.dataSource.add({ value: acc.value, text: acc.text });
+                        });
+                        if (callback) callback();
+                    })
+                    .catch(err => {
+                        console.error('Error loading online accounts', err);
+                    });
+            }
+
+            // Toast-style warning like Add Sale
+            function showWarningMessage(message) {
+                $('.alert-warning').remove();
+                var alertHtml = '<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+                    '<i class="fa-solid fa-exclamation-triangle me-2"></i>' +
+                    message +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+                $('body').append(alertHtml);
+                setTimeout(function () { $('.alert-warning').fadeOut(); }, 5000);
+            }
+        });
+    </script>
 }

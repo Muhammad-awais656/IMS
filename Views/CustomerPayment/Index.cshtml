@@ -229,8 +229,8 @@
                                     <td>@payment.PaymentId</td>
                                     <td>@payment.CustomerName</td>
                                     <td>@payment.BillNumber</td>
-                                    <td>@payment.PaymentAmount.ToString("N3")</td>
-                                    <td>@payment.PaymentDate.ToString("M/d/yyyy h:mm:ss tt")</td>
+                                    <td>@payment.PaymentAmount.ToString("N2")</td>
+                                    <td>@payment.PaymentDate.ToString("M/d/yyyy h:mm tt")</td>
                                     <td title="@payment.Description">
                                         @(payment.Description?.Length > 30
                                                                         ? payment.Description.Substring(0, 30) + "..."
@@ -260,12 +260,12 @@
                                             <a asp-action="Details" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="fa-solid fa-eye"></i>
                                             </a>
-                                            <a asp-action="Edit" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
+                                        @*     <a asp-action="Edit" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
                                                 <i class="fa-solid fa-edit"></i>
-                                            </a>
-                                            <a asp-action="Delete" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
+                                            </a> *@
+                                       @*      <a asp-action="Delete" asp-route-id="@payment.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
                                                 <i class="fa-solid fa-trash"></i>
-                                            </a>
+                                            </a> *@
                                         </div>
                                     </td>
                         </tr>

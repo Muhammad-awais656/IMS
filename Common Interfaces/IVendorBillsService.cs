@@ -35,5 +35,8 @@ namespace IMS.Common_Interfaces
         
         // Get all bill numbers for vendor
         Task<List<VendorBillViewModel>> GetAllBillNumbersForVendorAsync(long vendorId);
+        
+        // Get active bill numbers for vendor using GetAllVendorActiveBillNumbers stored procedure
+        Task<List<SupplierBillNumber>> GetActiveBillNumbersAsync(long supplierId);
     }
 }

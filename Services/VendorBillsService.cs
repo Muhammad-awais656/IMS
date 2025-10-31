@@ -862,5 +862,45 @@ namespace IMS.Services
                 throw;
             }
         }
+
+        public async Task<List<SupplierBillNumber>> GetActiveBillNumbersAsync(long supplierId)
+        {
+            var billNumbers = new List<SupplierBillNumber>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("GetAllVendorActiveBillNumbers", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSupplierId", supplierId);
+                        
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var billNumber = new SupplierBillNumber
+                                {
+                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    PurchaseOrderId = reader.GetInt64("PurchaseOrderId"),
+                                    TotalDueAmount = reader.GetDecimal("TotalDueAmount")
+                                };
+                                billNumbers.Add(billNumber);
+                            }
+                        }
+                    }
+                }
+                
+                _logger.LogInformation("Retrieved {Count} active bill numbers for supplier {SupplierId}", billNumbers.Count, supplierId);
+                return billNumbers;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active bill numbers for supplier {SupplierId}", supplierId);
+                throw;
+            }
+        }
     }
 }

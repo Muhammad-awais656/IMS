@@ -21,6 +21,18 @@ namespace IMS.Models
         public decimal TotalPayableAmount { get; set; }
     }
 
+    public class VendorPaymentFormViewModel
+    {
+        public List<AdminSupplier> VendorList { get; set; } = new List<AdminSupplier>();
+        public long SupplierId { get; set; }
+        public long BillId { get; set; }
+        public decimal PaymentAmount { get; set; }
+        public DateTime PaymentDate { get; set; } = DateTime.Now;
+        public string? Description { get; set; }
+        public string? PaymentMethod { get; set; }
+        public long? OnlineAccountId { get; set; }
+    }
+
     public class VendorBillViewModel
     {
         public long BillId { get; set; }

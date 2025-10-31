@@ -11,149 +11,77 @@
         <h2 class="mb-0" style="text-align:center">Vendor Payments Management</h2>
     </div>
     <div class="card-body">
-        <!-- Enhanced Search Section - User Management Style -->
-        <div class="card mb-4 user-search-card">
-            <div class="card-header user-search-header bg-transparent border-0 py-3">
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a asp-action="CreatePayment" class="btn btn-success me-2">
+                    <i class="fa-solid fa-plus me-1"></i>Add New Payment
+                </a>
+            </div>
+        </div>
+
+        <!-- Advanced Filters (styled like Customer Payments) -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0 user-search-title">
-                        <i class="fa-solid fa-filter user-search-icon me-2"></i>Advanced Search & Filters
-                    </h5>
-                    <button class="btn btn-sm btn-outline-primary collapse-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
-                        <i class="fa-solid fa-chevron-down"></i>
+                    <h6 class="mb-0 text-white">
+                        <i class="fa-solid fa-filter me-2"></i>Advanced Filters
+                    </h6>
+                    <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
+                        <i class="fa-solid fa-chevron-up"></i>
                     </button>
                 </div>
             </div>
             <div class="collapse show" id="filterCollapse">
-                <div class="card-body pt-0">
-                    <form asp-action="Index" method="get">
+                <div class="card-body bg-light">
+                    <form asp-action="Index" method="get" id="vendorPaymentsForm">
                         
-                        <!-- Quick Search Row -->
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-8">
-                                <div class="form-floating user-search-floating">
-                                    <input type="text"
-                                           name="description"
-                                           value="@ViewData["description"]"
-                                           class="form-control user-search-input border-0 shadow-sm"
-                                           placeholder="Search by description..." />
-                                    <label class="text-muted">
-                                        <i class="fa-solid fa-search me-1"></i>Search by Description
-                                    </label>
+                        <!-- Filter Row 1 -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fa-solid fa-building me-1 text-primary"></i>Vendor
+                                </label>
+                                <div>
+                                    <input type="hidden" name="vendorId" id="vendorId" value="@ViewData["vendorId"]" />
+                                    <input id="vendorIdCombo" style="width: 100%;" />
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="d-flex gap-2 user-button-group">
-                                    <button type="submit" class="btn btn-primary btn-user-search px-4 py-2">
-                                        <i class="fa-solid fa-magnifying-glass me-2"></i>Search
-                                    </button>
-                                    <a asp-action="Index" class="btn btn-secondary btn-user-reset px-4 py-2">
-                                        <i class="fa-solid fa-refresh me-2"></i>Reset
-                                    </a>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fa-solid fa-file-invoice me-1 text-primary"></i>Bill Number
+                                </label>
+                                <div>
+                                    <input type="hidden" name="billNumber" id="billNumber" value="@ViewData["billNumber"]" />
+                                    <input id="billNumberCombo" style="width: 100%;" />
                                 </div>
+                            </div>
+                            <div class="col-lg-2 col-md-6">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fa-solid fa-calendar me-1 text-primary"></i>From Date
+                                </label>
+                                <input type="date" name="billDateFrom" id="billDateFrom" class="form-control" value="@ViewData["billDateFrom"]" />
+                            </div>
+                            <div class="col-lg-2 col-md-6">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fa-solid fa-calendar me-1 text-primary"></i>To Date
+                                </label>
+                                <input type="date" name="billDateTo" id="billDateTo" class="form-control" value="@ViewData["billDateTo"]" />
                             </div>
                         </div>
                         
-                        <!-- Advanced Filter Inputs Row -->
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-3">
-                                <div class="form-floating user-search-floating">
-                                    <select name="vendorId" id="vendorId" class="form-select user-search-input border-0 shadow-sm" onchange="loadBillNumbers()">
-                                        <option value="">All Vendors</option>
-                                        @foreach (var vendor in Model.VendorList)
-                                        {
-                                            <option value="@vendor.SupplierId" selected="@(ViewData["vendorId"]?.ToString() == vendor.SupplierId.ToString())">
-                                                @vendor.SupplierName
-                                            </option>
-                                        }
-                                    </select>
-                                    <label for="vendorId" class="text-muted">
-                                        <i class="fa-solid fa-building me-1"></i>Vendor
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <div class="form-floating user-search-floating">
-                                    <select name="billNumber" id="billNumber" class="form-select user-search-input border-0 shadow-sm">
-                                        <option value="">All Bills</option>
-                                        @if (ViewBag.BillNumbers != null)
-                                        {
-                                            @foreach (var bill in ViewBag.BillNumbers)
-                                            {
-                                                <option value="@bill.BillNumber" selected="@(ViewData["billNumber"]?.ToString() == bill.BillNumber.ToString())">
-                                                    @bill.BillNumber (@bill.TotalDueAmount.ToString("N2"))
-                                                </option>
-                                            }
-                                        }
-                                    </select>
-                                    <label for="billNumber" class="text-muted">
-                                        <i class="fa-solid fa-file-invoice me-1"></i>Bill Number
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <div class="form-floating user-search-floating">
-                                    <input type="date" 
-                                           name="billDateFrom" 
-                                           id="billDateFrom" 
-                                           class="form-control user-search-input border-0 shadow-sm" 
-                                           value="@ViewData["billDateFrom"]" />
-                                    <label for="billDateFrom" class="text-muted">
-                                        <i class="fa-solid fa-calendar-day me-1"></i>From Date
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <div class="form-floating user-search-floating">
-                                    <input type="date" 
-                                           name="billDateTo" 
-                                           id="billDateTo" 
-                                           class="form-control user-search-input border-0 shadow-sm" 
-                                           value="@ViewData["billDateTo"]" />
-                                    <label for="billDateTo" class="text-muted">
-                                        <i class="fa-solid fa-calendar-day me-1"></i>To Date
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <div class="form-floating user-search-floating">
-                                    <input type="text" 
-                                           name="description" 
-                                           id="description" 
-                                           class="form-control user-search-input border-0 shadow-sm" 
-                                           value="@ViewData["description"]" 
-                                           placeholder="Description" />
-                                    <label for="description" class="text-muted">
-                                        <i class="fa-solid fa-align-left me-1"></i>Description
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+                        
                         
                         <!-- Action Buttons Row -->
                         <div class="row">
                             <div class="col-12">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex gap-2 user-button-group">
-                                        <button type="submit" class="btn btn-primary btn-user-search px-4 py-2">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary px-4 py-2 btn-user-search">
                                             <i class="fa-solid fa-magnifying-glass me-2"></i>Search Payments
                                         </button>
-                                        <button type="button" class="btn btn-secondary btn-user-reset px-4 py-2" onclick="resetFilters()">
+                                        <button type="button" class="btn btn-outline-secondary px-4 py-2 btn-user-reset" onclick="resetFilters()">
                                             <i class="fa-solid fa-undo me-2"></i>Reset Filters
-                                        </button>
-                                    </div>
-                                    <div class="d-flex gap-2 user-button-group">
-                                        <button type="button" class="btn btn-info btn-user-create px-4 py-2" onclick="printPreview()">
-                                            <i class="fa-solid fa-print me-2"></i>Print Preview
-                                        </button>
-                                        <button type="button" class="btn btn-success btn-user-create px-4 py-2" onclick="refreshData()">
-                                            <i class="fa-solid fa-refresh me-2"></i>Refresh
-                                        </button>
-                                        <button type="button" class="btn btn-danger btn-user-create px-4 py-2" onclick="closeWindow()">
-                                            <i class="fa-solid fa-times me-2"></i>Close
                                         </button>
                                     </div>
                                 </div>
@@ -180,6 +108,7 @@
                                 <th>Paid amount</th>
                                 <th>Total payable amount</th>
                                 <th>Description</th>
+                                <th>Payment Method</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -192,18 +121,40 @@
                                         <td>@bill.VendorName</td>
                                         <td>@bill.BillNumber</td>
                                         <td>@bill.BillDate.ToString("dd/MM/yyyy")</td>
-                                        <td>@bill.TotalAmount.ToString("N3")</td>
-                                        <td>@bill.DiscountAmount.ToString("N3")</td>
-                                        <td>@bill.PaidAmount.ToString("N3")</td>
-                                        <td>@bill.TotalPayableAmount.ToString("N3")</td>
+                                        <td>@bill.TotalAmount.ToString("N2")</td>
+                                        <td>@bill.DiscountAmount.ToString("N2")</td>
+                                        <td>@bill.PaidAmount.ToString("N2")</td>
+                                        <td>@bill.TotalPayableAmount.ToString("N2")</td>
                                         <td>@bill.Description</td>
+                                        <td>
+                                            @if (bill.PaymentMethod == "Cash")
+                                            {
+                                                <span class="badge bg-success">Cash</span>
+                                            }
+                                            else if (bill.PaymentMethod == "Online")
+                                            {
+                                                <span class="badge bg-primary">Online</span>
+                                            }
+                                            else if (bill.PaymentMethod == "PayLater" || bill.PaymentMethod == "Pay Later")
+                                            {
+                                                <span class="badge bg-warning text-dark">Pay Later</span>
+                                            }
+                                            else if (!string.IsNullOrEmpty(bill.PaymentMethod))
+                                            {
+                                                <span class="badge bg-secondary">@bill.PaymentMethod</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">-</span>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                             }
                             else
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
+                                    <td colspan="10" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
                                         <div class="text-muted">No bills found.</div>
                                     </td>
                                 </tr>
@@ -223,41 +174,104 @@
                         <div class="row text-center">
                             <div class="col-3">
                                 <div class="border-end">
-                                    <strong>Total amount: @Model.TotalAmount.ToString("N3")</strong>
+                                    <strong>Total amount: @Model.TotalAmount.ToString("N2")</strong>
                                 </div>
                             </div>
                             <div class="col-3">
                                 <div class="border-end">
-                                    <strong>Total discount amount: @Model.TotalDiscountAmount.ToString("N3")</strong>
+                                    <strong>Total discount amount: @Model.TotalDiscountAmount.ToString("N2")</strong>
                                 </div>
                             </div>
                             <div class="col-3">
                                 <div class="border-end">
-                                    <strong>Total paid amount: @Model.TotalPaidAmount.ToString("N3")</strong>
+                                    <strong>Total paid amount: @Model.TotalPaidAmount.ToString("N2")</strong>
                                 </div>
                             </div>
                             <div class="col-3">
-                                <strong>Total Payable amount: @Model.TotalPayableAmount.ToString("N3")</strong>
+                                <strong>Total Payable amount: @Model.TotalPayableAmount.ToString("N2")</strong>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Action Buttons (Right Side) -->
-            <div class="col-md-4">
-                <div class="d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-info" onclick="printPreview()">
-                        <i class="fa-solid fa-print"></i> Print preview
-                    </button>
-                    <button type="button" class="btn btn-success" onclick="refreshData()">
-                        <i class="fa-solid fa-refresh"></i> Refresh
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="closeWindow()">
-                        <i class="fa-solid fa-times"></i> Close
-                    </button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <div class="d-flex align-items-center">
+                <span class="text-muted me-3">
+                    <i class="fa-solid fa-info-circle me-1"></i>
+                    Total: <strong>@Model.TotalCount</strong> bills | Showing <strong>@Model.PageSize</strong> per page
+                </span>
+            </div>
+            <!-- Page Size -->
+            <div class="d-flex justify-content-end align-items-center mb-3">
+                <div>
+                    <label for="pageSize" class="form-label me-2">Items Per Page:</label>
+                    <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                        <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                        <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                        <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                        <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                    </select>
                 </div>
             </div>
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Vendor Payments pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" 
+                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
+                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
+                               asp-route-description="@ViewData["description"]">
+                                <i class="fa-solid fa-angles-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
+                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
+                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
+                               asp-route-description="@ViewData["description"]">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        @{
+                            int startPage = Math.Max(1, Model.CurrentPage - 2);
+                            int endPage = Math.Min(Model.TotalPages, startPage + 4);
+                            if (endPage - startPage < 4)
+                            {
+                                startPage = Math.Max(1, endPage - 4);
+                            }
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize"
+                                   asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
+                                   asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
+                                   asp-route-description="@ViewData["description"]">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize"
+                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
+                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
+                               asp-route-description="@ViewData["description"]">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize"
+                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
+                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
+                               asp-route-description="@ViewData["description"]">
+                                <i class="fa-solid fa-angles-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            }
         </div>
     </div>
 </div>
@@ -266,9 +280,12 @@
     <script>
         // Enhanced Vendor Payments Management JavaScript - User Management Style
         
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeVendorPaymentsManagement();
+        // Wait for jQuery and Kendo to be ready
+        $(document).ready(function() {
+            // Wait a bit more to ensure Kendo is fully loaded
+            setTimeout(function() {
+                initializeVendorPaymentsManagement();
+            }, 100);
         });
 
         function initializeVendorPaymentsManagement() {
@@ -286,25 +303,45 @@
             
             // Initialize collapse functionality
             initializeCollapse();
+            
+            // Initialize Kendo ComboBoxes
+            initializeKendoComboBoxes();
+            
+            // Sync Kendo ComboBox values to hidden fields on form submission
+            $("#vendorPaymentsForm").on("submit", function(e) {
+                // Ensure values are synced before form submits
+                var vendorCombo = $("#vendorIdCombo").data("kendoComboBox");
+                var billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
+                
+                if (vendorCombo) {
+                    $("#vendorId").val(vendorCombo.value() || "");
+                }
+                if (billNumberCombo) {
+                    $("#billNumber").val(billNumberCombo.value() || "");
+                }
+                
+                // Show loading state on search button
+                const searchBtn = document.querySelector('.btn-user-search');
+                if (searchBtn && !searchBtn.disabled) {
+                    searchBtn.classList.add('btn-loading');
+                    const originalHTML = searchBtn.innerHTML;
+                    searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...';
+                    searchBtn.disabled = true;
+                    
+                    // Store original HTML to restore if submission is cancelled (shouldn't happen for GET, but just in case)
+                    searchBtn.dataset.originalHtml = originalHTML;
+                }
+                
+                // Let form submit normally - page reload will reset everything
+            });
         }
 
         function addLoadingStates() {
-            const searchBtns = document.querySelectorAll('.btn-user-search');
-            const resetBtns = document.querySelectorAll('.btn-user-reset');
+            // Note: Search button loading state is handled in form submit handler
+            // to ensure it only triggers when form actually submits
+            // This prevents the button from getting stuck in loading state
             
-            searchBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    this.classList.add('btn-loading');
-                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...';
-                });
-            });
-            
-            resetBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    this.classList.add('btn-loading');
-                    this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Resetting...';
-                });
-            });
+            // Reset button loading state is handled in resetFilters() function
         }
 
         function addSmoothAnimations() {
@@ -374,56 +411,191 @@
             });
         }
 
-        function resetFilters() {
-            // Reset all filter inputs
-            document.getElementById('vendorId').value = '';
-            document.getElementById('billNumber').value = '';
-            document.getElementById('billDateFrom').value = '';
-            document.getElementById('billDateTo').value = '';
-            document.getElementById('description').value = '';
+        // Initialize Kendo ComboBoxes
+        function initializeKendoComboBoxes() {
+            // Destroy existing ComboBoxes if they exist to prevent re-initialization issues
+            var existingVendorCombo = $("#vendorIdCombo").data("kendoComboBox");
+            var existingBillNumberCombo = $("#billNumberCombo").data("kendoComboBox");
             
-            // Clear bill numbers dropdown
-            const billNumberSelect = document.getElementById('billNumber');
-            billNumberSelect.innerHTML = '<option value="">All Bills</option>';
+            if (existingVendorCombo) {
+                existingVendorCombo.destroy();
+            }
+            if (existingBillNumberCombo) {
+                existingBillNumberCombo.destroy();
+            }
             
-            // Submit the form to reload with empty filters
-            const form = document.querySelector('form[method="get"]');
-            if (form) {
-                form.submit();
+            // Get selected values from hidden inputs or query parameters
+            var selectedVendorId = $("#vendorId").val() || getQueryParam('vendorId');
+            var selectedBillNumber = $("#billNumber").val() || getQueryParam('billNumber');
+            
+            // Initialize Vendor ComboBox
+            $("#vendorIdCombo").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/VendorPayments/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "All Vendors",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    var vendorId = this.value();
+                    $("#vendorId").val(vendorId || "");
+                    loadBillNumbers(vendorId);
+                },
+                value: selectedVendorId || ""
+            });
+
+            // Initialize Bill Number ComboBox with empty data source initially
+            var billNumbersData = [{ value: "", text: "All Bills" }];
+            
+            $("#billNumberCombo").kendoComboBox({
+                dataSource: billNumbersData,
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "All Bills",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    var billNumber = this.value();
+                    $("#billNumber").val(billNumber || "");
+                },
+                value: selectedBillNumber || "",
+                enabled: selectedVendorId ? true : false
+            });
+            
+            // Load bill numbers if vendor is already selected (after page reload)
+            if (selectedVendorId) {
+                loadBillNumbers(selectedVendorId, selectedBillNumber);
             }
         }
 
-        function loadBillNumbers() {
-            const vendorId = document.getElementById('vendorId').value;
-            const billNumberSelect = document.getElementById('billNumber');
-            
-            // Clear existing options except the first one
-            billNumberSelect.innerHTML = '<option value="">All Bills</option>';
-            
-            if (vendorId) {
-                // Show loading state
-                billNumberSelect.disabled = true;
-                billNumberSelect.innerHTML = '<option value="">Loading bills...</option>';
-                
-                // Make AJAX call to get bill numbers
-                fetch(`/VendorPayments/GetBillNumbers?supplierId=${vendorId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        billNumberSelect.innerHTML = '<option value="">All Bills</option>';
-                        data.forEach(bill => {
-                            const option = document.createElement('option');
-                            option.value = bill.billNumber;
-                            option.textContent = `${bill.billNumber} (${bill.totalDueAmount})`;
-                            billNumberSelect.appendChild(option);
-                        });
-                        billNumberSelect.disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Error loading bill numbers:', error);
-                        billNumberSelect.innerHTML = '<option value="">Error loading bills</option>';
-                        billNumberSelect.disabled = false;
-                    });
+        // Helper function to get query parameter value
+        function getQueryParam(paramName) {
+            var urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(paramName) || '';
+        }
+
+        function resetFilters() {
+            // Get the reset button to show loading state
+            const resetBtn = document.querySelector('.btn-user-reset');
+            if (resetBtn) {
+                resetBtn.classList.add('btn-loading');
+                resetBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Resetting...';
+                resetBtn.disabled = true;
             }
+            
+            // Reset Kendo ComboBoxes
+            var vendorCombo = $("#vendorIdCombo").data("kendoComboBox");
+            var billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
+            
+            if (vendorCombo) {
+                vendorCombo.value("");
+            }
+            if (billNumberCombo) {
+                billNumberCombo.value("");
+                billNumberCombo.dataSource.data([{ value: "", text: "All Bills" }]);
+                billNumberCombo.enable(false);
+            }
+            
+            // Reset hidden fields
+            $("#vendorId").val("");
+            $("#billNumber").val("");
+            
+            var billDateFrom = document.getElementById('billDateFrom');
+            var billDateTo = document.getElementById('billDateTo');
+            var description = document.getElementById('description');
+            
+            if (billDateFrom) billDateFrom.value = '';
+            if (billDateTo) billDateTo.value = '';
+            if (description) description.value = '';
+            
+            // Submit the form to reload with empty filters
+            // The page reload will reset the button state naturally
+            const form = document.querySelector('form[method="get"]');
+            if (form) {
+                // Small delay to show the loading state before redirect
+                setTimeout(function() {
+                    form.submit();
+                }, 100);
+            }
+        }
+
+        function loadBillNumbers(vendorId, selectedBillNumber) {
+            var billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
+            
+            if (!vendorId) {
+                // Clear bill numbers if no vendor selected
+                if (billNumberCombo) {
+                    billNumberCombo.dataSource.data([{ value: "", text: "All Bills" }]);
+                    billNumberCombo.value("");
+                    billNumberCombo.enable(false);
+                }
+                $("#billNumber").val("");
+                return;
+            }
+            
+            // Get selected bill number from parameter or hidden field
+            selectedBillNumber = selectedBillNumber || $("#billNumber").val();
+            
+            // Show loading state
+            if (billNumberCombo) {
+                billNumberCombo.dataSource.data([{ value: "", text: "Loading bills..." }]);
+                billNumberCombo.value("");
+                billNumberCombo.enable(false);
+            }
+            
+            // Make AJAX call to get bill numbers
+            $.ajax({
+                url: "/VendorPayments/GetBillNumbers",
+                type: "GET",
+                data: { supplierId: vendorId },
+                dataType: "json",
+                success: function(data) {
+                    var billNumbersData = [{ value: "", text: "All Bills" }];
+                    
+                    if (data && data.length > 0) {
+                        data.forEach(function(bill) {
+                            // Handle both camelCase and PascalCase property names
+                            var billNumber = bill.BillNumber || bill.billNumber;
+                            var totalDue = bill.TotalDueAmount || bill.totalDueAmount || 0;
+                            billNumbersData.push({
+                                value: billNumber.toString(),
+                                text: billNumber.toString() + " (" + parseFloat(totalDue).toFixed(2) + ")"
+                            });
+                        });
+                    }
+                    
+                    if (billNumberCombo) {
+                        billNumberCombo.dataSource.data(billNumbersData);
+                        billNumberCombo.enable(true);
+                        
+                        // Set selected value if exists (after page reload from search)
+                        if (selectedBillNumber && selectedBillNumber !== "") {
+                            // Small delay to ensure dataSource is updated
+                            setTimeout(function() {
+                                billNumberCombo.value(selectedBillNumber);
+                                $("#billNumber").val(selectedBillNumber);
+                                console.log("Set selected bill number to:", selectedBillNumber);
+                            }, 150);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading bill numbers:', error);
+                    if (billNumberCombo) {
+                        billNumberCombo.dataSource.data([{ value: "", text: "Error loading bills" }]);
+                        billNumberCombo.enable(false);
+                    }
+                }
+            });
         }
 
         function printPreview() {
@@ -491,5 +663,35 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
+
+        // Pagination helper function
+        function changePageSize(select) {
+            // Show loading state
+            const searchBtn = document.querySelector('.btn-user-search');
+            if (searchBtn) {
+                searchBtn.classList.add('btn-loading');
+                searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Loading...';
+            }
+
+            // Get current filter values from Kendo ComboBoxes
+            const vendorCombo = $("#vendorIdCombo").data("kendoComboBox");
+            const billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
+            
+            const vendorId = vendorCombo ? vendorCombo.value() : $("#vendorId").val();
+            const billNumber = billNumberCombo ? billNumberCombo.value() : $("#billNumber").val();
+            const billDateFrom = document.getElementById("billDateFrom").value;
+            const billDateTo = document.getElementById("billDateTo").value;
+            
+            // Build URL with parameters
+            const params = new URLSearchParams();
+            params.set('pageNumber', '1');
+            params.set('pageSize', select.value);
+            if (vendorId) params.set('vendorId', vendorId);
+            if (billNumber) params.set('billNumber', billNumber);
+            if (billDateFrom) params.set('billDateFrom', billDateFrom);
+            if (billDateTo) params.set('billDateTo', billDateTo);
+            
+            window.location.href = '@Url.Action("Index", "VendorPayments")' + '?' + params.toString();
+        }
     </script>
 }

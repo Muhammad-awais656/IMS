@@ -42,7 +42,7 @@
     }
 </style>
 
-<div class="container mt-4">
+@* <div class="container mt-4"> *@
     <div class="card shadow-sm">
         <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
             <h2 class="mb-0" style="text-align:center">Create New Payment</h2>
@@ -91,6 +91,23 @@
                 </div>
 
                 <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method *</label>
+                            <input asp-for="PaymentMethod" id="paymentMethodSelect" style="width: 100%;" />
+                            <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6" id="onlineAccountDiv" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Online Account *</label>
+                            <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
+                            <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
                     <div class="col-md-12">
                         <div class="mb-3">
                             <label asp-for="Description" class="form-label">Description</label>
@@ -100,14 +117,16 @@
                     </div>
                 </div>
 
+                <div id="formWarning" class="alert alert-warning d-none" role="alert"></div>
+
                 <div class="d-flex justify-content-between">
                     <a asp-action="Index" class="btn btn-secondary">Back to List</a>
-                    <button type="submit" class="btn btn-success">Create Payment</button>
+                    <button type="submit" class="btn btn-success">Save</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+@* </div> *@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
@@ -156,7 +175,7 @@
                                     if (data.success && data.bills && data.bills.length > 0) {
                                         billCombo.dataSource.add({ value: "", text: "--Select Bill--" });
                                         data.bills.forEach(function(bill) {
-                                            billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber });
+                                            billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber, amount: bill.totalDueAmount });
                                         });
                                     } else {
                                         billCombo.dataSource.add({ value: "", text: "No bills found for this customer" });
@@ -189,17 +208,30 @@
                         @foreach (var sale in Model.SalesList)
                         {
                             <text>,</text>
-                            <text>{ value: "@sale.SaleId", text: "@sale.BillNumber" }</text>
+                            <text>{ value: "@sale.SaleId", text: "@sale.BillNumber", amount: @sale.TotalDueAmount }</text>
                         }
                     }
                 ],
-                value: "@(Model.SaleId > 0 ? Model.SaleId.ToString() : "")"
+                value: "@(Model.SaleId > 0 ? Model.SaleId.ToString() : "")",
+                change: function() {
+                    const item = this.dataItem(this.selectedIndex);
+                    const $amount = $("#PaymentAmount");
+                    if (item && item.value) {
+                        if (typeof item.amount !== 'undefined' && item.amount !== null) {
+                            $amount.val(item.amount);
+                        }
+                    } else {
+                        $amount.val("");
+                    }
+                }
             });
 
             // Handle form submission to ensure Kendo ComboBox values are properly submitted
-            $('form').on('submit', function() {
+            $('form').on('submit', function(event) {
                 const customerCombo = $("#customerComboBox").data("kendoComboBox");
                 const billCombo = $("#billComboBox").data("kendoComboBox");
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
                 
                 if (customerCombo) {
                     $("#customerComboBox").val(customerCombo.value());
@@ -207,10 +239,43 @@
                 if (billCombo) {
                     $("#billComboBox").val(billCombo.value());
                 }
+                if (paymentMethodCombo) {
+                    $("#paymentMethodSelect").val(paymentMethodCombo.value());
+                }
+                if (onlineAccountCombo) {
+                    $("#onlineAccountSelect").val(onlineAccountCombo.value());
+                }
+
+                // Require Payment Method
+                const pm = paymentMethodCombo ? paymentMethodCombo.value() : '';
+                if (!pm) {
+                    event.preventDefault();
+                    showWarningMessage('Please select Payment Method.');
+                    $("#paymentMethodSelect").addClass('is-invalid');
+                    return false;
+                } else {
+                    $("#paymentMethodSelect").removeClass('is-invalid');
+                }
+
+                // If Online, require Online Account
+                if (pm === 'Online') {
+                    const acc = onlineAccountCombo ? onlineAccountCombo.value() : '';
+                    if (!acc) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Online Account for Online payment method.');
+                        $("#onlineAccountSelect").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#onlineAccountSelect").removeClass('is-invalid');
+                    }
+                }
             });
 
             // Add loading state to submit button
-            $('form').on('submit', function() {
+            $('form').on('submit', function(event) {
+                if (event.isDefaultPrevented && event.isDefaultPrevented()) {
+                    return; // skip loading state if validation blocked submit
+                }
                 const submitBtn = $(this).find('button[type="submit"]');
                 submitBtn.prop('disabled', true);
                 submitBtn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Creating Payment...');
@@ -227,7 +292,89 @@
                 if (billCombo && (!billCombo.value() || billCombo.value() === "0")) {
                     billCombo.value("");
                 }
+                
+                // Initialize payment method and toggle online account
+                initializePaymentMethodCombo();
             }, 100);
+
+            function initializePaymentMethodCombo() {
+                // Payment Method Combobox
+                $("#paymentMethodSelect").kendoComboBox({
+                    dataSource: {
+                        data: [
+                            { value: "Cash", text: "Cash" },
+                            { value: "Online", text: "Online" }
+                        ]
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Payment Method --",
+                    filter: "contains",
+                    suggest: true,
+                    change: function () {
+                        toggleOnlineAccountDiv();
+                    }
+                });
+
+                // Online Account Combobox
+                $("#onlineAccountSelect").kendoComboBox({
+                    dataSource: [],
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Online Account --",
+                    filter: "contains",
+                    suggest: true,
+                    enabled: false
+                });
+            }
+
+            function toggleOnlineAccountDiv() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                const onlineAccountDiv = $("#onlineAccountDiv");
+                if (!paymentMethodCombo || !onlineAccountCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "Online") {
+                    onlineAccountDiv.show();
+                    onlineAccountCombo.enable(true);
+                    if (onlineAccountCombo.dataSource.data().length === 0) {
+                        loadOnlineAccounts();
+                    }
+                } else {
+                    onlineAccountDiv.hide();
+                    onlineAccountCombo.enable(false);
+                    onlineAccountCombo.value("");
+                }
+            }
+
+            function loadOnlineAccounts() {
+                fetch('@Url.Action("GetOnlineAccounts", "Sales")')
+                    .then(r => r.json())
+                    .then(data => {
+                        const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                        if (!onlineAccountCombo) return;
+                        onlineAccountCombo.dataSource.data([]);
+                        data.forEach(function (acc) {
+                            onlineAccountCombo.dataSource.add({ value: acc.value, text: acc.text });
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Error loading online accounts', err);
+                    });
+            }
+
+            // Toaster-style warning like Add Sale
+            function showWarningMessage(message) {
+                $('.alert-warning').remove();
+                var alertHtml = '<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+                    '<i class="fa-solid fa-exclamation-triangle me-2"></i>' +
+                    message +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+                $('body').append(alertHtml);
+                setTimeout(function() { $('.alert-warning').fadeOut(); }, 5000);
+            }
         });
     </script>
 }

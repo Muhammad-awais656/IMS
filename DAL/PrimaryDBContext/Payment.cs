@@ -20,6 +20,8 @@ public partial class Payment
     public DateTime CreatedDate { get; set; }
 
     public string? Description { get; set; }
+    public string? paymentMethod { get; set; }
+    public long? onlineAccountId { get; set; }
 
     public long? ModifiedBy { get; set; }
 

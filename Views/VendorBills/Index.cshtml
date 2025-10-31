@@ -27,7 +27,7 @@
             </div>
             <div class="collapse show" id="filterCollapse">
                 <div class="card-body pt-0">
-                    <form asp-action="Index" method="get">
+                    <form asp-action="Index" method="get" id="vendorBillsFilterForm">
                         
                         <!-- Filter Inputs Row -->
                         <div class="row g-3 mb-4">
@@ -36,7 +36,7 @@
                                     <i class="fa-solid fa-building me-1"></i>Vendor
                                 </label>
                                 <div class="form-floating">
-                                    <input id="vendorId" name="vendorId" style="width: 100%;" />
+                                    <input id="vendorId" name="vendorId" value="@ViewData["vendorId"]" style="width: 100%;" />
                                   
                                 </div>
                             </div>
@@ -46,7 +46,7 @@
                                     <i class="fa-solid fa-file-invoice me-1"></i>Bill Number
                                 </label>
                                 <div class="form-floating">
-                                    <input id="billNumber" name="billNumber" style="width: 100%;" />
+                                    <input id="billNumber" name="billNumber" value="@ViewData["billNumber"]" style="width: 100%;" />
                                   
                                 </div>
                             </div>
@@ -341,6 +341,20 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             initializeVendorBillsManagement();
+            
+            // Ensure Kendo ComboBox values are set before form submission
+            $("#vendorBillsFilterForm").on("submit", function(e) {
+                var vendorCombo = $("#vendorId").data("kendoComboBox");
+                var billNumberCombo = $("#billNumber").data("kendoComboBox");
+                
+                if (vendorCombo && vendorCombo.value()) {
+                    $("#vendorId").attr("value", vendorCombo.value());
+                }
+                
+                if (billNumberCombo && billNumberCombo.value()) {
+                    $("#billNumber").attr("value", billNumberCombo.value());
+                }
+            });
         });
 
         function initializeVendorBillsManagement() {
@@ -446,12 +460,17 @@
                     .then(response => response.json())
                     .then(data => {
                         billNumberSelect.innerHTML = '<option value="">--Select a value--</option>';
-                        data.forEach(bill => {
-                            const option = document.createElement('option');
-                            option.value = bill.billNumber;
-                            option.textContent = bill.billNumber;
-                            billNumberSelect.appendChild(option);
-                        });
+                        if (data && data.length > 0) {
+                            data.forEach(bill => {
+                                // Handle both camelCase and PascalCase property names
+                                const billNumber = bill.BillNumber || bill.billNumber;
+                                const totalDue = bill.TotalDueAmount || bill.totalDueAmount || 0;
+                                const option = document.createElement('option');
+                                option.value = billNumber.toString();
+                                option.textContent = billNumber.toString() + (totalDue > 0 ? " (Due: " + parseFloat(totalDue).toFixed(2) + ")" : "");
+                                billNumberSelect.appendChild(option);
+                            });
+                        }
                         billNumberSelect.disabled = false;
                     })
                     .catch(error => {
@@ -505,9 +524,9 @@
 
         // Initialize Kendo ComboBoxes
         function initializeKendoComboBoxes() {
-            // Get initial values from form
-            var initialVendorId = $("#vendorId").val();
-            var initialBillNumber = $("#billNumber").val();
+            // Get initial values from ViewData (set as value attribute) or query parameters
+            var initialVendorId = $("#vendorId").val() || getQueryParam('vendorId');
+            var initialBillNumber = $("#billNumber").val() || getQueryParam('billNumber');
             
             // Initialize Vendor ComboBox
             $("#vendorId").kendoComboBox({
@@ -531,11 +550,18 @@
                 },
                 change: function(e) {
                     var vendorId = this.value();
+                    // Update the underlying input value for form submission
+                    $("#vendorId").attr("value", vendorId);
                     if (vendorId) {
                         loadBillNumbers(vendorId);
                     } else {
                         // Clear bill numbers when no vendor selected
-                        $("#billNumber").data("kendoComboBox").dataSource.data([]);
+                        var billNumberCombo = $("#billNumber").data("kendoComboBox");
+                        if (billNumberCombo) {
+                            billNumberCombo.dataSource.data([]);
+                            billNumberCombo.value("");
+                            $("#billNumber").attr("value", "");
+                        }
                     }
                 }
             });
@@ -550,40 +576,82 @@
                 value: initialBillNumber,
                 dataSource: {
                     data: []
+                },
+                change: function(e) {
+                    // Update the underlying input value for form submission
+                    var billNumber = this.value();
+                    $("#billNumber").attr("value", billNumber);
                 }
             });
             
             // Load bill numbers if vendor is already selected
             if (initialVendorId) {
-                loadBillNumbers(initialVendorId);
+                loadBillNumbers(initialVendorId, initialBillNumber);
             }
         }
 
+        // Helper function to get query parameter value
+        function getQueryParam(paramName) {
+            var urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(paramName) || '';
+        }
+
         // Load bill numbers for selected vendor
-        function loadBillNumbers(vendorId) {
+        function loadBillNumbers(vendorId, selectedBillNumber) {
             if (!vendorId) return;
             
             console.log("Loading bill numbers for vendor:", vendorId);
             
             $.ajax({
-                url: "/VendorBills/GetAllBillNumbersForVendor",
+                url: "@Url.Action("GetBillNumbers", "VendorBills")",
                 type: "GET",
-                data: { vendorId: vendorId },
+                data: { supplierId: vendorId },
                 dataType: "json",
-                success: function(response) {
-                    console.log("Bill numbers response:", response);
-                    if (response.success && response.data) {
-                        var billNumberCombo = $("#billNumber").data("kendoComboBox");
-                        billNumberCombo.dataSource.data(response.data);
-                        console.log("Bill numbers loaded:", response.data.length, "items");
+                success: function(data) {
+                    console.log("Bill numbers response:", data);
+                    var billNumberCombo = $("#billNumber").data("kendoComboBox");
+                    
+                    if (data && data.length > 0) {
+                        // Format data for Kendo ComboBox - handle both camelCase and PascalCase
+                        var billNumbersData = data.map(function(bill) {
+                            var billNumber = bill.BillNumber || bill.billNumber;
+                            var totalDue = bill.TotalDueAmount || bill.totalDueAmount || 0;
+                            return {
+                                value: billNumber.toString(),
+                                text: billNumber.toString() + (totalDue > 0 ? " (Due: " + parseFloat(totalDue).toFixed(2) + ")" : "")
+                            };
+                        });
+                        
+                        billNumberCombo.dataSource.data(billNumbersData);
+                        
+                        // Set the selected bill number if provided (after page reload from search)
+                        if (selectedBillNumber && selectedBillNumber !== "") {
+                            // Small delay to ensure dataSource is updated
+                            setTimeout(function() {
+                                billNumberCombo.value(selectedBillNumber);
+                                $("#billNumber").attr("value", selectedBillNumber);
+                                console.log("Set selected bill number to:", selectedBillNumber);
+                            }, 100);
+                        }
+                        
+                        console.log("Bill numbers loaded:", billNumbersData.length, "items");
                     } else {
-                        console.log("No bill numbers found or error in response");
+                        billNumberCombo.dataSource.data([]);
+                        if (billNumberCombo.value()) {
+                            billNumberCombo.value("");
+                            $("#billNumber").attr("value", "");
+                        }
+                        console.log("No bill numbers found");
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error("Error loading bill numbers:", error);
                     console.error("XHR status:", xhr.status);
                     console.error("XHR response:", xhr.responseText);
+                    var billNumberCombo = $("#billNumber").data("kendoComboBox");
+                    if (billNumberCombo) {
+                        billNumberCombo.dataSource.data([]);
+                    }
                 }
             });
         }
