@@ -9,9 +9,7 @@
     <form id="addSizeForm">
         <div class="mb-2">
             <label>Measuring Unit</label>
-            <select name="MeasuringUnitIdFk" asp-items="ViewBag.MeasuringUnits" class="form-control" required>
-                <option value="">-- Select Measuring Unit --</option>
-            </select>
+            <input id="measuringUnitDropdown" name="MeasuringUnitIdFk" style="width: 100%;" required />
         </div>
         <div class="mb-2">
             <label>Size From</label>
@@ -32,3 +30,40 @@
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
     <button type="button" class="btn btn-primary" id="saveSizeBtn">Save</button>
 </div>
+
+<script>
+    $(document).ready(function () {
+        // Check if Kendo UI is loaded
+        if (typeof kendo === 'undefined') {
+            console.error('Kendo UI is not loaded. Please check script references.');
+            return;
+        }
+
+        // Get measuringUnitTypeId from the parent page
+        var measuringUnitTypeId = null;
+        
+        // Try to get from the main form
+        if ($("#MeasuringUnitTypeId").length && $("#MeasuringUnitTypeId").data("kendoComboBox")) {
+            measuringUnitTypeId = $("#MeasuringUnitTypeId").data("kendoComboBox").value();
+        }
+        
+        // Initialize Measuring Unit ComboBox with search functionality
+        $("#measuringUnitDropdown").kendoComboBox({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: "/Product/GetMeasuringUnits",
+                        data: { measuringUnitTypeId: measuringUnitTypeId },
+                        dataType: "json"
+                    }
+                }
+            },
+            dataTextField: "text",
+            dataValueField: "value",
+            placeholder: "-- Select Measuring Unit --",
+            filter: "contains",
+            suggest: true,
+            minLength: 1
+        });
+    });
+</script>

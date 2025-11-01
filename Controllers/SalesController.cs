@@ -761,5 +761,37 @@ namespace IMS.Controllers
                 return View(model);
         }
 
+        // AJAX endpoints for Kendo UI Dropdowns
+        [HttpGet]
+        public async Task<IActionResult> GetCustomers()
+        {
+            var customers = await _salesService.GetAllCustomersAsync();
+            var result = customers.Select(c => new { value = c.CustomerId, text = c.CustomerName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProducts()
+        {
+            var products = await _productService.GetAllEnabledProductsAsync();
+            var result = products.Select(p => new { value = p.ProductId, text = p.ProductName }).ToList();
+            return Json(result);
+        }
+
+        //[HttpGet]
+        //public async Task<IActionResult> GetProductSizes(long? productId)
+        //{
+        //    if (productId == null || productId == 0)
+        //    {
+        //        return Json(new List<object>());
+        //    }
+
+        //    var productRanges = await _productService.GetProductRangesByProductIdAsync(productId.Value);
+        //    var result = productRanges.Select(pr => new { 
+        //        value = pr.ProductRangeId, 
+        //        text = $"{pr.RangeFrom} - {pr.RangeTo} ({pr.UnitPrice:C})" 
+        //    }).ToList();
+        //    return Json(result);
+        //}
     }
 }

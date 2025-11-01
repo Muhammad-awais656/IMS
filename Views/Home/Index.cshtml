@@ -215,12 +215,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="productDropdown">Select Product</label>
-                        <select id="productDropdown" class="form-control">
-                            @foreach (var item in Model.ProductList)
-                            {
-                                <option value="@item.Value">@item.Text</option>
-                            }
-                        </select>
+                        <input id="productDropdown" style="width: 100%;" />
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -303,9 +298,52 @@
 
 <script>
         $(document).ready(function() {
-    // prepare data from server model
-    const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
-    const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
+            // Check if Kendo UI is loaded
+            if (typeof kendo === 'undefined') {
+                console.error('Kendo UI is not loaded. Please check script references.');
+                return;
+            }
+
+            // Initialize Kendo UI ComboBox for product selection
+            $("#productDropdown").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Home/GetProducts",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function (e) {
+                    let productId = this.value();
+                    if (productId == "0" || !productId) return;
+
+                    $.getJSON("/Home/GetStockStatus", { productId: productId }, function (data) {
+                        stockChart.data.datasets[0].data = [
+                            data.inStockCount,
+                            data.lowStockCount,
+                            data.outOfStockCount
+                        ];
+                        stockChart.update();
+
+                        $("#stockLabels").html(`
+                            <div><span class="badge bg-success me-1">&nbsp;</span>In stock: ${data.inStockCount}</div>
+                            <div><span class="badge bg-warning me-1">&nbsp;</span>Available: ${data.lowStockCount}</div>
+                            <div><span class="badge bg-danger me-1">&nbsp;</span>Used: ${data.outOfStockCount}</div>
+                        `);
+                    });
+                }
+            });
+
+            // prepare data from server model
+            const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
+            const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
 
     // Sales line chart
     const ctx = document.getElementById('salesChart').getContext('2d');
@@ -344,27 +382,6 @@
             }]
         },
         options: { plugins: { legend: { position: 'bottom' } } }
-    });
-    $("#productDropdown").change(function () {
-        debugger;
-        let productId = $(this).val();
-        if (productId == "0") return;
-
-        $.getJSON("/Home/GetStockStatus", { productId: productId }, function (data) {
-            debugger;
-            stockChart.data.datasets[0].data = [
-                data.inStockCount,
-                data.lowStockCount,
-                data.outOfStockCount
-            ];
-            stockChart.update();
-
-            $("#stockLabels").html(`
-                <div><span class="badge bg-success me-1">&nbsp;</span>In stock: ${data.inStockCount}</div>
-                <div><span class="badge bg-warning me-1">&nbsp;</span>Available: ${data.lowStockCount}</div>
-                <div><span class="badge bg-danger me-1">&nbsp;</span>Used: ${data.outOfStockCount}</div>
-            `);
-        });
     });
     });
 </script>

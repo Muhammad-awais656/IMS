@@ -256,5 +256,14 @@ namespace IMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // AJAX endpoints for Kendo UI Dropdowns
+        [HttpGet]
+        public async Task<IActionResult> GetExpenseTypes()
+        {
+            var expenseTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+            var result = expenseTypes.Select(et => new { value = et.ExpenseTypeId, text = et.ExpenseTypeName }).ToList();
+            return Json(result);
+        }
     }
 }

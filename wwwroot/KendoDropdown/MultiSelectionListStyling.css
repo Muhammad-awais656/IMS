@@ -1,0 +1,39 @@
+﻿.defaultAutoComplete input {
+    height: 35px !important;
+    border-color: #e3e3e3 !important;
+}
+
+.k-autocomplete.k-state-focused {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+
+
+.listEntityCards {
+    border: 1px solid lightgrey;
+    border-radius: 5px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+    .listEntityCards ul {
+        margin: 0;
+        padding: 5px;
+        list-style-type: none;
+    }
+
+        .listEntityCards ul li {
+            display: inline-block;
+            margin: 3px;
+            padding: 3px 7px;
+            border-radius: 5px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            cursor: default;
+        }
+
+            .listEntityCards ul li i {
+                cursor: pointer;
+                margin-left: 5px;
+            }

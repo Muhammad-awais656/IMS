@@ -8,7 +8,13 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/IMS.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <style>
+    <link href="~/KendoDropdown/kendoUI/kendo.common-bootstrap.min.css" rel="stylesheet" />
+    <link href="~/KendoDropdown/kendoUI/kendo.bootstrap.min.css" rel="stylesheet" />
+    <link href="~/KendoDropdown/kendoUI/kendo.common.min.css" rel="stylesheet" />
+    <link href="~/KendoDropdown/kendoUI/kendo.default.min.css" rel="stylesheet" />
+    <link href="~/KendoDropdown/kendoUI/kendo.default.mobile.min.css" rel="stylesheet" />
+    <link href="~/KendoDropdown/defaultKendoStyleOverride.css" rel="stylesheet" />
+<style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f8f9fa; /* Light gray background */
@@ -424,7 +430,28 @@
 
         <script src="~/lib/jquery/dist/jquery.min.js"></script>
         <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.core.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.data.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.userevents.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.draganddrop.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.fx.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.popup.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.list.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.combobox.min.js"></script>
         <script src="~/js/site.js" asp-append-version="true"></script>
+        
+        <!-- Debug script to check Kendo UI loading -->
+        <script>
+            $(document).ready(function() {
+                console.log('jQuery version:', $.fn.jquery);
+                console.log('Kendo UI loaded:', typeof kendo !== 'undefined');
+                if (typeof kendo !== 'undefined') {
+                    console.log('Kendo UI version:', kendo.version);
+                    console.log('kendoComboBox available:', typeof $.fn.kendoComboBox !== 'undefined');
+                }
+            });
+        </script>
+        
         @await RenderSectionAsync("Scripts", required: false)
     }
 </body>

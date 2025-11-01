@@ -13,7 +13,7 @@
                     <div class="row row-cols-1">
                     <div class="col">
                         <label asp-for="ExpenseTypeIdFk" class="form-label"> Expense Type :</label>
-                        @Html.DropDownList("ExpenseTypeIdFk", ViewBag.EnabledExpenses as IEnumerable<SelectListItem>, "<-- Select ExpenseType -->", new { @class = "form-control scrollable-dropdown" })
+                        <input id="ExpenseTypeIdFk" name="ExpenseTypeIdFk" style="width: 100%;" />
                         @Html.ValidationMessageFor(m => m.ExpenseTypeIdFk, "", new { @class = "text-danger" })
                     </div>
                   
@@ -51,9 +51,33 @@
 
     <script>
         $(document).ready(function () {
+            // Check if Kendo UI is loaded
+            if (typeof kendo === 'undefined') {
+                console.error('Kendo UI is not loaded. Please check script references.');
+                return;
+            }
+
+            // Initialize Kendo UI ComboBox for expense types
+            $("#ExpenseTypeIdFk").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Expense/GetExpenseTypes",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Expense Type --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
             // Set the max attribute of the date input to today's date
             var today = new Date().toISOString().split('T')[0];
             $('#fromDate').attr('max', today);
-                });
+        });
     </script>
 }

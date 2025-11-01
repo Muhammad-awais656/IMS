@@ -464,5 +464,51 @@ namespace IMS.Controllers
             var exists = await _productService.ProductCodeExistsAsync(productCode, excludeProductId);
             return Json(exists);
         }
+
+        // AJAX endpoints for Kendo UI Dropdowns
+        [HttpGet]
+        public async Task<IActionResult> GetCategories()
+        {
+            var categories = await _categoryService.GetAllEnabledCategoriesAsync();
+            var result = categories.Select(c => new { value = c.CategoryId, text = c.CategoryName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetLabels()
+        {
+            var labels = await _adminLablesService.GetAllEnabledAdminLablesAsync();
+            var result = labels.Select(l => new { value = l.LabelId, text = l.LabelName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMeasuringUnitTypes()
+        {
+            var muts = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync();
+            var result = muts.Select(m => new { value = m.MeasuringUnitTypeId, text = m.MeasuringUnitTypeName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetVendors()
+        {
+            var vendors = await _vendorService.GetAllEnabledVendors();
+            var result = vendors.Select(v => new { value = v.SupplierId, text = v.SupplierName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMeasuringUnits(long? measuringUnitTypeId)
+        {
+            if (measuringUnitTypeId == null || measuringUnitTypeId == 0)
+            {
+                return Json(new List<object>());
+            }
+
+            var measuringUnits = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+            var result = measuringUnits.Select(mu => new { value = mu.MeasuringUnitId, text = mu.MeasuringUnitName }).ToList();
+            return Json(result);
+        }
     }
 }

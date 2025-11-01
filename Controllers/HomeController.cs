@@ -106,6 +106,14 @@ namespace IMS.Controllers
             return Json(model);
         }
         [HttpGet]
+        public async Task<IActionResult> GetProducts()
+        {
+            var products = await _productService.GetAllEnabledProductsAsync();
+            var result = products.Select(p => new { value = p.ProductId, text = p.ProductName }).ToList();
+            return Json(result);
+        }
+
+        [HttpGet]
         public IActionResult Ping()
         {
             // Touch session to keep it alive

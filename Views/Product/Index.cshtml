@@ -69,31 +69,18 @@
 
                             </div>
                             <div class="col">
-                                <label  class="form-label">Category: </label>
-                                <select name="catId" asp-for="productFilters.CategoryId"
-                                        asp-items="ViewBag.Categories"
-                                        class="form-control">
-                                    <option value=""><-- Select Category --></></option>
-                                </select>
+                                <label class="form-label">Category: </label>
+                                <input id="categoryDropdown" name="catId" style="width: 100%;" />
                             </div>
+                            
                             <div class="col">
-                                <label  class="form-label">Label: </label>
-                                <select name="searchULabelId"
-                                    asp-for="productFilters.LabelId"
-                                        asp-items="ViewBag.Labels"
-                                        class="form-control">
-                                    <option value=""><-- Select Category --></></option>
-                                </select>
+                                <label class="form-label">Label: </label>
+                                <input id="labelDropdown" name="searchULabelId" style="width: 100%;" />
                             </div>
 
                             <div class="col">
-                                <label  class="form-label">MU Type: </label>
-                                <select name="searchUMUTId"
-                                        asp-for="productFilters.MeasuringUnitTypeId"
-                                        asp-items="ViewBag.MeasuringUnitTypes"
-                                        class="form-control">
-                                    <option value=""><-- Select MU Type --></></option>
-                                </select>
+                                <label class="form-label">MU Type: </label>
+                                <input id="mutDropdown" name="searchUMUTId" style="width: 100%;" />
                             </div>
 
 
@@ -238,26 +225,81 @@
 
 @section Scripts {
     <script>
-       
+        $(document).ready(function () {
+            // Check if Kendo UI is loaded
+            if (typeof kendo === 'undefined') {
+                console.error('Kendo UI is not loaded. Please check script references.');
+                return;
+            }
+
+            // Initialize Kendo UI ComboBoxes with search functionality
+            $("#categoryDropdown").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetCategories",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Category --",
+                value: "@Context.Request.Query["catId"]",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
+            $("#labelDropdown").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetLabels",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Label --",
+                value: "@Context.Request.Query["searchULabelId"]",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+
+            $("#mutDropdown").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetMeasuringUnitTypes",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select MU Type --",
+                value: "@Context.Request.Query["searchUMUTId"]",
+                filter: "contains",
+                suggest: true,
+                minLength: 1
+            });
+        });
 
         function SearchNameChange(){
             debugger;
-
             const search = document.querySelector('input[name="searchUsername"]').value;
             window.location.href = '@Url.Action("Index", "Product")'
                 + '?pageNumber=1&pageSize=' + select.value
                 + (search ? '&searchUsername=' + encodeURIComponent(search) : '');
         }
 
-
-           function changePageSize(select) {
-               debugger;
-            // const search = document.querySelector('input[name="searchUsername"]').value;
-
+        function changePageSize(select) {
+            debugger;
             window.location.href = '@Url.Action("Index", "Product")'
                 + '?pageNumber=1&pageSize=' + select.value
         }
-
-
     </script>
 }
