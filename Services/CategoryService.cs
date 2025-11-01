@@ -30,9 +30,9 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pCategoryName", adminCategory.CategoryName);
-                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription);
+                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminCategory.IsEnabled);
-                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments);
+                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedDate", adminCategory?.CreatedDate != null ? adminCategory.CreatedDate : DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedBy", adminCategory?.CreatedBy != null ? adminCategory.CreatedBy : DBNull.Value);
 
@@ -115,8 +115,8 @@ namespace IMS.Services
                                     {
                                         CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
                                         CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
-                                        CategoryDescription = reader.GetString(reader.GetOrdinal("CategoryDescription")),
-                                        OtherAdjustments = reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
+                                        CategoryDescription = reader.IsDBNull(reader.GetOrdinal("CategoryDescription")) ? null : reader.GetString(reader.GetOrdinal("CategoryDescription")),
+                                        OtherAdjustments = reader.IsDBNull(reader.GetOrdinal("OtherAdjustments")) ? null : reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -183,8 +183,8 @@ namespace IMS.Services
                                     {
                                         CategoryId = reader.GetInt64(reader.GetOrdinal("CategoryId")),
                                         CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
-                                        CategoryDescription = reader.GetString(reader.GetOrdinal("CategoryDescription")),
-                                        OtherAdjustments = reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
+                                        CategoryDescription = reader.IsDBNull(reader.GetOrdinal("CategoryDescription")) ? null : reader.GetString(reader.GetOrdinal("CategoryDescription")),
+                                        OtherAdjustments = reader.IsDBNull(reader.GetOrdinal("OtherAdjustments")) ? null : reader.GetByte(reader.GetOrdinal("OtherAdjustments")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -237,9 +237,9 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pCategoryName", adminCategory.CategoryName);
-                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription);
+                        command.Parameters.AddWithValue("@pCategoryDescription", adminCategory.CategoryDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminCategory.IsEnabled);
-                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments);
+                        command.Parameters.AddWithValue("@pOtherAdjustments", adminCategory.OtherAdjustments ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedDate", adminCategory?.ModifiedDate == default(DateTime) ? DBNull.Value : adminCategory?.ModifiedDate);
                         command.Parameters.AddWithValue("@ModifiedBy", adminCategory?.ModifiedBy);
                         command.Parameters.AddWithValue("@pCategoryId", adminCategory?.CategoryId);

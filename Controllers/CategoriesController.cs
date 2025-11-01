@@ -68,8 +68,19 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
                     adminCategory.CreatedBy = userId;
                     adminCategory.CreatedDate = DateTime.Now;
+                    adminCategory.ModifiedBy = userId;
+                    adminCategory.ModifiedDate = DateTime.Now;
+                    
+                    // Ensure optional fields are properly handled
+                    if (string.IsNullOrWhiteSpace(adminCategory.CategoryDescription))
+                        adminCategory.CategoryDescription = null;
+                    
+                    if (adminCategory.OtherAdjustments == 0)
+                        adminCategory.OtherAdjustments = null;
 
                     var result = await _categoryService.CreateAdminCategoryAsync(adminCategory);
                     if (result)
@@ -80,13 +91,21 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(nameof(Index));
+                        return View(adminCategory);
+                    }
+                }
+                else
+                {
+                    // Log validation errors for debugging
+                    foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        Console.WriteLine($"Validation Error: {error.ErrorMessage}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = ex.Message;
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
                 return View(adminCategory);
             }
             return View(adminCategory);
@@ -117,10 +136,20 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    adminCategory.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
+                    adminCategory.ModifiedDate = DateTime.Now;
                     adminCategory.ModifiedBy = userId;
+                    
+                    // Ensure optional fields are properly handled
+                    if (string.IsNullOrWhiteSpace(adminCategory.CategoryDescription))
+                        adminCategory.CategoryDescription = null;
+                    
+                    if (adminCategory.OtherAdjustments == 0)
+                        adminCategory.OtherAdjustments = null;
+                    
                     var response = await _categoryService.UpdateAdminCategoryAsync(adminCategory);
                     if (response != 0)
                     {
@@ -132,14 +161,20 @@ namespace IMS.Controllers
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
                         return View(adminCategory);
                     }
-
                 }
                 catch (Exception ex)
                 {
-                    TempData["ErrorMessage"] = ex.Message;
-
+                    TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                    return View(adminCategory);
                 }
-
+            }
+            else
+            {
+                // Log validation errors for debugging
+                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    Console.WriteLine($"Validation Error: {error.ErrorMessage}");
+                }
             }
             return View(adminCategory);
         }

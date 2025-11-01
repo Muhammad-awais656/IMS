@@ -1,10 +1,11 @@
+@using System.Globalization
 @model IMS.DAL.PrimaryDBContext.Payment
 
 @{
     ViewData["Title"] = "Payment Details";
 }
-
-<div class="container mt-4">
+@* 
+<div class="container mt-4"> *@
     <div class="card shadow-sm">
         <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
             <h2 class="mb-0" style="text-align:center">Payment Details</h2>
@@ -18,7 +19,7 @@
                         <dd class="col-sm-8">@Model.PaymentId</dd>
 
                         <dt class="col-sm-4">Payment Amount:</dt>
-                        <dd class="col-sm-8">@Model.PaymentAmount.ToString("C")</dd>
+                        <dd class="col-sm-8">@Model.PaymentAmount.ToString("C", new CultureInfo("ur-PK"))</dd>
 
                         <dt class="col-sm-4">Sale ID:</dt>
                         <dd class="col-sm-8">@Model.SaleId</dd>
@@ -30,10 +31,10 @@
                 <div class="col-md-6">
                     <dl class="row">
                         <dt class="col-sm-4">Payment Date:</dt>
-                        <dd class="col-sm-8">@Model.PaymentDate.ToString("M/d/yyyy h:mm:ss tt")</dd>
+                        <dd class="col-sm-8">@Model.PaymentDate.ToString("M/d/yyyy h:mm tt")</dd>
 
                         <dt class="col-sm-4">Created Date:</dt>
-                        <dd class="col-sm-8">@Model.CreatedDate.ToString("M/d/yyyy h:mm:ss tt")</dd>
+                        <dd class="col-sm-8">@Model.CreatedDate.ToString("M/d/yyyy h:mm tt")</dd>
 
                         <dt class="col-sm-4">Created By:</dt>
                         <dd class="col-sm-8">@Model.CreatedBy</dd>
@@ -50,7 +51,7 @@
                     <div class="col-md-6">
                         <dl class="row">
                             <dt class="col-sm-4">Modified Date:</dt>
-                            <dd class="col-sm-8">@Model.ModifiedDate.Value.ToString("M/d/yyyy h:mm:ss tt")</dd>
+                            <dd class="col-sm-8">@Model.ModifiedDate.Value.ToString("M/d/yyyy h:mm tt")</dd>
 
                             <dt class="col-sm-4">Modified By:</dt>
                             <dd class="col-sm-8">@(Model.ModifiedBy?.ToString() ?? "N/A")</dd>
@@ -61,11 +62,11 @@
 
             <div class="d-flex justify-content-between mt-4">
                 <a asp-action="Index" class="btn btn-secondary">Back to List</a>
-                <div>
+             @*    <div>
                     <a asp-action="Edit" asp-route-id="@Model.PaymentId" class="btn btn-primary">Edit</a>
                     <a asp-action="Delete" asp-route-id="@Model.PaymentId" class="btn btn-danger">Delete</a>
-                </div>
+                </div> *@
             </div>
         </div>
     </div>
-</div>
+@* </div> *@

@@ -129,20 +129,38 @@ namespace IMS.Controllers
         // GET: MeasuringUnitController/Edit/5
         public async Task<ActionResult> Edit(long id)
         {
-            var measuringViewModel = new List<MeasuringUnitViewModel>();
-            var res = await _measuringUnitService.AdminMeasuringUnitTypeCacheAsync();
-            measuringViewModel.Add(new MeasuringUnitViewModel
+            try
             {
-                AdminMeasuringUnitTypes = res
-            });
-            ViewBag.MeasuringUnitTypes = new SelectList(res, "MeasuringUnitTypeId", "MeasuringUnitTypeName");
-            var unit = await _measuringUnitService.GetAdminMeasuringUnitByIdAsync(id);
-            if (unit == null)
-            {
-                return NotFound();
+                // Validate ID
+                if (id <= 0)
+                {
+                    TempData["ErrorMessage"] = "Invalid measuring unit ID.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var measuringViewModel = new List<MeasuringUnitViewModel>();
+                var res = await _measuringUnitService.AdminMeasuringUnitTypeCacheAsync();
+                measuringViewModel.Add(new MeasuringUnitViewModel
+                {
+                    AdminMeasuringUnitTypes = res
+                });
+                ViewBag.MeasuringUnitTypes = new SelectList(res, "MeasuringUnitTypeId", "MeasuringUnitTypeName");
+                
+                var unit = await _measuringUnitService.GetAdminMeasuringUnitByIdAsync(id);
+                if (unit == null)
+                {
+                    TempData["ErrorMessage"] = $"Measuring unit with ID {id} was not found. It may have been deleted.";
+                    return RedirectToAction(nameof(Index));
+                }
+                
+                return View(unit);
             }
-            return View(unit);
-            
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading measuring unit {Id} for editing", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the measuring unit for editing.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         // POST: MeasuringUnitController/Edit/5
@@ -189,12 +207,30 @@ namespace IMS.Controllers
         // GET: MeasuringUnitController/Delete/5
         public async Task<ActionResult> Delete(long id)
         {
-            var unit = await _measuringUnitService.GetAdminMeasuringUnitByIdAsync(id);
-            if (unit == null)
+            try
             {
-                return NotFound();
+                // Validate ID
+                if (id <= 0)
+                {
+                    TempData["ErrorMessage"] = "Invalid measuring unit ID.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var unit = await _measuringUnitService.GetAdminMeasuringUnitByIdAsync(id);
+                if (unit == null)
+                {
+                    TempData["ErrorMessage"] = $"Measuring unit with ID {id} was not found. It may have been deleted.";
+                    return RedirectToAction(nameof(Index));
+                }
+                
+                return View(unit);
             }
-            return View(unit);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading measuring unit {Id} for deletion", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the measuring unit for deletion.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         // POST: MeasuringUnitController/Delete/5

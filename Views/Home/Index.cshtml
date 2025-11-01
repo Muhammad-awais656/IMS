@@ -1,97 +1,8 @@
-﻿@* @{
-    ViewData["Title"] = "Dashboard";
-    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
-    string Role = isAdmin ? "Admin" : "User";
-
-}
-<link rel="stylesheet" href="/css/CustomBoxStyle.css" />
-
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            <h2 class="mb-0" style="text-align:center"> Welcome to Inventary Management System</h2>
-        </div>
-        <div class="card-body" style="background-color:aqua">
-            <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
-
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Total Employees</h5>
-                        <h6 style="color:red">@ViewBag.TotalEmployees</h6>
-                        <a asp-action="Index" asp-controller="Employee" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-
-
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Total Users</h5>
-                        <h6 style="color:red">@ViewBag.TotalEmployees</h6>
-                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Total Sales Today</h5>
-                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
-                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Total Products</h5>
-                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
-                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Total Stock</h5>
-                        <h6 style="color:red">Rs.@ViewBag.TotalEmployees</h6>
-                        <a asp-action="GetAllUsers" asp-controller="User" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-
-
-
-
-                
-                <div class="col">
-                    <div class="custom-box text-center" style="background-color:lightblue">
-                        <div class="icon-container">
-                            <i class="bi-person-lines-fill" style="font-size: 3rem; color: #0D6B92;"></i>
-                        </div>
-                        <h5 class="custom-title">Customer Management</h5>
-                        <p class="custom-description">Manage customers.</p>
-                        <a href="/Employee/Index" class="btn custom-btn">Go to Module</a>
-                    </div>
-                </div>
-
-
-            </div>
-        </div>
-    </div>
-
- *@
-
+﻿
 
 @model IMS.Models.DashboardViewModel
 @using System.Text.Json
+@using System.Globalization
 
 @{
     ViewData["Title"] = "Dashboard";
@@ -104,190 +15,462 @@
 @* <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" /> *@
 
 <style>
-    /* Dashboard custom styling */
-    .card-compact {
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(12, 32, 63, .08);
+    /* Modern Dashboard Styling */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        --glass-bg: rgba(255, 255, 255, 0.25);
+        --glass-border: rgba(255, 255, 255, 0.18);
+        --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        --shadow-hover: 0 15px 35px rgba(31, 38, 135, 0.2);
+    }
+
+    .modern-dashboard {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .dashboard-header {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-light);
+        animation: slideInDown 0.8s ease-out;
+    }
+
+    .dashboard-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-subtitle {
+        color: #6c757d;
+        font-size: 1.1rem;
+        font-weight: 300;
+    }
+
+    .stat-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-light);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .stat-card.primary::before { background: var(--primary-gradient); }
+    .stat-card.success::before { background: var(--success-gradient); }
+    .stat-card.warning::before { background: var(--warning-gradient); }
+    .stat-card.info::before { background: var(--info-gradient); }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-bottom: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 15px;
+        opacity: 0.9;
+    }
+
+    .stat-card.primary .stat-icon::before { background: var(--primary-gradient); }
+    .stat-card.success .stat-icon::before { background: var(--success-gradient); }
+    .stat-card.warning .stat-icon::before { background: var(--warning-gradient); }
+    .stat-card.info .stat-icon::before { background: var(--info-gradient); }
+
+    .stat-icon i {
+        position: relative;
+        z-index: 1;
     }
 
     .stat-value {
-        font-size: 1.6rem;
-        font-weight: 700;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        line-height: 1;
     }
 
     .stat-label {
         color: #6c757d;
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .small-muted {
+    .stat-description {
+        color: #95a5a6;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    .chart-container {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-light);
+        margin-bottom: 2rem;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .chart-subtitle {
         color: #6c757d;
         font-size: 0.9rem;
+        margin: 0;
     }
 
-    .chart-card {
-        min-height: 320px;
+    .product-selector {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-light);
+        animation: fadeInUp 0.7s ease-out;
     }
 
-    .top-product-badge {
-        font-size: 0.8rem;
+    .product-selector label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.75rem;
+        display: block;
     }
 
-    .table-recent td, .table-recent th {
-        vertical-align: middle;
+    .stock-chart-container {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-light);
+        animation: fadeInUp 0.9s ease-out;
+    }
+
+    .stock-labels {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .stock-label {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #2c3e50;
+    }
+
+    .stock-badge {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .quick-actions {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-light);
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .action-btn {
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        margin-bottom: 0.75rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        color: white;
+        text-decoration: none;
+    }
+
+    .action-btn.success {
+        background: var(--success-gradient);
+    }
+
+    .action-btn.warning {
+        background: var(--warning-gradient);
+    }
+
+    /* Animations */
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .dashboard-title {
+            font-size: 2rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+        }
+        
+        .stock-labels {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary-gradient);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--dark-gradient);
     }
 </style>
 
-<div class="container-fluid py-4" style="background-color:azure">
-    <div class="row mb-3">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <h3 class="mb-0">Inventory Management System Dashboard</h3>
-            <div class="small text-muted">Welcome back — overview of latest activity</div>
+<div class="modern-dashboard">
+    <div class="container-fluid">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Inventory Management System</h1>
+            <p class="dashboard-subtitle">Welcome back — overview of latest activity and insights</p>
         </div>
-    </div>
 
-    <!-- Summary cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card card-compact p-3">
-                <div class="d-flex align-items-center">
-                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-box fa-2x text-primary"></i></div>
-                    <div>
-                        <div class="stat-value">@Model.TotalProducts</div>
-                        <div class="stat-label">Total Products</div>
+        <!-- Summary Cards -->
+        <div class="row g-4 mb-5">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card primary">
+                    <div class="stat-icon">
+                        <i class="fa fa-box"></i>
                     </div>
+                    <div class="stat-value">@Model.TotalProducts</div>
+                    <div class="stat-label">Total Products</div>
+                    <div class="stat-description">Active products across warehouses</div>
                 </div>
-                <div class="small-muted mt-2">Active products across warehouses</div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card success">
+                    <div class="stat-icon">
+                        <i class="fa fa-sitemap"></i>
+                    </div>
+                    <div class="stat-value">@Model.TotalCategories</div>
+                    <div class="stat-label">Categories</div>
+                    <div class="stat-description">Product groups organized</div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card warning">
+                    <div class="stat-icon">
+                        <i class="fa fa-truck"></i>
+                    </div>
+                    <div class="stat-value">@Model.TotalVendors</div>
+                    <div class="stat-label">Vendors</div>
+                    <div class="stat-description">Active suppliers</div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card info">
+                    <div class="stat-icon">
+                        <i class="fa fa-rupee-sign"></i>
+                    </div>
+                    <div class="stat-value">@Model.MonthlyRevenue.ToString("C", new CultureInfo("ur-PK"))</div>
+                    <div class="stat-label">Monthly Revenue</div>
+                    <div class="stat-description">Sales performance this month</div>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card card-compact p-3">
-                <div class="d-flex align-items-center">
-                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-sitemap fa-2x text-success"></i></div>
-                    <div>
-                        <div class="stat-value">@Model.TotalCategories</div>
-                        <div class="stat-label">Categories</div>
+        <!-- Charts Section -->
+        <div class="row g-4 mb-5">
+            <!-- Sales Chart -->
+            <div class="col-lg-8">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">Monthly Sales Performance</h3>
+                            <p class="chart-subtitle">Revenue trends over the last @Model.MonthlyLabels.Count months</p>
+                        </div>
                     </div>
+                    <canvas id="salesChart" height="120"></canvas>
                 </div>
-                <div class="small-muted mt-2">Product groups</div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="col-lg-4">
+                <div class="quick-actions">
+                    <h4 class="mb-4">Quick Actions</h4>
+                    <a class="action-btn success" asp-controller="Product" asp-action="Create">
+                        <i class="fa fa-plus"></i>
+                        Add Product
+                    </a>
+                    <a class="action-btn" asp-controller="Stock" asp-action="Index">
+                        <i class="fa fa-boxes"></i>
+                        Manage Stock
+                    </a>
+                    <a class="action-btn warning" asp-controller="Report" asp-action="SalesReport">
+                        <i class="fa fa-file-alt"></i>
+                        View Reports
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card card-compact p-3">
-                <div class="d-flex align-items-center">
-                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-truck fa-2x text-warning"></i></div>
-                    <div>
-                        <div class="stat-value">@Model.TotalVendors</div>
-                        <div class="stat-label">Vendors</div>
-                    </div>
+        <!-- Product Analysis Section -->
+        <div class="row g-4">
+            <!-- Product Selector -->
+            <div class="col-lg-6">
+                <div class="product-selector">
+                    <label for="productDropdown">
+                        <i class="fa fa-search me-2"></i>Select Product for Analysis
+                    </label>
+                    <select id="productDropdown" name="ProductId" class="form-select" style="width: 100%;">
+                        <option value="0">-- Select Product --</option>
+                        @foreach (var product in Model.ProductList)
+                        {
+                            <option value="@product.Value">@product.Text</option>
+                        }
+                    </select>
                 </div>
-                <div class="small-muted mt-2">Active suppliers</div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card card-compact p-3">
-                <div class="d-flex align-items-center">
-                    <div class="me-3 bg-light rounded-circle p-3"><i class="fa fa-dollar-sign fa-2x text-danger"></i></div>
-                    <div>
-                        <div class="stat-value">@Model.MonthlyRevenue.ToString("C")</div>
-                        <div class="stat-label">This Month Revenue</div>
-                    </div>
-                </div>
-                <div class="small-muted mt-2">Sales (net)</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3">
-        <!-- Left: charts -->
-        <div class="col-lg-8">
-            <div class="card chart-card mb-3 p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">Monthly Sales</h5>
-                    <small class="text-muted">Last @Model.MonthlyLabels.Count months</small>
-                </div>
-                <canvas id="salesChart" height="120"></canvas>
             </div>
 
-            <div class="row g-3">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="productDropdown">Select Product</label>
-                        <input id="productDropdown" style="width: 100%;" />
+            <!-- Stock Status Chart -->
+            <div class="col-lg-6">
+                <div class="stock-chart-container">
+                    <h4 class="mb-3">
+                        <i class="fa fa-chart-pie me-2"></i>Stock Status Analysis
+                    </h4>
+                    <div style="position: relative; height: 250px; width: 100%;">
+                        <canvas id="stockDonut" style="max-height: 250px; max-width: 100%;"></canvas>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card p-3">
-                        <h6 class="mb-2">Stock Status</h6>
-                        <canvas id="stockDonut" height="160"></canvas>
-                        <div class="d-flex justify-content-around mt-3 small-muted">
-                            <div><span class="badge bg-success me-1">&nbsp;</span>In stock: @Model.InStockCount</div>
-                            <div><span class="badge bg-warning me-1">&nbsp;</span>Available: @Model.LowStockCount</div>
-                            <div><span class="badge bg-danger me-1">&nbsp;</span>Used: @Model.OutOfStockCount</div>
+                    <div id="stockLabels" class="stock-labels">
+                        <div class="stock-label">
+                            <span class="stock-badge" style="background: #28a745;"></span>
+                            In Stock: <span id="inStockCount">@Model.InStockCount</span>
+                        </div>
+                        <div class="stock-label">
+                            <span class="stock-badge" style="background: #ffc107;"></span>
+                            Available: <span id="availableCount">@Model.LowStockCount</span>
+                        </div>
+                        <div class="stock-label">
+                            <span class="stock-badge" style="background: #dc3545;"></span>
+                            Used: <span id="usedCount">@Model.OutOfStockCount</span>
                         </div>
                     </div>
                 </div>
-
-           @*      <div class="col-md-6">
-                    <div class="card p-3">
-                        <h6 class="mb-2">Top Products</h6>
-                        <ul class="list-group list-group-flush">
-                            @foreach (var p in Model.TopProducts)
-                            {
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="fw-bold">@p.Name</div>
-                                        <div class="small-muted">Sold: @p.Sold</div>
-                                    </div>
-                                    <span class="badge bg-primary rounded-pill">@p.Revenue.ToString("C")</span>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                </div> *@
             </div>
-        </div>
 
-        <!-- Right: recent transactions -->
-        <div class="col-lg-4">
-            @* <div class="card p-3 mb-3">
-                <h6 class="mb-3">Recent Transactions</h6>
-                <table class="table table-sm table-recent mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Type</th>
-                            <th>Party</th>
-                            <th class="text-end">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var t in Model.RecentTransactions)
-                        {
-                            <tr>
-                                <td>@t.TransactionId</td>
-                                <td>@t.Type</td>
-                                <td>@t.Party</td>
-                                <td class="text-end">@t.Amount.ToString("C")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-                <div class="mt-3 d-grid">
-                    <a class="btn btn-outline-primary" asp-action="Index" asp-controller="Transactions">View all</a>
-                </div>
-            </div> *@
-
-            <div class="card p-3">
-                <h6 class="mb-2">Quick Actions</h6>
-                <div class="d-grid gap-2">
-                    <a class="btn btn-success" asp-controller="Product" asp-action="Create"><i class="fa fa-plus me-2"></i> Add Product</a>
-                    <a class="btn btn-outline-secondary" asp-controller="Stock" asp-action="Index"><i class="fa fa-boxes me-2"></i> Manage Stock</a>
-                    <a class="btn btn-outline-warning" asp-controller="Report" asp-action="SalesReport"><i class="fa fa-file-alt me-2"></i> Reports</a>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -295,55 +478,17 @@
     <partial name="_ValidationScriptsPartial" />
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="~/js/dashboard-service.js"></script>
 
 <script>
         $(document).ready(function() {
-            // Check if Kendo UI is loaded
-            if (typeof kendo === 'undefined') {
-                console.error('Kendo UI is not loaded. Please check script references.');
-                return;
-            }
-
-            // Initialize Kendo UI ComboBox for product selection
-            $("#productDropdown").kendoComboBox({
-                dataSource: {
-                    transport: {
-                        read: {
-                            url: "/Home/GetProducts",
-                            dataType: "json"
-                        }
-                    }
-                },
-                dataTextField: "text",
-                dataValueField: "value",
-                placeholder: "-- Select Product --",
-                filter: "contains",
-                suggest: true,
-                minLength: 1,
-                change: function (e) {
-                    let productId = this.value();
-                    if (productId == "0" || !productId) return;
-
-                    $.getJSON("/Home/GetStockStatus", { productId: productId }, function (data) {
-                        stockChart.data.datasets[0].data = [
-                            data.inStockCount,
-                            data.lowStockCount,
-                            data.outOfStockCount
-                        ];
-                        stockChart.update();
-
-                        $("#stockLabels").html(`
-                            <div><span class="badge bg-success me-1">&nbsp;</span>In stock: ${data.inStockCount}</div>
-                            <div><span class="badge bg-warning me-1">&nbsp;</span>Available: ${data.lowStockCount}</div>
-                            <div><span class="badge bg-danger me-1">&nbsp;</span>Used: ${data.outOfStockCount}</div>
-                        `);
-                    });
-                }
-            });
-
-            // prepare data from server model
-            const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
-            const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
+    // prepare data from server model
+    const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
+    const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
+    const productList = @Html.Raw(JsonSerializer.Serialize(Model.ProductList));
+    
+    // Make product data available globally for dashboard service
+    window.dashboardProductData = productList;
 
     // Sales line chart
     const ctx = document.getElementById('salesChart').getContext('2d');
@@ -370,19 +515,61 @@
         }
     });
 
-    // Stock donut
-    const donutCtx = document.getElementById('stockDonut').getContext('2d');
-    const donut = new Chart(donutCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['In Stock','Out of Stock', 'Available Stock' ],
-            datasets: [{
-                data: [@Model.InStockCount,@Model.OutOfStockCount, @Model.LowStockCount],
-                backgroundColor: ['#28a745','#dc3545','#ffc107']
-            }]
-        },
-        options: { plugins: { legend: { position: 'bottom' } } }
-    });
+    // Stock donut chart initialization
+    const stockDonutElement = document.getElementById('stockDonut');
+    if (stockDonutElement) {
+        const donutCtx = stockDonutElement.getContext('2d');
+        
+        // Ensure we have valid data
+        const inStock = @(Model.InStockCount ?? 0);
+        const outOfStock = @(Model.OutOfStockCount ?? 0);
+        const available = @(Model.LowStockCount ?? 0);
+        
+        console.log('Initial chart data:', { inStock, outOfStock, available });
+        
+        const donut = new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['In Stock','Out of Stock', 'Available Stock' ],
+                datasets: [{
+                    data: [inStock, outOfStock, available],
+                    backgroundColor: ['#28a745','#dc3545','#ffc107'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: { 
+                plugins: { 
+                    legend: { 
+                        position: 'bottom',
+                        display: true
+                    } 
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    animateRotate: true,
+                    animateScale: true
+                }
+            }
+        });
+
+        // Set the chart instance in the dashboard service
+        if (window.dashboardService) {
+            window.dashboardService.setChart(donut);
+        } else {
+            // Store the chart for later use when dashboard service is ready
+            window.dashboardStockChart = donut;
+        }
+        
+        console.log('Stock chart initialized successfully');
+    } else {
+        console.error('Stock donut canvas element not found');
+    }
+    
+    // Initialize Dashboard Service
+    window.dashboardService = new DashboardService();
+    console.log('Dashboard service initialized');
     });
 </script>
 }

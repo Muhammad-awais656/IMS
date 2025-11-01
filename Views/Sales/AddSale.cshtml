@@ -4,9 +4,9 @@
     ViewData["Title"] = "Add Sale";
 }
 <link href="~/css/dist/addsales.css" rel="stylesheet" />
-<div class="sale-container">
+<div style="width:100%;">
     <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
+        <div class="card-header bg-primary text-white">
             <h2 class="mb-0 text-center">
                 <i class="fa-solid fa-cash-register me-2"></i>
                 @if (ViewBag.IsEdit == true)
@@ -21,7 +21,7 @@
         </div>
 
         <div class="card-body">
-    <form asp-action="AddSale" method="post" id="addSaleForm">
+            <form asp-action="AddSale" method="post" id="addSaleForm">
                 @Html.AntiForgeryToken()
                 <!-- Hidden field to track which button was clicked -->
                 <input type="hidden" id="actionType" name="actionType" value="" />
@@ -37,35 +37,36 @@
                     </div>
                     <div class="col-md-3">
                         <label for="productSelect" class="form-label">Product:</label>
-                        <input id="productSelect" style="width: 100%;" />
+                        <input id="productSelect" name="ProductId" style="width: 100%;" />
                     </div>
                     <div class="col-md-3">
                         <label for="productSizeSelect" class="form-label">Product Size:</label>
-                        <input id="productSizeSelect" style="width: 100%;" />
+                        <input id="productSizeSelect" name="ProductSizeId" style="width: 100%;" />
                     </div>
                     <div class="col-md-2">
                         <label for="quantity" class="form-label">Quantity:</label>
-                <input type="number" id="quantity" class="form-control" value="1" min="1" />
-            </div>
+                        <input type="number" id="quantity" class="form-control" value="1" min="1" />
+                    </div>
                     <div class="col-md-2">
                         <label for="unitPrice" class="form-label">Unit Price:</label>
-                <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
-            </div>
+                        <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
+                    </div>
                     <div class="col-md-2">
                         <label for="salePrice" class="form-label">Sale Price:</label>
-                <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
-            </div>
+                        <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
+                    </div>
                 </div>
 
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label for="discountAmount" class="form-label">Line Discount:</label>
-                <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
-            </div>
+                        <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
+                    </div>
+              
                     <div class="col-md-3">
                         <label for="payableAmount" class="form-label">Payable Amount:</label>
-                <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
-            </div>
+                        <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
+                    </div>
                     <div class="col-md-6 d-flex align-items-end">
                         <button type="button" class="btn btn-primary me-2" id="addToTable" title="Add product to sale (Ctrl+Enter)">
                             <i class="fa-solid fa-plus me-1"></i>Add to Sale
@@ -73,8 +74,8 @@
                         <button type="button" class="btn btn-outline-secondary" id="resetFields" title="Reset product fields (Escape)">
                             <i class="fa-solid fa-rotate-left me-1"></i>Reset Product
                         </button>
-            </div>
-        </div>
+                    </div>
+                </div>
 
                 <!-- Sale Items Table -->
                 <div class="row mb-4">
@@ -87,19 +88,19 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Code</th>
-                    <th>Product</th>
-                                        <th>Unit Price</th>
-                                        <th>Sale Price</th>
+                                        <th>Product</th>
+                                        <th>Item Level Discount</th>
+                                        <th>Unit Sale Price</th>
                                         <th>Qty</th>
                                         <th>Total Discount</th>
                                         <th>Payable</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="saleDetailsBody">
-                <!-- Product rows will be added via JavaScript -->
-            </tbody>
-        </table>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="saleDetailsBody">
+                                    <!-- Product rows will be added via JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -113,59 +114,65 @@
                     </div>
                     <div class="col-md-3">
                         <label asp-for="CustomerId" class="form-label">Customer:</label>
-                        <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" required>
-                            <option value="">--Select Customer--</option>
-                </select>
-                <span asp-validation-for="CustomerId" class="text-danger"></span>
-            </div>
+                        <input asp-for="CustomerId" id="customerSelect" style="width: 100%;" />
+                        <span asp-validation-for="CustomerId" class="text-danger"></span>
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="BillNo" class="form-label">Bill #:</label>
-                <input asp-for="BillNo" class="form-control" value="@ViewBag.NextBillNumber" readonly />
-            </div>
+                        @if (ViewBag.IsEdit == true)
+                        {
+                            <input asp-for="BillNo" class="form-control" readonly />
+                        }
+                        else
+                        {
+                            <input asp-for="BillNo" class="form-control" value="@ViewBag.NextBillNumber" readonly />
+                        }
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="SaleDate" class="form-label">Sale Date:</label>
-                <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
-            </div>
+                        <input type="date" asp-for="SaleDate" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="PayNow" class="form-label">Pay Now (Optional):</label>
                         <input asp-for="PayNow" class="form-control" value="0" step="0.01" placeholder="Enter payment amount (optional)" />
                         <small class="form-text text-muted">Leave empty to add full amount to customer's due</small>
-            </div>
-        </div>
-
-                <!-- Payment Summary Section -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h5 class="text-primary mb-3">
-                            <i class="fa-solid fa-calculator me-2"></i>Payment Summary
-                        </h5>
                     </div>
+                   </div>
+                   <div class="row">
                     <div class="col-md-3">
                         <label asp-for="TotalAmount" class="form-label">Total Amount:</label>
-                <input asp-for="TotalAmount" class="form-control" value="0" readonly />
-            </div>
+                        <input asp-for="TotalAmount" class="form-control" value="0" readonly />
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="DiscountAmount" class="form-label">Total Discount:</label>
-                <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
-            </div>
+                        <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
-                <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" />
-            </div>
+                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" readonly />
+                    </div>
                     <div class="col-md-3">
                         <label asp-for="DueAmount" class="form-label">Due Amount:</label>
-                <input asp-for="DueAmount" class="form-control" value="0" readonly />
-            </div>
-        </div>
-
-                <!-- Additional Information -->
-                <div class="row mb-4">
+                        <input asp-for="DueAmount" class="form-control" value="0" readonly />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Payment Method:</label>
+                        <input asp-for="PaymentMethod" id="paymentMethodSelect" style="width: 100%;" />
+                        <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-3" id="onlineAccountDiv" style="display: none;">
+                        <label class="form-label">Online Account:</label>
+                        <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
+                        <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
+                    </div>
                     <div class="col-md-6">
                         <label asp-for="PreviousDue" class="form-label">Previous Due:</label>
                         <div class="input-group">
                             <input asp-for="PreviousDue" class="form-control" value="0" step="0.01" readonly />
                             <span class="input-group-text">
-                                <i class="fa-solid fa-dollar-sign"></i>
+                                <i class="fa-solid fa-rupee-sign"></i>
                             </span>
                         </div>
                         <small class="form-text text-muted">This will be populated automatically when you select a customer</small>
@@ -173,8 +180,10 @@
                     <div class="col-md-6">
                         <label asp-for="Description" class="form-label">Description:</label>
                         <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
-            </div>
-            </div>
+                    </div>
+                </div>
+
+             
 
                 <!-- Action Buttons -->
                 <div class="row">
@@ -204,42 +213,420 @@
                         <a asp-action="Index" class="btn btn-secondary">
                             <i class="fa-solid fa-arrow-left me-1"></i>Back to Sales
                         </a>
-            </div>
-        </div>
-    </form>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @* <script src="~/js/sales-form-service.js"></script> *@
+
     <script>
         let rowIndex = 0;
         let selectedProductSize = null;
         let currentAvailableStock = 0;
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set up event listeners
-            setupEventListeners();
+        $(document).ready(function() {
+            console.log("=== ADD SALE PAGE LOADED ===");
+            console.log("jQuery version:", $.fn.jquery);
+            console.log("Kendo available:", typeof kendo !== 'undefined');
+            console.log("Kendo ComboBox available:", typeof $.fn.kendoComboBox !== 'undefined');
             
+            // Wait a bit for all scripts to load
+            setTimeout(function() {
+                console.log("=== INITIALIZING KENDO UI DROPDOWNS ===");
+                // Initialize Kendo UI dropdowns
+                initializeKendoDropdowns();
+                
+                // Setup additional functions
+                setupFallbackEvents();
+                setupTestFunctions();
+                setupAdditionalTestFunctions();
+                setupToggleOnlineAccountDiv();
+                
+                // Initialize edit mode if we're editing
+                @if (ViewBag.IsEdit == true)
+                {
+                    <text>initializeEditMode();</text>
+                }
+                
+                // Set up event listeners
+                setupEventListeners();
+            }, 100);
+
             // Check if we're editing an existing sale
-            const isEdit = @(ViewBag.IsEdit?.ToString().ToLower() ?? "false");
+            const isEdit = @(ViewBag.IsEdit?.ToString().ToLower() ?? "false")
+            console.log('Is edit mode:', isEdit);
             if (isEdit) {
                 populateExistingSaleDetails();
             }
         });
 
-        function setupEventListeners() {
-            // Product selection change
-            document.getElementById('productSelect').addEventListener('change', loadProductSizes);
-            
-            // Product size selection change
-            document.getElementById('productSizeSelect').addEventListener('change', onProductSizeChange);
+        // Initialize form for edit mode
 
-            // Customer selection change
-            document.getElementById('CustomerId').addEventListener('change', loadPreviousDueAmount);
+        function initializeEditMode() {
+            debugger;
+            console.log('=== INITIALIZING EDIT MODE ===');
             
+            // Get model values safely
+            const customerId = '@(Model.CustomerId?.ToString() ?? "null")';
+            const paymentMethod = '@(Model.PaymentMethod != null ? Json.Serialize(Model.PaymentMethod) : "null")';
+            const onlineAccountId = @(Model.OnlineAccountId?.ToString() ?? "null")
+            
+            console.log('Model values:', { customerId, paymentMethod, onlineAccountId });
+            
+            // Set customer dropdown value
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            if (customerCombo && customerId) {
+                customerCombo.value(customerId.toString());
+                console.log('Customer set to:', customerId);
+                
+                // Load previous due amount for the selected customer
+                loadPreviousDueAmount();
+            }
+            
+            // Set payment method dropdown value
+            const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+            if (paymentMethodCombo && paymentMethod) {
+                paymentMethodCombo.value(paymentMethod);
+                console.log('Payment method set to:', paymentMethod);
+                
+                // Show/hide online account dropdown based on payment method
+                if (paymentMethod === "Online") {
+                    $("#onlineAccountDiv").show();
+                    const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                    if (onlineAccountCombo) {
+                        onlineAccountCombo.enable(true);
+                        if (onlineAccountId) {
+                            onlineAccountCombo.value(onlineAccountId.toString());
+                        }
+                    }
+                }
+            }
+            
+            console.log('=== EDIT MODE INITIALIZATION COMPLETE ===');
+        }
+
+        // Initialize Kendo UI ComboBoxes
+        function initializeKendoDropdowns() {
+            console.log("=== INITIALIZING KENDO UI DROPDOWNS ===");
+            console.log("jQuery available:", typeof $ !== 'undefined');
+            console.log("Kendo available:", typeof kendo !== 'undefined');
+            console.log("Kendo ComboBox available:", typeof $.fn.kendoComboBox !== 'undefined');
+            
+            try {
+            // Product Selection Combobox
+            $("#productSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetProducts",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function(e) {
+                    console.log("=== PRODUCT CHANGE EVENT TRIGGERED ===");
+                    console.log("Product selection changed:", e.sender.value());
+                    console.log("Product change event - calling loadProductSizes");
+                    console.log("Event object:", e);
+                    loadProductSizes();
+                },
+                select: function(e) {
+                    console.log("Product selected:", e.item);
+                    console.log("Product select event - calling loadProductSizes");
+                    loadProductSizes();
+                }
+            });
+
+            // Product Size Selection Combobox
+            $("#productSizeSelect").kendoComboBox({
+                dataSource: {
+                    data: []
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Size --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                enabled: false,
+                readonly: false,
+                change: function(e) {
+                    console.log("Product size change event triggered");
+                    onProductSizeChange();
+                },
+                select: function(e) {
+                    console.log("Product size select event triggered");
+                    onProductSizeChange();
+                }
+            });
+
+            // Customer Selection Combobox
+            $("#customerSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetCustomers",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Customer --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    loadPreviousDueAmount();
+                }
+            });
+
+            // Payment Method Combobox
+            $("#paymentMethodSelect").kendoComboBox({
+                dataSource: {
+                    data: [
+                        { value: "Cash", text: "Cash" },
+                        { value: "Online", text: "Online" },
+                        { value: "Pay Later", text: "Pay Later" }
+                    ]
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Payment Method --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    toggleOnlineAccountDiv();
+                }
+            });
+
+            // Online Account Selection Combobox
+            $("#onlineAccountSelect").kendoComboBox({
+                dataSource: {
+                    data: []
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Online Account --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                enabled: false
+            });
+
+            console.log("Kendo UI dropdowns initialized successfully for Sales AddSale");
+            
+            } catch (error) {
+                console.error("Error initializing Kendo UI dropdowns:", error);
+            }
+            }
+            
+            // Additional fallback event binding
+        function setupFallbackEvents() {
+            setTimeout(function() {
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    productCombo.bind("change", function(e) {
+                        console.log("Fallback product change event triggered");
+                        console.log("Fallback - calling loadProductSizes");
+                        loadProductSizes();
+                    });
+                    productCombo.bind("select", function(e) {
+                        console.log("Fallback product select event triggered");
+                        console.log("Fallback select - calling loadProductSizes");
+                        loadProductSizes();
+                    });
+                }
+            }, 200);
+        }
+            
+        // Setup test functions
+        function setupTestFunctions() {
+            // Make functions globally available for testing
+            window.testLoadProductSizes = loadProductSizes;
+            window.testGetProductCombo = function() {
+                return $("#productSelect").data("kendoComboBox");
+            };
+            window.testProductChange = function() {
+                console.log("Manual test - triggering product change");
+                loadProductSizes();
+            };
+            window.testGetProductValue = function() {
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                return productCombo ? productCombo.value() : null;
+            };
+            window.testTriggerProductChange = function() {
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    console.log("Manually triggering product change event");
+                    productCombo.trigger("change");
+                } else {
+                    console.log("Product combobox not found");
+                }
+            };
+        }
+
+        // Setup additional test functions
+        function setupAdditionalTestFunctions() {
+            window.testGetProductSizes = function(productId) {
+                console.log("Testing GetProductSizes endpoint with productId:", productId);
+                fetch(`/Sales/GetProductSizes?productId=${productId}`)
+                    .then(response => {
+                        console.log("Response status:", response.status);
+                        console.log("Response ok:", response.ok);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Raw response data:", data);
+                        console.log("Data length:", data ? data.length : 0);
+                    })
+                    .catch(error => {
+                        console.error("Error testing GetProductSizes:", error);
+                    });
+            };
+            
+            // Test function to manually trigger product change
+            window.testProductChange = function() {
+                console.log("=== MANUAL PRODUCT CHANGE TEST ===");
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    const currentValue = productCombo.value();
+                    console.log("Current product value:", currentValue);
+                    if (currentValue) {
+                        console.log("Manually calling loadProductSizes with current value");
+                        loadProductSizes();
+                    } else {
+                        console.log("No product selected - please select a product first");
+                    }
+                } else {
+                    console.log("Product combobox not found");
+                }
+            };
+            
+            // Test function to directly test the AJAX endpoint
+            window.testDirectAjax = function(productId) {
+                console.log("=== DIRECT AJAX TEST ===");
+                console.log("Testing direct AJAX call to GetProductSizes with productId:", productId);
+                fetch(`/Sales/GetProductSizes?productId=${productId}`)
+                    .then(response => {
+                        console.log("Direct test - Response status:", response.status);
+                        console.log("Direct test - Response ok:", response.ok);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Direct test - Response data:", data);
+                        console.log("Direct test - Data length:", data ? data.length : 0);
+                        console.log("Direct test - Data type:", typeof data);
+                        console.log("Direct test - Is array:", Array.isArray(data));
+                    })
+                    .catch(error => {
+                        console.error("Direct test - Error:", error);
+                    });
+            };
+            
+            // Test function to check if product has any sizes in database
+            window.testProductSizes = function() {
+                console.log("=== TESTING PRODUCT SIZES ===");
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    const productId = productCombo.value();
+                    if (productId) {
+                        console.log("Testing with current product ID:", productId);
+                        window.testDirectAjax(productId);
+                    } else {
+                        console.log("No product selected - please select a product first");
+                    }
+                } else {
+                    console.log("Product combobox not found");
+                }
+            };
+        }
+            
+            // Function to toggle online account dropdown visibility and load data
+        function setupToggleOnlineAccountDiv() {
+            window.toggleOnlineAccountDiv = function() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                const onlineAccountDiv = $("#onlineAccountDiv");
+                
+                if (paymentMethodCombo && onlineAccountCombo) {
+                    const selectedPaymentMethod = paymentMethodCombo.value();
+                    console.log("Payment method changed to:", selectedPaymentMethod);
+                    
+                    if (selectedPaymentMethod === "Online") {
+                        console.log("Payment method is Online - showing online account dropdown");
+                        onlineAccountDiv.show();
+                        onlineAccountCombo.enable(true);
+                        
+                        // Load online accounts if not already loaded
+                        if (onlineAccountCombo.dataSource.data().length === 0) {
+                            console.log("Loading online accounts...");
+                            loadOnlineAccounts();
+                        }
+                    } else {
+                        console.log("Payment method is not Online - hiding online account dropdown");
+                        onlineAccountDiv.hide();
+                        onlineAccountCombo.enable(false);
+                        onlineAccountCombo.value("");
+                    }
+                }
+            };
+            
+            // Function to load online accounts
+            window.loadOnlineAccounts = function() {
+                const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                if (onlineAccountCombo) {
+                    console.log("Loading online accounts from server...");
+                    fetch("/Sales/GetOnlineAccounts")
+                        .then(response => {
+                            console.log("Online accounts response status:", response.status);
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Online accounts data received:", data);
+                            if (data && data.length > 0) {
+                                onlineAccountCombo.dataSource.data(data);
+                                onlineAccountCombo.enable(true);
+                                onlineAccountCombo.refresh();
+                                console.log("Online accounts loaded successfully");
+                            } else {
+                                console.log("No online accounts found");
+                                onlineAccountCombo.dataSource.data([]);
+                                onlineAccountCombo.enable(false);
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error loading online accounts:", error);
+                            onlineAccountCombo.dataSource.data([]);
+                            onlineAccountCombo.enable(false);
+                        });
+                }
+            };
+        }
+
+        function setupEventListeners() {
+            // Note: Kendo UI combobox change events are handled in the initialization above
+            // These event listeners are kept for compatibility but may not be needed
+
             // Quantity, sale price, discount change
             document.getElementById('quantity').addEventListener('input', function() {
                 calculatePayableAmount();
@@ -247,10 +634,10 @@
             });
             document.getElementById('salePrice').addEventListener('input', calculatePayableAmount);
             document.getElementById('discountAmount').addEventListener('input', calculatePayableAmount);
-            
+
             // Add to table button
             document.getElementById('addToTable').addEventListener('click', addProductToTable);
-            
+
             // Reset fields button
             document.getElementById('resetFields').addEventListener('click', resetFields);
 
@@ -264,18 +651,18 @@
                 console.log('=== FORM SUBMIT EVENT TRIGGERED ===');
                 console.log('Form action:', this.action);
                 console.log('Form method:', this.method);
-                
+
                 // Log form data for debugging
                 const formData = new FormData(this);
                 console.log('=== FORM DATA BEING SUBMITTED ===');
                 for (let [key, value] of formData.entries()) {
                     console.log(`${key}: ${value}`);
                 }
-                
+
                 // Show loading state
                 showLoadingState();
             });
-            
+
             // Remove row functionality - using event delegation for dynamically added rows
             document.addEventListener('click', function(e) {
                 if (e.target.classList.contains('remove-row') || e.target.closest('.remove-row')) {
@@ -286,8 +673,16 @@
                         showSuccessMessage('Product removed from sale successfully!');
                     }
                 }
+
+                // Edit row functionality
+                if (e.target.classList.contains('edit-row') || e.target.closest('.edit-row')) {
+                    const row = e.target.closest('tr');
+                    if (row) {
+                        editProductFromTable(row);
+                    }
+                }
             });
-            
+
             // Total calculation inputs
             document.getElementById('DiscountAmount').addEventListener('input', updateTotals);
             document.getElementById('ReceivedAmount').addEventListener('input', updateReceivedAmountFromReceived);
@@ -318,46 +713,103 @@
         }
 
         function loadProductSizes() {
-            const productSelect = document.getElementById('productSelect');
-            const productId = productSelect.value;
-            const sizeSelect = document.getElementById('productSizeSelect');
+            console.log("=== loadProductSizes function called ===");
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const productId = productCombo ? productCombo.value() : null;
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
 
-            // Clear existing options
-            sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
+            console.log("Product ID:", productId);
+            console.log("Product Combo exists:", !!productCombo);
+            console.log("Size Combo exists:", !!sizeCombo);
             
+            if (!productId) {
+                console.log("No product ID - cannot load product sizes");
+                return;
+            }
+
+            // Clear and disable size combobox
+            if (sizeCombo) {
+                sizeCombo.value("");
+                sizeCombo.enable(false);
+                sizeCombo.dataSource.data([]);
+            }
+
             // Reset fields
             resetProductFields();
 
             if (productId) {
-                // Show loading
-                sizeSelect.innerHTML = '<option value="">Loading...</option>';
-                
+                console.log("Loading product sizes for product ID:", productId);
+
                 // Load available stock first
                 loadAvailableStock(productId);
-                
+
                 // AJAX call to fetch product sizes
+                console.log("Making AJAX call to:", `/Sales/GetProductSizes?productId=${productId}`);
                 fetch(`/Sales/GetProductSizes?productId=${productId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        console.log("Product sizes response status:", response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
-                        data.forEach(size => {
-                            const option = document.createElement('option');
-                            option.value = size.value;
-                            option.text = size.text;
-                            option.dataset.productRangeId = size.productRangeId;
-                            option.dataset.measuringUnitId = size.measuringUnitId;
-                            option.dataset.rangeFrom = size.rangeFrom;
-                            option.dataset.rangeTo = size.rangeTo;
-                            option.dataset.unitPrice = size.unitPrice;
-                            option.dataset.measuringUnitName = size.measuringUnitName;
-                            option.dataset.measuringUnitAbbreviation = size.measuringUnitAbbreviation;
-                            sizeSelect.appendChild(option);
-                        });
+                        console.log("Product sizes data received:", data);
+                        console.log("Data length:", data ? data.length : 0);
+                        console.log("Data type:", typeof data);
+                        console.log("Is array:", Array.isArray(data));
+                        
+                        if (data && data.length > 0) {
+                            console.log("Processing product sizes data...");
+                            // Log each item for debugging
+                            data.forEach((item, index) => {
+                                console.log(`Item ${index}:`, item);
+                            });
+                            
+                            if (sizeCombo) {
+                                console.log("Updating Kendo combobox with data...");
+                                // Update Kendo combobox with new data
+                                sizeCombo.dataSource.data(data);
+                                sizeCombo.enable(true);
+                                sizeCombo.readonly(false);
+                                sizeCombo.refresh();
+                                console.log("Product sizes loaded successfully");
+                                console.log("Product size combobox enabled and not readonly");
+                                
+                                // Additional fallback to ensure combobox is properly enabled
+                                setTimeout(() => {
+                                    if (sizeCombo) {
+                                        sizeCombo.enable(true);
+                                        sizeCombo.readonly(false);
+                                        console.log("Fallback: Product size combobox re-enabled");
+                                    }
+                                }, 100);
+                            } else {
+                                console.log("Size combobox not available for data update");
+                            }
+                        } else {
+                            console.log("No product sizes found - data is empty or null");
+                            console.log("Data details:", {
+                                data: data,
+                                isNull: data === null,
+                                isUndefined: data === undefined,
+                                length: data ? data.length : 'N/A'
+                            });
+                            if (sizeCombo) {
+                                sizeCombo.dataSource.data([]);
+                                sizeCombo.enable(false);
+                            }
+                        }
                     })
                     .catch(error => {
                         console.error('Error loading product sizes:', error);
-                        sizeSelect.innerHTML = '<option value="">Error loading sizes</option>';
+                        if (sizeCombo) {
+                            sizeCombo.dataSource.data([]);
+                            sizeCombo.enable(false);
+                        }
                     });
+            } else {
+                console.log("No product ID provided");
             }
         }
 
@@ -385,13 +837,13 @@
         function updateStockDisplay() {
             const quantityInput = document.getElementById('quantity');
             const maxQuantity = Math.floor(currentAvailableStock);
-            
+
             // Update max attribute
             quantityInput.setAttribute('max', maxQuantity);
-            
+
             // Update placeholder to show available stock
             quantityInput.setAttribute('placeholder', `Max: ${maxQuantity}`);
-            
+
             // Add visual indicator
             const quantityLabel = document.querySelector('label[for="quantity"]');
             if (quantityLabel) {
@@ -403,10 +855,10 @@
             const quantityInput = document.getElementById('quantity');
             const quantity = parseFloat(quantityInput.value) || 0;
             const maxQuantity = Math.floor(currentAvailableStock);
-            
+
             // Remove previous validation styling
             quantityInput.classList.remove('is-invalid', 'is-valid');
-            
+
             if (quantity > 0 && currentAvailableStock > 0) {
                 if (quantity > maxQuantity) {
                     // Show error styling
@@ -426,8 +878,8 @@
         }
 
         function loadPreviousDueAmount() {
-            const customerSelect = document.getElementById('CustomerId');
-            const customerId = customerSelect.value;
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            const customerId = customerCombo ? customerCombo.value() : null;
             const previousDueInput = document.getElementById('PreviousDue');
 
             if (customerId) {
@@ -448,7 +900,7 @@
                             if (amount > 0) {
                                 previousDueInput.style.backgroundColor = '#fff3cd';
                                 previousDueInput.style.color = '#856404';
-                                showSuccessMessage(`Previous due amount loaded: $${amount.toFixed(2)}`);
+                                showSuccessMessage(`Previous due amount loaded: Rs${amount.toFixed(2)}`);
                             } else {
                                 previousDueInput.style.backgroundColor = '#d1edff';
                                 previousDueInput.style.color = '#0c5460';
@@ -458,7 +910,7 @@
                             previousDueInput.value = '0.00';
                             previousDueInput.style.backgroundColor = '#f8d7da';
                             previousDueInput.style.color = '#721c24';
-                            showValidationError(data.message || 'Error loading previous due amount');
+                            showErrorMessage(data.message || 'Error loading previous due amount');
                         }
                     })
                     .catch(error => {
@@ -466,7 +918,7 @@
                         previousDueInput.value = '0.00';
                         previousDueInput.style.backgroundColor = '#f8d7da';
                         previousDueInput.style.color = '#721c24';
-                        showValidationError('Error loading previous due amount');
+                        showErrorMessage('Error loading previous due amount');
                     })
                     .finally(() => {
                         // Reset to normal state after a delay
@@ -488,26 +940,41 @@
         }
 
         function onProductSizeChange() {
-            const sizeSelect = document.getElementById('productSizeSelect');
-            const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
-            
-            if (selectedOption.value) {
+            console.log("onProductSizeChange function called");
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            const selectedValue = sizeCombo ? sizeCombo.value() : null;
+            const selectedItem = sizeCombo ? sizeCombo.dataItem() : null;
+
+            console.log("Selected value:", selectedValue);
+            console.log("Selected item:", selectedItem);
+
+            if (selectedValue && selectedItem) {
                 selectedProductSize = {
-                    productRangeId: selectedOption.dataset.productRangeId,
-                    measuringUnitId: selectedOption.dataset.measuringUnitId,
-                    rangeFrom: selectedOption.dataset.rangeFrom,
-                    rangeTo: selectedOption.dataset.rangeTo,
-                    unitPrice: selectedOption.dataset.unitPrice,
-                    measuringUnitName: selectedOption.dataset.measuringUnitName,
-                    measuringUnitAbbreviation: selectedOption.dataset.measuringUnitAbbreviation
+                    productRangeId: selectedItem.value,
+                    measuringUnitId: selectedItem.measuringUnitId,
+                    rangeFrom: selectedItem.rangeFrom,
+                    rangeTo: selectedItem.rangeTo,
+                    unitPrice: selectedItem.unitPrice,
+                    measuringUnitName: selectedItem.measuringUnitName,
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
                 };
-                
+
+                console.log("Selected product size:", selectedProductSize);
+
                 // Populate unit price
-                document.getElementById('unitPrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                
+                const unitPriceElement = document.getElementById('unitPrice');
+                if (unitPriceElement) {
+                    unitPriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                    console.log("Unit price set to:", unitPriceElement.value);
+                }
+
                 // Set default sale price to unit price
-                document.getElementById('salePrice').value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                
+                const salePriceElement = document.getElementById('salePrice');
+                if (salePriceElement) {
+                    salePriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                    console.log("Sale price set to:", salePriceElement.value);
+                }
+
                 // Calculate payable amount
                 calculatePayableAmount();
             } else {
@@ -520,46 +987,81 @@
             const quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-            const payable = (salePrice * quantity) - discount;
-            
-            document.getElementById('payableAmount').value = payable.toFixed(2);
-        }
+            const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
+            const payable = (salePrice * quantity) - totalDiscount;
 
+            document.getElementById('payableAmount').value = payable.toFixed(2);
+            console.log('Payable calculation:', {
+                quantity: quantity,
+                salePrice: salePrice,
+                discount: discount,
+                totalDiscount: totalDiscount,
+                subtotal: salePrice * quantity,
+                payable: payable
+            });
+        }
+                function showWarningMessage(message) {
+            // Remove existing warning messages
+            $('.alert-warning').remove();
+
+            // Create warning alert
+            var alertHtml = '<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+                '<i class="fa-solid fa-exclamation-triangle me-2"></i>' +
+                message +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                '</div>';
+
+            $('body').append(alertHtml);
+
+            // Auto-hide after 5 seconds
+            setTimeout(function() {
+                $('.alert-warning').fadeOut();
+            }, 5000);
+        }
         function addProductToTable() {
-            debugger;
-            const productSelect = document.getElementById('productSelect');
-            const productId = productSelect.value;
-            const productName = productSelect.options[productSelect.selectedIndex].text;
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const productId = productCombo ? productCombo.value() : null;
+            const productName = productCombo ? productCombo.text() : '';
             const quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
             const payable = parseFloat(document.getElementById('payableAmount').value) || 0;
-            const totalDiscount = discount*quantity;
+            const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
+            
+            console.log('Adding product to table:', {
+                quantity: quantity,
+                salePrice: salePrice,
+                discount: discount,
+                totalDiscount: totalDiscount,
+                payable: payable,
+                expectedPayable: (salePrice * quantity) - discount
+            });
+            
             // Validation
             if (!productId) {
-                showValidationError('Please select a product.');
+                showWarningMessage('Please select a product.');
                 return;
             }
-            
+
             if (!selectedProductSize) {
-                showValidationError('Please select a product size.');
+                showWarningMessage('Please select a product size.');
                 return;
             }
-            
+
             if (quantity <= 0) {
-                showValidationError('Please enter a valid quantity.');
+                showWarningMessage('Please enter a valid quantity.');
                 return;
             }
-            
+
             // Check stock availability
             if (quantity > currentAvailableStock) {
-                showValidationError(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
+                showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
                 return;
             }
-            
+
             if (salePrice <= 0) {
-                showValidationError('Please enter a valid sale price.');
+                showWarningMessage('Please enter a valid sale price.');
                 return;
             }
 
@@ -568,7 +1070,7 @@
             for (let row of existingRows) {
                 const existingProductId = row.querySelector('input[name*=".ProductId"]').value;
                 if (existingProductId === productId) {
-                    showValidationError('This product has already been added to the sale. Please remove it first or update the quantity.');
+                    showWarningMessage('This product has already been added to the sale. Please remove it first or update the quantity.');
                     return;
                 }
             }
@@ -576,17 +1078,20 @@
             // Add to table
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
-            
+
             newRow.innerHTML = `
                 <td>${selectedProductSize.measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
-                <td>$${unitPrice.toFixed(2)}</td>
-                <td>$${salePrice.toFixed(2)}</td>
+                <td>Rs${discount.toFixed(2)}</td>
+                <td>Rs${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
-                <td>$${totalDiscount.toFixed(2)}</td>
-                <td>$${payable.toFixed(2)}</td>
+                <td>Rs${totalDiscount.toFixed(2)}</td>
+                <td>Rs${payable.toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                    <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -596,13 +1101,13 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${Math.floor(quantity)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${discount.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
             `;
-            
+
             tbody.appendChild(newRow);
             rowIndex++;
-            
+
             // Reset fields
             resetFields();
 
@@ -611,14 +1116,30 @@
 
             // Show success message
             showSuccessMessage('Product added to sale successfully!');
+            
 
             // Focus on product selection for next item
-            document.getElementById('productSelect').focus();
+            if (productCombo) {
+                productCombo.focus();
+            }
         }
 
         function resetFields() {
-            document.getElementById('productSelect').value = "";
-            document.getElementById('productSizeSelect').innerHTML = '<option value="">--Select a value--</option>';
+            // Reset product dropdown
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            if (productCombo) {
+                productCombo.value("");
+            }
+            
+            // Reset product size dropdown
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            if (sizeCombo) {
+                sizeCombo.value("");
+                sizeCombo.dataSource.data([]);
+                sizeCombo.enable(false);
+            }
+
+            // Reset other fields
             document.getElementById('quantity').value = "1";
             document.getElementById('unitPrice').value = "0";
             document.getElementById('salePrice').value = "0";
@@ -627,18 +1148,37 @@
             selectedProductSize = null;
             currentAvailableStock = 0;
             
+            // Reset any validation classes
+            const formElements = document.querySelectorAll('#productSelect, #productSizeSelect, #quantity, #unitPrice, #salePrice, #discountAmount, #payableAmount');
+            formElements.forEach(element => {
+                element.classList.remove('is-invalid', 'is-valid');
+            });
+            
+            // Force focus on product select
+            setTimeout(() => {
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    productCombo.focus();
+                }
+            }, 100);
+
             // Reset quantity input styling and attributes
             const quantityInput = document.getElementById('quantity');
             quantityInput.classList.remove('is-invalid', 'is-valid');
             quantityInput.removeAttribute('max');
             quantityInput.removeAttribute('placeholder');
             quantityInput.setCustomValidity('');
-            
+
             // Reset quantity label
             const quantityLabel = document.querySelector('label[for="quantity"]');
             if (quantityLabel) {
                 quantityLabel.innerHTML = 'Quantity:';
             }
+
+            // Reset payment method fields
+            document.getElementById('paymentMethodSelect').value = '';
+            document.getElementById('onlineAccountSelect').value = '';
+            document.getElementById('onlineAccountDiv').style.display = 'none';
         }
 
 
@@ -648,7 +1188,7 @@
             document.getElementById('salePrice').value = "0";
             document.getElementById('discountAmount').value = "0";
             document.getElementById('payableAmount').value = "0";
-            
+
             // Reset quantity input styling
             const quantityInput = document.getElementById('quantity');
             quantityInput.classList.remove('is-invalid', 'is-valid');
@@ -657,25 +1197,25 @@
 
         function populateExistingSaleDetails() {
             console.log('Populating existing sale details for editing...');
-            
+
             // Get the existing sale details from the model
-            const saleDetails = @Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()));
-            
+            const saleDetails = '@Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()))';
+
             if (saleDetails && saleDetails.length > 0) {
                 console.log('Found existing sale details:', saleDetails);
-                
+
                 // Clear any existing rows
                 document.getElementById('saleDetailsBody').innerHTML = '';
                 rowIndex = 0;
-                
+
                 // Add each existing sale detail as a row
                 saleDetails.forEach(function(detail) {
                     addExistingProductToTable(detail);
                 });
-                
+
                 // Update totals
                 updateTotals();
-                
+
                 showSuccessMessage('Existing sale details loaded successfully!');
             } else {
                 console.log('No existing sale details found');
@@ -683,25 +1223,29 @@
         }
 
         function addExistingProductToTable(detail) {
-            // Get product name from the product select options
-            const productSelect = document.getElementById('productSelect');
-            const productOption = Array.from(productSelect.options).find(option => option.value == detail.productId);
-            const productName = productOption ? productOption.text : 'Unknown Product';
-            
+            // Get product name from the detail object or use a placeholder
+            const productName = detail.productName || 'Product';
+
             // Add to table
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
+
+            // Calculate item level discount (per unit discount)
+            const itemLevelDiscount = detail.quantity > 0 ? parseFloat(detail.lineDiscountAmount) / detail.quantity : 0;
             
             newRow.innerHTML = `
                 <td>${detail.productSize || ''}</td>
                 <td>${productName}</td>
-                <td>$${parseFloat(detail.unitPrice).toFixed(2)}</td>
-                <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
+                <td>Rs${itemLevelDiscount.toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.salePrice).toFixed(2)}</td>
                 <td>${detail.quantity}</td>
-                <td>$${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
-                <td>$${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(detail.payableAmount).toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-danger btn-sm remove-row">
+                    <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -714,7 +1258,7 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(detail.lineDiscountAmount).toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(detail.payableAmount).toFixed(2)}" />
             `;
-            
+
             tbody.appendChild(newRow);
             rowIndex++;
         }
@@ -724,17 +1268,43 @@
             let totalAmount = 0;
             let totalDiscount = 0;
 
+            console.log('=== UPDATE TOTALS CALLED ===');
+            console.log('Found rows:', rows.length);
+
             // Calculate total from all sale items
-            rows.forEach(row => {
-                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
-                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
+            rows.forEach((row, index) => {
+                const payableText = row.querySelector('td:nth-child(7)').textContent;
+                const discountText = row.querySelector('td:nth-child(6)').textContent;
+                
+                const payable = parseFloat(payableText.replace('Rs', '')) || 0;
+                const discount = parseFloat(discountText.replace('Rs', '')) || 0;
+                
+                console.log(`Row ${index}:`, {
+                    payableText: payableText,
+                    discountText: discountText,
+                    payable: payable,
+                    discount: discount
+                });
+                
                 totalAmount += payable;
                 totalDiscount += discount;
             });
+            
+            console.log('UpdateTotals calculation:', {
+                rowsCount: rows.length,
+                totalAmount: totalAmount,
+                totalDiscount: totalDiscount
+            });
 
             // Update Total Amount
-            document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
-            
+            const totalAmountElement = document.getElementById('TotalAmount');
+            if (totalAmountElement) {
+                totalAmountElement.value = totalAmount.toFixed(2);
+                console.log('Updated TotalAmount field to:', totalAmount.toFixed(2));
+            } else {
+                console.error('TotalAmount element not found!');
+            }
+
             // Update Total Discount
             document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
 
@@ -744,8 +1314,9 @@
 
             // Calculate due amount (Total Amount is already net after line discounts, so we don't subtract totalDiscount again)
             // Due Amount = Total Amount - Received Amount + Previous Due
-            const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
-            
+            // const dueAmount = Math.max(0, totalAmount - receivedAmount + previousDueAmount);
+            const dueAmount = Math.max(0, totalAmount - receivedAmount);
+
             // Update Due Amount
             document.getElementById('DueAmount').value = dueAmount.toFixed(2);
 
@@ -778,7 +1349,6 @@
         }
 
         function updateAmountDisplay() {
-            debugger;
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
@@ -816,6 +1386,9 @@
             console.log('Form action URL:', this.action);
             console.log('Form method:', this.method);
 
+            // Sync Kendo UI combobox values with form fields before submission
+            syncKendoValuesWithForm();
+
             // Log all form data for debugging
             const formData = new FormData(this);
             console.log('Form data being submitted:');
@@ -830,64 +1403,184 @@
             console.log('Form is now submitting to AddSale POST method');
         });
 
+        // Function to sync Kendo UI combobox values with form fields
+        function syncKendoValuesWithForm() {
+            console.log('=== SYNCING KENDO UI VALUES WITH FORM ===');
+            
+            // Sync Customer ID
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            if (customerCombo) {
+                const customerId = customerCombo.value();
+                console.log('Customer ID from Kendo combobox:', customerId);
+                // Update the input field directly since it has id="customerSelect"
+                document.getElementById('customerSelect').value = customerId || '';
+                console.log('Customer ID set in form field:', document.getElementById('customerSelect').value);
+            }
+            
+            // Sync Product ID (if needed)
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            if (productCombo) {
+                const productId = productCombo.value();
+                console.log('Product ID from Kendo combobox:', productId);
+                // Note: Product ID is handled in the table rows, not as a single form field
+            }
+            
+            // Sync Payment Method
+            const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+            if (paymentMethodCombo) {
+                const paymentMethod = paymentMethodCombo.value();
+                console.log('Payment Method from Kendo combobox:', paymentMethod);
+                // Update the input field directly since it has id="paymentMethodSelect"
+                document.getElementById('paymentMethodSelect').value = paymentMethod || '';
+                console.log('Payment Method set in form field:', document.getElementById('paymentMethodSelect').value);
+            }
+            
+            // Sync Online Account ID
+            const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+            if (onlineAccountCombo) {
+                const onlineAccountId = onlineAccountCombo.value();
+                console.log('Online Account ID from Kendo combobox:', onlineAccountId);
+                // Update the input field directly since it has id="onlineAccountSelect"
+                document.getElementById('onlineAccountSelect').value = onlineAccountId || '';
+                console.log('Online Account ID set in form field:', document.getElementById('onlineAccountSelect').value);
+            }
+            
+            console.log('=== KENDO UI VALUES SYNCED ===');
+        }
+
+        // Function to reset customer dropdown specifically
+        function resetCustomerDropdown() {
+            console.log('=== RESETTING CUSTOMER DROPDOWN ===');
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            if (customerCombo) {
+                customerCombo.value('');
+                customerCombo.text('');
+                console.log('Customer combobox reset');
+            }
+            
+            // Also reset the previous due amount
+            $('#PreviousDue').val('0.00');
+            const previousDueElement = document.getElementById('PreviousDue');
+            if (previousDueElement) {
+                previousDueElement.classList.remove('text-success', 'text-danger');
+                previousDueElement.classList.add('text-muted');
+            }
+        }
+
         function clearValidationMessages() {
             const existingAlerts = document.querySelectorAll('.alert-danger, .alert-success');
             existingAlerts.forEach(alert => alert.remove());
         }
 
+        function clearValidationStyling() {
+            // Clear validation styling from form elements
+            const formElements = document.querySelectorAll('#addSaleForm input, #addSaleForm select, #addSaleForm textarea');
+            formElements.forEach(element => {
+                element.classList.remove('is-invalid', 'is-valid');
+            });
+        }
+
         function validateForm() {
             console.log('=== VALIDATING FORM ===');
-            
-            const customerId = document.getElementById('CustomerId').value;
+
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            const customerId = customerCombo ? customerCombo.value() : null;
             const saleDetailsCount = document.querySelectorAll('#saleDetailsBody tr').length;
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
             const dueAmount = parseFloat(document.getElementById('DueAmount').value) || 0;
+            const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+            const paymentMethod = paymentMethodCombo ? paymentMethodCombo.value() : null;
+            const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+            const onlineAccountId = onlineAccountCombo ? onlineAccountCombo.value() : null;
 
             console.log('Validation values:', {
                 customerId: customerId,
                 saleDetailsCount: saleDetailsCount,
                 totalAmount: totalAmount,
                 receivedAmount: receivedAmount,
-                dueAmount: dueAmount
+                dueAmount: dueAmount,
+                paymentMethod: paymentMethod,
+                onlineAccountId: onlineAccountId
             });
 
-            // Clear previous validation messages
+            // Clear previous validation messages and styling
             clearValidationMessages();
+            clearValidationStyling();
 
             let isValid = true;
             let errorMessages = [];
 
             if (!customerId || customerId === '') {
-                errorMessages.push('Please select a customer.');
+                showWarningMessage("Please select a customer.");
                 isValid = false;
             }
 
             if (saleDetailsCount === 0) {
-                errorMessages.push('Please add at least one product to the sale.');
+                showWarningMessage("Please add at least one product to the sale.");
                 isValid = false;
             }
 
             if (totalAmount <= 0) {
-                errorMessages.push('Total amount must be greater than zero.');
+                showWarningMessage("Total amount must be greater than zero.");
                 isValid = false;
             }
 
             if (receivedAmount < 0) {
-                errorMessages.push('Received amount cannot be negative.');
+                showWarningMessage("Received amount cannot be negative.");
                 isValid = false;
             }
 
             if (dueAmount < 0) {
-                errorMessages.push('Due amount cannot be negative.');
+                showWarningMessage("Due amount cannot be negative.");
                 isValid = false;
+            }
+
+            // Payment method validation
+            if (!paymentMethod || paymentMethod === '') {
+                showWarningMessage("Please select a payment method.");
+                // Add visual feedback
+                document.getElementById('paymentMethodSelect').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('paymentMethodSelect').classList.remove('is-invalid');
+
+                if (paymentMethod === 'Online') {
+                    // If Online payment is selected, validate online account
+                    if (!onlineAccountId || onlineAccountId === '') {
+                        showWarningMessage("Please select an online account for online payment.");
+                        // Add visual feedback
+                        document.getElementById('onlineAccountSelect').classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        document.getElementById('onlineAccountSelect').classList.remove('is-invalid');
+                    }
+                }
+                
+                // Validate Pay Now amount for Cash and Online payments
+                if (paymentMethod === 'Cash' || paymentMethod === 'Online') {
+                    const payNowAmount = parseFloat(document.getElementById('PayNow').value) || 0;
+                    if (payNowAmount <= 0) {
+                       showWarningMessage("Pay Now amount must be greater than zero for Cash and Online payments.");
+                        // Add visual feedback
+                        document.getElementById('PayNow').classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        document.getElementById('PayNow').classList.remove('is-invalid');
+                    }
+                }
             }
 
             console.log('Validation result:', isValid);
             console.log('Error messages:', errorMessages);
 
             if (!isValid) {
-                showValidationError(errorMessages.join('<br>'));
+                // Show each validation error as a separate toaster notification
+                errorMessages.forEach((message, index) => {
+                    setTimeout(() => {
+                        showErrorMessage(message);
+                    }, index * 200); // Stagger the toasters by 200ms each
+                });
             }
 
             return isValid;
@@ -977,43 +1670,112 @@
         // AJAX Save Sale function
         function saveSale() {
             console.log('=== AJAX Save Sale called ===');
+
+            // Validate form
+            if (!validateForm()) {
+                console.log('Form validation failed - stopping submission');
+                return false;
+            }
+
+            console.log('Form validation passed - proceeding with AJAX submission');
+            showLoadingState();
+
+            try {
+            // Collect form data
+            const formData = collectFormData('save');
+                console.log('Form data collected:', formData);
+
+            // Make AJAX call
+            $.post('@Url.Action("AddSale", "Sales")', formData)
+                .done(function(response) {
+                    console.log('AJAX Save Sale success:', response);
+                    hideLoadingState();
+
+                    if (response.success) {
+                        showSuccessMessage('Sale saved successfully!');
+                        // alert('Sale saved successfully!');
+                        // Reset form after successful save
+                        resetAllFormFields();
+                    } else {
+                        showErrorMessage(response.message || 'Failed to save sale');
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('AJAX Save Sale error:', error);
+                        console.error('Response:', xhr.responseText);
+                    hideLoadingState();
+                    showErrorMessage('Error saving sale: ' + error);
+                });
+            } catch (error) {
+                console.error('Error in saveSale function:', error);
+                hideLoadingState();
+                showErrorMessage('Error preparing sale data: ' + error.message);
+            }
+        }
+
+        // AJAX Save and Print function - automatically prints both customer and merchant copies
+        function saveAndPrintSale() {
+            console.log('=== AJAX Save and Print called - will print both copies ===');
             
             // Validate form
             if (!validateForm()) {
                 console.log('Form validation failed - stopping submission');
                 return false;
             }
-            
+
             console.log('Form validation passed - proceeding with AJAX submission');
             showLoadingState();
 
+            try {
             // Collect form data
-            const formData = collectFormData('save');
+            const formData = collectFormData('saveAndPrint');
+                console.log('Form data collected:', formData);
             
             // Make AJAX call
             $.post('@Url.Action("AddSale", "Sales")', formData)
                 .done(function(response) {
-                    console.log('AJAX Save Sale success:', response);
+                    console.log('AJAX Save and Print success:', response);
                     hideLoadingState();
                     
                     if (response.success) {
                         showSuccessMessage('Sale saved successfully!');
                         // Reset form after successful save
                         resetAllFormFields();
+                        // Open print windows for both customer and merchant copies in separate tabs
+                        if (response.saleId) {
+                            // Open customer copy in new tab and print
+                            const customerPrintUrl = '@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true&merchantCopy=false';
+                            const customerWindow = window.open(customerPrintUrl, '_blank');
+                            
+                            // Open merchant copy in another new tab after a delay
+                            setTimeout(function() {
+                                const merchantPrintUrl = '@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true&merchantCopy=true';
+                                const merchantWindow = window.open(merchantPrintUrl, '_blank');
+                                
+                                // Show notification about both copies being opened
+                                showSuccessMessage('Both Customer Copy and Merchant Copy have been opened in separate tabs!');
+                            }, 1000); // 1 second delay between tabs
+                        }
                     } else {
-                        showValidationError(response.message || 'Failed to save sale');
+                        showErrorMessage(response.message || 'Failed to save sale');
                     }
                 })
                 .fail(function(xhr, status, error) {
-                    console.error('AJAX Save Sale error:', error);
+                    console.error('AJAX Save and Print error:', error);
+                        console.error('Response:', xhr.responseText);
                     hideLoadingState();
-                    showValidationError('Error saving sale: ' + error);
+                    showErrorMessage('Error saving sale: ' + error);
                 });
+            } catch (error) {
+                console.error('Error in saveAndPrintSale function:', error);
+                hideLoadingState();
+                showErrorMessage('Error preparing sale data: ' + error.message);
+            }
         }
 
-        // AJAX Save and Print function
-        function saveAndPrintSale() {
-            console.log('=== AJAX Save and Print called ===');
+        // AJAX Save and Print with specific template
+        function saveAndPrintWithTemplate(templateType) {
+            console.log('=== AJAX Save and Print called with template type:', templateType);
             
             // Validate form
             if (!validateForm()) {
@@ -1037,33 +1799,37 @@
                         showSuccessMessage('Sale saved successfully!');
                         // Reset form after successful save
                         resetAllFormFields();
-                        // Open print window
+                        // Open print window with selected template
                         if (response.saleId) {
-                            window.open('@Url.Action("Details", "Sales")' + '?id=' + response.saleId + '&print=true', '_blank');
+                            // Use the new print receipt system
+                            window.open('@Url.Action("PrintReceipt", "Sales")' + '/' + response.saleId + '?print=true', '_blank');
                         }
                     } else {
-                        showValidationError(response.message || 'Failed to save sale');
+                        showErrorMessage(response.message || 'Failed to save sale');
                     }
                 })
                 .fail(function(xhr, status, error) {
                     console.error('AJAX Save and Print error:', error);
                     hideLoadingState();
-                    showValidationError('Error saving sale: ' + error);
+                    showErrorMessage('Error saving sale: ' + error);
                 });
         }
 
         // Collect form data for AJAX submission
         function collectFormData(actionType) {
-            const formData = {};
+            // Sync Kendo UI values with form fields before collecting data
+            syncKendoValuesWithForm();
             
+            const formData = {};
+
             // Add anti-forgery token
             formData['__RequestVerificationToken'] = $('input[name="__RequestVerificationToken"]').val();
-            
+
             // Add action type
             formData['ActionType'] = actionType;
-            
+
             // Add main form fields
-            formData['CustomerId'] = $('#CustomerId').val();
+            formData['CustomerId'] = $('#customerSelect').val();
             formData['BillNo'] = $('#BillNo').val();
             formData['SaleDate'] = $('#SaleDate').val();
             formData['PayNow'] = $('#PayNow').val();
@@ -1073,7 +1839,9 @@
             formData['DueAmount'] = $('#DueAmount').val();
             formData['PreviousDue'] = $('#PreviousDue').val();
             formData['Description'] = $('#Description').val();
-            
+            formData['PaymentMethod'] = $('#paymentMethodSelect').val();
+            formData['OnlineAccountId'] = $('#onlineAccountSelect').val();
+
             // Add SaleDetails
             const saleDetailsRows = document.querySelectorAll('#saleDetailsBody tr');
             saleDetailsRows.forEach((row, index) => {
@@ -1085,7 +1853,7 @@
                 const salePrice = row.querySelector('input[name*=".SalePrice"]').value;
                 const lineDiscountAmount = row.querySelector('input[name*=".LineDiscountAmount"]').value;
                 const payableAmount = row.querySelector('input[name*=".PayableAmount"]').value;
-                
+
                 formData[`SaleDetails[${index}].ProductId`] = productId;
                 formData[`SaleDetails[${index}].ProductRangeId`] = productRangeId;
                 formData[`SaleDetails[${index}].ProductSize`] = productSize;
@@ -1095,7 +1863,7 @@
                 formData[`SaleDetails[${index}].LineDiscountAmount`] = lineDiscountAmount;
                 formData[`SaleDetails[${index}].PayableAmount`] = payableAmount;
             });
-            
+
             console.log('Form data collected for AJAX submission:', formData);
             return formData;
         }
@@ -1106,11 +1874,11 @@
             formElements.forEach(element => {
                 element.disabled = false;
             });
-            
+
             // Reset button text
             const saveBtn = document.querySelector('button[onclick="saveSale()"]');
             const saveAndPrintBtn = document.querySelector('button[onclick="saveAndPrintSale()"]');
-            
+
             if (saveBtn) {
                 saveBtn.innerHTML = '<i class="fa-solid fa-save me-1"></i>Save Sale';
             }
@@ -1121,13 +1889,13 @@
 
         // Reset all form fields after successful save
         function resetAllFormFields() {
-            console.log('=== Resetting all form fields ===');
+            console.log('=== RESETTING ALL FORM FIELDS ===');
             
             // Reset main form fields
-            $('#CustomerId').val('').trigger('change');
+            $('#customerSelect').val('');
             $('#BillNo').val('');
             $('#SaleDate').val(new Date().toISOString().split('T')[0]);
-            $('#PayNow').val('');
+            $('#PayNow').val('0');
             $('#TotalAmount').val('0.00');
             $('#DiscountAmount').val('0.00');
             $('#ReceivedAmount').val('0.00');
@@ -1135,29 +1903,78 @@
             $('#PreviousDue').val('0.00');
             $('#Description').val('');
             
-            // Clear product selection
-            $('#ProductId').val('').trigger('change');
-            $('#ProductRangeId').val('').trigger('change');
-            $('#ProductSize').val('');
-            $('#UnitPrice').val('');
-            $('#Quantity').val('');
-            $('#SalePrice').val('');
-            $('#LineDiscountAmount').val('');
-            $('#PayableAmount').val('');
+            // Reset form field values directly
+            document.getElementById('customerSelect').value = '';
+            document.getElementById('BillNo').value = '';
+            document.getElementById('SaleDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('PayNow').value = '0';
+            document.getElementById('TotalAmount').value = '0.00';
+            document.getElementById('DiscountAmount').value = '0.00';
+            document.getElementById('ReceivedAmount').value = '0.00';
+            document.getElementById('DueAmount').value = '0.00';
+            document.getElementById('PreviousDue').value = '0.00';
+            document.getElementById('Description').value = '';
             
+            // Reset Kendo UI comboboxes
+            const customerCombo = $("#customerSelect").data("kendoComboBox");
+            if (customerCombo) {
+                customerCombo.value('');
+                customerCombo.text('');
+                console.log('Customer combobox reset');
+            }
+            
+            const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+            if (paymentMethodCombo) {
+                paymentMethodCombo.value('');
+                paymentMethodCombo.text('');
+                console.log('Payment method combobox reset');
+            }
+            
+            const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+            if (onlineAccountCombo) {
+                onlineAccountCombo.value('');
+                onlineAccountCombo.text('');
+                onlineAccountCombo.enable(false);
+                console.log('Online account combobox reset');
+            }
+            
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            if (productCombo) {
+                productCombo.value('');
+                productCombo.text('');
+                console.log('Product combobox reset');
+            }
+            
+            const productSizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            if (productSizeCombo) {
+                productSizeCombo.value('');
+                productSizeCombo.text('');
+                productSizeCombo.dataSource.data([]);
+                productSizeCombo.enable(false);
+                console.log('Product size combobox reset');
+            }
+            
+            // Hide online account div
+            $('#onlineAccountDiv').hide();
+            $('#quantity').val('1');
+            $('#unitPrice').val('0');
+            $('#salePrice').val('0');
+            $('#discountAmount').val('0');
+            $('#payableAmount').val('0');
+
             // Clear sale details table
             $('#saleDetailsBody').empty();
             
+            // Reset global variables
+            rowIndex = 0;
+            selectedProductSize = null;
+            currentAvailableStock = 0;
+
             // Reset totals
             updateTotals();
-            
+
             // Get new bill number
             getNewBillNumber();
-            
-            // Clear any validation messages
-            clearValidationMessages();
-            
-            console.log('Form reset completed');
         }
 
         // Get new bill number from server
@@ -1175,5 +1992,151 @@
                     console.error('Error getting new bill number:', error);
                 });
         }
+
+        // Edit product from table function
+        function editProductFromTable(row) {
+            try {
+                // Get the row data
+                const productId = row.querySelector('input[name*=".ProductId"]').value;
+                const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
+                const productSize = row.querySelector('input[name*=".ProductSize"]').value;
+                const unitPrice = parseFloat(row.querySelector('input[name*=".UnitPrice"]').value);
+                const quantity = parseFloat(row.querySelector('input[name*=".Quantity"]').value);
+                const salePrice = parseFloat(row.querySelector('input[name*=".SalePrice"]').value);
+                const lineDiscountAmount = parseFloat(row.querySelector('input[name*=".LineDiscountAmount"]').value);
+
+                // Get product name from the table cell
+                const productName = row.cells[1].textContent;
+
+                // Populate the form fields
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                if (productCombo) {
+                    productCombo.value(productId);
+                    // Trigger product change to load sizes
+                    productCombo.trigger("change");
+                }
+
+                // Wait a bit for the sizes to load, then select the correct size
+                setTimeout(() => {
+                    const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+                    if (sizeCombo && sizeCombo.dataSource.data().length > 0) {
+                        // Find the correct size in the data source
+                        const sizeData = sizeCombo.dataSource.data().find(item => 
+                            item.productRangeId == productRangeId
+                        );
+                        if (sizeData) {
+                            sizeCombo.value(sizeData.value);
+                            // Trigger size change to load unit price
+                            sizeCombo.trigger("change");
+                        }
+                    }
+
+                    // Populate other fields
+                    document.getElementById('quantity').value = quantity;
+                    document.getElementById('unitPrice').value = unitPrice.toFixed(2);
+                    document.getElementById('salePrice').value = salePrice.toFixed(2);
+                    // Calculate item level discount (per unit discount)
+                    const itemLevelDiscount = quantity > 0 ? lineDiscountAmount / quantity : 0;
+                    document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(2);
+
+                    // Calculate payable amount
+                    calculatePayableAmount();
+
+                    // Remove the row from table (user will add it back with updated values)
+                    row.remove();
+                    updateTotals();
+
+                    // Show success message
+                    showSuccessMessage('Product loaded for editing. Update the values and click "Add to Sale" to save changes.');
+
+                }, 500); // Wait 500ms for the product sizes to load
+
+            } catch (error) {
+                console.error('Error editing product from table:', error);
+                showErrorMessage('Error loading product for editing. Please try again.');
+            }
+        }
+
+        // Payment Method Dropdown Logic
+        $(document).ready(function() {
+            // Handle payment method change
+            $('#paymentMethodSelect').on('change', function() {
+                const paymentCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const paymentMethod = paymentCombo ? paymentCombo.value() : null;
+                const onlineAccountDiv = $('#onlineAccountDiv');
+                const onlineAccountSelect = $('#onlineAccountSelect');
+                const payNowField = $('#PayNow');
+
+                // Clear validation styling
+                $(this).removeClass('is-invalid');
+                payNowField.removeClass('is-invalid');
+
+                if (paymentMethod === 'Online') {
+                    onlineAccountDiv.show();
+                    loadOnlineAccounts();
+                } else {
+                    onlineAccountDiv.hide();
+                    onlineAccountSelect.val('').trigger('change');
+                }
+                
+                // Validate Pay Now amount for Cash and Online payments
+                if (paymentMethod === 'Cash' || paymentMethod === 'Online') {
+                    const payNowAmount = parseFloat(payNowField.val()) || 0;
+                    if (payNowAmount <= 0) {
+                        payNowField.addClass('is-invalid');
+                        showErrorMessage('Pay Now amount must be greater than zero for Cash and Online payments.');
+                    } else {
+                        payNowField.removeClass('is-invalid');
+                    }
+                }
+            });
+
+            // Handle online account change
+            $('#onlineAccountSelect').on('change', function() {
+                // Clear validation styling
+                $(this).removeClass('is-invalid');
+            });
+            
+            // Handle Pay Now field change
+            $('#PayNow').on('input change', function() {
+                const paymentMethod = $('#paymentMethodSelect').val();
+                const payNowAmount = parseFloat($(this).val()) || 0;
+                
+                // Clear validation styling
+                $(this).removeClass('is-invalid');
+                
+                // Validate Pay Now amount for Cash and Online payments
+                if (paymentMethod === 'Cash' || paymentMethod === 'Online') {
+                    if (payNowAmount <= 0) {
+                        $(this).addClass('is-invalid');
+                        showErrorMessage('Pay Now amount must be greater than zero for Cash and Online payments.');
+                    } else {
+                        $(this).removeClass('is-invalid');
+                    }
+                }
+            });
+
+            // Load online accounts from PersonalPayments
+            function loadOnlineAccounts() {
+                $.ajax({
+                    url: '/Sales/GetOnlineAccounts',
+                    type: 'GET',
+                    success: function(data) {
+                        const select = $('#onlineAccountSelect');
+                        select.empty();
+                        select.append('<option value="">--Select Online Account--</option>');
+
+                        if (data && data.length > 0) {
+                            data.forEach(function(account) {
+                                select.append(`<option value="${account.personalPaymentId}">${account.bankName} - ${account.accountNumber}</option>`);
+                            });
+                        }
+                    },
+                    error: function() {
+                        console.error('Error loading online accounts');
+                    }
+                });
+            }
+        });
     </script>
 }

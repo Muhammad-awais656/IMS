@@ -14,6 +14,8 @@ namespace IMS.Common_Interfaces
         Task<List<TransactionStatus>> GetAllTransactionStatusesAsync();
         Task<List<AdminCategory>> GetAllEnabledCategoriesAsync();
         Task<List<Product>> GetProductsByCategoryIdAsync(long categoryId);
+        Task<StockMaster> GetStockByProductIdAsync(long productId);
+        Task<StockHistoryViewModel> GetStockHistoryAsync(int pageNumber, int? pageSize, StockHistoryFilters? filters);
     }
 }
 

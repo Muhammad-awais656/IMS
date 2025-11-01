@@ -47,6 +47,7 @@ namespace IMS.Models
 
     public class BillItemViewModel
     {
+        public long BillItemId { get; set; }
         public long ProductId { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
@@ -59,3 +60,7 @@ namespace IMS.Models
         public string ProductSize { get; set; } = string.Empty;
     }
 }
+
+
+
+

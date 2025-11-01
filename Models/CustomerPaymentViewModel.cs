@@ -22,6 +22,8 @@ namespace IMS.Models
         public long CustomerId { get; set; }
         public DateTime PaymentDate { get; set; } = DateTime.Now;
         public string? Description { get; set; }
+        public string? PaymentMethod { get; set; }
+        public long? OnlineAccountId { get; set; }
     }
 
     public class PaymentWithCustomerViewModel
@@ -36,6 +38,7 @@ namespace IMS.Models
         public long CreatedBy { get; set; }
         public DateTime CreatedDate { get; set; }
         public string? Description { get; set; }
+        public string? PaymentMethod { get; set; }
         public long? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
     }

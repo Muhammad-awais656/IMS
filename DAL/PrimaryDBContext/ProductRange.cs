@@ -24,4 +24,11 @@ public partial class ProductRange
     [Required(ErrorMessage = "Unit Price is required")]
     [Range(0, double.MaxValue, ErrorMessage = "Unit Price must be a positive number")]
     public decimal UnitPrice { get; set; }
+
+    // Additional properties for display purposes
+    public string? MeasuringUnitName { get; set; }
+    public string? MeasuringUnitAbbreviation { get; set; }
+    
+    // Soft delete property
+    public bool IsDeleted { get; set; } = false;
 }

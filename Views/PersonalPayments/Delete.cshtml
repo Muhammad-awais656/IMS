@@ -1,0 +1,156 @@
+@using System.Globalization
+@model IMS.DAL.PrimaryDBContext.PersonalPayment
+@{
+    ViewData["Title"] = "Delete Payment";
+}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-danger text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-exclamation-triangle me-2"></i>
+            <h4 class="mb-0">Delete Payment</h4>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fa fa-exclamation-triangle me-2"></i>
+            <div>
+                <strong>Warning!</strong> Are you sure you want to delete this payment record? This action cannot be undone.
+            </div>
+        </div>
+
+        <div class="card bg-light">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fa fa-info-circle me-2 text-primary"></i>Payment Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bank Name:</label>
+                                <p class="form-control-plaintext">@Model.BankName</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Account Number:</label>
+                                <p class="form-control-plaintext">@Model.AccountNumber</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Account Holder Name:</label>
+                                <p class="form-control-plaintext">@Model.AccountHolderName</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bank Branch:</label>
+                                <p class="form-control-plaintext">@(Model.BankBranch ?? "N/A")</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <!-- Payment Information -->
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-credit-card me-2"></i>Payment Information
+                            </h5>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Credit Amount:</label>
+                                <p class="form-control-plaintext fs-5 text-success fw-bold">@(Model.CreditAmount > 0 ? Model.CreditAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Debit Amount:</label>
+                                <p class="form-control-plaintext fs-5 text-danger fw-bold">@(Model.DebitAmount > 0 ? Model.DebitAmount.ToString("C", new CultureInfo("ur-PK")) : "-")</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Net Amount:</label>
+                                <p class="form-control-plaintext fs-5 fw-bold @((Model.CreditAmount - Model.DebitAmount) >= 0 ? "text-success" : "text-danger")">
+                                    @((Model.CreditAmount - Model.DebitAmount).ToString("C", new CultureInfo("ur-PK")))
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Payment Description:</label>
+                                <p class="form-control-plaintext">@Model.PaymentDescription</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Payment Date:</label>
+                                <p class="form-control-plaintext">@Model.PaymentDate.ToString("MMM dd, yyyy")</p>
+                            </div>
+                        </div>
+                        
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Status:</label>
+                                <p class="form-control-plaintext">
+                                    <span class="badge bg-@(Model.IsActive ? "success" : "danger") fs-6">
+                                        @(Model.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <!-- Audit Information -->
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3">
+                                <i class="fa-solid fa-info-circle me-2"></i>Audit Information
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Created Date:</label>
+                                <p class="form-control-plaintext">@Model.CreatedDate.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Last Modified:</label>
+                                <p class="form-control-plaintext">@Model.ModifiedDate.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                    </div>
+
+        <form asp-action="Delete" class="mt-4">
+            <input type="hidden" asp-for="PersonalPaymentId" />
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-arrow-left me-1"></i>Back to List
+                </a>
+                <button type="submit" class="btn btn-danger btn-lg">
+                    <i class="fa fa-trash me-1"></i>Delete Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

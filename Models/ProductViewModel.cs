@@ -21,7 +21,8 @@ namespace IMS.Models
         public List<ProductViewModel> Items { get; set; } = new List<ProductViewModel>();
 
         public long ProductId { get; set; }
-        
+        public byte IsEnabledProduct { get; set; }
+
         [Required(ErrorMessage = "Product name is required")]
         [StringLength(200, ErrorMessage = "Product name cannot exceed 200 characters")]
         public string? ProductName { get; set; }
@@ -32,8 +33,11 @@ namespace IMS.Models
         [StringLength(500, ErrorMessage = "Product description cannot exceed 500 characters")]
         public string? ProductDescription { get; set; }
         
+        [StringLength(100, ErrorMessage = "Location cannot exceed 100 characters")]
+        public string? Location { get; set; }
+        
         [Range(0, double.MaxValue, ErrorMessage = "Price must be a positive number")]
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; }
         
         public bool IsEnabled { get; set; }
         
@@ -60,6 +64,7 @@ namespace IMS.Models
             public decimal? PriceTo { get; set; }
             public bool IsEnabled { get; set; }
             public long? SizeId { get; set; }
+            public long? ProductId { get; set; }
             public long? CategoryId { get; set; }
             public string? CategoryName { get; set; }
             public long? LabelId { get; set; }

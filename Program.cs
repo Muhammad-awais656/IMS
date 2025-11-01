@@ -66,6 +66,10 @@ builder.Services.AddScoped<ICustomerPaymentService, CustomerPaymentService>();
 builder.Services.AddScoped<IVendorPaymentService, VendorPaymentService>();
 builder.Services.AddScoped<IVendorBillsService, VendorBillsService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
+builder.Services.AddScoped<IPersonalPaymentService, PersonalPaymentService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
+builder.Services.AddScoped<IModernReceiptService, ModernReceiptService>();
+builder.Services.AddScoped<IViewRenderService, ViewRenderService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais

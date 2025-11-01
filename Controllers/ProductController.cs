@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Linq;
 using static NuGet.Packaging.PackagingConstants;
 
 namespace IMS.Controllers
@@ -59,7 +60,7 @@ namespace IMS.Controllers
             }
             if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpName"].ToString()))
             {
-                model.productFilters.ProductName = HttpContext.Request.Query["searchpName"].ToString();
+                model.productFilters.ProductId = Convert.ToInt64(HttpContext.Request.Query["searchpName"]);
             }
             if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpCode"].ToString()))
             {
@@ -162,7 +163,7 @@ namespace IMS.Controllers
                         for (int i = 0; i < model.productRanges.Count; i++)
                         {
                             var range = model.productRanges[i];
-                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            if (range.MeasuringUnitIdFk == 0 || range.UnitPrice == 0)
                             {
                                 
                                 TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";
@@ -180,13 +181,14 @@ namespace IMS.Controllers
                     var product = new Product
                     {
                         ProductName = model.ProductName,
-                        ProductCode = model.ProductCode,
+                        ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,
-                        MeasuringUnitTypeIdFk = model.MUTId,
-                        SupplierIdFk = model.VendorId,
-                        UnitPrice = model.Price,
-                        ProductDescription = model.ProductDescription,
+                        MeasuringUnitTypeIdFk = model.MUTId ?? 0,
+                        SupplierIdFk = model.VendorId ?? 0,
+                        UnitPrice = model.Price ?? 0,
+                        ProductDescription = string.IsNullOrWhiteSpace(model.ProductDescription) ? null : model.ProductDescription,
+                        Location = string.IsNullOrWhiteSpace(model.Location) ? null : model.Location,
                         IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
                         SizeIdFk = 0 // Default value as per your SP
                     };
@@ -252,33 +254,43 @@ namespace IMS.Controllers
         // GET: ProductController/Edit/5
         public async Task<ActionResult> Edit(long id=0)
         {
-            var model = new ProductViewModel();
             var unit = await _productService.GetProductByIdAsync(id);
-            model.ProductId = unit.ProductList.ProductId;
-            model.ProductName = unit.ProductList.ProductName;
-            model.ProductCode=unit.ProductList.ProductCode;
-            model.ProductDescription = unit.ProductList.ProductDescription;
-            model.CategoryId = unit.ProductList.CategoryIdFk;
-            model.VendorId = unit.ProductList.SupplierIdFk;
-            model.LabelId = unit.ProductList.LabelIdFk;
-            model.IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled);
-            model.Price = unit.ProductList.UnitPrice;
-            var model1 = new ProductViewModel
+            
+            if (unit == null || unit.ProductList == null)
             {
+                return NotFound();
+            }
+
+            var model = new ProductViewModel
+            {
+                ProductId = unit.ProductList.ProductId,
+                ProductName = unit.ProductList.ProductName,
+                ProductCode = unit.ProductList.ProductCode,
+                ProductDescription = unit.ProductList.ProductDescription,
+                Location = unit.ProductList.Location,
+                CategoryId = unit.ProductList.CategoryIdFk,
+                VendorId = unit.ProductList.SupplierIdFk,
+                LabelId = unit.ProductList.LabelIdFk,
+                MUTId = unit.ProductList.MeasuringUnitTypeIdFk,
+                IsEnabled = Convert.ToBoolean(unit.ProductList.IsEnabled),
+                Price = unit.ProductList?.UnitPrice ?? 0,
                 CategoryNameList = await _categoryService.GetAllEnabledCategoriesAsync(),
                 LabelNameList = await _adminLablesService.GetAllEnabledAdminLablesAsync(),
                 MeasuringUnitTypeNameList = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync(),
                 VendorsList = await _vendorService.GetAllEnabledVendors()
             };
-            ViewBag.Categories = new SelectList(model1.CategoryNameList, "CategoryId", "CategoryName", unit.ProductList.CategoryIdFk);
-            ViewBag.Labels = new SelectList(model1.LabelNameList, "LabelId", "LabelName", unit.ProductList.LabelIdFk);
-            ViewBag.MeasuringUnitTypes = new SelectList(model1.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName",unit.ProductList.MeasuringUnitTypeIdFk);
-            ViewBag.Vendors = new SelectList(model1.VendorsList, "SupplierId", "SupplierName", unit.ProductList.SupplierIdFk);
-            model.productRanges = unit.productRanges;
-            if (unit == null)
+
+            // Add product ranges if they exist
+            if (unit.productRanges != null && unit.productRanges.Count > 0)
             {
-                return NotFound();
+                model.productRanges.AddRange(unit.productRanges);
             }
+
+            ViewBag.Categories = new SelectList(model.CategoryNameList, "CategoryId", "CategoryName", unit.ProductList.CategoryIdFk);
+            ViewBag.Labels = new SelectList(model.LabelNameList, "LabelId", "LabelName", unit.ProductList.LabelIdFk);
+            ViewBag.MeasuringUnitTypes = new SelectList(model.MeasuringUnitTypeNameList, "MeasuringUnitTypeId", "MeasuringUnitTypeName", unit.ProductList.MeasuringUnitTypeIdFk);
+            ViewBag.Vendors = new SelectList(model.VendorsList, "SupplierId", "SupplierName", unit.ProductList.SupplierIdFk);
+            
             return View(model);
         }
 
@@ -327,7 +339,7 @@ namespace IMS.Controllers
                         for (int i = 0; i < model.productRanges.Count; i++)
                         {
                             var range = model.productRanges[i];
-                            if (range.MeasuringUnitIdFk == 0 || range.RangeFrom == 0 || range.RangeTo == 0 || range.UnitPrice == 0)
+                            if (range.MeasuringUnitIdFk == 0 || range.UnitPrice == 0)
                             {
                                
                                 TempData["WarningMessage"] = $"productRanges[{i}]"+ "All size fields are required and must be greater than 0.";
@@ -346,13 +358,14 @@ namespace IMS.Controllers
                     {
                         ProductId = model.ProductId,
                         ProductName = model.ProductName,
-                        ProductCode = model.ProductCode,
+                        ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,
-                        MeasuringUnitTypeIdFk = model.MUTId,
-                        SupplierIdFk = model.VendorId,
-                        UnitPrice = model.Price,
-                        ProductDescription = model.ProductDescription,
+                        MeasuringUnitTypeIdFk = model.MUTId ?? 0,
+                        SupplierIdFk = model.VendorId ?? 0,
+                        UnitPrice = model.Price ?? 0,
+                        ProductDescription = string.IsNullOrWhiteSpace(model.ProductDescription) ? null : model.ProductDescription,
+                        Location = string.IsNullOrWhiteSpace(model.Location) ? null : model.Location,
                         IsEnabled = model.IsEnabled ? (byte)1 : (byte)0,
                         SizeIdFk = 0 // Default value as per your SP
                     };
@@ -445,12 +458,45 @@ namespace IMS.Controllers
 
         public async Task<ActionResult> AddSizePartial(long? measuringUnitTypeId)
         {
-            var model = new ProductViewModel
-            {
-                MeasuringUnitNameList = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId)
-            };
-            ViewBag.MeasuringUnits = new SelectList(model.MeasuringUnitNameList, "MeasuringUnitId", "MeasuringUnitName");
+            ViewBag.MeasuringUnitTypeId = measuringUnitTypeId;
             return PartialView("_AddSize", new ProductRange());
+        }
+
+        // AJAX endpoint to get measuring units by type for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetMeasuringUnitsByType(long? measuringUnitTypeId)
+        {
+            try
+            {
+                _logger.LogInformation("GetMeasuringUnitsByType called with measuringUnitTypeId: {MeasuringUnitTypeId}", measuringUnitTypeId);
+                
+                if (!measuringUnitTypeId.HasValue || measuringUnitTypeId.Value == 0)
+                {
+                    _logger.LogWarning("No valid measuringUnitTypeId provided: {MeasuringUnitTypeId}", measuringUnitTypeId);
+                    return Json(new List<object>());
+                }
+
+                var measuringUnits = await _adminMeasuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                _logger.LogInformation("Found {Count} measuring units for type {MeasuringUnitTypeId}", measuringUnits.Count, measuringUnitTypeId);
+                
+                // Filter only enabled measuring units
+                var enabledMeasuringUnits = measuringUnits.Where(mu => mu.IsEnabled).ToList();
+                _logger.LogInformation("Found {Count} enabled measuring units for type {MeasuringUnitTypeId}", enabledMeasuringUnits.Count, measuringUnitTypeId);
+                
+                var result = enabledMeasuringUnits.Select(mu => new
+                {
+                    value = mu.MeasuringUnitId.ToString(),
+                    text = mu.MeasuringUnitName
+                }).ToList();
+                
+                _logger.LogInformation("Returning {Count} enabled measuring units: {Result}", result.Count, string.Join(", ", result.Select(r => $"{r.text}({r.value})")));
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting measuring units by type for Kendo combobox");
+                return Json(new List<object>());
+            }
         }
 
         [HttpGet]
@@ -465,50 +511,116 @@ namespace IMS.Controllers
             return Json(exists);
         }
 
-        // AJAX endpoints for Kendo UI Dropdowns
+        // AJAX endpoint to get categories for Kendo combobox
         [HttpGet]
         public async Task<IActionResult> GetCategories()
         {
-            var categories = await _categoryService.GetAllEnabledCategoriesAsync();
-            var result = categories.Select(c => new { value = c.CategoryId, text = c.CategoryName }).ToList();
-            return Json(result);
+            try
+            {
+                var categories = await _categoryService.GetAllEnabledCategoriesAsync();
+                var result = categories.Select(c => new
+                {
+                    value = c.CategoryId.ToString(),
+                    text = c.CategoryName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting categories for Kendo combobox");
+                return Json(new List<object>());
+            }
         }
 
+        // AJAX endpoint to get labels for Kendo combobox
         [HttpGet]
         public async Task<IActionResult> GetLabels()
         {
-            var labels = await _adminLablesService.GetAllEnabledAdminLablesAsync();
-            var result = labels.Select(l => new { value = l.LabelId, text = l.LabelName }).ToList();
-            return Json(result);
+            try
+            {
+                var labels = await _adminLablesService.GetAllEnabledAdminLablesAsync();
+                var result = labels.Select(l => new
+                {
+                    value = l.LabelId.ToString(),
+                    text = l.LabelName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting labels for Kendo combobox");
+                return Json(new List<object>());
+            }
         }
 
+        // AJAX endpoint to get measuring unit types for Kendo combobox
         [HttpGet]
         public async Task<IActionResult> GetMeasuringUnitTypes()
         {
-            var muts = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync();
-            var result = muts.Select(m => new { value = m.MeasuringUnitTypeId, text = m.MeasuringUnitTypeName }).ToList();
-            return Json(result);
+            try
+            {
+                var measuringUnitTypes = await _adminMeasuringUnitTypesService.GetAllEnabledMeasuringUnitTypesAsync();
+                var result = measuringUnitTypes.Select(m => new
+                {
+                    value = m.MeasuringUnitTypeId.ToString(),
+                    text = m.MeasuringUnitTypeName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting measuring unit types for Kendo combobox");
+                return Json(new List<object>());
+            }
         }
 
+        // AJAX endpoint to get products for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetProducts()
+        {
+            try
+            {
+                var products = await _productService.GetAllEnabledProductsAsync();
+                var result = products.Select(p => new
+                {
+                    value = p.ProductId.ToString(),
+                    text = p.ProductName,
+                    code = p.ProductCode
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting products for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get vendors for Kendo combobox
         [HttpGet]
         public async Task<IActionResult> GetVendors()
         {
-            var vendors = await _vendorService.GetAllEnabledVendors();
-            var result = vendors.Select(v => new { value = v.SupplierId, text = v.SupplierName }).ToList();
-            return Json(result);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetMeasuringUnits(long? measuringUnitTypeId)
-        {
-            if (measuringUnitTypeId == null || measuringUnitTypeId == 0)
+            try
             {
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                var result = vendors.Select(v => new
+                {
+                    value = v.SupplierId.ToString(),
+                    text = v.SupplierName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendors for Kendo combobox");
                 return Json(new List<object>());
             }
-
-            var measuringUnits = await _adminMeasuringUnitService.GetAllMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
-            var result = measuringUnits.Select(mu => new { value = mu.MeasuringUnitId, text = mu.MeasuringUnitName }).ToList();
-            return Json(result);
         }
+
     }
 }

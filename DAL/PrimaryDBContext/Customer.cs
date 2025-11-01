@@ -17,9 +17,9 @@ public partial class Customer
 
     public bool IsEnabled { get; set; }
 
-    public TimeOnly StartWorkingTime { get; set; }
+    public TimeOnly? StartWorkingTime { get; set; }
 
-    public TimeOnly EndWorkingTime { get; set; }
+    public TimeOnly? EndWorkingTime { get; set; }
 
     public long? InvoiceCreditPeriod { get; set; }
 
