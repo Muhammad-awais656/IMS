@@ -31,10 +31,21 @@ class NotificationService {
             container.className = 'toast-container position-fixed top-0 end-0 p-3';
             container.style.zIndex = '9999';
             
-            // Add to main content area
-            const main = document.querySelector('#main') || document.body;
-            main.appendChild(container);
-            this.toastContainer = container;
+            // Add to main content area - try multiple fallbacks
+            let target = document.querySelector('#main');
+            if (!target) {
+                target = document.body;
+            }
+            if (!target) {
+                target = document.documentElement;
+            }
+            
+            if (target) {
+                target.appendChild(container);
+                this.toastContainer = container;
+            } else {
+                console.error('Cannot create toast container: no suitable target element found');
+            }
         }
     }
 
@@ -94,6 +105,31 @@ class NotificationService {
      * @param {string} icon - FontAwesome icon class
      */
     showToast(message, type, duration, icon) {
+        // Ensure toast container exists before proceeding
+        if (!this.toastContainer) {
+            this.createToastContainer();
+        }
+        
+        // If container still doesn't exist, try to find or create it again
+        if (!this.toastContainer) {
+            this.toastContainer = document.querySelector('.toast-container');
+            if (!this.toastContainer) {
+                const container = document.createElement('div');
+                container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                container.style.zIndex = '9999';
+                
+                // Try to append to body or create as fallback
+                const target = document.body || document.documentElement;
+                if (target) {
+                    target.appendChild(container);
+                    this.toastContainer = container;
+                } else {
+                    console.error('Cannot create toast container: document.body is not available');
+                    return null;
+                }
+            }
+        }
+        
         // Create unique ID for the toast
         const toastId = 'toast_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
@@ -118,27 +154,35 @@ class NotificationService {
             </div>
         `;
         
-        // Add to container
-        this.toastContainer.appendChild(toastElement);
+        // Add to container (now guaranteed to exist)
+        if (this.toastContainer) {
+            this.toastContainer.appendChild(toastElement);
+            
+            // Initialize and show toast
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Auto-remove from DOM after toast is hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                if (toastElement.parentNode) {
+                    toastElement.remove();
+                }
+            });
+            
+            return toastId;
+        }
         
-        // Initialize and show toast
-        const toast = new bootstrap.Toast(toastElement);
-        toast.show();
-        
-        // Auto-remove from DOM after toast is hidden
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            if (toastElement.parentNode) {
-                toastElement.remove();
-            }
-        });
-        
-        return toastId;
+        return null;
     }
 
     /**
      * Clear all toasts
      */
     clearAllToasts() {
+        if (!this.toastContainer) {
+            return;
+        }
+        
         const toasts = this.toastContainer.querySelectorAll('.toast');
         toasts.forEach(toast => {
             const bsToast = bootstrap.Toast.getInstance(toast);

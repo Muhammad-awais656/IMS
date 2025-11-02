@@ -1198,11 +1198,25 @@
         function populateExistingSaleDetails() {
             console.log('Populating existing sale details for editing...');
 
-            // Get the existing sale details from the model
-            const saleDetails = '@Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()))';
+            // Get the existing sale details from the model (as JSON string)
+            const saleDetailsJson = '@Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()))';
+            
+            // Parse the JSON string to get the actual array
+            let saleDetails = [];
+            try {
+                if (saleDetailsJson && saleDetailsJson.trim() !== '') {
+                    saleDetails = JSON.parse(saleDetailsJson);
+                }
+            } catch (e) {
+                console.error('Error parsing sale details JSON:', e);
+                console.error('JSON string:', saleDetailsJson);
+                return;
+            }
 
-            if (saleDetails && saleDetails.length > 0) {
+            // Check if saleDetails is an array and has items
+            if (Array.isArray(saleDetails) && saleDetails.length > 0) {
                 console.log('Found existing sale details:', saleDetails);
+                console.log('Sale details count:', saleDetails.length);
 
                 // Clear any existing rows
                 document.getElementById('saleDetailsBody').innerHTML = '';
@@ -1216,31 +1230,48 @@
                 // Update totals
                 updateTotals();
 
-                showSuccessMessage('Existing sale details loaded successfully!');
+                // Show success message if notification service is available
+                if (typeof showSuccessMessage === 'function') {
+                    try {
+                        showSuccessMessage('Existing sale details loaded successfully!');
+                    } catch (e) {
+                        console.log('Sale details loaded successfully'); // Fallback to console log
+                    }
+                } else {
+                    console.log('Existing sale details loaded successfully!');
+                }
             } else {
-                console.log('No existing sale details found');
+                console.log('No existing sale details found or invalid format');
             }
         }
 
         function addExistingProductToTable(detail) {
-            // Get product name from the detail object or use a placeholder
-            const productName = detail.productName || 'Product';
+            // Handle both PascalCase (server) and camelCase formats
+            const productId = detail.ProductId || detail.productId || 0;
+            const productRangeId = detail.ProductRangeId || detail.productRangeId || 0;
+            const productSize = detail.ProductSize || detail.productSize || '';
+            const unitPrice = detail.UnitPrice || detail.unitPrice || 0;
+            const quantity = detail.Quantity || detail.quantity || 0;
+            const salePrice = detail.SalePrice || detail.salePrice || 0;
+            const lineDiscountAmount = detail.LineDiscountAmount || detail.lineDiscountAmount || 0;
+            const payableAmount = detail.PayableAmount || detail.payableAmount || 0;
+            const productName = detail.ProductName || detail.productName || 'Product';
 
             // Add to table
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
 
             // Calculate item level discount (per unit discount)
-            const itemLevelDiscount = detail.quantity > 0 ? parseFloat(detail.lineDiscountAmount) / detail.quantity : 0;
+            const itemLevelDiscount = quantity > 0 ? parseFloat(lineDiscountAmount) / quantity : 0;
             
             newRow.innerHTML = `
-                <td>${detail.productSize || ''}</td>
+                <td>${productSize || ''}</td>
                 <td>${productName}</td>
                 <td>Rs${itemLevelDiscount.toFixed(2)}</td>
-                <td>Rs${parseFloat(detail.salePrice).toFixed(2)}</td>
-                <td>${detail.quantity}</td>
-                <td>Rs${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
-                <td>Rs${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(salePrice).toFixed(2)}</td>
+                <td>${quantity}</td>
+                <td>Rs${parseFloat(lineDiscountAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(payableAmount).toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1249,14 +1280,14 @@
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${detail.productId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${detail.productRangeId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${detail.productSize || ''}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(detail.unitPrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${detail.quantity}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(detail.salePrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(detail.lineDiscountAmount).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(detail.payableAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${productRangeId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${productSize || ''}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(unitPrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(salePrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(lineDiscountAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(payableAmount).toFixed(2)}" />
             `;
 
             tbody.appendChild(newRow);
