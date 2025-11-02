@@ -1,0 +1,199 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Bill Details";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Bill Details</h3>
+                        <a asp-action="Index" class="btn btn-light">
+                            <i class="fa-solid fa-arrow-left me-1"></i>Back to Payments
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-info-circle me-2"></i>Bill Information
+                            </h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Bill ID:</strong></td>
+                                    <td>@Model.Bill.BillId</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Bill Number:</strong></td>
+                                    <td>@Model.Bill.BillNumber</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Vendor:</strong></td>
+                                    <td>@Model.Bill.VendorName</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Bill Date:</strong></td>
+                                    <td>@Model.Bill.BillDate.ToString("dd-MM-yyyy")</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Amount:</strong></td>
+                                    <td>@Model.Bill.TotalAmount.ToString("N2")</td>
+                                </tr>
+                                @if (Model.Bill.DiscountAmount > 0)
+                                {
+                                    <tr>
+                                        <td><strong>Discount Amount:</strong></td>
+                                        <td>@Model.Bill.DiscountAmount.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <td><strong>Total Payable:</strong></td>
+                                    <td><strong class="text-primary">@((Model.Bill.TotalAmount - Model.Bill.DiscountAmount).ToString("N2"))</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Paid Amount:</strong></td>
+                                    <td>@Model.Bill.PaidAmount.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Due Amount:</strong></td>
+                                    <td><strong class="text-danger">@Model.Bill.DueAmount.ToString("N2")</strong></td>
+                                </tr>
+                                @if (!string.IsNullOrEmpty(Model.Bill.Description))
+                                {
+                                    <tr>
+                                        <td><strong>Description:</strong></td>
+                                        <td>@Model.Bill.Description</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Model.Bill.PaymentMethod))
+                                {
+                                    <tr>
+                                        <td><strong>Payment Method:</strong></td>
+                                        <td>
+                                            @if (Model.Bill.PaymentMethod == "Cash")
+                                            {
+                                                <span class="badge bg-success">Cash</span>
+                                            }
+                                            else if (Model.Bill.PaymentMethod == "Online")
+                                            {
+                                                <span class="badge bg-primary">Online</span>
+                                            }
+                                            else if (Model.Bill.PaymentMethod == "PayLater" || Model.Bill.PaymentMethod == "Pay Later")
+                                            {
+                                                <span class="badge bg-warning text-dark">Pay Later</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">@Model.Bill.PaymentMethod</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-calculator me-2"></i>Payment Summary
+                            </h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-6 mb-3">
+                                            <div class="border-end">
+                                                <small class="text-muted d-block">Total Amount</small>
+                                                <strong class="d-block">@Model.Bill.TotalAmount.ToString("N2")</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <small class="text-muted d-block">Discount</small>
+                                            <strong class="d-block text-warning">@Model.Bill.DiscountAmount.ToString("N2")</strong>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <div class="border-end">
+                                                <small class="text-muted d-block">Paid</small>
+                                                <strong class="d-block text-success">@Model.Bill.PaidAmount.ToString("N2")</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <small class="text-muted d-block">Due</small>
+                                            <strong class="d-block text-danger">@Model.Bill.DueAmount.ToString("N2")</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fa-solid fa-cogs me-2"></i>Actions
+                                </h5>
+                                <div class="btn-group-vertical w-100">
+                                    <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false })" 
+                                       class="btn btn-primary mb-2" target="_blank">
+                                        <i class="fa-solid fa-print me-1"></i>Print Vendor Copy
+                                    </a>
+                                    <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true })" 
+                                       class="btn btn-success mb-2" target="_blank">
+                                        <i class="fa-solid fa-store me-1"></i>Print Merchant Copy
+                                    </a>
+                                    <a href="@Url.Action("Edit", "VendorBills", new { id = Model.Bill.BillId })" 
+                                       class="btn btn-warning mb-2">
+                                        <i class="fa-solid fa-edit me-1"></i>Edit Bill
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fa-solid fa-list me-2"></i>Bill Items
+                            </h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Sr#</th>
+                                            <th>Product</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Discount</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Model.BillItems != null && Model.BillItems.Count > 0)
+                                        {
+                                            int srNo = 1;
+                                            @foreach (var item in Model.BillItems)
+                                            {
+                                                <tr>
+                                                    <td>@srNo</td>
+                                                    <td>@item.ProductName</td>
+                                                    <td>@item.Quantity</td>
+                                                    <td>@item.UnitPrice.ToString("N2")</td>
+                                                    <td>@item.DiscountAmount.ToString("N2")</td>
+                                                    <td><strong>@item.PayableAmount.ToString("N2")</strong></td>
+                                                </tr>
+                                                srNo++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="6" class="text-center">No items found</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

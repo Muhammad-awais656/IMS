@@ -112,12 +112,26 @@ namespace IMS.Controllers
         {
             try
             {
-                // For now, redirect to index with the bill ID as a filter
-                return RedirectToAction(nameof(Index), new { billNumber = id });
+                var vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (vendorBill == null)
+                {
+                    TempData["ErrorMessage"] = "Bill not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+                
+                var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
+                
+                var detailsModel = new
+                {
+                    Bill = vendorBill,
+                    BillItems = billItems
+                };
+                
+                return View(detailsModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading bill details");
+                _logger.LogError(ex, "Error loading bill details for bill {BillId}", id);
                 TempData["ErrorMessage"] = "An error occurred while loading bill details.";
                 return RedirectToAction(nameof(Index));
             }
