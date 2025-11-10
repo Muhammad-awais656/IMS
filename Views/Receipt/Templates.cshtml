@@ -1,0 +1,50 @@
+@model List<IMS.Models.ReceiptTemplate>
+@{
+    ViewData["Title"] = "Receipt Templates";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fa-solid fa-file-invoice me-2"></i>Receipt Templates
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        @foreach (var template in Model)
+                        {
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="fa-solid fa-receipt me-2"></i>@template.Name
+                                        </h5>
+                                        <p class="card-text">@template.Description</p>
+                                        <div class="mt-auto">
+                                            <span class="badge bg-secondary">@template.Type</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <small class="text-muted">File: @template.FileName</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    @if (!Model.Any())
+                    {
+                        <div class="text-center py-5">
+                            <i class="fa-solid fa-file-invoice fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No templates available</h5>
+                            <p class="text-muted">Receipt templates will be loaded automatically.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

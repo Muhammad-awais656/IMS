@@ -1,0 +1,189 @@
+@{
+    ViewData["Title"] = "Test Notification Service";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">
+                        <i class="fa-solid fa-bell me-2"></i>Test Notification Service
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Test the global notification service with different types of messages.
+                    </p>
+
+                    <div class="row g-3">
+                        <!-- Client-side Notifications -->
+                        <div class="col-md-6">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fa-solid fa-code me-2"></i>Client-side Notifications
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted">Test JavaScript notification functions:</p>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-success" onclick="testSuccessMessage()">
+                                            <i class="fa-solid fa-check-circle me-2"></i>Test Success Message
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-danger" onclick="testErrorMessage()">
+                                            <i class="fa-solid fa-exclamation-triangle me-2"></i>Test Error Message
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-warning" onclick="testWarningMessage()">
+                                            <i class="fa-solid fa-exclamation-triangle me-2"></i>Test Warning Message
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-info" onclick="testInfoMessage()">
+                                            <i class="fa-solid fa-info-circle me-2"></i>Test Info Message
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-secondary" onclick="testLoadingMessage()">
+                                            <i class="fa-solid fa-spinner me-2"></i>Test Loading Message
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-outline-secondary" onclick="clearAllToasts()">
+                                            <i class="fa-solid fa-trash me-2"></i>Clear All Toasts
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Server-side Notifications -->
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fa-solid fa-server me-2"></i>Server-side Notifications
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted">Test server-side TempData notifications:</p>
+                                    
+                                    <form method="post" class="d-grid gap-2">
+                                        <button type="submit" asp-action="TestSuccess" class="btn btn-success">
+                                            <i class="fa-solid fa-check-circle me-2"></i>Test Success (Server)
+                                        </button>
+                                        
+                                        <button type="submit" asp-action="TestError" class="btn btn-danger">
+                                            <i class="fa-solid fa-exclamation-triangle me-2"></i>Test Error (Server)
+                                        </button>
+                                        
+                                        <button type="submit" asp-action="TestWarning" class="btn btn-warning">
+                                            <i class="fa-solid fa-exclamation-triangle me-2"></i>Test Warning (Server)
+                                        </button>
+                                        
+                                        <button type="submit" asp-action="TestInfo" class="btn btn-info">
+                                            <i class="fa-solid fa-info-circle me-2"></i>Test Info (Server)
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Usage Examples -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card border-secondary">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fa-solid fa-code me-2"></i>Usage Examples
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>JavaScript Functions:</h6>
+                                            <pre class="bg-light p-3 rounded"><code>// Success message
+showSuccessMessage('Operation completed successfully!');
+
+// Error message
+showErrorMessage('Something went wrong!');
+
+// Warning message
+showWarningMessage('Please check your input!');
+
+// Info message
+showInfoMessage('Additional information available.');
+
+// Loading message
+const loadingId = showLoadingMessage('Processing...');
+// Later: hideLoadingMessage(loadingId);
+
+// Clear all toasts
+clearAllToasts();</code></pre>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Server-side (Controller):</h6>
+                                            <pre class="bg-light p-3 rounded"><code>// In your controller action
+TempData["Success"] = "Success message!";
+TempData["ErrorMessage"] = "Error message!";
+TempData["WarningMessage"] = "Warning message!";
+TempData["InfoMessage"] = "Info message!";
+
+return RedirectToAction("Index");</code></pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Test functions for client-side notifications
+        function testSuccessMessage() {
+            showSuccessMessage('This is a success message!', 3000);
+        }
+
+        function testErrorMessage() {
+            showErrorMessage('This is an error message!', 5000);
+        }
+
+        function testWarningMessage() {
+            showWarningMessage('This is a warning message!', 4000);
+        }
+
+        function testInfoMessage() {
+            showInfoMessage('This is an info message!', 4000);
+        }
+
+        function testLoadingMessage() {
+            const loadingId = showLoadingMessage('Loading... Please wait.');
+            
+            // Simulate some work
+            setTimeout(() => {
+                hideLoadingMessage(loadingId);
+                showSuccessMessage('Loading completed!');
+            }, 2000);
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Test Notification page loaded');
+            console.log('Available functions:', {
+                showSuccessMessage: typeof showSuccessMessage,
+                showErrorMessage: typeof showErrorMessage,
+                showWarningMessage: typeof showWarningMessage,
+                showInfoMessage: typeof showInfoMessage,
+                showLoadingMessage: typeof showLoadingMessage,
+                hideLoadingMessage: typeof hideLoadingMessage,
+                clearAllToasts: typeof clearAllToasts
+            });
+        });
+    </script>
+}

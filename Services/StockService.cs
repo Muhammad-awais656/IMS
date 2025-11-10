@@ -223,6 +223,7 @@ namespace IMS.Services
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
                                     ProductName = reader.GetString("ProductName"),
                                     ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
+                                    StockLocaion = reader.IsDBNull("Location") ? null : reader.GetString("Location"),
                                     UnitPrice = reader.GetDecimal("UnitPrice")
                                 };
                                 stockList.Add(stock);
@@ -404,6 +405,139 @@ namespace IMS.Services
             }
             return products;
         }
+
+        public async Task<StockMaster> GetStockByProductIdAsync(long productId)
+        {
+            var stock = new StockMaster();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"SELECT StockMasterId, ProductId_FK as ProductIdFk, AvailableQuantity, UsedQuantity, TotalQuantity, 
+                                      UploadedDate, Comment, CreatedDate, CreatedBy, ModifiedDate, ModifiedBy 
+                               FROM StockMaster WHERE ProductId_FK = @ProductId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@ProductId", productId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                stock = new StockMaster
+                                {
+                                    StockMasterId = reader.GetInt64("StockMasterId"),
+                                    ProductIdFk = reader.GetInt64("ProductIdFk"),
+                                    AvailableQuantity = reader.GetDecimal("AvailableQuantity"),
+                                    UsedQuantity = reader.GetDecimal("UsedQuantity"),
+                                    TotalQuantity = reader.GetDecimal("TotalQuantity"),
+                                    UploadedDate = reader.IsDBNull("UploadedDate") ? null : reader.GetDateTime("UploadedDate"),
+                                    Comment = reader.IsDBNull("Comment") ? null : reader.GetString("Comment"),
+                                    CreatedDate = reader.IsDBNull("CreatedDate") ? DateTime.MinValue : reader.GetDateTime("CreatedDate"),
+                                    CreatedBy = reader.IsDBNull("CreatedBy") ? 0 : reader.GetInt64("CreatedBy"),
+                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
+                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy")
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting stock by product ID");
+                throw;
+            }
+            return stock;
+        }
+
+        public async Task<StockHistoryViewModel> GetStockHistoryAsync(int pageNumber, int? pageSize, StockHistoryFilters? filters)
+        {
+            var viewModel = new StockHistoryViewModel();
+            var transactionList = new List<StockTransactionHistoryViewModel>();
+            var totalRecords = 0;
+            
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    // If filtering by specific product (StockMasterId), use the stored procedure
+                    if (filters?.StockMasterId.HasValue == true)
+                    {
+                        using (var command = new SqlCommand("GetStockTransactionsByStockMasterId", connection))
+                        {
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.Parameters.AddWithValue("@pStockMasterId", filters.StockMasterId.Value);
+                            command.Parameters.AddWithValue("@TransactionStatusId", filters.TransactionTypeId==0 || filters.TransactionTypeId ==null ? DBNull.Value : filters.TransactionTypeId);
+                            command.Parameters.AddWithValue("@FromDate", filters.FromDate == null ? DBNull.Value : filters.FromDate);
+                            command.Parameters.AddWithValue("@ToDate", filters.ToDate == null ? DBNull.Value : filters.ToDate);
+                            
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    var transaction = new StockTransactionHistoryViewModel
+                                    {
+                                        StockTransactionId = reader.GetInt64("StockTransactionId"),
+                                        //StockMasterIdFk = reader.IsDBNull("StockMasterId_FK") ? 0 : reader.GetInt64("StockMasterId_FK"),
+                                        StockQuantity = reader.GetDecimal("StockQuantity"),
+                                        TransactionDate = reader.GetDateTime("TransactionDate"),
+                                        CreatedBy = reader.GetInt64("CreatedBy"),
+                                        CreatedDate = reader.GetDateTime("CreatedDate"),
+                                        //TransactionStatusId = reader.IsDBNull("TransactionStatusId") ? 0 : reader.GetInt64("TransactionStatusId"),
+                                        //Comment = reader.IsDBNull("Comment") ? null : reader.GetString("Comment"),
+                                        //SaleId = reader.IsDBNull("SaleId") ? null : reader.GetInt64("SaleId"),
+                                        //ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
+                                        //ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
+                                        //UserName = reader.IsDBNull("UserName") ? "System" : reader.GetString("UserName"),
+                                        //TransactionStatusName = reader.IsDBNull("TransactionStatusName") ? "" : reader.GetString("TransactionStatusName"),
+                                        TransactionType = reader.IsDBNull("TransactionStatusName") ? "" : reader.GetString("TransactionStatusName"),
+                                        Description = reader.IsDBNull("Comment") ? "" : reader.GetString("Comment")
+                                    };
+                                    transactionList.Add(transaction);
+                                }
+
+                                // Move to second result set for total count
+                                await reader.NextResultAsync();
+
+                                if (await reader.ReadAsync())
+                                {
+                                    totalRecords = reader.GetInt32("TotalRecords");
+                                }
+                            }
+                        }
+                        //totalRecords = transactionList.Count;
+                    }
+                   
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting stock history");
+                throw;
+            }
+            
+            return new StockHistoryViewModel
+            {
+                TransactionList = transactionList,
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                FromDate = filters?.FromDate,
+                ToDate = filters?.ToDate,
+                TransactionType = filters?.TransactionType
+            };
+        }
+        
+        
     }
 }
 

@@ -21,6 +21,8 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductSize { get; set; }
+        public string ProductName { get; set; }
+        public string MeasuringUnitAbbreviation { get; set; }
         public decimal UnitPrice { get; set; }
         public long Quantity { get; set; }
         public decimal SalePrice { get; set; }
@@ -46,6 +48,8 @@ namespace IMS.Models
         public decimal PreviousDue { get; set; }
         public string Description { get; set; }
         public string ActionType { get; set; }
+        public string PaymentMethod { get; set; } // Cash or Online
+        public long? OnlineAccountId { get; set; } // Personal Payment ID when Online is selected
         public DateTime CreatedDate { get; set; }
         public long CreatedBy { get; set; }
         public DateTime ModifiedDate { get; set; }
@@ -76,6 +80,7 @@ namespace IMS.Models
         public long CustomerIdFk { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string? SaleDescription { get; set; }
+        public string? PaymentMethod { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime? CreatedDate { get; set; }
         public long? CreatedBy { get; set; }
@@ -91,6 +96,33 @@ namespace IMS.Models
         public DateTime? SaleFrom { get; set; }
         public DateTime? SaleDateTo { get; set; }
         public string? Description { get; set; }
+    }
+
+    public class SalePrintViewModel
+    {
+        public long SaleId { get; set; }
+        public long BillNumber { get; set; }
+        public DateTime SaleDate { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TotalReceivedAmount { get; set; }
+        public decimal TotalDueAmount { get; set; }
+        public long CustomerIdFk { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string? SaleDescription { get; set; }
+        public List<SaleDetailPrintViewModel> SaleDetails { get; set; } = new List<SaleDetailPrintViewModel>();
+    }
+
+    public class SaleDetailPrintViewModel
+    {
+        public long ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal UnitPrice { get; set; }
+        public long Quantity { get; set; }
+        public decimal SalePrice { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal PayableAmount { get; set; }
+        public long ProductRangeId { get; set; }
     }
 }
 

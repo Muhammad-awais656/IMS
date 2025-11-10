@@ -17,6 +17,7 @@ namespace IMS.Models
         // Product information from JOIN
         public string ProductName { get; set; } = string.Empty;
         public string? ProductCode { get; set; }
+        public string? StockLocaion { get; set; }
         public decimal UnitPrice { get; set; }
     }
     public class StockViewModel

@@ -21,6 +21,7 @@ namespace IMS.Services
         public async Task<SalesViewModel> GetAllSalesAsync(int pageNumber, int? pageSize, SalesFilters? filters)
         {
             var viewModel = new SalesViewModel();
+            var totalRecords = 0;
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
@@ -34,10 +35,10 @@ namespace IMS.Services
                         
                         // Set default values that won't filter out all records
                         command.Parameters.AddWithValue("@pIsDeleted", 0); // Only show non-deleted records
-                        command.Parameters.AddWithValue("@pBillNumber", DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleFrom", DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleDateTo", DBNull.Value);
-                        command.Parameters.AddWithValue("@pDescription", DBNull.Value);
+                        command.Parameters.AddWithValue("@pBillNumber", filters.BillNumber == null ? DBNull.Value :filters.BillNumber);
+                        command.Parameters.AddWithValue("@pSaleFrom", filters.SaleFrom==null ? DBNull.Value: filters.SaleFrom);
+                        command.Parameters.AddWithValue("@pSaleDateTo", filters.SaleDateTo==null ? DBNull.Value:filters.SaleDateTo);
+                        command.Parameters.AddWithValue("@pDescription", string.IsNullOrEmpty(filters.Description) ?DBNull.Value : filters.Description);
                         command.Parameters.AddWithValue("@PageNo", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         
@@ -56,24 +57,6 @@ namespace IMS.Services
                             var salesList = new List<SaleWithCustomerViewModel>();
                             while (await reader.ReadAsync())
                             {
-                                //var sale = new SaleWithCustomerViewModel
-                                //{
-                                //    SaleId = reader.GetInt64("SaleId"),
-                                //    BillNumber = reader.GetInt64("BillNumber"),
-                                //    SaleDate = reader.GetDateTime("SaleDate"),
-                                //    TotalAmount = reader.GetDecimal("TotalAmount"),
-                                //    DiscountAmount = reader.GetDecimal("DiscountAmount"),
-                                //    TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount"),
-                                //    TotalDueAmount = reader.GetDecimal("TotalDueAmount"),
-                                //    CustomerIdFk = reader.GetInt64("CustomerId_FK"),
-                                //    CustomerName = reader.GetString("CustomerName"),
-                                //    SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
-                                //    IsDeleted = reader.GetBoolean("IsDeleted"),
-                                //    CreatedDate = reader.IsDBNull("CreatedDate") ? null : reader.GetDateTime("CreatedDate"),
-                                //    CreatedBy = reader.IsDBNull("CreatedBy") ? null : reader.GetInt64("CreatedBy"),
-                                //    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
-                                //    ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy")
-                                //};
                                 var sale = new SaleWithCustomerViewModel
                                 {
                                     SaleId = reader.GetInt64("SaleId"),
@@ -84,36 +67,30 @@ namespace IMS.Services
                                     TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount"),
                                     TotalDueAmount = reader.GetDecimal("TotalDueAmount"),
                                     CustomerIdFk = reader.GetInt64("CustomerId_FK"),
-                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName"))
-                      ? null
-                      : reader.GetString(reader.GetOrdinal("CustomerName")),
-                                    SaleDescription = reader.IsDBNull(reader.GetOrdinal("SaleDescription"))
-                      ? null
-                      : reader.GetString(reader.GetOrdinal("SaleDescription")),
+                                    CustomerName = reader.GetString("CustomerName"),
+                                    SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     IsDeleted = reader.GetBoolean("IsDeleted"),
-                                    CreatedDate = reader.IsDBNull(reader.GetOrdinal("CreatedDate"))
-                      ? null
-                      : reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                                    CreatedBy = reader.IsDBNull(reader.GetOrdinal("CreatedBy"))
-                      ? null
-                      : reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                                    ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate"))
-                      ? null
-                      : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-                                    ModifiedBy = reader.IsDBNull(reader.GetOrdinal("ModifiedBy"))
-                      ? null
-                      : reader.GetInt64(reader.GetOrdinal("ModifiedBy"))
+                                    CreatedDate = reader.IsDBNull("CreatedDate") ? null : reader.GetDateTime("CreatedDate"),
+                                    CreatedBy = reader.IsDBNull("CreatedBy") ? null : reader.GetInt64("CreatedBy"),
+                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
+                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy")
                                 };
-
                                 salesList.Add(sale);
+                            }
+                            await reader.NextResultAsync();
+
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.GetInt32(reader.GetOrdinal("TotalRecords"));
                             }
 
                             // Apply pagination manually
-                            var totalCount = salesList.Count;
+                            var totalCount = totalRecords;
                             var offset = (pageNumber - 1) * (pageSize ?? 10);
-                            var pagedSalesList = salesList.Skip(offset).Take(pageSize ?? 10).ToList();
+                            var pagedSalesList = offset;
 
-                            viewModel.SalesList = pagedSalesList;
+                            viewModel.SalesList = salesList;
                             viewModel.CurrentPage = pageNumber;
                             viewModel.PageSize = pageSize ?? 10;
                             viewModel.TotalCount = totalCount;
@@ -142,14 +119,15 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    var sql = @"SELECT SaleId, BillNumber, SaleDate, TotalAmount, DiscountAmount, TotalReceivedAmount, 
-                                      TotalDueAmount, CustomerId_FK, SaleDescription, IsDeleted, CreatedDate, CreatedBy, 
-                                      ModifiedDate, ModifiedBy 
-                               FROM Sales WHERE SaleId = @SaleId";
+                    //var sql = @"SELECT SaleId, BillNumber, SaleDate, TotalAmount, DiscountAmount, TotalReceivedAmount, 
+                    //                  TotalDueAmount, CustomerId_FK, SaleDescription, IsDeleted, CreatedDate, CreatedBy, 
+                    //                  ModifiedDate, ModifiedBy 
+                    //           FROM Sales WHERE SaleId = @SaleId";
                     
-                    using (var command = new SqlCommand(sql, connection))
+                    using (var command = new SqlCommand("GetSaleBySaleId", connection))
                     {
-                        command.Parameters.AddWithValue("@SaleId", id);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", id);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -170,7 +148,11 @@ namespace IMS.Services
                                     CreatedDate = reader.IsDBNull("CreatedDate") ? DateTime.MinValue : reader.GetDateTime("CreatedDate"),
                                     CreatedBy = reader.IsDBNull("CreatedBy") ? 0 : reader.GetInt64("CreatedBy"),
                                     ModifiedDate = reader.IsDBNull("ModifiedDate") ? DateTime.MinValue : reader.GetDateTime("ModifiedDate"),
-                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? 0 : reader.GetInt64("ModifiedBy")
+                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? 0 : reader.GetInt64("ModifiedBy"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
+                                    OnlineAccountId = reader.IsDBNull("OnlineAccountId") ? 0 : reader.GetInt64("OnlineAccountId"),
+                                    PersonalPaymentId = reader.IsDBNull("PersonalPaymentId") ? 0 : reader.GetInt64("PersonalPaymentId"),
+
                                 };
                             }
                         }
@@ -388,7 +370,7 @@ namespace IMS.Services
                     command.Parameters.AddWithValue("@pCreatedDate", createdDate);
                     command.Parameters.AddWithValue("@pCreatedBy", createdBy);
                     command.Parameters.AddWithValue("@pTransactionStatusId", transactionStatusId);
-                    command.Parameters.AddWithValue("@pSaleId", saleId);
+                    command.Parameters.AddWithValue("@pSaleId", saleId==0 ? DBNull.Value : saleId);
 
                     SqlParameter saleDetailsIdParam = new SqlParameter("@transactionId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
                     command.Parameters.Add(saleDetailsIdParam);
@@ -488,14 +470,15 @@ namespace IMS.Services
                             {
                                 saleDetails.Add(new SaleDetailViewModel
                                 {
-                                    ProductId = reader.GetInt64("ProductId_FK"),
-                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
-                                    ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
-                                    UnitPrice = reader.GetDecimal("UnitPrice"),
-                                    Quantity = reader.GetInt64("Quantity"),
-                                    SalePrice = reader.GetDecimal("SalePrice"),
-                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
-                                    PayableAmount = reader.GetDecimal("PayableAmount")
+                                    ProductId = reader.IsDBNull("PrductId_FK") ? 0 : reader.GetInt64("PrductId_FK"),
+                                    ProductRangeId = reader.IsDBNull("ProductRangeId_FK") ? 0 : reader.GetInt64("ProductRangeId_FK"),
+                                    ProductName = reader.IsDBNull("ProductName") ? string.Empty : reader.GetString("ProductName"),
+                                    MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
+                                    UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
+                                    SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount")
                                 });
                             }
                         }
@@ -508,6 +491,85 @@ namespace IMS.Services
                 throw;
             }
             return saleDetails;
+        }
+
+        public async Task<SalePrintViewModel> GetSaleForPrintAsync(long saleId)
+        {
+            var salePrint = new SalePrintViewModel();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    // Get sale information
+                    var saleSql = @"SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
+                                          s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SaleDescription,
+                                          c.CustomerName
+                                   FROM Sales s
+                                   LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+                                   WHERE s.SaleId = @SaleId";
+                    
+                    using (var command = new SqlCommand(saleSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                salePrint.SaleId = reader.GetInt64("SaleId");
+                                salePrint.BillNumber = reader.GetInt64("BillNumber");
+                                salePrint.SaleDate = reader.GetDateTime("SaleDate");
+                                salePrint.TotalAmount = reader.GetDecimal("TotalAmount");
+                                salePrint.DiscountAmount = reader.GetDecimal("DiscountAmount");
+                                salePrint.TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount");
+                                salePrint.TotalDueAmount = reader.GetDecimal("TotalDueAmount");
+                                salePrint.CustomerIdFk = reader.GetInt64("CustomerId_FK");
+                                salePrint.CustomerName = reader.IsDBNull("CustomerName") ? "Unknown Customer" : reader.GetString("CustomerName");
+                                salePrint.SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription");
+                            }
+                        }
+                    }
+
+                    // Get sale details with product names
+                    var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
+                                             sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
+                                             p.ProductName
+                                      FROM SaleDetails sd
+                                      LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                                      WHERE sd.SaleId_FK = @SaleId";
+                    
+                    using (var command = new SqlCommand(detailsSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@SaleId", saleId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                salePrint.SaleDetails.Add(new SaleDetailPrintViewModel
+                                {
+                                    ProductId = reader.GetInt64("PrductId_FK"),
+                                    ProductName = reader.IsDBNull("ProductName") ? "Unknown Product" : reader.GetString("ProductName"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.GetInt64("Quantity"),
+                                    SalePrice = reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.GetDecimal("PayableAmount"),
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sale for print");
+                throw;
+            }
+            return salePrint;
         }
 
         public async Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId)
@@ -621,19 +683,28 @@ namespace IMS.Services
             var productSizes = new List<ProductSizeViewModel>();
             try
             {
+                _logger.LogInformation("=== DEBUGGING: GetProductUnitPriceRangeByProductIdAsync called with productId: {ProductId}", productId);
+                
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
+                    _logger.LogInformation("Database connection opened successfully");
                     
                     using (var command = new SqlCommand("GetProductUnitPriceRangeByProductId", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductId", productId);
+                        _logger.LogInformation("Executing stored procedure GetProductUnitPriceRangeByProductId with productId: {ProductId}", productId);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
+                            int recordCount = 0;
                             while (await reader.ReadAsync())
                             {
+                                recordCount++;
+                                _logger.LogInformation("Reading record {Count} - ProductRangeId: {ProductRangeId}, RangeFrom: {RangeFrom}, RangeTo: {RangeTo}, UnitPrice: {UnitPrice}, MeasuringUnit: {MeasuringUnitName}", 
+                                    recordCount, reader.GetInt64("ProductRangeId"), reader.GetDecimal("RangeFrom"), reader.GetDecimal("RangeTo"), reader.GetDecimal("UnitPrice"), reader.GetString("MeasuringUnitName"));
+                                
                                 var productSize = new ProductSizeViewModel
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
@@ -647,9 +718,11 @@ namespace IMS.Services
                                 };
                                 productSizes.Add(productSize);
                             }
+                            _logger.LogInformation("Total records read from database: {Count}", recordCount);
                         }
                     }
                 }
+                _logger.LogInformation("Returning {Count} product sizes from GetProductUnitPriceRangeByProductIdAsync", productSizes.Count);
             }
             catch (Exception ex)
             {
@@ -661,7 +734,8 @@ namespace IMS.Services
 
         public async Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
             long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
-            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate)
+            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
+            string paymentMethod = null, long? onlineAccountId = null)
         {
             long saleId = 0;
             int returnValue = 0;
@@ -686,6 +760,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pBillNumber", billNumber);
                         command.Parameters.AddWithValue("@pSaleDescription", saleDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleDate", saleDate);
+                        command.Parameters.AddWithValue("@pPaymentMethod", paymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pOnlineAccountId", onlineAccountId ?? (object)DBNull.Value);
 
                         var salesIdParam = new SqlParameter("@pSalesId", SqlDbType.BigInt)
                         {
@@ -738,6 +814,64 @@ namespace IMS.Services
                 return 0; // Return 0 if there's an error
             }
             return response;
+        }
+
+        public async Task<long> ProcessOnlinePaymentTransactionAsync(long personalPaymentId, long saleId, decimal creditAmount, 
+            string transactionDescription, long createdBy, DateTime? createdDate = null)
+        {
+            long transactionDetailId = 0;
+            int returnValue = 0;
+            
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("ProcessOnlinePaymentTransaction", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pPersonalPaymentId", personalPaymentId);
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        command.Parameters.AddWithValue("@pCreditAmount", creditAmount);
+                        command.Parameters.AddWithValue("@pTransactionDescription", 
+                            string.IsNullOrEmpty(transactionDescription) ? (object)DBNull.Value : transactionDescription);
+                        command.Parameters.AddWithValue("@pCreatedBy", createdBy);
+                        command.Parameters.AddWithValue("@pCreatedDate", createdDate ?? (object)DBNull.Value);
+                        
+                        var transactionDetailIdParam = new SqlParameter("@pPersonalPaymentSaleDetailId", SqlDbType.BigInt)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(transactionDetailIdParam);
+                        
+                        var returnValueParam = new SqlParameter("@pReturnValue", SqlDbType.Int)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(returnValueParam);
+                        
+                        await command.ExecuteNonQueryAsync();
+                        
+                        transactionDetailId = (long)transactionDetailIdParam.Value;
+                        returnValue = (int)returnValueParam.Value;
+                        
+                        if (returnValue < 0)
+                        {
+                            _logger.LogError("Error processing online payment transaction. Return value: {ReturnValue}", returnValue);
+                            throw new Exception($"Failed to process online payment transaction. Error code: {returnValue}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing online payment transaction for PersonalPaymentId: {PersonalPaymentId}, SaleId: {SaleId}", 
+                    personalPaymentId, saleId);
+                throw;
+            }
+            
+            return transactionDetailId;
         }
     }
 }

@@ -12,6 +12,7 @@ namespace IMS.Models
 
         // Bill Details
         public long? VendorId { get; set; }
+        public long? CreatedBy { get; set; }
         public long BillNumber { get; set; }
         public DateTime BillDate { get; set; } = DateTime.Today;
         public decimal TotalAmount { get; set; }

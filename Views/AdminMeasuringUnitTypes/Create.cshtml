@@ -2,35 +2,59 @@
 @model AdminMeasuringUnitType;
 
 <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <h2 class="mb-0">Create Admin Measuring Unit Type</h2>
-    </div>
-    <div class="card-body">
-        <form asp-action="Create">
-            <div class="mb-3">
-                <label asp-for="MeasuringUnitTypeName" class="form-label"></label>
-                <input asp-for="MeasuringUnitTypeName" class="form-control" />
-                <span asp-validation-for="MeasuringUnitTypeName" class="text-danger"></span>
+                <div class="card-header bg-primary text-white py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fa fa-plus-circle me-2"></i>
+                        <h4 class="mb-0">Create Measuring Unit Type</h4>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Create" id="measuringUnitTypeForm" novalidate>
+                        <div class="mb-3">
+                            <label asp-for="MeasuringUnitTypeName" class="form-label fw-semibold">
+                                <i class="fa fa-ruler me-1"></i>@Html.DisplayNameFor(m => m.MeasuringUnitTypeName)
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="MeasuringUnitTypeName" class="form-control form-control-lg" 
+                                   placeholder="Enter measuring unit type name" 
+                                   required />
+                            <span asp-validation-for="MeasuringUnitTypeName" class="text-danger small"></span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="MeasuringUnitTypeDescription" class="form-label fw-semibold">
+                                <i class="fa fa-align-left me-1"></i>@Html.DisplayNameFor(m => m.MeasuringUnitTypeDescription)
+                            </label>
+                            <textarea asp-for="MeasuringUnitTypeDescription" class="form-control" 
+                                      rows="3" 
+                                      placeholder="Enter description (optional)"></textarea>
+                            <span asp-validation-for="MeasuringUnitTypeDescription" class="text-danger small"></span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" id="isEnabledSwitch" />
+                                <label asp-for="IsEnabled" class="form-check-label fw-semibold" for="isEnabledSwitch">
+                                    <i class="fa fa-toggle-on me-1"></i>@Html.DisplayNameFor(m => m.IsEnabled)
+                                </label>
+                            </div>
+                            <span asp-validation-for="IsEnabled" class="text-danger small"></span>
+                        </div>
+                       
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                                <i class="fa fa-times me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fa fa-save me-1"></i>Create Unit Type
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="mb-3">
-                <label asp-for="MeasuringUnitTypeDescription" class="form-label"></label>
-                <input asp-for="MeasuringUnitTypeDescription" class="form-control" placeholder="Must enter some desciption" />
-                <span asp-validation-for="MeasuringUnitTypeDescription" class="text-danger"></span>
-            </div>
-            <div class="mb-3 form-check form-switch">
-                <input type="checkbox" asp-for="IsEnabled" class="form-check-input" />
-                <label asp-for="IsEnabled" class="form-check-label" class="form-control"></label>
-                <span asp-validation-for="IsEnabled" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <button type="submit" class="btn btn-success">Create</button>
-                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/form-validation.js"></script>
 }

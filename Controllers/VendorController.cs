@@ -5,6 +5,7 @@ using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using NuGet.Protocol.Core.Types;
 using System.Threading.Tasks;
 
@@ -209,5 +210,29 @@ namespace IMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // AJAX endpoint to get vendors for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetVendors()
+        {
+            try
+            {
+                var vendors = await _vndorservice.GetAllEnabledVendors();
+                var result = vendors.Select(v => new
+                {
+                    value = v.SupplierId.ToString(),
+                    text = v.SupplierName
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendors for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+
     }
 }

@@ -63,10 +63,17 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
                     expenseType.CreatedBy = userId;
                     expenseType.CreatedDate = DateTime.Now;
                     expenseType.ModifiedBy = userId;
                     expenseType.ModifiedDate = DateTime.Now;
+                    
+                    // Ensure optional fields are properly handled
+                    if (string.IsNullOrWhiteSpace(expenseType.ExpenseTypeDescription))
+                        expenseType.ExpenseTypeDescription = null;
+                    
                     var result = await _expenseType.CreateExpenseTypeAsync(expenseType);
                     if (result)
                     {
@@ -79,10 +86,18 @@ namespace IMS.Controllers
                         return View(expenseType);
                     }
                 }
+                else
+                {
+                    // Log validation errors for debugging
+                    foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        Console.WriteLine($"Validation Error: {error.ErrorMessage}");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = ex.Message;
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
                 return View(expenseType);
             }
             return View(expenseType);

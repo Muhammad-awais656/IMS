@@ -8,6 +8,7 @@ namespace IMS.Common_Interfaces
         public Task<int> GetTotalProductCount();
         public Task<int> GetTotalCategoryCount();
         public Task<SalesChartViewModel> GetLast12MonthsSalesAsync();
+        public Task<decimal> GetCurrentMonthRevenueAsync();
         public Task<List<StockStaus>> GetStockStatusAsync(long? productId);
 
 

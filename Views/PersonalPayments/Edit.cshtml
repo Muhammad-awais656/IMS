@@ -1,0 +1,140 @@
+@model IMS.DAL.PrimaryDBContext.PersonalPayment
+@{
+    ViewData["Title"] = "Edit Personal Payment";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fa-solid fa-edit me-2"></i>Edit Personal Payment
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit" method="post">
+                        <input asp-for="PersonalPaymentId" type="hidden" />
+                        <input asp-for="CreatedBy" type="hidden" />
+                        <input asp-for="CreatedDate" type="hidden" />
+                        
+                        <div class="row">
+                            <!-- Bank Information -->
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fa-solid fa-university me-2"></i>Bank Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="BankName" class="form-label">Bank Name <span class="text-danger">*</span></label>
+                                <input asp-for="BankName" class="form-control" placeholder="Enter bank name" required />
+                                <span asp-validation-for="BankName" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="AccountNumber" class="form-label">Account Number <span class="text-danger">*</span></label>
+                                <input asp-for="AccountNumber" class="form-control" placeholder="Enter account number" required />
+                                <span asp-validation-for="AccountNumber" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="AccountHolderName" class="form-label">Account Holder Name <span class="text-danger">*</span></label>
+                                <input asp-for="AccountHolderName" class="form-control" placeholder="Enter account holder name" required />
+                                <span asp-validation-for="AccountHolderName" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="BankBranch" class="form-label">Bank Branch</label>
+                                <input asp-for="BankBranch" class="form-control" placeholder="Enter bank branch" />
+                                <span asp-validation-for="BankBranch" class="text-danger"></span>
+                            </div>
+                            
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="row">
+                            <!-- Payment Information -->
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fa-solid fa-credit-card me-2"></i>Payment Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="CreditAmount" class="form-label">Credit Amount</label>
+                                <input asp-for="CreditAmount" class="form-control" placeholder="0.00" step="0.01" min="0" />
+                                <span asp-validation-for="CreditAmount" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="DebitAmount" class="form-label">Debit Amount</label>
+                                <input asp-for="DebitAmount" class="form-control" placeholder="0.00" step="0.01" min="0" />
+                                <span asp-validation-for="DebitAmount" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="PaymentDescription" class="form-label">Payment Description <span class="text-danger">*</span></label>
+                                <input asp-for="PaymentDescription" class="form-control" placeholder="Enter payment description" required />
+                                <span asp-validation-for="PaymentDescription" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="PaymentDate" class="form-label">Payment Date <span class="text-danger">*</span></label>
+                                <input asp-for="PaymentDate" class="form-control" type="date" required />
+                                <span asp-validation-for="PaymentDate" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label asp-for="IsActive" class="form-label">Status</label>
+                                <div class="form-check form-switch">
+                                    <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                                    <label asp-for="IsActive" class="form-check-label">Active</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audit Information -->
+                        <hr class="my-4">
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-3">
+                                    <i class="fa-solid fa-info-circle me-2"></i>Audit Information
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Created Date:</label>
+                                <input type="text" class="form-control" value="@Model.CreatedDate.ToString("MMM dd, yyyy HH:mm")" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Modified:</label>
+                                <input type="text" class="form-control" value="@Model.ModifiedDate.ToString("MMM dd, yyyy HH:mm")" readonly />
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-end">
+                                    <a asp-action="Index" class="btn btn-secondary me-2">
+                                        <i class="fa-solid fa-arrow-left me-1"></i>Back to List
+                                    </a>
+                                    <a asp-action="Details" asp-route-id="@Model.PersonalPaymentId" class="btn btn-info me-2">
+                                        <i class="fa-solid fa-eye me-1"></i>View Details
+                                    </a>
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fa-solid fa-save me-1"></i>Update Payment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

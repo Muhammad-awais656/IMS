@@ -18,7 +18,8 @@ namespace IMS.Common_Interfaces
         Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId);
         Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
             long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
-            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate);
+            decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
+            string paymentMethod = null, long? onlineAccountId = null);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);
         long AddSaleDetails(long saleId, long productId, decimal unitPrice, long quantity, decimal salePrice,
             decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue);
@@ -32,5 +33,12 @@ namespace IMS.Common_Interfaces
         // Edit Sale functionality methods
         Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId);
         Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId);
+        
+        // Online Payment Transaction methods
+        Task<long> ProcessOnlinePaymentTransactionAsync(long personalPaymentId, long saleId, decimal creditAmount, 
+            string transactionDescription, long createdBy, DateTime? createdDate = null);
+        
+        // Print Receipt methods
+        Task<SalePrintViewModel> GetSaleForPrintAsync(long saleId);
     }
 }

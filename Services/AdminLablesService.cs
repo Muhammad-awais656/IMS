@@ -30,7 +30,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
+                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
                         command.Parameters.AddWithValue("@pCreatedDate", adminLabel?.CreatedDate == default(DateTime) ? DBNull.Value : adminLabel?.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", adminLabel?.CreatedBy != null ? adminLabel.CreatedBy : DBNull.Value);
@@ -114,7 +114,7 @@ namespace IMS.Services
                                     {
                                         LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
                                         LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        LabelDescription = reader.IsDBNull(reader.GetOrdinal("LabelDescription")) ? null : reader.GetString(reader.GetOrdinal("LabelDescription")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -181,7 +181,7 @@ namespace IMS.Services
                                     {
                                         LabelId = reader.GetInt64(reader.GetOrdinal("LabelId")),
                                         LabelName = reader.GetString(reader.GetOrdinal("LabelName")),
-                                        LabelDescription = reader.GetString(reader.GetOrdinal("LabelDescription")),
+                                        LabelDescription = reader.IsDBNull(reader.GetOrdinal("LabelDescription")) ? null : reader.GetString(reader.GetOrdinal("LabelDescription")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
@@ -286,7 +286,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pLabelName", adminLabel.LabelName);
-                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription);
+                        command.Parameters.AddWithValue("@pLabelDescription", adminLabel.LabelDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminLabel.IsEnabled);
                         command.Parameters.AddWithValue("@ModifiedDate", adminLabel?.ModifiedDate == default(DateTime) ? DBNull.Value : adminLabel?.ModifiedDate);
                         command.Parameters.AddWithValue("@ModifiedBy", adminLabel?.ModifiedBy != null ? adminLabel.ModifiedBy : DBNull.Value);

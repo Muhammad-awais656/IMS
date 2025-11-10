@@ -100,7 +100,7 @@ namespace IMS.Controllers
                 FromDate = fromDate ?? DateTime.Now, // default today if null
                 ToDate = toDate ?? DateTime.Now
             };
-            var model = await _reportService.GetAllSales(pageNumber, currentPageSize, salesReportsFilters);
+            var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Sales Report");
@@ -133,7 +133,7 @@ public async Task<IActionResult> ExportPdf(int pageNumber = 1, int? pageSize = n
                 ToDate = toDate ?? DateTime.Now
             };
 
-            var model = await _reportService.GetAllSales(pageNumber, currentPageSize, salesReportsFilters);
+            var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
 
         using (var stream = new MemoryStream())
         {

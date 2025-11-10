@@ -83,8 +83,31 @@ namespace IMS.Controllers
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
                     customer.CreatedBy = userId;
                     customer.CreatedDate = DateTime.Now;
+                    customer.ModifiedBy = userId;
+                    customer.ModifiedDate = DateTime.Now;
+                    
+                    // Ensure optional fields are properly handled
+                    if (string.IsNullOrWhiteSpace(customer.CustomerEmail))
+                        customer.CustomerEmail = null;
+                    
+                    if (string.IsNullOrWhiteSpace(customer.CustomerEmailCc))
+                        customer.CustomerEmailCc = null;
+                    
+                    if (string.IsNullOrWhiteSpace(customer.CustomerAddress))
+                        customer.CustomerAddress = null;
+                    
+                    if (customer.InvoiceCreditPeriod == 0)
+                        customer.InvoiceCreditPeriod = null;
+                    
+                    if (customer.StartWorkingTime == default(TimeOnly))
+                        customer.StartWorkingTime = null;
+                    
+                    if (customer.EndWorkingTime == default(TimeOnly))
+                        customer.EndWorkingTime = null;
 
                     var result = await _customerService.CreateCustomerAsync(customer);
                     if (result)
@@ -95,13 +118,21 @@ namespace IMS.Controllers
                     else
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(nameof(Index));
+                        return View(customer);
+                    }
+                }
+                else
+                {
+                    // Log validation errors for debugging
+                    foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        Console.WriteLine($"Validation Error: {error.ErrorMessage}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = ex.Message;
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
                 return View(customer);
             }
             return View(customer);
@@ -132,10 +163,32 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    customer.ModifiedDate = DateTime.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
+                    
+                    // Handle null values for optional fields
+                    customer.ModifiedDate = DateTime.Now;
                     customer.ModifiedBy = userId;
+                    
+                    // Ensure optional fields are properly handled
+                    if (string.IsNullOrWhiteSpace(customer.CustomerEmail))
+                        customer.CustomerEmail = null;
+                    
+                    if (string.IsNullOrWhiteSpace(customer.CustomerEmailCc))
+                        customer.CustomerEmailCc = null;
+                    
+                    if (string.IsNullOrWhiteSpace(customer.CustomerAddress))
+                        customer.CustomerAddress = null;
+                    
+                    if (customer.InvoiceCreditPeriod == 0)
+                        customer.InvoiceCreditPeriod = null;
+                    
+                    if (customer.StartWorkingTime == default(TimeOnly))
+                        customer.StartWorkingTime = null;
+                    
+                    if (customer.EndWorkingTime == default(TimeOnly))
+                        customer.EndWorkingTime = null;
+                    
                     var response = await _customerService.UpdateCustomerAsync(customer); 
                     if (response != 0)
                     {
@@ -147,14 +200,20 @@ namespace IMS.Controllers
                         TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
                         return View(customer);
                     }
-
                 }
                 catch (Exception ex)
                 {
-                    TempData["ErrorMessage"] = ex.Message;
-
+                    TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                    return View(customer);
                 }
-
+            }
+            else
+            {
+                // Log validation errors for debugging
+                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    Console.WriteLine($"Validation Error: {error.ErrorMessage}");
+                }
             }
             return View(customer);
         }

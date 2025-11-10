@@ -1,0 +1,297 @@
+@model dynamic
+@{
+    Layout = null; // Disable main layout for clean print
+    int srNo = 1;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Purchase Order Receipt - @Model.Bill.BillId</title>
+    <style>
+        /* ===== Print Settings ===== */
+        @@media print {
+            @@page {
+                size: 80mm auto;  /* standard 80mm thermal printer width */
+                margin: 0;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                font-weight: 900;
+                line-height: 1.3;
+                width: 80mm;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        /* ===== Receipt Styling ===== */
+        body {
+            background: #fff;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+        }
+
+        .receipt-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .receipt-header p {
+            margin: 2px 0;
+            font-size: 14px;
+        }
+
+        .receipt-info {
+            margin-bottom: 10px;
+        }
+
+        .receipt-info p {
+            margin: 2px 0;
+            font-size: 14px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .table th,
+        .table td {
+            text-align: left;
+            font-size: 13px;
+            padding: 2px 0;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .table th {
+            border-bottom: 1px dashed #000;
+            font-weight: bold;
+        }
+
+        .table td:last-child,
+        .table th:last-child {
+            text-align: right;
+        }
+
+        .total {
+            border-top: 1px dashed #000;
+            padding-top: 5px;
+            margin-top: 10px;
+        }
+
+        .total p {
+            margin: 2px 0;
+            font-size: 14px;
+        }
+
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
+
+        .footer {
+            text-align: center;
+            border-top: 1px dashed #000;
+            padding-top: 5px;
+            font-size: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #007bff;
+            color: #fff;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn-print {
+            background: #28a745;
+        }
+
+        .btn-print:hover {
+            background: #1e7e34;
+        }
+
+        .receipt-details {
+            margin-bottom: 10px;
+        }
+
+        .receipt-details p {
+            margin: 1px 0;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="receipt-header">
+            <h2>Purchase Order</h2>
+            <p>Your Trusted Business Partner</p>
+        </div>
+
+        <div class="receipt-info">
+            <p><strong>Vendor:</strong> @Model.Bill.VendorName</p>
+            <p><strong>Bill #:</strong> @Model.Bill.BillNumber</p>
+            <p><strong>Date:</strong> @Model.Bill.BillDate.ToString("dd-MM-yyyy hh:mm tt")</p>
+            @if (!string.IsNullOrEmpty(Model.Bill.Description))
+            {
+                <p><strong>Description:</strong> @Model.Bill.Description</p>
+            }
+            @if (ViewBag.MerchantCopy == true)
+            {
+                <p><strong>Merchant Copy</strong></p>
+            }
+            else
+            {
+                <p><strong>Vendor Copy</strong></p>
+            }
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sr#</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.BillItems != null && Model.BillItems.Count > 0)
+                {
+                    @foreach (var item in Model.BillItems)
+                    {
+                        <tr>
+                            <td>@srNo</td>
+                            <td>@item.ProductName</td>
+                            <td>@item.Quantity</td>
+                            <td>@item.UnitPrice.ToString("N2")</td>
+                            <td>@item.PayableAmount.ToString("N2")</td>
+                        </tr>
+                        srNo++;
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center">No items found</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="total">
+            <p><strong>Sub Total:</strong> <span class="text-right">@Model.Bill.TotalAmount.ToString("N2")</span></p>
+            @if (Model.Bill.DiscountAmount > 0)
+            {
+                <p><strong>Discount:</strong> <span class="text-right">@Model.Bill.DiscountAmount.ToString("N2")</span></p>
+            }
+            <p><strong>Total Amount:</strong> <span class="text-right">@Model.Bill.TotalPayableAmount.ToString("N2")</span></p>
+            @if (Model.Bill.PaidAmount > 0)
+            {
+                <p><strong>Paid Amount:</strong> <span class="text-right">@Model.Bill.PaidAmount.ToString("N2")</span></p>
+            }
+            @if (Model.Bill.DueAmount > 0)
+            {
+                <p><strong>Total Balance:</strong> <span class="text-right">@Model.Bill.DueAmount.ToString("N2")</span></p>
+            }
+            else if (Model.Bill.PaidAmount > 0)
+            {
+                <p><strong>Balance:</strong> <span class="text-right">Fully Paid</span></p>
+            }
+        </div>
+        <p><strong>Generated By:</strong> @User.Identity.Name</p>
+        @if (ViewBag.MerchantCopy == true)
+        {
+            <p><strong>Merchant Copy</strong></p>
+        }
+        else
+        {
+            <p><strong>Vendor Copy</strong></p>
+        }
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>Visit us again soon</p>
+            <p>Powered By AJ CORE Technologies</p>
+        </div>
+    </div>
+
+    <div class="text-center no-print" style="margin-top:10px;">
+        <button class="btn btn-print" onclick="window.print()">🖨️ Print Receipt</button>
+        @if (ViewBag.MerchantCopy == true)
+        {
+            <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false })" class="btn">👤 Vendor Copy</a>
+        }
+        else
+        {
+            <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true })" class="btn">🏪 Merchant Copy</a>
+        }
+        <a href="@Url.Action("Index", "VendorBills")" class="btn">📋 Back to Bills</a>
+    </div>
+
+    <script>
+        // Auto-print when page loads if coming from Save and Print
+        window.onload = function() {
+            // Check if this is a print request
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('print') === 'true') {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            }
+            
+            // Handle auto-print for both copies
+            @if (ViewBag.AutoPrint == true)
+            {
+                <text>
+                // Auto-print both vendor and merchant copies in separate tabs
+                setTimeout(function() {
+                    // Open vendor copy in new tab and print
+                    const vendorUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false, autoPrint = false })' + '?print=true';
+                    const vendorWindow = window.open(vendorUrl, '_blank');
+                    
+                    // Open merchant copy in another new tab after a delay
+                    setTimeout(function() {
+                        const merchantUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true, autoPrint = false })' + '?print=true';
+                        const merchantWindow = window.open(merchantUrl, '_blank');
+                        
+                        // Show notification
+                        if (typeof showSuccessMessage === 'function') {
+                            showSuccessMessage('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+                        } else {
+                            alert('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+                        }
+                    }, 1000);
+                }, 500);
+                </text>
+            }
+        };
+    </script>
+</body>
+</html>

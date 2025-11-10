@@ -1,0 +1,139 @@
+﻿.defaultDropdown .k-block,
+.defaultDropdown .k-widget,
+.defaultDropdown .k-popup,
+.defaultDropdown .k-content,
+.defaultDropdown .k-select,
+.defaultDropdown .k-tooltip-validation,
+.defaultDropdown .k-dropdown .k-dropdown-wrap,
+.defaultDropdown .k-dropdown .k-input {
+    background: #FFF;
+    display: block;
+    white-space: pre;
+    min-height: 30px;
+    color: #495057;
+    border-radius: 5px;
+    font-family: 'CircularStd', sans-serif !important;
+    font-weight: 400;
+    font-size: 15px;
+}
+.defaultDropdown .k-dropdown .k-dropdown-wrap,
+.defaultDropdown .k-dropdown .k-state-default {
+    padding: 4px 4px 4px 4px;
+}
+.k-dropdown-wrap.k-state-default,
+.k-dropdown-wrap.k-state-focused {
+    border: 1px solid #e3e3e3;
+    box-shadow: none !important;
+    webkit-box-shadow: none !important;
+}
+.k-list-container.k-popup {
+    box-shadow: none !important;
+    webkit-box-shadow: none !important;
+}
+    .defaultMultiSelect .k-multiselect .k-button {
+        color: #fff;
+        border-color: #1E90FF;
+        background-color: #1E90FF;
+    }
+
+.defaultAutoComplete{
+
+}
+
+.k-multiselect-wrap > .k-input {
+    color: #000; 
+}
+
+.k-multiselect-wrap > .k-input:focus {
+    color: #000;
+}
+
+.defaultDropdown .k-dropdown .k-list-container {
+    background: #FFF;
+}
+
+.k-list-container {
+    background: white;
+}
+    .k-list-container .k-list .k-item {
+        color: #212529;
+    }
+.k-list-optionlabel {
+    font-family: 'CircularStd', sans-serif !important;
+    font-weight: 400;
+    font-size: 15px;
+    min-height: 1.2em !important;
+    padding: 5px 15px !important;
+    background-color: white !important;
+    color: #212529;
+}
+    .k-list-container .k-state-hover {
+        background: #1E90FF;
+    }
+
+    .k-list-container .k-state-hover {
+        background: #1E90FF;
+    }
+
+    .k-list-container .k-state-selected {
+        background: #1E90FF;
+        border-radius: 0px;
+        border: none;
+        border-color: white;
+    }
+
+    .k-list-container .k-listbox .k-item, .k-popup .k-list .k-item {
+        border-radius: 0px;
+        border: none;
+        font-family: 'CircularStd', sans-serif !important;
+        font-weight: 400;
+        font-size: 15px;
+        min-height: 1.2em !important;
+        padding: 5px 12px;
+    }
+.k-list .k-item:hover {
+    color: white;
+}
+    
+.k-list-container .k-list > .k-state-focused.k-state-selected, .k-listview > .k-state-focused.k-state-selected, .k-state-focused.k-state-selected, td.k-state-focused.k-state-selected {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+}
+
+.k-list-container .k-list:not(.k-state-selected):hover > .k-state-selected {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    background: white;
+    color: #212529; 
+}
+.k-list-container .k-item:hover, .k-list-optionlabel:hover {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    background: #1E90FF !important;
+    color: white !important;
+}
+    .k-list-container .k-item:hover .k-list-optionlabel {
+        -webkit-box-shadow: none !important;
+        box-shadow: none !important;
+        color: #212529 !important;
+        background: white !important;
+    }
+.defaultDropdown > .k-widget, .defaultDropdown > .k-tooltip, .defaultDropdown > .k-tooltip-validation, .defaultDropdown > .k-invalid-msg {
+    color: #212529 !important;
+    font-family: 'Arial' !important;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    border: none;
+    box-shadow: none !important;
+    color: #212529;
+    text-align: left;
+    padding-left: 0px !important;
+    padding-top: 1px;
+}
+.defaultDropdown > .k-invalid-msg > .k-icon, .defaultDropdown > .k-invalid-msg > .k-i-warning {
+	display: none;
+}
+.k-list .k-item:hover .k-item.k-state-selected.k-state-focused {
+    background-color: black !important;
+    color: white !important;
+}

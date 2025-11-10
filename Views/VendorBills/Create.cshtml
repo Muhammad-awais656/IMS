@@ -1,6 +1,7 @@
 @model IMS.Models.GenerateBillViewModel
 @{
-    ViewBag.Title = "Generate Bill";
+    bool isEdit = ViewBag.IsEdit == true;
+    ViewBag.Title = isEdit ? "Edit Bill" : "Generate Bill";
 }
 
 <div class="container-fluid mt-3">
@@ -10,11 +11,11 @@
                 <div class="card-header bg-gradient-primary text-white">
                     <h2 class="mb-0 text-center">
                         <i class="fa-solid fa-file-invoice me-2"></i>
-                        Generate Bill
+                        @(isEdit ? "Edit Bill" : "Generate Bill")
                     </h2>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="Create" method="post" id="generateBillForm">
+                    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" id="generateBillForm" onsubmit="return validateForm()">
                         <input type="hidden" asp-for="BillId" />
                         <input type="hidden" asp-for="ActionType" />
 
@@ -32,15 +33,11 @@
                                         <div class="row g-3">
                                             <div class="col-md-3">
                                                 <label for="productSelect" class="form-label">Product :</label>
-                                                <select id="productSelect" asp-items="ViewBag.Products" class="form-select" onchange="loadProductSizes()">
-                                                    <option value="">--Select a value--</option>
-                                                </select>
+                                                <input id="productSelect" name="ProductId" style="width: 100%;" />
                                             </div>
                                             <div class="col-md-3">
                                                 <label for="productSizeSelect" class="form-label">Product size :</label>
-                                                <select id="productSizeSelect" class="form-select">
-                                                    <option value="">--Select a value--</option>
-                                                </select>
+                                                <input id="productSizeSelect" name="ProductSizeId" style="width: 100%;" />
                                             </div>
                                             <div class="col-md-2">
                                                 <label for="unitPrice" class="form-label">Unit price :</label>
@@ -65,7 +62,7 @@
                                                 <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
                                             </div>
                                             <div class="col-md-6 d-flex align-items-end">
-                                                <button type="button" class="btn btn-success me-2" onclick="addProductToTable()">
+                                                <button type="button" id="addUpdateButton" class="btn btn-success me-2" onclick="addProductToTable()">
                                                     <i class="fa-solid fa-plus me-1"></i> Add
                                                 </button>
                                                 <button type="button" class="btn btn-warning" onclick="resetProductFields()">
@@ -128,18 +125,7 @@
                                             <div class="col-md-6">
                                                 <label asp-for="VendorId" class="form-label">Vendor :</label>
                                                 <div class="input-group">
-                                                    <select asp-for="VendorId" class="form-select" onchange="loadPreviousDue()">
-                                                        <option value="">--Select a value--</option>
-                                                        @if (Model?.VendorList?.Any() == true)
-                                                        {
-                                                            @foreach (var vendor in Model.VendorList)
-                                                            {
-                                                                <option value="@vendor.SupplierId">
-                                                                    @vendor.SupplierName
-                                                                </option>
-                                                            }
-                                                        }
-                                                    </select>
+                                                    <input asp-for="VendorId" id="vendorSelect" style="width: 100%;" />
                                                     <button type="button" class="btn btn-outline-success" onclick="addNewVendor()">
                                                         <i class="fa-solid fa-plus"></i>
                                                     </button>
@@ -148,7 +134,14 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label asp-for="BillNumber" class="form-label">Bill # :</label>
-                                                <input asp-for="BillNumber" class="form-control" value="0" />
+                                                @if (isEdit)
+                                                {
+                                                    <input asp-for="BillNumber" class="form-control" readonly />
+                                                }
+                                                else
+                                                {
+                                                    <input asp-for="BillNumber" class="form-control" value="@ViewBag.NextBillNumber" readonly />
+                                                }
                                                 <span asp-validation-for="BillNumber" class="text-danger"></span>
                                             </div>
                                             <div class="col-md-3">
@@ -207,20 +200,20 @@
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-6"><strong>Total Amount:</strong></div>
-                                            <div class="col-6 text-end" id="totalAmountDisplay">$0.00</div>
+                                            <div class="col-6 text-end" id="totalAmountDisplay">Rs0.00</div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-6"><strong>Total Discount:</strong></div>
-                                            <div class="col-6 text-end" id="totalDiscountDisplay">$0.00</div>
+                                            <div class="col-6 text-end" id="totalDiscountDisplay">Rs0.00</div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-6"><strong>Paid Amount:</strong></div>
-                                            <div class="col-6 text-end" id="paidAmountDisplay">$0.00</div>
+                                            <div class="col-6 text-end" id="paidAmountDisplay">Rs0.00</div>
                                         </div>
                                         <hr>
                                         <div class="row mb-2">
                                             <div class="col-6"><strong>Due Amount:</strong></div>
-                                            <div class="col-6 text-end" id="dueAmountDisplay">$0.00</div>
+                                            <div class="col-6 text-end" id="dueAmountDisplay">Rs0.00</div>
                                         </div>
                                     </div>
                                 </div>
@@ -230,10 +223,10 @@
                         <!-- Action Buttons -->
                         <div class="row mt-4">
                             <div class="col-12 text-center">
-                                <button type="submit" name="ActionType" value="saveAndPrint" class="btn btn-primary btn-lg me-3">
+                                <button type="submit" onclick="setActionType('saveAndPrint')" class="btn btn-primary btn-lg me-3">
                                     <i class="fa-solid fa-print me-2"></i>Save and Print
                                 </button>
-                                <button type="submit" name="ActionType" value="save" class="btn btn-success btn-lg me-3">
+                                <button type="submit" onclick="setActionType('save')" class="btn btn-success btn-lg me-3">
                                     <i class="fa-solid fa-save me-2"></i>Save
                                 </button>
                                 <a asp-action="Index" class="btn btn-danger btn-lg">
@@ -310,64 +303,231 @@
     <script>
         let rowIndex = 0;
         let selectedProductSize = null;
+        let isEditMode = false;
+        let editingRowIndex = -1;
+        let editingRow = null;
+
+        // Initialize Kendo UI ComboBoxes
+        function initializeKendoDropdowns() {
+            console.log("Initializing Kendo UI dropdowns for VendorBills Create...");
+            
+            // Product Selection Combobox
+            $("#productSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetProducts",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    loadProductSizes();
+                }
+            });
+
+            // Product Size Selection Combobox
+            $("#productSizeSelect").kendoComboBox({
+                dataSource: {
+                    data: []
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Size --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                enabled: false,
+                change: function() {
+                    console.log('Product size changed');
+                    onProductSizeChange();
+                }
+            });
+
+            // Vendor Selection Combobox
+            $("#vendorSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Vendor/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Vendor --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    loadPreviousDue();
+                    loadNextBillNumber();
+                }
+            });
+
+            console.log("Kendo UI dropdowns initialized successfully for VendorBills Create");
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Kendo UI dropdowns
+            initializeKendoDropdowns();
+            
             // Set today's date as default
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('BillDate').value = today;
             
             // Initialize form
             resetProductFields();
+            
+            // Load existing bill items if in edit mode
+            @if (isEdit && Model.BillItems?.Any() == true)
+            {
+                <text>
+                loadExistingBillItems();
+                </text>
+            }
         });
 
-        function loadProductSizes() {
+        // Debounce timer for product size loading
+        let productSizeLoadTimer = null;
+
+        function loadProductSizes(skipFormReset = false) {
             const productSelect = document.getElementById('productSelect');
             const productId = productSelect.value;
-            const sizeSelect = document.getElementById('productSizeSelect');
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
 
-            // Clear existing options
-            sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
-            
-            // Reset fields
-            resetProductFields();
+            // Clear any existing timer
+            if (productSizeLoadTimer) {
+                clearTimeout(productSizeLoadTimer);
+            }
+
+            // Reset only form fields, not the dropdowns (unless editing)
+            if (!skipFormReset) {
+                resetFormFieldsOnly();
+            }
 
             if (productId) {
-                // Show loading
-                sizeSelect.innerHTML = '<option value="">Loading...</option>';
+                // Enable the size combo and show loading
+                sizeCombo.enable(true);
+                sizeCombo.dataSource.data([]);
+                sizeCombo.text("Loading...");
                 
+                // Add a small delay to prevent rapid calls
+                productSizeLoadTimer = setTimeout(() => {
                 // AJAX call to fetch product sizes
                 fetch(`/VendorBills/GetProductSizes?productId=${productId}`)
-                    .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
                     .then(data => {
-                        sizeSelect.innerHTML = '<option value="">--Select a value--</option>';
-                        data.forEach(size => {
-                            const option = document.createElement('option');
-                            option.value = size.value;
-                            option.text = size.text;
-                            option.dataset.productRangeId = size.productRangeId;
-                            option.dataset.measuringUnitId = size.measuringUnitId;
-                            option.dataset.rangeFrom = size.rangeFrom;
-                            option.dataset.rangeTo = size.rangeTo;
-                            option.dataset.unitPrice = size.unitPrice;
-                            option.dataset.measuringUnitName = size.measuringUnitName;
-                            option.dataset.measuringUnitAbbreviation = size.measuringUnitAbbreviation;
-                            sizeSelect.appendChild(option);
-                        });
+                            // Update the Kendo ComboBox data source
+                            sizeCombo.dataSource.data(data);
+                            sizeCombo.text("");
+                            sizeCombo.enable(true);
+                            console.log('Product sizes loaded successfully:', data.length, 'items');
                     })
                     .catch(error => {
                         console.error('Error loading product sizes:', error);
-                        sizeSelect.innerHTML = '<option value="">Error loading sizes</option>';
-                    });
+                            sizeCombo.dataSource.data([]);
+                            sizeCombo.text("Error loading sizes");
+                            sizeCombo.enable(false);
+                        });
+                }, 100); // 100ms delay
+            } else {
+                // Disable the size combo
+                sizeCombo.dataSource.data([]);
+                sizeCombo.text("");
+                sizeCombo.enable(false);
             }
         }
 
         function resetProductFields() {
+            // Reset product selection
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            if (productCombo) {
+                productCombo.value("");
+                productCombo.text("");
+            }
+
+            // Reset product size selection
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            if (sizeCombo) {
+                sizeCombo.value("");
+                sizeCombo.text("");
+                sizeCombo.enable(false);
+            }
+
+            // Reset form fields - quantity to 1, others to 0
+            document.getElementById('quantity').value = '1';
             document.getElementById('unitPrice').value = '0';
             document.getElementById('unitPurchasePrice').value = '0';
-            document.getElementById('quantity').value = '1';
             document.getElementById('discountAmount').value = '0';
             document.getElementById('payableAmount').value = '0';
+
+            // Reset selected product size data
             selectedProductSize = null;
+            
+            // Reset edit mode and button
+            isEditMode = false;
+            editingRowIndex = -1;
+            editingRow = null;
+            resetButtonToAdd();
+        }
+
+        function resetButtonToAdd() {
+            const addUpdateButton = document.getElementById('addUpdateButton');
+            addUpdateButton.innerHTML = '<i class="fa-solid fa-plus me-1"></i> Add';
+            addUpdateButton.className = 'btn btn-success me-2';
+        }
+
+        function resetFormFieldsOnly() {
+            // Reset only form fields, not the dropdowns
+            document.getElementById('quantity').value = '1';
+            document.getElementById('unitPrice').value = '0';
+            document.getElementById('unitPurchasePrice').value = '0';
+            document.getElementById('discountAmount').value = '0';
+            document.getElementById('payableAmount').value = '0';
+        }
+
+        function onProductSizeChange() {
+            debugger;
+            console.log('onProductSizeChange called');
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            const selectedItem = sizeCombo.dataItem();
+            
+            console.log('Selected item:', selectedItem);
+            
+            if (selectedItem) {
+                // Populate unit price from selected product size
+                document.getElementById('unitPrice').value = selectedItem.unitPrice || '0';
+                document.getElementById('unitPurchasePrice').value = selectedItem.unitPrice || '0';
+                
+                // Store selected product size data
+                selectedProductSize = {
+                    productRangeId: selectedItem.productRangeId,
+                    unitPrice: selectedItem.unitPrice,
+                    measuringUnitName: selectedItem.measuringUnitName,
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+                };
+                
+                console.log('selectedProductSize set:', selectedProductSize);
+                
+                // Recalculate payable amount
+                calculatePayableAmount();
+            } else {
+                // Reset fields if no item selected
+                resetProductFields();
+            }
         }
 
         function calculatePayableAmount() {
@@ -382,64 +542,316 @@
         }
 
         function addProductToTable() {
-            const productSelect = document.getElementById('productSelect');
-            const sizeSelect = document.getElementById('productSizeSelect');
+            console.log('addProductToTable called, isEditMode:', isEditMode);
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            const productId = productCombo ? productCombo.value() : null;
+            const productName = productCombo ? productCombo.text() : '';
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
             const unitPurchasePrice = parseFloat(document.getElementById('unitPurchasePrice').value) || 0;
-            const quantity = parseInt(document.getElementById('quantity').value) || 0;
             const discountAmount = parseFloat(document.getElementById('discountAmount').value) || 0;
             const payableAmount = parseFloat(document.getElementById('payableAmount').value) || 0;
-
-            if (!productSelect.value || !sizeSelect.value || quantity <= 0) {
-                alert('Please select product, size, and enter valid quantity.');
+            const totalDiscount = discountAmount * quantity; // Calculate total discount from per-unit discount
+            
+            console.log('Adding/Updating product to table:', {
+                productId: productId,
+                productName: productName,
+                quantity: quantity,
+                unitPrice: unitPrice,
+                discount: discountAmount,
+                totalDiscount: totalDiscount,
+                payable: payableAmount,
+                expectedPayable: (unitPrice * quantity) - discountAmount,
+                selectedProductSize: selectedProductSize,
+                isEditMode: isEditMode,
+                editingRowIndex: editingRowIndex
+            });
+            
+            // Validation
+            if (!productId) {
+                showWarningMessage('Please select a product.');
                 return;
             }
 
-            const productName = productSelect.options[productSelect.selectedIndex].text;
-            const productCode = productSelect.options[productSelect.selectedIndex].dataset.code;
-            const productSize = sizeSelect.options[sizeSelect.selectedIndex].text;
+            if (!sizeCombo.value()) {
+                showWarningMessage('Please select a product size.');
+                return;
+            }
+
+            if (!selectedProductSize) {
+                // Try to get selectedProductSize from the size combo
+                const sizeItem = sizeCombo.dataItem();
+                if (sizeItem) {
+                    selectedProductSize = {
+                        productRangeId: sizeItem.value,
+                        unitPrice: sizeItem.unitPrice,
+                        measuringUnitName: sizeItem.measuringUnitName,
+                        measuringUnitAbbreviation: sizeItem.measuringUnitAbbreviation
+                    };
+                    console.log('Set selectedProductSize from size combo:', selectedProductSize);
+                } else {
+                    showWarningMessage('Please select a product size from the dropdown.');
+                    return;
+                }
+            }
+
+            if (quantity <= 0) {
+                showWarningMessage('Please enter a valid quantity.');
+                return;
+            }
+
+            if (unitPrice <= 0) {
+                showWarningMessage('Please enter a valid unit price.');
+                return;
+            }
+
+            // Check for duplicate products
+            const existingRows = document.querySelectorAll('#productListBody tr');
+            for (let row of existingRows) {
+                const existingProductId = row.querySelector('input[name*=".ProductId"]');
+                if (existingProductId && existingProductId.value === productId) {
+                    showWarningMessage('This product has already been added to the bill. Please remove it first or update the quantity.');
+                    return;
+                }
+            }
+
+            const productItem = productCombo.dataItem();
+            const sizeItem = sizeCombo.dataItem();
+            const productCode = productItem.code || 'N/A';
+            const productSize = sizeItem.text;
 
             const tableBody = document.getElementById('productListBody');
-            const newRow = tableBody.insertRow();
+            let targetRow;
             
-            newRow.innerHTML = `
-                <td>${productCode}</td>
+            if (isEditMode) {
+                // Update existing row - find the row by index
+                console.log('=== UPDATE MODE DEBUG ===');
+                console.log('- isEditMode:', isEditMode);
+                console.log('- editingRowIndex:', editingRowIndex);
+                console.log('- editingRow stored:', editingRow);
+                
+                // Get all rows in the table
+                const allRows = tableBody.querySelectorAll('tr');
+                console.log('- Total rows in table:', allRows.length);
+                console.log('- All rows:', allRows);
+                console.log('- Table body:', tableBody);
+                
+                // Find the row by index
+                if (editingRowIndex >= 0 && editingRowIndex < allRows.length) {
+                    targetRow = allRows[editingRowIndex];
+                    console.log('✅ Found row at index:', editingRowIndex, targetRow);
+                    console.log('✅ Row content before update:', targetRow.innerHTML);
+                } else {
+                    console.error('❌ Invalid editing row index:', editingRowIndex);
+                    console.error('❌ Available rows count:', allRows.length);
+                    console.error('❌ All rows array:', Array.from(allRows));
+                    showWarningMessage('Error: Could not find the row to update. Please try again.');
+                    return;
+                }
+            } else {
+                // Add new row
+                targetRow = tableBody.insertRow();
+                console.log('Adding new row');
+            }
+            
+            // Validate targetRow before proceeding
+            if (!targetRow) {
+                console.error('targetRow is null or undefined');
+                showWarningMessage('Error: Could not find the target row. Please try again.');
+                return;
+            }
+            
+            console.log('targetRow found:', targetRow);
+            if (isEditMode) {
+                // Update existing row content
+                console.log('=== UPDATING ROW CONTENT ===');
+                console.log('Current row content:', targetRow.innerHTML);
+                const newContent = `
+                    <td>${selectedProductSize ? selectedProductSize.measuringUnitAbbreviation : 'N/A'}</td>
                 <td>${productName}</td>
                 <td>$${unitPrice.toFixed(2)}</td>
                 <td>$${unitPurchasePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
-                <td>$${discountAmount.toFixed(2)}</td>
+                    <td>$${totalDiscount.toFixed(2)}</td>
                 <td>$${payableAmount.toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)">
+                        <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                console.log('New content to set:', newContent);
+                targetRow.innerHTML = newContent;
+                console.log('✅ Row updated successfully. New content:', targetRow.innerHTML);
+            } else {
+                // Add new row
+                const rowId = `row-${rowIndex}`;
+                targetRow.innerHTML = `
+                    <td>${selectedProductSize ? selectedProductSize.measuringUnitAbbreviation : 'N/A'}</td>
+                    <td>${productName}</td>
+                    <td>$${unitPrice.toFixed(2)}</td>
+                    <td>$${unitPurchasePrice.toFixed(2)}</td>
+                    <td>${quantity}</td>
+                    <td>$${totalDiscount.toFixed(2)}</td>
+                    <td>$${payableAmount.toFixed(2)}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
             `;
+                
+                // Set the row ID for easier identification
+                targetRow.setAttribute('data-row-id', rowId);
+            }
 
             // Store data in hidden inputs
-            newRow.innerHTML += `
-                <input type="hidden" name="BillItems[${rowIndex}].ProductId" value="${productSelect.value}" />
-                <input type="hidden" name="BillItems[${rowIndex}].ProductRangeId" value="${sizeSelect.value}" />
-                <input type="hidden" name="BillItems[${rowIndex}].ProductCode" value="${productCode}" />
-                <input type="hidden" name="BillItems[${rowIndex}].ProductName" value="${productName}" />
-                <input type="hidden" name="BillItems[${rowIndex}].ProductSize" value="${productSize}" />
-                <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
-                <input type="hidden" name="BillItems[${rowIndex}].BillPrice" value="${unitPurchasePrice}" />
-                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
-                <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
-                <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />
+            const currentRowIndex = isEditMode ? editingRowIndex : rowIndex;
+            targetRow.innerHTML += `
+                <input type="hidden" name="BillItems[${currentRowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].ProductRangeId" value="${sizeCombo.value()}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].ProductCode" value="${productCode}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].ProductName" value="${productName}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].ProductSize" value="${productSize}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].UnitPrice" value="${unitPrice}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].BillPrice" value="${unitPurchasePrice}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].DiscountAmount" value="${discountAmount}" />
+                <input type="hidden" name="BillItems[${currentRowIndex}].PayableAmount" value="${payableAmount}" />
             `;
 
+            if (!isEditMode) {
             rowIndex++;
+            }
+            
+            // Reset edit mode and button
+            console.log('Resetting edit mode after update');
+            isEditMode = false;
+            editingRowIndex = -1;
+            editingRow = null;
+            resetButtonToAdd();
+            
             updateTotals();
             resetProductFields();
+            console.log('Update completed successfully');
         }
 
         function removeProductRow(button) {
             const row = button.closest('tr');
             row.remove();
             updateTotals();
+        }
+
+        function editProductRow(button) {
+            const row = button.closest('tr');
+            const cells = row.cells;
+            
+            // Set edit mode
+            isEditMode = true;
+            editingRow = row; // Store the row reference directly
+            const tableBody = document.getElementById('productListBody');
+            const allRows = tableBody.querySelectorAll('tr');
+            editingRowIndex = Array.from(allRows).indexOf(row);
+            console.log('Edit mode set:');
+            console.log('- Total rows in table:', allRows.length);
+            console.log('- Target row:', row);
+            console.log('- editingRowIndex:', editingRowIndex);
+            console.log('- editingRow stored:', editingRow);
+            console.log('- All rows:', allRows);
+            
+            // Verify the row is still in the table
+            if (editingRowIndex === -1) {
+                console.error('❌ Row not found in table! This should not happen.');
+                console.error('❌ Row:', row);
+                console.error('❌ All rows:', allRows);
+                showWarningMessage('Error: Could not find the row to edit. Please try again.');
+                return;
+            }
+            
+            console.log('✅ Edit mode successfully set');
+            console.log('✅ Row index:', editingRowIndex);
+            console.log('✅ Row element:', row);
+            
+            // Change button to Update
+            const addUpdateButton = document.getElementById('addUpdateButton');
+            addUpdateButton.innerHTML = '<i class="fa-solid fa-edit me-1"></i> Update';
+            addUpdateButton.className = 'btn btn-warning me-2';
+            
+            // Get current values from the row
+            const productCode = cells[0].textContent;
+            const productName = cells[1].textContent;
+            const unitPrice = parseFloat(cells[2].textContent.replace('$', ''));
+            const unitPurchasePrice = parseFloat(cells[3].textContent.replace('$', ''));
+            const quantity = parseInt(cells[4].textContent);
+            const discountAmount = parseFloat(cells[5].textContent.replace('$', ''));
+            const payableAmount = parseFloat(cells[6].textContent.replace('$', ''));
+            
+            // Get hidden input values
+            const productId = row.querySelector('input[name*=".ProductId"]').value;
+            const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
+            const productSize = row.querySelector('input[name*=".ProductSize"]').value;
+            
+            console.log('Editing product:', {
+                productId: productId,
+                productName: productName,
+                productSize: productSize,
+                productRangeId: productRangeId,
+                unitPrice: unitPrice,
+                quantity: quantity,
+                editingRowIndex: editingRowIndex
+            });
+            
+            // Get combo boxes
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
+            
+            // Set the form fields with current values
+            document.getElementById('unitPrice').value = unitPrice;
+            document.getElementById('unitPurchasePrice').value = unitPurchasePrice;
+            document.getElementById('quantity').value = quantity;
+            document.getElementById('discountAmount').value = discountAmount;
+            document.getElementById('payableAmount').value = payableAmount;
+            
+            // Select the product in the combo box
+            if (productId) {
+                productCombo.value(productId);
+                productCombo.text(productName);
+                
+                // Load product sizes for the selected product (skip form reset)
+                loadProductSizes(true);
+                
+                // Wait for sizes to load, then select the correct size
+                setTimeout(() => {
+                    if (productRangeId) {
+                        sizeCombo.value(productRangeId);
+                        sizeCombo.text(productSize);
+                        
+                        // Set the selectedProductSize variable for the edit
+                        const sizeData = sizeCombo.dataSource.data();
+                        const selectedSize = sizeData.find(s => s.value === productRangeId);
+                        if (selectedSize) {
+                            selectedProductSize = selectedSize;
+                            console.log('Product size selected for edit:', selectedSize);
+                        }
+                    }
+                }, 800); // Increased delay to ensure sizes are loaded
+            }
+            
+            // Don't remove the row during edit - we'll update it in place
+            // row.remove(); // Commented out - we'll update the existing row instead
+            // updateTotals(); // Don't update totals yet - we'll do it after the update
+            
+            console.log('✅ Edit mode setup completed');
+            console.log('✅ Form fields populated');
+            console.log('✅ Button changed to Update');
+            console.log('✅ Ready for update operation');
         }
 
         function updateTotals() {
@@ -449,20 +861,24 @@
             let totalItems = 0;
 
             rows.forEach(row => {
-                const payable = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace('$', '')) || 0;
-                const discount = parseFloat(row.querySelector('td:nth-child(6)').textContent.replace('$', '')) || 0;
-                const quantity = parseInt(row.querySelector('td:nth-child(5)').textContent) || 0;
+                // Check if row has the expected number of cells
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 7) {
+                    const payable = parseFloat(cells[6].textContent.replace('Rs', '')) || 0;
+                    const discount = parseFloat(cells[5].textContent.replace('Rs', '')) || 0;
+                    const quantity = parseInt(cells[4].textContent) || 0;
                 
                 totalAmount += payable;
                 totalDiscount += discount;
                 totalItems += quantity;
+                }
             });
 
             document.getElementById('TotalAmount').value = totalAmount.toFixed(2);
             document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
             document.getElementById('totalItems').textContent = totalItems;
-            document.getElementById('totalAmountDisplay').textContent = '$' + totalAmount.toFixed(2);
-            document.getElementById('totalDiscountDisplay').textContent = '$' + totalDiscount.toFixed(2);
+            document.getElementById('totalAmountDisplay').textContent = 'Rs' + totalAmount.toFixed(2);
+            document.getElementById('totalDiscountDisplay').textContent = 'Rs' + totalDiscount.toFixed(2);
             
             calculateDueAmount();
         }
@@ -472,20 +888,34 @@
             const paidAmount = parseFloat(document.getElementById('PaidAmount').value) || 0;
             const previousDue = parseFloat(document.getElementById('PreviousDue').value) || 0;
             
-            const dueAmount = Math.max(0, totalAmount - paidAmount + previousDue);
+            const dueAmount = Math.max(0, totalAmount - paidAmount );
             
             document.getElementById('DueAmount').value = dueAmount.toFixed(2);
-            document.getElementById('paidAmountDisplay').textContent = '$' + paidAmount.toFixed(2);
-            document.getElementById('dueAmountDisplay').textContent = '$' + dueAmount.toFixed(2);
+            document.getElementById('paidAmountDisplay').textContent = 'Rs' + paidAmount.toFixed(2);
+            document.getElementById('dueAmountDisplay').textContent = 'Rs' + dueAmount.toFixed(2);
         }
 
         function loadPreviousDue() {
-            const vendorId = document.getElementById('VendorId').value;
+            debugger;
+            const vendorId = document.getElementById('vendorSelect').value;
+            console.log('loadPreviousDue called with vendorId:', vendorId);
+            
             if (vendorId) {
+                const url = '@Url.Action("GetPreviousDue", "VendorBills")' + '?vendorId=' + vendorId;
+                console.log('Making request to:', url);
+                
                 // Load previous due amount via AJAX
-                fetch('@Url.Action("GetPreviousDue", "VendorBills")' + '?vendorId=' + vendorId)
-                    .then(response => response.json())
+                fetch(url)
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        console.log('Response ok:', response.ok);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Response data:', data);
                         document.getElementById('PreviousDue').value = data.previousDue || 0;
                         calculateDueAmount();
                     })
@@ -493,8 +923,44 @@
                         console.error('Error loading previous due:', error);
                     });
             } else {
+                console.log('No vendorId provided, setting PreviousDue to 0');
                 document.getElementById('PreviousDue').value = '0';
                 calculateDueAmount();
+            }
+        }
+
+        function loadNextBillNumber() {
+            const vendorId = document.getElementById('vendorSelect').value;
+            console.log('loadNextBillNumber called with vendorId:', vendorId);
+            
+            if (vendorId) {
+                const url = '@Url.Action("GetNextBillNumber", "VendorBills")' + '?vendorId=' + vendorId;
+                console.log('Making request to:', url);
+                
+                // Load next bill number via AJAX
+                fetch(url)
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        console.log('Response ok:', response.ok);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Response data:', data);
+                        if (data.success) {
+                            document.getElementById('BillNumber').value = data.billNumber;
+                            console.log('Bill number updated to:', data.billNumber);
+                        } else {
+                            console.error('Failed to get next bill number:', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading next bill number:', error);
+                    });
+            } else {
+                console.log('No vendorId provided, keeping current bill number');
             }
         }
 
@@ -503,13 +969,113 @@
             window.open('@Url.Action("Create", "Vendor")', '_blank');
         }
 
-        // Handle size selection
-        document.getElementById('productSizeSelect').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value && selectedOption.dataset.unitPrice) {
-                document.getElementById('unitPrice').value = selectedOption.dataset.unitPrice;
-                calculatePayableAmount();
+        function loadExistingBillItems() {
+            @if (isEdit && Model.BillItems?.Any() == true)
+            {
+                foreach (var item in Model.BillItems)
+                {
+                    <text>
+                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', @item.UnitPrice, @item.Quantity, @item.DiscountAmount, @item.PayableAmount);
+                    </text>
+                }
             }
-        });
+        }
+
+        function addExistingItemToTable(productId, productRangeId, productName, unitPrice, quantity, discountAmount, payableAmount) {
+            const tbody = document.getElementById('productListBody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${productName}</td>
+                <td>${unitPrice.toFixed(3)}</td>
+                <td>${quantity}</td>
+                <td>${discountAmount.toFixed(3)}</td>
+                <td>${payableAmount.toFixed(3)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+                <input type="hidden" name="BillItems[${rowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductRangeId" value="${productRangeId}" />
+                <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
+                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
+                <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />
+            `;
+            tbody.appendChild(row);
+            rowIndex++;
+            updateTotals();
+        }
+
+        // Set ActionType function
+        function setActionType(actionType) {
+            console.log('Setting ActionType to:', actionType);
+            document.getElementById('ActionType').value = actionType;
+        }
+
+        // Show warning message function
+        function showWarningMessage(message) {
+            // Create a more user-friendly warning message
+            alert(message);
+        }
+
+
+        // Form validation function
+        function validateForm() {
+            console.log('validateForm called');
+            const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+            const productTable = document.getElementById('productListBody');
+            
+            console.log('Vendor value:', vendorCombo.value());
+            console.log('Product table rows:', productTable.rows.length);
+            console.log('ActionType value:', document.getElementById('ActionType').value);
+            
+            // Validate vendor selection
+            if (!vendorCombo.value()) {
+                console.log('Validation failed: No vendor selected');
+                showWarningMessage('Please select a vendor.');
+                vendorCombo.focus();
+                return false;
+            }
+            
+            // Validate that at least one product is added
+            if (productTable.rows.length === 0) {
+                console.log('Validation failed: No products added');
+                showWarningMessage('Please add at least one product to the bill.');
+                return false;
+            }
+            
+            // Validate bill date
+            const billDate = document.getElementById('BillDate');
+            console.log('Bill date value:', billDate.value);
+            if (!billDate.value) {
+                console.log('Validation failed: No bill date');
+                showWarningMessage('Please select a bill date.');
+                billDate.focus();
+                return false;
+            }
+            
+            // Validate that all products have valid quantities and prices
+            const rows = productTable.querySelectorAll('tr');
+            for (let row of rows) {
+                const quantityInput = row.querySelector('input[name*=".Quantity"]');
+                const unitPriceInput = row.querySelector('input[name*=".UnitPrice"]');
+                
+                if (quantityInput && (parseFloat(quantityInput.value) <= 0)) {
+                    showWarningMessage('All products must have a valid quantity greater than 0.');
+                    return false;
+                }
+                
+                if (unitPriceInput && (parseFloat(unitPriceInput.value) <= 0)) {
+                    showWarningMessage('All products must have a valid unit price greater than 0.');
+                    return false;
+                }
+            }
+            
+            console.log('Validation passed');
+            return true;
+        }
+
+        // Handle size selection - now handled by Kendo UI combobox change event
     </script>
 }

@@ -30,7 +30,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeName", adminMeasuringUnitType.MeasuringUnitTypeName);
-                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminMeasuringUnitType.IsEnabled);
                         
                         command.Parameters.AddWithValue("@pCreatedDate", adminMeasuringUnitType?.CreatedDate == default(DateTime) ? DBNull.Value : adminMeasuringUnitType?.CreatedDate);
@@ -115,7 +115,7 @@ namespace IMS.Services
                                     {
                                         MeasuringUnitTypeId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId")),
                                         MeasuringUnitTypeName = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName")),
-                                        MeasuringUnitTypeDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
+                                        MeasuringUnitTypeDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
                                        
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
@@ -183,7 +183,7 @@ namespace IMS.Services
                                     {
                                         MeasuringUnitTypeId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId")),
                                         MeasuringUnitTypeName = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeName")),
-                                        MeasuringUnitTypeDescription = reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
+                                        MeasuringUnitTypeDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitTypeDescription")),
                                         
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
@@ -285,7 +285,7 @@ namespace IMS.Services
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeName", adminMeasuringUnitType.MeasuringUnitTypeName);
-                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription);
+                        command.Parameters.AddWithValue("@pMeasuringUnitTypeDescription", adminMeasuringUnitType.MeasuringUnitTypeDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", adminMeasuringUnitType.IsEnabled);
                        
                         command.Parameters.AddWithValue("@pModifiedDate", adminMeasuringUnitType?.ModifiedDate == default(DateTime) ? DBNull.Value : adminMeasuringUnitType?.ModifiedDate);

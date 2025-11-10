@@ -1,0 +1,315 @@
+/* Searchable Dropdown Styles */
+.searchable-dropdown {
+    position: relative;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    z-index: 1000;
+}
+
+.dropdown-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 38px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+    user-select: none;
+}
+
+.dropdown-display:hover {
+    border-color: #007bff;
+}
+
+.dropdown-display:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.selected-text {
+    flex: 1;
+    color: #333;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-arrow {
+    color: #666;
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    margin-left: 8px;
+}
+
+.searchable-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 99999; /* Higher z-index to prevent overflow issues */
+    max-height: 300px;
+    overflow: hidden;
+    display: none;
+    min-width: 200px;
+    /* Prevent overflow and ensure proper positioning */
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+.searchable-dropdown.open .dropdown-menu {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Loading indicator styles */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100000;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #007bff;
+    text-align: center;
+}
+
+/* Improved dropdown positioning */
+.searchable-dropdown {
+    position: relative;
+    z-index: 1000; /* Ensure dropdown container has proper z-index */
+}
+
+/* Prevent dropdown from going off-screen */
+.dropdown-menu {
+    /* If dropdown would go off-screen, position it above */
+    transform: translateY(0);
+}
+
+.dropdown-menu.dropdown-menu-up {
+    top: auto;
+    bottom: 100%;
+    border-top: 1px solid #ddd;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.search-container {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    background-color: #f8f9fa;
+}
+
+.search-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.dropdown-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.dropdown-item.selected {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.dropdown-item.focused {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.dropdown-item.no-results {
+    color: #666;
+    font-style: italic;
+    cursor: default;
+}
+
+.dropdown-item.no-results:hover {
+    background-color: transparent;
+}
+
+/* Custom scrollbar for dropdown list */
+.dropdown-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Animation for dropdown opening */
+.dropdown-menu {
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .dropdown-display {
+        padding: 10px 12px;
+        min-height: 44px;
+    }
+    
+    .selected-text {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .search-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+    .dropdown-display {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .dropdown-display:hover {
+        border-color: #63b3ed;
+    }
+    
+    .dropdown-display:focus {
+        border-color: #63b3ed;
+        box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.25);
+    }
+    
+    .selected-text {
+        color: #e2e8f0;
+    }
+    
+    .dropdown-arrow {
+        color: #a0aec0;
+    }
+    
+    .dropdown-menu {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .search-container {
+        background-color: #1a202c;
+        border-bottom-color: #4a5568;
+    }
+    
+    .search-input {
+        background-color: #1a202c;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .search-input:focus {
+        border-color: #63b3ed;
+        box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.25);
+    }
+    
+    .dropdown-item {
+        color: #e2e8f0;
+        border-bottom-color: #4a5568;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .dropdown-item.focused {
+        background-color: #2b6cb0;
+        color: #e2e8f0;
+    }
+    
+    .dropdown-item.no-results {
+        color: #a0aec0;
+    }
+}

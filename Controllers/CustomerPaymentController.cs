@@ -1,6 +1,7 @@
 ﻿using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using static IMS.Models.CustomerPaymentViewModel;
 
@@ -9,12 +10,14 @@ namespace IMS.Controllers
     public class CustomerPaymentController : Controller
     {
         private readonly ICustomerPaymentService _customerPaymentService;
+        private readonly ISalesService _salesService;
         private readonly ILogger<CustomerPaymentController> _logger;
 
-        public CustomerPaymentController(ICustomerPaymentService customerPaymentService, ILogger<CustomerPaymentController> logger)
+        public CustomerPaymentController(ICustomerPaymentService customerPaymentService, ILogger<CustomerPaymentController> logger, ISalesService salesService)
         {
             _customerPaymentService = customerPaymentService;
             _logger = logger;
+            _salesService = salesService;
         }
 
         public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
@@ -30,7 +33,11 @@ namespace IMS.Controllers
                     PaymentDateFrom = paymentDateFrom,
                     PaymentDateTo = paymentDateTo
                 };
-
+                if (filters.PaymentDateFrom == null && filters.PaymentDateTo==null)
+                {
+                    filters.PaymentDateFrom = DateTime.Now;
+                    filters.PaymentDateTo = DateTime.Now;
+                }
                 var viewModel = await _customerPaymentService.GetAllPaymentsAsync(pageNumber, pageSize ?? 10, filters);
 
                 // Store filter values in ViewData for form persistence
@@ -94,20 +101,50 @@ namespace IMS.Controllers
             {
                 if (ModelState.IsValid)
                 {
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    long userId = long.Parse(userIdStr);
                     var payment = new Payment
                     {
                         PaymentAmount = model.PaymentAmount,
                         SaleId = model.SaleId,
                         CustomerId = model.CustomerId,
                         PaymentDate = model.PaymentDate,
-                        CreatedBy = 1, // TODO: Get from current user session
+                        paymentMethod = model.PaymentMethod,
+                        onlineAccountId = model.OnlineAccountId,
+                        CreatedBy = userId, // TODO: Get from current user session
                         CreatedDate = DateTime.Now,
                         Description = model.Description
                     };
 
                     var result = await _customerPaymentService.CreatePaymentAsync(payment);
+              
                     if (result)
                     {
+                        // Process online payment transaction if payment method is Online
+                        if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
+                        {
+                            try
+                            {
+                                var transactionDescription = $"Added Payment - Sale Id #{model.SaleId} - {model.Description}";
+                                var transactionId = await _salesService.ProcessOnlinePaymentTransactionAsync(
+                                    model.OnlineAccountId.Value,
+                                    model.SaleId,
+                                    model.PaymentAmount, // Credit the received amount to the online account
+                                    transactionDescription,
+                                    userId,
+                                    DateTime.Now
+                                );
+
+                                _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}",
+                                    transactionId, model.SaleId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error processing online payment transaction for Sale ID: {SaleId}", model.SaleId);
+                                // Don't fail the entire sale if online payment processing fails
+                                // Just log the error and continue
+                            }
+                        }
                         TempData["SuccessMessage"] = "Payment created successfully.";
                         return RedirectToAction(nameof(Index));
                     }
@@ -151,7 +188,9 @@ namespace IMS.Controllers
                     SaleId = payment.SaleId,
                     CustomerId = payment.CustomerId,
                     PaymentDate = payment.PaymentDate,
-                    Description = payment.Description
+                    Description = payment.Description,
+                    PaymentMethod = payment.paymentMethod,
+                    OnlineAccountId = payment.onlineAccountId
                 };
                 viewModel.CustomerList = await _customerPaymentService.GetAllCustomersAsync();
                 viewModel.SalesList = await _customerPaymentService.GetAllSalesAsync();
@@ -181,6 +220,8 @@ namespace IMS.Controllers
                         SaleId = model.SaleId,
                         CustomerId = model.CustomerId,
                         PaymentDate = model.PaymentDate,
+                        paymentMethod = model.PaymentMethod,
+                        onlineAccountId = model.OnlineAccountId,
                         ModifiedBy = 1, // TODO: Get from current user session
                         ModifiedDate = DateTime.Now,
                         Description = model.Description
@@ -256,6 +297,21 @@ namespace IMS.Controllers
                 TempData["ErrorMessage"] = "An error occurred while deleting the payment.";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCustomerBills(long customerId)
+        {
+            try
+            {
+                var bills = await _customerPaymentService.GetCustomerBillsAsync(customerId);
+                return Json(new { success = true, bills = bills });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching customer bills for customer {CustomerId}", customerId);
+                return Json(new { success = false, message = "Error fetching customer bills" });
+            }
         }
     }
 }

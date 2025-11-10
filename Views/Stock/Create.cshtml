@@ -21,14 +21,15 @@
                             <span asp-validation-for="ProductIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
-                            <label asp-for="TotalQuantity" class="form-label">Total Quantity:</label>
-                            <input asp-for="TotalQuantity" class="form-control" type="number" step="1" />
+                            <label asp-for="TotalQuantity" class="form-label">New Stock Quantity:</label>
+                            <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" />
+                            <small class="form-text text-muted">Quantity of new stock being added</small>
                             <span asp-validation-for="TotalQuantity" class="text-danger"></span>
                         </div>
                         <div class="col">
                             <label asp-for="AvailableQuantity" class="form-label">Available Quantity:</label>
-                            <input asp-for="AvailableQuantity" class="form-control" type="number" step="1" readonly />
-                            <small class="form-text text-muted">Auto-calculated from total quantity</small>
+                            <input asp-for="AvailableQuantity" class="form-control" type="number" step="0.001" readonly />
+                            <small class="form-text text-muted">Shows current available stock + new stock being added</small>
                         </div>
                       @*   <div class="col">
                             <label asp-for="UsedQuantity" class="form-label">Used Quantity:</label>
@@ -89,15 +90,57 @@
                 }
             });
 
+            // Handle product selection to load existing stock
+            $('#ProductIdFk').change(function() {
+                var productId = $(this).val();
+                if (productId && productId !== '') {
+                    loadExistingStock(productId);
+                } else {
+                    // Clear available quantity if no product selected
+                    $('#AvailableQuantity').val(0);
+                }
+            });
+
             // Auto-calculate available quantity when total quantity changes
             $('#TotalQuantity').on('input', function() {
-                const totalQty = parseInt($(this).val()) || 0;
-                const currentUsed = parseInt($('#UsedQuantity').val()) || 0;
+                const newStockQty = parseFloat($(this).val()) || 0;
+                const existingAvailable = parseFloat($('#AvailableQuantity').data('existing-available')) || 0;
                 
-                // Available = Total - Used (Used remains unchanged)
-                const newAvailable = Math.max(0, totalQty - currentUsed);
+                // New available = Existing available + New stock quantity
+                const newAvailable = existingAvailable + newStockQty;
                 $('#AvailableQuantity').val(newAvailable);
             });
+
+            function loadExistingStock(productId) {
+                $.ajax({
+                    url: '@Url.Action("GetExistingStock", "Stock")',
+                    type: 'GET',
+                    data: { productId: productId },
+                    success: function(data) {
+                        if (data.success) {
+                            // Store existing available quantity for calculation
+                            $('#AvailableQuantity').data('existing-available', data.availableQuantity);
+                            $('#AvailableQuantity').val(data.availableQuantity);
+                            
+                            // Update the label to show existing stock info
+                            const label = $('label[for="AvailableQuantity"]');
+                            label.html('Available Quantity: <small class="text-muted">(Current: ' + data.availableQuantity + ')</small>');
+                        } else {
+                            // No existing stock
+                            $('#AvailableQuantity').data('existing-available', 0);
+                            $('#AvailableQuantity').val(0);
+                            
+                            const label = $('label[for="AvailableQuantity"]');
+                            label.html('Available Quantity: <small class="text-muted">(No existing stock)</small>');
+                        }
+                    },
+                    error: function() {
+                        console.error('Error loading existing stock');
+                        $('#AvailableQuantity').data('existing-available', 0);
+                        $('#AvailableQuantity').val(0);
+                    }
+                });
+            }
         });
     </script>
 }

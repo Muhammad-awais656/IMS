@@ -8,37 +8,63 @@
 @if(role != null)
 {
     <header>
-        <div style="width: inherit; height: fit-content; background-color:gold; display: flex; align-items: center; justify-content: space-between; padding:inherit">
-            <!-- Empty left side for balance -->
-            <div style="flex: 1;"></div>
-
-            <!-- Center: Project Name -->
-            <h1 style="text-decoration:solid; color: gray; margin: 0; flex: 1; text-align: center;">
-                IMTraders
-            </h1>
-
-            <!-- Right: Username, Role, and Logout (Profile-like) -->
-            <div style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+        <div style="width: inherit; height: fit-content; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; padding: 15px 25px; border-bottom: 3px solid #5a67d8;">
+            <!-- Left: Domain Information -->
+            <div style="flex: 1; text-align: left; display: flex; align-items: center; gap: 15px;">
                 @if (Context.User.Identity.IsAuthenticated)
                 {
-                    <span style="font-weight: bold; color: navy;">
-                        @Context.User.Identity.Name
-                    </span>
-                    <span style="color: gray; font-style: italic;">
+                    var domain = "";
+                    {
+                         domain = Context.Session.GetString("Domain");
+                    }
+                    @if (!string.IsNullOrEmpty(domain))
+                    {
+                        <span style="font-weight: bold; color: #ffffff; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <i class="fa-solid fa-building me-2"></i>Domain(@domain)
+                        </span>
+                    }
+                }
+            </div>
+           
+            <!-- Center: Project Name -->
+            <div style="flex: 1; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); letter-spacing: 1px;">
+                    <i class="fa-solid fa-store me-2"></i>M Zahoor Traders
+                </h1>
+                <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 12px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px;">
+                    Inventory Management System
+                </p>
+            </div>
 
-                        (@role)
-
-
-                    </span>
-                    @* <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">
-                        Logout
-                    </a> *@
-                    <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-circle-user"></i> <span>Logout</span></a>
+            <!-- Right: Username, Role, and Logout (Profile-like) -->
+            <div style="flex: 1; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
+                @if (Context.User.Identity.IsAuthenticated)
+                {
+                    <!-- User Info Container -->
+                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 10px 18px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <!-- User Icon -->
+                        <i class="fa-solid fa-user-circle" style="color: #ffffff; font-size: 20px;"></i>
+                        
+                        <!-- User Details -->
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <span style="font-weight: bold; color: #ffffff; font-size: 14px; line-height: 1.2; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">
+                                @Context.User.Identity.Name
+                            </span>
+                            <span style="color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">
+                                @role
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Logout Button -->
+                    <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-light btn-sm" style="border-radius: 25px; padding: 10px 18px; font-weight: 600; border: 2px solid rgba(255,255,255,0.3); color: #ffffff; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'">
+                        <i class="fa-solid fa-sign-out-alt me-2"></i>Logout
+                    </a>
                 }
                 else
                 {
-                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-sm">
-                        Login
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-light btn-sm" style="border-radius: 25px; padding: 10px 18px; font-weight: 600; border: 2px solid rgba(255,255,255,0.3); color: #ffffff; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'">
+                        <i class="fa-solid fa-sign-in-alt me-2"></i>Login
                     </a>
                 }
             </div>
