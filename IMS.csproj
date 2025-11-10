@@ -7,6 +7,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Filters\**" />
+    <Compile Remove="Helpers\**" />
+    <Compile Remove="Images\**" />
+    <Content Remove="Filters\**" />
+    <Content Remove="Helpers\**" />
+    <Content Remove="Images\**" />
+    <EmbeddedResource Remove="Filters\**" />
+    <EmbeddedResource Remove="Helpers\**" />
+    <EmbeddedResource Remove="Images\**" />
+    <None Remove="Filters\**" />
+    <None Remove="Helpers\**" />
+    <None Remove="Images\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="EPPlus" Version="8.0.8" />
     <PackageReference Include="FontAwesome" Version="4.7.0" />
@@ -20,12 +35,6 @@
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.MSSqlServer" Version="8.2.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Filters\" />
-    <Folder Include="Helpers\" />
-    <Folder Include="Images\" />
   </ItemGroup>
 
   <ItemGroup>
