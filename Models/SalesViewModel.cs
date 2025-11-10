@@ -21,6 +21,8 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductSize { get; set; }
+        public string ProductName { get; set; }
+        public string MeasuringUnitAbbreviation { get; set; }
         public decimal UnitPrice { get; set; }
         public long Quantity { get; set; }
         public decimal SalePrice { get; set; }

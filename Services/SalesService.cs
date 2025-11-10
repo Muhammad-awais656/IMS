@@ -119,14 +119,15 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    var sql = @"SELECT SaleId, BillNumber, SaleDate, TotalAmount, DiscountAmount, TotalReceivedAmount, 
-                                      TotalDueAmount, CustomerId_FK, SaleDescription, IsDeleted, CreatedDate, CreatedBy, 
-                                      ModifiedDate, ModifiedBy 
-                               FROM Sales WHERE SaleId = @SaleId";
+                    //var sql = @"SELECT SaleId, BillNumber, SaleDate, TotalAmount, DiscountAmount, TotalReceivedAmount, 
+                    //                  TotalDueAmount, CustomerId_FK, SaleDescription, IsDeleted, CreatedDate, CreatedBy, 
+                    //                  ModifiedDate, ModifiedBy 
+                    //           FROM Sales WHERE SaleId = @SaleId";
                     
-                    using (var command = new SqlCommand(sql, connection))
+                    using (var command = new SqlCommand("GetSaleBySaleId", connection))
                     {
-                        command.Parameters.AddWithValue("@SaleId", id);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", id);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -147,7 +148,11 @@ namespace IMS.Services
                                     CreatedDate = reader.IsDBNull("CreatedDate") ? DateTime.MinValue : reader.GetDateTime("CreatedDate"),
                                     CreatedBy = reader.IsDBNull("CreatedBy") ? 0 : reader.GetInt64("CreatedBy"),
                                     ModifiedDate = reader.IsDBNull("ModifiedDate") ? DateTime.MinValue : reader.GetDateTime("ModifiedDate"),
-                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? 0 : reader.GetInt64("ModifiedBy")
+                                    ModifiedBy = reader.IsDBNull("ModifiedBy") ? 0 : reader.GetInt64("ModifiedBy"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
+                                    OnlineAccountId = reader.IsDBNull("OnlineAccountId") ? 0 : reader.GetInt64("OnlineAccountId"),
+                                    PersonalPaymentId = reader.IsDBNull("PersonalPaymentId") ? 0 : reader.GetInt64("PersonalPaymentId"),
+
                                 };
                             }
                         }
@@ -465,14 +470,15 @@ namespace IMS.Services
                             {
                                 saleDetails.Add(new SaleDetailViewModel
                                 {
-                                    ProductId = reader.GetInt64("PrductId_FK"),
-                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
-                                   // ProductSize = reader.IsDBNull("ProductSize") ? null : reader.GetString("ProductSize"),
-                                    UnitPrice = reader.GetDecimal("UnitPrice"),
-                                    Quantity = reader.GetInt64("Quantity"),
-                                    SalePrice = reader.GetDecimal("SalePrice"),
-                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
-                                    PayableAmount = reader.GetDecimal("PayableAmount")
+                                    ProductId = reader.IsDBNull("PrductId_FK") ? 0 : reader.GetInt64("PrductId_FK"),
+                                    ProductRangeId = reader.IsDBNull("ProductRangeId_FK") ? 0 : reader.GetInt64("ProductRangeId_FK"),
+                                    ProductName = reader.IsDBNull("ProductName") ? string.Empty : reader.GetString("ProductName"),
+                                    MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
+                                    UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
+                                    Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
+                                    SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
+                                    LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
+                                    PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount")
                                 });
                             }
                         }

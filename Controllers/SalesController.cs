@@ -401,8 +401,8 @@ namespace IMS.Controllers
                     DueAmount = sale.TotalDueAmount,
                     Description = sale.SaleDescription,
                     SaleId = sale.SaleId, // Add this to track the sale being edited
-                    PaymentMethod = "Cash", // Default to Cash since we don't store this in the database
-                    OnlineAccountId = null // Default to null since we don't store this in the database
+                    PaymentMethod = sale.PaymentMethod ?? "Cash", // Use stored payment method or default to Cash
+                    OnlineAccountId = sale.PersonalPaymentId ?? sale.OnlineAccountId // Use PersonalPaymentId if available, otherwise OnlineAccountId
                 };
 
                 // Get previous due amount for the customer
@@ -594,7 +594,7 @@ namespace IMS.Controllers
                             CustomerIdFk = model.CustomerId.Value,
                             DiscountAmount = model.DiscountAmount,
                             BillNumber = long.Parse(model.BillNo ?? "0"),
-                            SaleDescription = model.Description ?? "Add Sale",
+                            SaleDescription = model.Description ?? "Update Sales Return",
                             SaleDate = model.SaleDate,
                             ModifiedBy = userId,
                             ModifiedDate = currentDateTime
@@ -805,7 +805,9 @@ namespace IMS.Controllers
                 var result = products.Select(p => new
                 {
                     value = p.ProductId.ToString(),
-                    text = p.ProductName
+                    text = p.ProductName,
+                    productCode = p.ProductCode ?? string.Empty,
+                    productName = p.ProductName
                 }).ToList();
                 
                 return Json(result);

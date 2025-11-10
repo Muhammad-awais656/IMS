@@ -22,6 +22,9 @@ public partial class Sale
     public long CustomerIdFk { get; set; }
 
     public string? SaleDescription { get; set; }
+    public string? PaymentMethod { get; set; }
+    public long? OnlineAccountId { get; set; }
+    public long? PersonalPaymentId { get; set; }
 
     public bool IsDeleted { get; set; }
 

@@ -11,7 +11,7 @@
                 <i class="fa-solid fa-cash-register me-2"></i>
                 @if (ViewBag.IsEdit == true)
                 {
-                    <text>Edit Sale</text>
+                    <text>Edit Sale(Sales Return)</text>
                 }
                 else
                 {
@@ -87,7 +87,7 @@
                             <table class="table table-striped table-hover" id="saleDetailsTable">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>Code</th>
+                                        <th>Measuring Unit</th>
                                         <th>Product</th>
                                         <th>Item Level Discount</th>
                                         <th>Unit Sale Price</th>
@@ -248,10 +248,14 @@
                 setupAdditionalTestFunctions();
                 setupToggleOnlineAccountDiv();
                 
-                // Initialize edit mode if we're editing
+                // Initialize edit mode if we're editing (with a small delay to ensure Kendo dropdowns are ready)
                 @if (ViewBag.IsEdit == true)
                 {
-                    <text>initializeEditMode();</text>
+                    <text>
+                    setTimeout(function() {
+                        initializeEditMode();
+                    }, 200);
+                    </text>
                 }
                 
                 // Set up event listeners
@@ -273,15 +277,22 @@
             console.log('=== INITIALIZING EDIT MODE ===');
             
             // Get model values safely
+            const saleId = @(Model.SaleId?.ToString() ?? "null");
             const customerId = '@(Model.CustomerId?.ToString() ?? "null")';
-            const paymentMethod = '@(Model.PaymentMethod != null ? Json.Serialize(Model.PaymentMethod) : "null")';
+            const paymentMethod = @(Model.PaymentMethod != null ? Html.Raw($"\"{Model.PaymentMethod}\"") : "null");
             const onlineAccountId = @(Model.OnlineAccountId?.ToString() ?? "null")
             
-            console.log('Model values:', { customerId, paymentMethod, onlineAccountId });
+            console.log('Model values:', { saleId, customerId, paymentMethod, onlineAccountId });
+            
+            // Set SaleId in hidden field
+            if (saleId && saleId !== "null") {
+                $('#saleId').val(saleId.toString());
+                console.log('SaleId set to:', saleId);
+            }
             
             // Set customer dropdown value
             const customerCombo = $("#customerSelect").data("kendoComboBox");
-            if (customerCombo && customerId) {
+            if (customerCombo && customerId && customerId !== "null") {
                 customerCombo.value(customerId.toString());
                 console.log('Customer set to:', customerId);
                 
@@ -291,21 +302,74 @@
             
             // Set payment method dropdown value
             const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
-            if (paymentMethodCombo && paymentMethod) {
-                paymentMethodCombo.value(paymentMethod);
-                console.log('Payment method set to:', paymentMethod);
+            if (!paymentMethodCombo) {
+                console.error('Payment method combo not found! Retrying in 100ms...');
+                setTimeout(function() {
+                    initializeEditMode();
+                }, 100);
+                return;
+            }
+            
+            if (paymentMethod && paymentMethod !== "null") {
+                // Remove quotes if present (from JSON serialization)
+                const cleanPaymentMethod = typeof paymentMethod === 'string' ? paymentMethod.replace(/^"|"$/g, '') : paymentMethod;
+                
+                // Verify the value exists in the data source
+                const dataSource = paymentMethodCombo.dataSource.data();
+                const validValue = dataSource.find(item => item.value === cleanPaymentMethod);
+                
+                if (validValue) {
+                    paymentMethodCombo.value(cleanPaymentMethod);
+                    console.log('Payment method set to:', cleanPaymentMethod);
+                } else {
+                    console.warn('Payment method value not found in data source:', cleanPaymentMethod);
+                    console.log('Available payment methods:', dataSource);
+                }
                 
                 // Show/hide online account dropdown based on payment method
-                if (paymentMethod === "Online") {
+                if (cleanPaymentMethod === "Online") {
                     $("#onlineAccountDiv").show();
                     const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
                     if (onlineAccountCombo) {
                         onlineAccountCombo.enable(true);
-                        if (onlineAccountId) {
-                            onlineAccountCombo.value(onlineAccountId.toString());
+                        // Load online accounts if not already loaded
+                        if (onlineAccountCombo.dataSource.data().length === 0) {
+                            console.log("Loading online accounts for edit mode...");
+                            // Load accounts and then set the value
+                            fetch("/Sales/GetOnlineAccounts")
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Online accounts loaded:", data);
+                                    if (data && data.length > 0) {
+                                        onlineAccountCombo.dataSource.data(data);
+                                        onlineAccountCombo.enable(true);
+                                        onlineAccountCombo.refresh();
+                                        
+                                        // Set the value after accounts are loaded
+                                        if (onlineAccountId && onlineAccountId !== "null" && onlineAccountId !== null) {
+                                            onlineAccountCombo.value(onlineAccountId.toString());
+                                            console.log('Online Account ID set to:', onlineAccountId);
+                                        }
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error("Error loading online accounts:", error);
+                                });
+                        } else {
+                            // Accounts already loaded, just set the value
+                            if (onlineAccountId && onlineAccountId !== "null" && onlineAccountId !== null) {
+                                onlineAccountCombo.value(onlineAccountId.toString());
+                                console.log('Online Account ID set to:', onlineAccountId);
+                            }
                         }
                     }
+                } else {
+                    console.log('Payment method is null or not set');
+                    console.log('PaymentMethod value:', paymentMethod);
                 }
+            } else {
+                console.log('Payment method is null or not set');
+                console.log('PaymentMethod value:', paymentMethod);
             }
             
             console.log('=== EDIT MODE INITIALIZATION COMPLETE ===');
@@ -1019,9 +1083,17 @@
             }, 5000);
         }
         function addProductToTable() {
+            debugger;
             const productCombo = $("#productSelect").data("kendoComboBox");
             const productId = productCombo ? productCombo.value() : null;
-            const productName = productCombo ? productCombo.text() : '';
+            
+            // Get product details from the selected item
+            let productName = '';
+            if (productCombo && productId) {
+                const selectedDataItem = productCombo.dataItem();
+                productName = selectedDataItem ? (selectedDataItem.productName || selectedDataItem.text || '') : productCombo.text();
+            }
+            
             const quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
@@ -1029,13 +1101,18 @@
             const payable = parseFloat(document.getElementById('payableAmount').value) || 0;
             const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
             
+            // Get measuring unit abbreviation from selected product size
+            const measuringUnitAbbreviation = selectedProductSize ? (selectedProductSize.measuringUnitAbbreviation || 'N/A') : 'N/A';
+            
             console.log('Adding product to table:', {
+                productId: productId,
+                measuringUnitAbbreviation: measuringUnitAbbreviation,
+                productName: productName,
                 quantity: quantity,
                 salePrice: salePrice,
                 discount: discount,
                 totalDiscount: totalDiscount,
-                payable: payable,
-                expectedPayable: (salePrice * quantity) - discount
+                payable: payable
             });
             
             // Validation
@@ -1066,11 +1143,19 @@
             }
 
             // Check for duplicate products
+            // Allow duplicates only if: different productRangeId (size) OR different unitPrice
+            // Prevent duplicate if: same productId AND same productRangeId AND same unitPrice
             const existingRows = document.querySelectorAll('#saleDetailsBody tr');
             for (let row of existingRows) {
                 const existingProductId = row.querySelector('input[name*=".ProductId"]').value;
-                if (existingProductId === productId) {
-                    showWarningMessage('This product has already been added to the sale. Please remove it first or update the quantity.');
+                const existingProductRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
+                const existingUnitPrice = parseFloat(row.querySelector('input[name*=".UnitPrice"]').value) || 0;
+                
+                // Prevent duplicate if same product, same size, and same unit price
+                if (existingProductId === productId && 
+                    existingProductRangeId === selectedProductSize.productRangeId.toString() && 
+                    Math.abs(existingUnitPrice - unitPrice) < 0.01) {
+                    showWarningMessage('This product with the same size and unit price has already been added. Please remove it first, update the quantity, or use a different unit price.');
                     return;
                 }
             }
@@ -1080,8 +1165,8 @@
             const newRow = document.createElement('tr');
 
             newRow.innerHTML = `
-                <td>${selectedProductSize.measuringUnitAbbreviation}</td>
-                <td>${productName}</td>
+                <td>${measuringUnitAbbreviation}</td>
+                <td>${productName || 'Product'}</td>
                 <td>Rs${discount.toFixed(2)}</td>
                 <td>Rs${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
@@ -1198,10 +1283,14 @@
         function populateExistingSaleDetails() {
             console.log('Populating existing sale details for editing...');
 
-            // Get the existing sale details from the model
-            const saleDetails = '@Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()))';
+            // Get the existing sale details from the model (without quotes to get actual array)
+            const saleDetails = @Html.Raw(Json.Serialize(Model.SaleDetails ?? new List<SaleDetailViewModel>()));
 
-            if (saleDetails && saleDetails.length > 0) {
+            console.log('Sale details type:', typeof saleDetails);
+            console.log('Sale details:', saleDetails);
+
+            // Check if saleDetails is an array and has items
+            if (Array.isArray(saleDetails) && saleDetails.length > 0) {
                 console.log('Found existing sale details:', saleDetails);
 
                 // Clear any existing rows
@@ -1218,29 +1307,80 @@
 
                 showSuccessMessage('Existing sale details loaded successfully!');
             } else {
-                console.log('No existing sale details found');
+                console.log('No existing sale details found or saleDetails is not an array');
             }
         }
 
         function addExistingProductToTable(detail) {
-            // Get product name from the detail object or use a placeholder
-            const productName = detail.productName || 'Product';
+            // Validate detail object
+            if (!detail) {
+                console.error('Detail object is null or undefined');
+                return;
+            }
+
+            console.log('Adding existing product to table, detail object:', detail);
+            console.log('Detail object keys:', Object.keys(detail));
+
+            // Get product name and measuring unit abbreviation from the detail object
+            // Code column will show MeasuringUnitAbbreviation (productSize)
+            // Product column will show ProductName
+            const productName = detail.productName || detail.ProductName || detail.product_name || 'Product';
+            
+            // Try multiple property name variations for measuring unit abbreviation
+            // ASP.NET Core JSON serialization typically uses camelCase, so MeasuringUnitAbbreviation becomes measuringUnitAbbreviation
+            // Check for null/undefined/empty string values
+            let measuringUnitAbbreviation = 'N/A';
+            if (detail.measuringUnitAbbreviation && typeof detail.measuringUnitAbbreviation === 'string' && detail.measuringUnitAbbreviation.trim() !== '') {
+                measuringUnitAbbreviation = detail.measuringUnitAbbreviation;
+            } else if (detail.MeasuringUnitAbbreviation && typeof detail.MeasuringUnitAbbreviation === 'string' && detail.MeasuringUnitAbbreviation.trim() !== '') {
+                measuringUnitAbbreviation = detail.MeasuringUnitAbbreviation;
+            } else if (detail.measuring_unit_abbreviation && typeof detail.measuring_unit_abbreviation === 'string' && detail.measuring_unit_abbreviation.trim() !== '') {
+                measuringUnitAbbreviation = detail.measuring_unit_abbreviation;
+            } else if (detail.productSize && typeof detail.productSize === 'string' && detail.productSize.trim() !== '') {
+                measuringUnitAbbreviation = detail.productSize;
+            } else if (detail.ProductSize && typeof detail.ProductSize === 'string' && detail.ProductSize.trim() !== '') {
+                measuringUnitAbbreviation = detail.ProductSize;
+            } else if (detail.product_size && typeof detail.product_size === 'string' && detail.product_size.trim() !== '') {
+                measuringUnitAbbreviation = detail.product_size;
+            }
+
+            console.log('Product Name:', productName);
+            console.log('Measuring Unit Abbreviation:', measuringUnitAbbreviation);
+            console.log('All detail properties:', JSON.stringify(detail));
 
             // Add to table
             const tbody = document.getElementById('saleDetailsBody');
+            if (!tbody) {
+                console.error('saleDetailsBody element not found');
+                return;
+            }
+
             const newRow = document.createElement('tr');
 
+            // Safely get values with fallbacks
+            const quantity = detail.quantity || detail.Quantity || 0;
+            const lineDiscountAmount = detail.lineDiscountAmount || detail.LineDiscountAmount || 0;
+            const salePrice = detail.salePrice || detail.SalePrice || 0;
+            const payableAmount = detail.payableAmount || detail.PayableAmount || 0;
+            const unitPrice = detail.unitPrice || detail.UnitPrice || 0;
+            const productId = detail.productId || detail.ProductId || '';
+            const productRangeId = detail.productRangeId || detail.ProductRangeId || '';
+            
+            // Use measuringUnitAbbreviation for ProductSize (they should be the same)
+            const productSize = measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : 
+                               (detail.productSize || detail.ProductSize || '');
+
             // Calculate item level discount (per unit discount)
-            const itemLevelDiscount = detail.quantity > 0 ? parseFloat(detail.lineDiscountAmount) / detail.quantity : 0;
+            const itemLevelDiscount = quantity > 0 ? parseFloat(lineDiscountAmount) / quantity : 0;
             
             newRow.innerHTML = `
-                <td>${detail.productSize || ''}</td>
+                <td>${measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
                 <td>Rs${itemLevelDiscount.toFixed(2)}</td>
-                <td>Rs${parseFloat(detail.salePrice).toFixed(2)}</td>
-                <td>${detail.quantity}</td>
-                <td>Rs${parseFloat(detail.lineDiscountAmount).toFixed(2)}</td>
-                <td>Rs${parseFloat(detail.payableAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(salePrice).toFixed(2)}</td>
+                <td>${quantity}</td>
+                <td>Rs${parseFloat(lineDiscountAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(payableAmount).toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1249,14 +1389,14 @@
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${detail.productId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${detail.productRangeId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${detail.productSize || ''}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(detail.unitPrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${detail.quantity}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(detail.salePrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(detail.lineDiscountAmount).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(detail.payableAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${productRangeId}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${productSize}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(unitPrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(salePrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(lineDiscountAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(payableAmount).toFixed(2)}" />
             `;
 
             tbody.appendChild(newRow);
@@ -1828,6 +1968,13 @@
             // Add action type
             formData['ActionType'] = actionType;
 
+            // Add SaleId if editing
+            const saleId = $('#saleId').val();
+            if (saleId) {
+                formData['SaleId'] = saleId;
+                console.log('SaleId included in form data:', saleId);
+            }
+
             // Add main form fields
             formData['CustomerId'] = $('#customerSelect').val();
             formData['BillNo'] = $('#BillNo').val();
@@ -1857,6 +2004,8 @@
                 formData[`SaleDetails[${index}].ProductId`] = productId;
                 formData[`SaleDetails[${index}].ProductRangeId`] = productRangeId;
                 formData[`SaleDetails[${index}].ProductSize`] = productSize;
+                // Add MeasuringUnitAbbreviation - it should be the same as ProductSize
+                formData[`SaleDetails[${index}].MeasuringUnitAbbreviation`] = productSize;
                 formData[`SaleDetails[${index}].UnitPrice`] = unitPrice;
                 formData[`SaleDetails[${index}].Quantity`] = quantity;
                 formData[`SaleDetails[${index}].SalePrice`] = salePrice;
