@@ -581,9 +581,34 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    using (var command = new SqlCommand("DELETE FROM SaleDetails WHERE SaleId_FK = @SaleId", connection))
+                    using (var command = new SqlCommand("DeleteSaleDetailBySaleId", connection))
                     {
-                        command.Parameters.AddWithValue("@SaleId", saleId);
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting sale details by sale ID");
+                throw;
+            }
+            return response;
+        }
+        public async Task<int> TransactionDeleteAndStockUpdate(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    using (var command = new SqlCommand("TransactionsDelete", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
                         response = await command.ExecuteNonQueryAsync();
                     }
                 }

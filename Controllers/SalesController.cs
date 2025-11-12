@@ -606,7 +606,8 @@ namespace IMS.Controllers
                             await ReloadViewDataAsync();
                             return View(model);
                         }
-
+                        //Update Stock
+                        await _salesService.TransactionDeleteAndStockUpdate(model.SaleId.Value);
                         // Delete existing sale details
                         await _salesService.DeleteSaleDetailsBySaleIdAsync(model.SaleId.Value);
                         
