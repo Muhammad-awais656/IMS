@@ -13,9 +13,10 @@
         /* ===== Print Settings ===== */
         @@media print {
             @@page {
-                size: 80mm auto;  /* standard 80mm thermal printer width */
+                size: 80mm auto; /* standard 80mm thermal printer width */
                 margin: 0;
             }
+
             body {
                 margin: 0;
                 padding: 0;
@@ -25,6 +26,7 @@
                 line-height: 1.3;
                 width: 80mm;
             }
+
             .no-print {
                 display: none;
             }
@@ -46,64 +48,72 @@
             padding-bottom: 10px;
         }
 
-        .receipt-header h2 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: bold;
-        }
+            .receipt-header h2 {
+                margin: 0;
+                font-size: 20px;
+                font-weight: bold;
+            }
 
-        .receipt-header p {
-            margin: 2px 0;
-            font-size: 14px;
-        }
+            .receipt-header p {
+                margin: 2px 0;
+                font-size: 14px;
+            }
 
         .receipt-info {
             margin-bottom: 10px;
         }
 
-        .receipt-info p {
-            margin: 2px 0;
-            font-size: 14px;
-        }
+            .receipt-info p {
+                margin: 2px 0;
+                font-size: 15px;
+            }
 
         .table {
-            width: 100%;
+            font-size: 15px;
+            border: 1px solid black;
             border-collapse: collapse;
-            margin-bottom: 10px;
         }
 
-        .table th,
-        .table td {
-            text-align: left;
-            font-size: 13px;
-            padding: 2px 0;
-            border-bottom: 1px dotted #ccc;
-        }
+            .table th,
+            .table td {
+                text-align: left;
+                font-size: 13px;
+                padding: 2px 0;
+                border-bottom: 1px dotted #ccc;
+            }
 
-        .table th {
-            border-bottom: 1px dashed #000;
-            font-weight: bold;
-        }
+            .table th {
+                border: 1px solid black;
+                width: 100%;
+            }
 
-        .table td:last-child,
-        .table th:last-child {
+                .table td:last-child,
+                .table th:last-child {
+                    text-align: right;
+                }
+
+        .total {
+            padding-top: 5px;
+            margin-top: 10px;
             text-align: right;
         }
 
-        .total {
-            border-top: 1px dashed #000;
-            padding-top: 5px;
-            margin-top: 10px;
+            .total p {
+                margin: 2px 0;
+                font-size: 20px;
+            }
+
+        .text-center {
+            text-align: center;
         }
 
-        .total p {
-            margin: 2px 0;
-            font-size: 14px;
+        .text-right {
+            text-align: right;
         }
 
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .text-bold { font-weight: bold; }
+        .text-bold {
+            font-weight: bold;
+        }
 
         .footer {
             text-align: center;
@@ -125,26 +135,26 @@
             margin: 5px;
         }
 
-        .btn:hover {
-            background: #0056b3;
-        }
+            .btn:hover {
+                background: #0056b3;
+            }
 
         .btn-print {
             background: #28a745;
         }
 
-        .btn-print:hover {
-            background: #1e7e34;
-        }
+            .btn-print:hover {
+                background: #1e7e34;
+            }
 
         .receipt-details {
             margin-bottom: 10px;
         }
 
-        .receipt-details p {
-            margin: 1px 0;
-            font-size: 11px;
-        }
+            .receipt-details p {
+                margin: 1px 0;
+                font-size: 11px;
+            }
     </style>
 </head>
 <body>
@@ -175,11 +185,11 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>Sr#</th>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Total</th>
+                    <th style="border:1px solid black;width:5%;">Sr#</th>
+                    <th style="border:1px solid black;width:45%;">Item</th>
+                    <th style="border:1px solid black;width:15%;"> Qty</th>
+                    <th style="border:1px solid black;width:20%;">Price</th>
+                    <th style="border:1px solid black;width:15%;">Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -187,12 +197,12 @@
                 {
                     @foreach (var item in Model.BillItems)
                     {
-                        <tr>
-                            <td>@srNo</td>
-                            <td>@item.ProductName</td>
-                            <td>@item.Quantity</td>
-                            <td>@item.UnitPrice.ToString("N2")</td>
-                            <td>@item.PayableAmount.ToString("N2")</td>
+                        <tr style="border:1px solid black;font-size:15px;width:100%;">
+                            <td style="border:1px solid black;font-size:15px;width:5%;">@srNo</td>
+                            <td style="border:1px solid black;width:45%;">@item.ProductName</td>
+                            <td style="border:1px solid black;width:15%;">@item.Quantity</td>
+                            <td style="border:1px solid black;width:20%;">@item.UnitPrice.ToString("N2")</td>
+                            <td style="border:1px solid black;width:15%;">@item.PayableAmount.ToString("N2")</td>
                         </tr>
                         srNo++;
                     }
@@ -207,34 +217,27 @@
         </table>
 
         <div class="total">
-            <p><strong>Sub Total:</strong> <span class="text-right">@Model.Bill.TotalAmount.ToString("N2")</span></p>
+            <p><b>Sub Total:</b> <span class="text-right">@Model.Bill.TotalAmount.ToString("N2")</span></p>
             @if (Model.Bill.DiscountAmount > 0)
             {
-                <p><strong>Discount:</strong> <span class="text-right">@Model.Bill.DiscountAmount.ToString("N2")</span></p>
+                <p><b>Discount:</b> <span class="text-right">@Model.Bill.DiscountAmount.ToString("N2")</span></p>
             }
-            <p><strong>Total Amount:</strong> <span class="text-right">@Model.Bill.TotalPayableAmount.ToString("N2")</span></p>
+            <p><b>Total Amount:</b> <span class="text-right">@Model.Bill.TotalPayableAmount.ToString("N2")</span></p>
             @if (Model.Bill.PaidAmount > 0)
             {
-                <p><strong>Paid Amount:</strong> <span class="text-right">@Model.Bill.PaidAmount.ToString("N2")</span></p>
+                <p><b>Paid Amount:</b> <span class="text-right">@Model.Bill.PaidAmount.ToString("N2")</span></p>
             }
             @if (Model.Bill.DueAmount > 0)
             {
-                <p><strong>Total Balance:</strong> <span class="text-right">@Model.Bill.DueAmount.ToString("N2")</span></p>
+                <p><b>Total Balance:</b> <span class="text-right">@Model.Bill.DueAmount.ToString("N2")</span></p>
             }
             else if (Model.Bill.PaidAmount > 0)
             {
-                <p><strong>Balance:</strong> <span class="text-right">Fully Paid</span></p>
+                <p><b>Balance:</b> <span class="text-right">Fully Paid</span></p>
             }
         </div>
-        <p><strong>Generated By:</strong> @User.Identity.Name</p>
-        @if (ViewBag.MerchantCopy == true)
-        {
-            <p><strong>Merchant Copy</strong></p>
-        }
-        else
-        {
-            <p><strong>Vendor Copy</strong></p>
-        }
+        <p><b>Generated By:</b> @User.Identity.Name</p>
+     
         <div class="footer">
             <p>Thank you for your business!</p>
             <p>Visit us again soon</p>

@@ -32,6 +32,7 @@ namespace IMS.Common_Interfaces
         
         // Edit Sale functionality methods
         Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId);
+        Task<int> TransactionDeleteAndStockUpdate(long saleId);
         Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId);
         
         // Online Payment Transaction methods
