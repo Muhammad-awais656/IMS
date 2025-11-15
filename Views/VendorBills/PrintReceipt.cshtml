@@ -167,7 +167,7 @@
         <div class="receipt-info">
             <p><strong>Vendor:</strong> @Model.Bill.VendorName</p>
             <p><strong>Bill #:</strong> @Model.Bill.BillNumber</p>
-            <p><strong>Date:</strong> @Model.Bill.BillDate.ToString("dd-MM-yyyy hh:mm tt")</p>
+            <p><strong>Date:</strong> @Model.Bill.BillDate.ToString("dd/MM/yyyy")</p>
             @if (!string.IsNullOrEmpty(Model.Bill.Description))
             {
                 <p><strong>Description:</strong> @Model.Bill.Description</p>

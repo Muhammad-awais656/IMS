@@ -32,7 +32,7 @@
                             <div class="form-floating user-search-floating">
                                 <input type="text"
                                        name="searchUsername"
-                                       value="@Context.Request.Query["searchUsername"]"
+                                       value="@(ViewData["searchUsername"]?.ToString() ?? Context.Request.Query["searchUsername"].ToString())"
                                        class="form-control user-search-input"
                                        placeholder="Enter Product Name"
                                        onchange="SearchNameChange()" />
