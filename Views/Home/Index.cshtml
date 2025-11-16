@@ -6,6 +6,8 @@
 
 @{
     ViewData["Title"] = "Dashboard";
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
     //Layout = "~/Views/Shared/_Layout.cshtml"; // change if your layout is elsewhere
 }
 <link href="~/css/dist/all.min.css" rel="stylesheet" />
@@ -336,144 +338,153 @@
         background: var(--dark-gradient);
     }
 </style>
+@if (role == "Admin")
+{
+    <div class="modern-dashboard">
+        <div class="container-fluid">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">Inventory Management System</h1>
+                <p class="dashboard-subtitle">Welcome back — overview of latest activity and insights</p>
+            </div>
 
-<div class="modern-dashboard">
-    <div class="container-fluid">
-        <!-- Dashboard Header -->
-        <div class="dashboard-header">
-            <h1 class="dashboard-title">Inventory Management System</h1>
-            <p class="dashboard-subtitle">Welcome back — overview of latest activity and insights</p>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="row g-4 mb-5">
-            <div class="col-lg-3 col-md-6">
-                <div class="stat-card primary">
-                    <div class="stat-icon">
-                        <i class="fa fa-box"></i>
+            <!-- Summary Cards -->
+            <div class="row g-4 mb-5">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card primary">
+                        <div class="stat-icon">
+                            <i class="fa fa-box"></i>
+                        </div>
+                        <div class="stat-value">@Model.TotalProducts</div>
+                        <div class="stat-label">Total Products</div>
+                        <div class="stat-description">Active products across warehouses</div>
                     </div>
-                    <div class="stat-value">@Model.TotalProducts</div>
-                    <div class="stat-label">Total Products</div>
-                    <div class="stat-description">Active products across warehouses</div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card success">
+                        <div class="stat-icon">
+                            <i class="fa fa-sitemap"></i>
+                        </div>
+                        <div class="stat-value">@Model.TotalCategories</div>
+                        <div class="stat-label">Categories</div>
+                        <div class="stat-description">Product groups organized</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card warning">
+                        <div class="stat-icon">
+                            <i class="fa fa-truck"></i>
+                        </div>
+                        <div class="stat-value">@Model.TotalVendors</div>
+                        <div class="stat-label">Vendors</div>
+                        <div class="stat-description">Active suppliers</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card info">
+                        <div class="stat-icon">
+                            <i class="fa fa-rupee-sign"></i>
+                        </div>
+                        <div class="stat-value">@Model.MonthlyRevenue.ToString("C", new CultureInfo("ur-PK"))</div>
+                        <div class="stat-label">Monthly Revenue</div>
+                        <div class="stat-description">Sales performance this month</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-3 col-md-6">
-                <div class="stat-card success">
-                    <div class="stat-icon">
-                        <i class="fa fa-sitemap"></i>
+            <!-- Charts Section -->
+            <div class="row g-4 mb-5">
+                <!-- Sales Chart -->
+                <div class="col-lg-8">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div>
+                                <h3 class="chart-title">Monthly Sales Performance</h3>
+                                <p class="chart-subtitle">Revenue trends over the last @Model.MonthlyLabels.Count months</p>
+                            </div>
+                        </div>
+                        <canvas id="salesChart" height="120"></canvas>
                     </div>
-                    <div class="stat-value">@Model.TotalCategories</div>
-                    <div class="stat-label">Categories</div>
-                    <div class="stat-description">Product groups organized</div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="col-lg-4">
+                    <div class="quick-actions">
+                        <h4 class="mb-4">Quick Actions</h4>
+                        <a class="action-btn success" asp-controller="Product" asp-action="Create">
+                            <i class="fa fa-plus"></i>
+                            Add Product
+                        </a>
+                        <a class="action-btn" asp-controller="Stock" asp-action="Index">
+                            <i class="fa fa-boxes"></i>
+                            Manage Stock
+                        </a>
+                        <a class="action-btn warning" asp-controller="Report" asp-action="SalesReport">
+                            <i class="fa fa-file-alt"></i>
+                            View Reports
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-3 col-md-6">
-                <div class="stat-card warning">
-                    <div class="stat-icon">
-                        <i class="fa fa-truck"></i>
+            <!-- Product Analysis Section -->
+            <div class="row g-4">
+                <!-- Product Selector -->
+                <div class="col-lg-6">
+                    <div class="product-selector">
+                        <label for="productDropdown">
+                            <i class="fa fa-search me-2"></i>Select Product for Analysis
+                        </label>
+                        <select id="productDropdown" name="ProductId" class="form-select" style="width: 100%;">
+                            <option value="0">-- Select Product --</option>
+                            @foreach (var product in Model.ProductList)
+                            {
+                                <option value="@product.Value">@product.Text</option>
+                            }
+                        </select>
                     </div>
-                    <div class="stat-value">@Model.TotalVendors</div>
-                    <div class="stat-label">Vendors</div>
-                    <div class="stat-description">Active suppliers</div>
                 </div>
-            </div>
 
-            <div class="col-lg-3 col-md-6">
-                <div class="stat-card info">
-                    <div class="stat-icon">
-                        <i class="fa fa-rupee-sign"></i>
-                    </div>
-                    <div class="stat-value">@Model.MonthlyRevenue.ToString("C", new CultureInfo("ur-PK"))</div>
-                    <div class="stat-label">Monthly Revenue</div>
-                    <div class="stat-description">Sales performance this month</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Section -->
-        <div class="row g-4 mb-5">
-            <!-- Sales Chart -->
-            <div class="col-lg-8">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <div>
-                            <h3 class="chart-title">Monthly Sales Performance</h3>
-                            <p class="chart-subtitle">Revenue trends over the last @Model.MonthlyLabels.Count months</p>
+                <!-- Stock Status Chart -->
+                <div class="col-lg-6">
+                    <div class="stock-chart-container">
+                        <h4 class="mb-3">
+                            <i class="fa fa-chart-pie me-2"></i>Stock Status Analysis
+                        </h4>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="stockDonut" style="max-height: 250px; max-width: 100%;"></canvas>
+                        </div>
+                        <div id="stockLabels" class="stock-labels">
+                            <div class="stock-label">
+                                <span class="stock-badge" style="background: #28a745;"></span>
+                                In Stock: <span id="inStockCount">@Model.InStockCount</span>
+                            </div>
+                            <div class="stock-label">
+                                <span class="stock-badge" style="background: #ffc107;"></span>
+                                Available: <span id="availableCount">@Model.LowStockCount</span>
+                            </div>
+                            <div class="stock-label">
+                                <span class="stock-badge" style="background: #dc3545;"></span>
+                                Used: <span id="usedCount">@Model.OutOfStockCount</span>
+                            </div>
                         </div>
                     </div>
-                    <canvas id="salesChart" height="120"></canvas>
                 </div>
-            </div>
 
-            <!-- Quick Actions -->
-            <div class="col-lg-4">
-                <div class="quick-actions">
-                    <h4 class="mb-4">Quick Actions</h4>
-                    <a class="action-btn success" asp-controller="Product" asp-action="Create">
-                        <i class="fa fa-plus"></i>
-                        Add Product
-                    </a>
-                    <a class="action-btn" asp-controller="Stock" asp-action="Index">
-                        <i class="fa fa-boxes"></i>
-                        Manage Stock
-                    </a>
-                    <a class="action-btn warning" asp-controller="Report" asp-action="SalesReport">
-                        <i class="fa fa-file-alt"></i>
-                        View Reports
-                    </a>
-                </div>
             </div>
-        </div>
-
-        <!-- Product Analysis Section -->
-        <div class="row g-4">
-            <!-- Product Selector -->
-            <div class="col-lg-6">
-                <div class="product-selector">
-                    <label for="productDropdown">
-                        <i class="fa fa-search me-2"></i>Select Product for Analysis
-                    </label>
-                    <select id="productDropdown" name="ProductId" class="form-select" style="width: 100%;">
-                        <option value="0">-- Select Product --</option>
-                        @foreach (var product in Model.ProductList)
-                        {
-                            <option value="@product.Value">@product.Text</option>
-                        }
-                    </select>
-                </div>
-            </div>
-
-            <!-- Stock Status Chart -->
-            <div class="col-lg-6">
-                <div class="stock-chart-container">
-                    <h4 class="mb-3">
-                        <i class="fa fa-chart-pie me-2"></i>Stock Status Analysis
-                    </h4>
-                    <div style="position: relative; height: 250px; width: 100%;">
-                        <canvas id="stockDonut" style="max-height: 250px; max-width: 100%;"></canvas>
-                    </div>
-                    <div id="stockLabels" class="stock-labels">
-                        <div class="stock-label">
-                            <span class="stock-badge" style="background: #28a745;"></span>
-                            In Stock: <span id="inStockCount">@Model.InStockCount</span>
-                        </div>
-                        <div class="stock-label">
-                            <span class="stock-badge" style="background: #ffc107;"></span>
-                            Available: <span id="availableCount">@Model.LowStockCount</span>
-                        </div>
-                        <div class="stock-label">
-                            <span class="stock-badge" style="background: #dc3545;"></span>
-                            Used: <span id="usedCount">@Model.OutOfStockCount</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
-</div>
+}
+else
+{
+    <h1 style=" color:forestgreen; text-align:center;">
+        Welcome to the Inventary Management System 
+    </h1>
+}
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 <!-- Scripts -->

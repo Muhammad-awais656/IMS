@@ -1,0 +1,280 @@
+@model IMS.Models.ProfitLossReportViewModel;
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-chart-line me-2"></i>
+                <h4 class="mb-0">Product Wise Profit/Loss Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <!-- Enhanced Filter Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="ProfitLossReport" asp-controller="Report" method="get">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-gift me-1 text-primary"></i>Product
+                            </label>
+                            @Html.DropDownList("ProfitLossReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>, 
+                                "-- Select Product --", 
+                                new { @class = "form-control", @id = "productComboBox" })
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>From Date
+                            </label>
+                            <input type="date" name="FromDate"
+                                   value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString())"
+                                   class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>To Date
+                            </label>
+                            <input type="date" name="ToDate"
+                                   value="@(string.IsNullOrEmpty(Context.Request.Query["ToDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["ToDate"].ToString())"
+                                   class="form-control" />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="ProfitLossReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Sales Amount</h6>
+                        <h3 class="mb-0">@Model.TotalSalesAmount.ToString("N2")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Purchase Cost</h6>
+                        <h3 class="mb-0">@Model.TotalPurchaseCost.ToString("N2")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card @(Model.TotalProfitLoss >= 0 ? "bg-primary" : "bg-danger") text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Profit/Loss</h6>
+                        <h3 class="mb-0">@Model.TotalProfitLoss.ToString("N2")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Table Section -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fa fa-table me-2"></i>Profit/Loss Report Data
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="printArea">
+                    <table id="profitLossTable" class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th><i class="fa fa-hashtag me-1"></i>Product Name</th>
+                                <th><i class="fa fa-barcode me-1"></i>Product Code</th>
+                                <th><i class="fa fa-shopping-cart me-1"></i>Quantity Sold</th>
+                                <th><i class="fa fa-dollar-sign me-1"></i>Total Sales Amount</th>
+                                <th><i class="fa fa-money-bill me-1"></i>Total Purchase Cost</th>
+                                <th><i class="fa fa-chart-line me-1"></i>Profit/Loss</th>
+                                <th><i class="fa fa-percent me-1"></i>Profit/Loss %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.ProfitLossList.Any())
+                            {
+                                @foreach (var item in Model.ProfitLossList)
+                                {
+                                    <tr>
+                                        <td><strong>@Html.DisplayFor(modelItem => item.ProductName)</strong></td>
+                                        <td><code>@Html.DisplayFor(modelitem => item.ProductCode)</code></td>
+                                        <td>@Html.DisplayFor(modelitem => item.TotalQuantitySold)</td>
+                                        <td><strong class="text-success">@item.TotalSalesAmount.ToString("N2")</strong></td>
+                                        <td><span class="text-info">@item.TotalPurchaseCost.ToString("N2")</span></td>
+                                        <td>
+                                            <span class="badge @(item.ProfitLoss >= 0 ? "bg-success" : "bg-danger")">
+                                                @item.ProfitLoss.ToString("N2")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @(item.ProfitLossPercentage >= 0 ? "bg-success" : "bg-danger")">
+                                                @item.ProfitLossPercentage.ToString("N2")%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No Profit/Loss Data Found</h5>
+                                            <p class="text-muted">Try adjusting your filter criteria to see more results.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Enhanced Pagination Section -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fa fa-info-circle me-2 text-primary"></i>
+                        <span class="text-muted">
+                            <strong>@Model.TotalCount</strong> total items | Showing <strong>@Model.PageSize</strong> items per page
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <label for="pageSize" class="form-label mb-0 text-muted">
+                            <i class="fa fa-list me-1"></i>Items Per Page:
+                        </label>
+                        <select id="pageSize" class="form-select form-select-sm w-auto" onchange="changePageSize(this)">
+                            <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                            <option value="20" selected="@(Model.PageSize == 20)">20</option>
+                            <option value="30" selected="@(Model.PageSize == 30)">30</option>
+                        </select>
+                    </div>
+                </div>
+                @if (Model.TotalPages > 1)
+                {
+                    <nav aria-label="Profit Loss Report pagination" class="mt-3">
+                        <ul class="pagination justify-content-center mb-0">
+                            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="ProfitLossReport" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize">
+                                    <i class="fa fa-angle-double-left me-1"></i>First
+                                </a>
+                            </li>
+                            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="ProfitLossReport" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">
+                                    <i class="fa fa-angle-left me-1"></i>Previous
+                                </a>
+                            </li>
+                            @{
+                                int startPage = Math.Max(1, Model.CurrentPage - 1);
+                                int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                                if (endPage - startPage < 2)
+                                {
+                                    startPage = Math.Max(1, endPage - 2);
+                                }
+                            }
+                            @for (int i = startPage; i <= endPage; i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                    <a class="page-link" asp-action="ProfitLossReport" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize">@i</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="ProfitLossReport" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">
+                                    Next<i class="fa fa-angle-right ms-1"></i>
+                                </a>
+                            </li>
+                            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="ProfitLossReport" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize">
+                                    Last<i class="fa fa-angle-double-right ms-1"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize Kendo UI ComboBox for Product
+            $("#productComboBox").kendoComboBox({
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "Text",
+                dataValueField: "Value",
+                change: function(e) {
+                    console.log("Product selection changed:", e.sender.value());
+                },
+                select: function(e) {
+                    console.log("Product selected:", e.item);
+                }
+            });
+        });
+
+        function changePageSize(select) {
+            var productId = document.getElementById("productComboBox").value;
+            var fromDate = document.querySelector("input[name='FromDate']").value;
+            var toDate = document.querySelector("input[name='ToDate']").value;
+
+            var url = `/Report/ProfitLossReport?pageNumber=1&productId=${productId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}`;
+            window.location.href = url;
+        }
+    </script>
+    <script>
+        document.getElementById("exportExcelBtn").addEventListener("click", function () {
+            var productId = document.getElementById("productComboBox").value;
+            var fromDate = document.querySelector("input[name='FromDate']").value;
+            var toDate = document.querySelector("input[name='ToDate']").value;
+
+            var url = `/Report/ExportProfitLossExcel?productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            window.location.href = url;
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function () {
+            var productId = document.getElementById("productComboBox").value;
+            var fromDate = document.querySelector("input[name='FromDate']").value;
+            var toDate = document.querySelector("input[name='ToDate']").value;
+
+            var url = `/Report/ExportProfitLossPdf?productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            window.location.href = url;
+        });
+    </script>
+}
+
