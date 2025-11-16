@@ -134,17 +134,20 @@
                         <option value="25" selected="@(Model.PageSize == 25)">25</option>
                     </select>
                 </div>
+            @{
+                var searchValue = ViewData["searchUsername"]?.ToString() ?? Context.Request.Query["searchUsername"].ToString();
+            }
             @if (Model.TotalPages > 1)
             {
                 <nav aria-label="Stock pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
-                               asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">First</a>
+                               asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@searchValue">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-searchUsername="@ViewData["searchUsername"]">Previous</a>
+                               asp-route-searchUsername="@searchValue">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -157,14 +160,14 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@searchValue">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@searchValue">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@searchValue">Last</a>
                         </li>
                     </ul>
                 </nav>

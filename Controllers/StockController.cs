@@ -36,17 +36,24 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
+                // Get search parameter from query string
+                var searchUsername = HttpContext.Request.Query["searchUsername"].ToString();
+                
                 if (stockFilters == null)
                 {
                     stockFilters = new StockFilters
                     {
-                        ProductName = HttpContext.Request.Query["searchUsername"].ToString()
+                        ProductName = searchUsername
                     };
                 }
                 else if (string.IsNullOrEmpty(stockFilters.ProductName))
                 {
-                    stockFilters.ProductName = HttpContext.Request.Query["searchUsername"].ToString();
+                    stockFilters.ProductName = searchUsername;
                 }
+                
+                // Preserve search value in ViewData for pagination links
+                ViewData["searchUsername"] = searchUsername;
+                
                 viewModel = await _stockService.GetAllStocksAsync(pageNumber, currentPageSize, stockFilters);
             }
             catch (Exception ex)
