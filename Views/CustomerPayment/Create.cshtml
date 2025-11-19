@@ -104,6 +104,24 @@
                             <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
                             <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                         </div>
+                        <div class="mb-3" id="accountDetailsDiv" style="display: none;">
+                            <div class="card bg-light p-3">
+                                <div class="row">
+                                    <div class="col-md-12 mb-2">
+                                        <label class="form-label text-muted mb-1">
+                                            <i class="fa-solid fa-building me-1"></i>Bank Name
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" id="displayBankName">-</div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label text-muted mb-1">
+                                            <i class="fa-solid fa-user me-1"></i>Account Holder Name
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" id="displayAccountHolderName">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -324,7 +342,17 @@
                     placeholder: "-- Select Online Account --",
                     filter: "contains",
                     suggest: true,
-                    enabled: false
+                    enabled: false,
+                    change: function() {
+                        const selectedItem = this.dataItem();
+                        if (selectedItem && selectedItem.bankName) {
+                            $("#displayBankName").text(selectedItem.bankName);
+                            $("#displayAccountHolderName").text(selectedItem.accountHolderName || "-");
+                            $("#accountDetailsDiv").show();
+                        } else {
+                            $("#accountDetailsDiv").hide();
+                        }
+                    }
                 });
             }
 
@@ -343,6 +371,7 @@
                     }
                 } else {
                     onlineAccountDiv.hide();
+                    $("#accountDetailsDiv").hide();
                     onlineAccountCombo.enable(false);
                     onlineAccountCombo.value("");
                 }
@@ -356,7 +385,12 @@
                         if (!onlineAccountCombo) return;
                         onlineAccountCombo.dataSource.data([]);
                         data.forEach(function (acc) {
-                            onlineAccountCombo.dataSource.add({ value: acc.value, text: acc.text });
+                            onlineAccountCombo.dataSource.add({ 
+                                value: acc.value, 
+                                text: acc.text,
+                                bankName: acc.bankName,
+                                accountHolderName: acc.accountHolderName
+                            });
                         });
                     })
                     .catch(err => {

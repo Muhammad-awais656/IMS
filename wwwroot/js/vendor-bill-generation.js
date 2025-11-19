@@ -158,6 +158,16 @@ function initializeOnlineAccountComboBox() {
             schema: {
                 data: "data"
             }
+        },
+        change: function() {
+            const selectedItem = this.dataItem();
+            if (selectedItem && selectedItem.bankName) {
+                $("#displayBankName").text(selectedItem.bankName);
+                $("#displayAccountHolderName").text(selectedItem.accountHolderName || "-");
+                $("#accountDetailsDiv").show();
+            } else {
+                $("#accountDetailsDiv").hide();
+            }
         }
     });
 }
@@ -181,22 +191,26 @@ function setupEventHandlers() {
         validateAccountBalance();
     });
     
-    // Online account change
-    $("#onlineAccountSelect").on("change", function() {
-        // Clear validation styling
-        $(this).removeClass('is-invalid');
-        
-        // Load account balance when account is selected
-        var accountCombo = $(this).data("kendoComboBox");
-        var accountId = accountCombo ? accountCombo.value() : null;
-        
-        if (accountId) {
-            loadAccountBalance(accountId);
-        } else {
-            $("#accountBalance").val("");
-            $("#billAmount").val("");
-        }
-    });
+    // Online account change (handled by Kendo ComboBox change event in initializeOnlineAccountComboBox)
+    // This is a fallback for additional handling
+    var onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+    if (onlineAccountCombo) {
+        onlineAccountCombo.bind("change", function() {
+            // Clear validation styling
+            $(this.element).removeClass('is-invalid');
+            
+            // Load account balance when account is selected
+            var accountId = this.value();
+            
+            if (accountId) {
+                loadAccountBalance(accountId);
+            } else {
+                $("#accountBalance").val("");
+                $("#billAmount").val("");
+                $("#accountDetailsDiv").hide();
+            }
+        });
+    }
     
     // Total discount change
     $("#discountAmountTotal").on("input", calculateTotals);
@@ -214,6 +228,7 @@ function setupEventHandlers() {
             $("#onlineAccountSection").hide();
             $("#accountBalanceSection").hide();
             $("#billAmountSection").hide();
+            $("#accountDetailsDiv").hide();
         }
         
         // Handle Pay Later option
@@ -710,7 +725,14 @@ function loadOnlineAccounts() {
             .then(data => {
                 console.log("Online accounts data received:", data);
                 if (data && data.data && data.data.length > 0) {
-                    onlineAccountCombo.dataSource.data(data.data);
+                    // Ensure data includes bankName and accountHolderName
+                    const formattedData = data.data.map(acc => ({
+                        value: acc.value,
+                        text: acc.text,
+                        bankName: acc.bankName || "",
+                        accountHolderName: acc.accountHolderName || ""
+                    }));
+                    onlineAccountCombo.dataSource.data(formattedData);
                     onlineAccountCombo.enable(true);
                     onlineAccountCombo.refresh();
                     console.log("Online accounts loaded successfully");

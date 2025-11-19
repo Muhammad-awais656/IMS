@@ -255,7 +255,7 @@ namespace IMS.Controllers
                 var accountOptions = onlineAccounts.PersonalPaymentList.Select(account => new
                 {
                     value = account.PersonalPaymentId.ToString(),
-                    text = $"{account.BankName} - {account.AccountNumber}",
+                    text = $"{account.BankName} - {account.AccountHolderName}",
                     personalPaymentId = account.PersonalPaymentId,
                     bankName = account.BankName,
                     accountNumber = account.AccountNumber,

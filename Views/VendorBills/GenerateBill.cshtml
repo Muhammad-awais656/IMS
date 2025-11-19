@@ -165,6 +165,24 @@
                     <div class="col-md-3" id="onlineAccountSection" style="display: none;">
                         <label for="onlineAccountSelect" class="form-label">Online Account:</label>
                         <input id="onlineAccountSelect" name="OnlineAccountId" style="width: 100%;" />
+                        <div class="mt-2" id="accountDetailsDiv" style="display: none;">
+                            <div class="card bg-light p-2">
+                                <div class="row">
+                                    <div class="col-md-12 mb-1">
+                                        <label class="form-label text-muted mb-0" style="font-size: 0.85rem;">
+                                            <i class="fa-solid fa-building me-1"></i>Bank Name
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" style="font-size: 0.9rem; padding: 0;" id="displayBankName">-</div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label text-muted mb-0" style="font-size: 0.85rem;">
+                                            <i class="fa-solid fa-user me-1"></i>Account Holder
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" style="font-size: 0.9rem; padding: 0;" id="displayAccountHolderName">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-3" id="accountBalanceSection" style="display: none;">
                         <label for="accountBalance" class="form-label">Account Balance:</label>

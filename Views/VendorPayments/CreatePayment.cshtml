@@ -65,6 +65,24 @@
                         <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
                         <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                     </div>
+                    <div class="mb-3" id="accountDetailsDiv" style="display: none;">
+                        <div class="card bg-light p-3">
+                            <div class="row">
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label text-muted mb-1">
+                                        <i class="fa-solid fa-building me-1"></i>Bank Name
+                                    </label>
+                                    <div class="form-control-plaintext fw-bold" id="displayBankName">-</div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label text-muted mb-1">
+                                        <i class="fa-solid fa-user me-1"></i>Account Holder Name
+                                    </label>
+                                    <div class="form-control-plaintext fw-bold" id="displayAccountHolderName">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3" id="accountBalanceDiv" style="display: none;">
                         <label class="form-label text-muted">
                             <i class="fa-solid fa-wallet me-1"></i>Available Balance
@@ -314,7 +332,17 @@
                     suggest: true,
                     enabled: false,
                     change: function() {
+                        const selectedItem = this.dataItem();
                         const accountId = this.value();
+                        
+                        if (selectedItem && selectedItem.bankName) {
+                            $("#displayBankName").text(selectedItem.bankName);
+                            $("#displayAccountHolderName").text(selectedItem.accountHolderName || "-");
+                            $("#accountDetailsDiv").show();
+                        } else {
+                            $("#accountDetailsDiv").hide();
+                        }
+                        
                         if (accountId) {
                             loadAccountBalance(accountId);
                         } else {
@@ -346,6 +374,7 @@
                 } else {
                     accDiv.hide();
                     balanceDiv.hide();
+                    $("#accountDetailsDiv").hide();
                     accCombo.enable(false);
                     accCombo.value("");
                     $("#accountBalance").val("");
@@ -461,7 +490,12 @@
                         accCombo.dataSource.data([]);
                         if (data && data.length > 0) {
                             data.forEach(function (acc) {
-                                accCombo.dataSource.add({ value: acc.value, text: acc.text });
+                                accCombo.dataSource.add({ 
+                                    value: acc.value, 
+                                    text: acc.text,
+                                    bankName: acc.bankName,
+                                    accountHolderName: acc.accountHolderName
+                                });
                             });
                         }
                     })

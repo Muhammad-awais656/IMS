@@ -166,6 +166,24 @@
                         <label class="form-label">Online Account:</label>
                         <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
                         <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
+                        <div class="mt-2" id="accountDetailsDiv" style="display: none;">
+                            <div class="card bg-light p-2">
+                                <div class="row">
+                                    <div class="col-md-12 mb-1">
+                                        <label class="form-label text-muted mb-0" style="font-size: 0.85rem;">
+                                            <i class="fa-solid fa-building me-1"></i>Bank Name
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" style="font-size: 0.9rem; padding: 0;" id="displayBankName">-</div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label text-muted mb-0" style="font-size: 0.85rem;">
+                                            <i class="fa-solid fa-user me-1"></i>Account Holder
+                                        </label>
+                                        <div class="form-control-plaintext fw-bold" style="font-size: 0.9rem; padding: 0;" id="displayAccountHolderName">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label asp-for="PreviousDue" class="form-label">Previous Due:</label>
@@ -424,7 +442,17 @@
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
-                enabled: false
+                enabled: false,
+                change: function() {
+                    const selectedItem = this.dataItem();
+                    if (selectedItem && selectedItem.bankName) {
+                        $("#displayBankName").text(selectedItem.bankName);
+                        $("#displayAccountHolderName").text(selectedItem.accountHolderName || "-");
+                        $("#accountDetailsDiv").show();
+                    } else {
+                        $("#accountDetailsDiv").hide();
+                    }
+                }
             });
 
             console.log("Kendo UI dropdowns initialized successfully for Sales AddSale");
@@ -582,6 +610,7 @@
                     } else {
                         console.log("Payment method is not Online - hiding online account dropdown");
                         onlineAccountDiv.hide();
+                        $("#accountDetailsDiv").hide();
                         onlineAccountCombo.enable(false);
                         onlineAccountCombo.value("");
                     }
@@ -604,7 +633,14 @@
                         .then(data => {
                             console.log("Online accounts data received:", data);
                             if (data && data.length > 0) {
-                                onlineAccountCombo.dataSource.data(data);
+                                // Ensure data includes bankName and accountHolderName
+                                const formattedData = data.map(acc => ({
+                                    value: acc.value,
+                                    text: acc.text,
+                                    bankName: acc.bankName || "",
+                                    accountHolderName: acc.accountHolderName || ""
+                                }));
+                                onlineAccountCombo.dataSource.data(formattedData);
                                 onlineAccountCombo.enable(true);
                                 onlineAccountCombo.refresh();
                                 console.log("Online accounts loaded successfully");
@@ -2122,7 +2158,24 @@
                 }
             });
 
-            // Handle online account change
+            // Handle online account change (for Kendo ComboBox)
+            const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+            if (onlineAccountCombo) {
+                onlineAccountCombo.bind("change", function() {
+                    const selectedItem = this.dataItem();
+                    if (selectedItem && selectedItem.bankName) {
+                        $("#displayBankName").text(selectedItem.bankName);
+                        $("#displayAccountHolderName").text(selectedItem.accountHolderName || "-");
+                        $("#accountDetailsDiv").show();
+                    } else {
+                        $("#accountDetailsDiv").hide();
+                    }
+                    // Clear validation styling
+                    $(this.element).removeClass('is-invalid');
+                });
+            }
+            
+            // Fallback for regular select (if not using Kendo)
             $('#onlineAccountSelect').on('change', function() {
                 // Clear validation styling
                 $(this).removeClass('is-invalid');
@@ -2159,7 +2212,7 @@
 
                         if (data && data.length > 0) {
                             data.forEach(function(account) {
-                                select.append(`<option value="${account.personalPaymentId}">${account.bankName} - ${account.accountNumber}</option>`);
+                                select.append(`<option value="${account.personalPaymentId}">${account.bankName} - ${account.accountHolderName}</option>`);
                             });
                         }
                     },
