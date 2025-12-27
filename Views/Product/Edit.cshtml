@@ -151,7 +151,7 @@
                                         <td>@item.MeasuringUnitIdFk</td>
                                         <td>@item.RangeFrom.ToString("0.##")</td>
                                         <td>@item.RangeTo.ToString("0.##")</td>
-                                        <td>@item.UnitPrice.ToString("0.##")</td>
+                                        <td>@item.UnitPrice.ToString("0.###")</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
                                             <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
@@ -386,12 +386,12 @@
                 editingSizeId = null;
             });
 
-            // Format number to show up to 2 decimal places without trailing zeros
+            // Format number to show up to 3 decimal places without trailing zeros
             function formatDecimal(value) {
                 var num = parseFloat(value);
                 if (isNaN(num)) return value;
-                // Format to max 2 decimal places and remove trailing zeros
-                return num.toFixed(2).replace(/\.?0+$/, '');
+                // Format to max 3 decimal places and remove trailing zeros
+                return num.toFixed(3).replace(/\.?0+$/, '');
             }
 
             // Add size to table
@@ -401,7 +401,7 @@
                 var measuringUnitIdNum = parseInt(measuringUnitId);
                 var rangeFromNum = parseFloat(rangeFrom);
                 var rangeToNum = parseFloat(rangeTo);
-                var unitPriceNum = parseFloat(unitPrice);
+                var unitPriceNum = parseFloat(parseFloat(unitPrice).toFixed(3)); // Round to 3 decimal places for calculations
                 
                 var row = `
                     <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" 
@@ -424,7 +424,7 @@
                 var measuringUnitIdNum = parseInt(measuringUnitId);
                 var rangeFromNum = parseFloat(rangeFrom);
                 var rangeToNum = parseFloat(rangeTo);
-                var unitPriceNum = parseFloat(unitPrice);
+                var unitPriceNum = parseFloat(parseFloat(unitPrice).toFixed(3)); // Round to 3 decimal places for calculations
                 
                 var $row = $(`tr[data-size-id="${sizeId}"]`);
                 
@@ -539,7 +539,7 @@
                         $("<input>").attr({
                             type: "hidden",
                             name: `productRanges[${sizeIndex}].UnitPrice`,
-                            value: unitPrice
+                            value: parseFloat(unitPrice).toFixed(3) // Ensure 3 decimal places in form submission
                         }).appendTo("#productForm");
                         
                         // Initialize Kendo combobox for the newly added measuring unit dropdown

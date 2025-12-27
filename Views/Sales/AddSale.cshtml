@@ -49,23 +49,23 @@
                     </div>
                     <div class="col-md-2">
                         <label for="unitPrice" class="form-label">Unit Price:</label>
-                        <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
+                        <input type="number" id="unitPrice" class="form-control" value="0" step="0.001" readonly />
                     </div>
                     <div class="col-md-2">
                         <label for="salePrice" class="form-label">Sale Price:</label>
-                        <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
+                        <input type="number" id="salePrice" class="form-control" value="0" step="0.001" />
                     </div>
                 </div>
 
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label for="discountAmount" class="form-label">Line Discount:</label>
-                        <input type="number" id="discountAmount" class="form-control" value="0" step="0.01" />
+                        <input type="number" id="discountAmount" class="form-control" value="0" step="0.001" />
                     </div>
               
                     <div class="col-md-3">
                         <label for="payableAmount" class="form-label">Payable Amount:</label>
-                        <input type="number" id="payableAmount" class="form-control" value="0" step="0.01" readonly />
+                        <input type="number" id="payableAmount" class="form-control" value="0" step="0.001" readonly />
                     </div>
                     <div class="col-md-6 d-flex align-items-end">
                         <button type="button" class="btn btn-primary me-2" id="addToTable" title="Add product to sale (Ctrl+Enter)">
@@ -134,7 +134,7 @@
                     </div>
                     <div class="col-md-3">
                         <label asp-for="PayNow" class="form-label">Pay Now (Optional):</label>
-                        <input asp-for="PayNow" class="form-control" value="0" step="0.01" placeholder="Enter payment amount (optional)" />
+                        <input asp-for="PayNow" class="form-control" value="0" step="0.001" placeholder="Enter payment amount (optional)" />
                         <small class="form-text text-muted">Leave empty to add full amount to customer's due</small>
                     </div>
                    </div>
@@ -145,11 +145,11 @@
                     </div>
                     <div class="col-md-3">
                         <label asp-for="DiscountAmount" class="form-label">Total Discount:</label>
-                        <input asp-for="DiscountAmount" class="form-control" value="0" step="0.01" />
+                        <input asp-for="DiscountAmount" class="form-control" value="0" step="0.001" />
                     </div>
                     <div class="col-md-3">
                         <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
-                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.01" readonly />
+                        <input asp-for="ReceivedAmount" class="form-control" value="0" step="0.001" readonly />
                     </div>
                     <div class="col-md-3">
                         <label asp-for="DueAmount" class="form-label">Due Amount:</label>
@@ -188,7 +188,7 @@
                     <div class="col-md-6">
                         <label asp-for="PreviousDue" class="form-label">Previous Due:</label>
                         <div class="input-group">
-                            <input asp-for="PreviousDue" class="form-control" value="0" step="0.01" readonly />
+                            <input asp-for="PreviousDue" class="form-control" value="0" step="0.001" readonly />
                             <span class="input-group-text">
                                 <i class="fa-solid fa-rupee-sign"></i>
                             </span>
@@ -930,13 +930,13 @@
                     .then(data => {
                         if (data.success) {
                             const amount = parseFloat(data.previousDueAmount);
-                            previousDueInput.value = amount.toFixed(2);
+                            previousDueInput.value = amount.toFixed(3);
 
                             // Visual feedback based on amount
                             if (amount > 0) {
                                 previousDueInput.style.backgroundColor = '#fff3cd';
                                 previousDueInput.style.color = '#856404';
-                                showSuccessMessage(`Previous due amount loaded: Rs${amount.toFixed(2)}`);
+                                showSuccessMessage(`Previous due amount loaded: Rs${amount.toFixed(3)}`);
                             } else {
                                 previousDueInput.style.backgroundColor = '#d1edff';
                                 previousDueInput.style.color = '#0c5460';
@@ -1000,14 +1000,14 @@
                 // Populate unit price
                 const unitPriceElement = document.getElementById('unitPrice');
                 if (unitPriceElement) {
-                    unitPriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                    unitPriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(3);
                     console.log("Unit price set to:", unitPriceElement.value);
                 }
 
                 // Set default sale price to unit price
                 const salePriceElement = document.getElementById('salePrice');
                 if (salePriceElement) {
-                    salePriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
+                    salePriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(3);
                     console.log("Sale price set to:", salePriceElement.value);
                 }
 
@@ -1026,7 +1026,7 @@
             const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
             const payable = (salePrice * quantity) - totalDiscount;
 
-            document.getElementById('payableAmount').value = payable.toFixed(2);
+            document.getElementById('payableAmount').value = payable.toFixed(3);
             console.log('Payable calculation:', {
                 quantity: quantity,
                 salePrice: salePrice,
@@ -1118,11 +1118,11 @@
             newRow.innerHTML = `
                 <td>${selectedProductSize.measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
-                <td>Rs${discount.toFixed(2)}</td>
-                <td>Rs${salePrice.toFixed(2)}</td>
+                <td>Rs${discount.toFixed(3)}</td>
+                <td>Rs${salePrice.toFixed(3)}</td>
                 <td>${quantity}</td>
-                <td>Rs${totalDiscount.toFixed(2)}</td>
-                <td>Rs${payable.toFixed(2)}</td>
+                <td>Rs${totalDiscount.toFixed(3)}</td>
+                <td>Rs${payable.toFixed(3)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1134,11 +1134,11 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${selectedProductSize.productRangeId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${selectedProductSize.measuringUnitAbbreviation}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(3)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${Math.floor(quantity)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(3)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(3)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(3)}" />
             `;
 
             tbody.appendChild(newRow);
@@ -1303,11 +1303,11 @@
             newRow.innerHTML = `
                 <td>${productSize || ''}</td>
                 <td>${productName}</td>
-                <td>Rs${itemLevelDiscount.toFixed(2)}</td>
-                <td>Rs${parseFloat(salePrice).toFixed(2)}</td>
+                <td>Rs${itemLevelDiscount.toFixed(3)}</td>
+                <td>Rs${parseFloat(salePrice).toFixed(3)}</td>
                 <td>${quantity}</td>
-                <td>Rs${parseFloat(lineDiscountAmount).toFixed(2)}</td>
-                <td>Rs${parseFloat(payableAmount).toFixed(2)}</td>
+                <td>Rs${parseFloat(lineDiscountAmount).toFixed(3)}</td>
+                <td>Rs${parseFloat(payableAmount).toFixed(3)}</td>
                 <td>
                     <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
                         <i class="fa-solid fa-edit"></i>
@@ -1319,11 +1319,11 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${productRangeId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${productSize || ''}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(unitPrice).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(unitPrice).toFixed(3)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(salePrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(lineDiscountAmount).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(payableAmount).toFixed(2)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(salePrice).toFixed(3)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(lineDiscountAmount).toFixed(3)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(payableAmount).toFixed(3)}" />
             `;
 
             tbody.appendChild(newRow);
@@ -1366,14 +1366,14 @@
             // Update Total Amount
             const totalAmountElement = document.getElementById('TotalAmount');
             if (totalAmountElement) {
-                totalAmountElement.value = totalAmount.toFixed(2);
-                console.log('Updated TotalAmount field to:', totalAmount.toFixed(2));
+                totalAmountElement.value = totalAmount.toFixed(3);
+                console.log('Updated TotalAmount field to:', totalAmount.toFixed(3));
             } else {
                 console.error('TotalAmount element not found!');
             }
 
             // Update Total Discount
-            document.getElementById('DiscountAmount').value = totalDiscount.toFixed(2);
+            document.getElementById('DiscountAmount').value = totalDiscount.toFixed(3);
 
             // Get received and previous due amounts
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
@@ -1385,7 +1385,7 @@
             const dueAmount = Math.max(0, totalAmount - receivedAmount);
 
             // Update Due Amount
-            document.getElementById('DueAmount').value = dueAmount.toFixed(2);
+            document.getElementById('DueAmount').value = dueAmount.toFixed(3);
 
             // Pay Now field is optional - don't auto-sync with Received Amount
             // User can enter any amount they want to pay now
@@ -1396,7 +1396,7 @@
 
         function updateReceivedAmount() {
             const payNow = parseFloat(document.getElementById('PayNow').value) || 0;
-            document.getElementById('ReceivedAmount').value = payNow.toFixed(2);
+            document.getElementById('ReceivedAmount').value = payNow.toFixed(3);
             updateTotals();
 
             // Show helpful message when payment is complete
@@ -1411,7 +1411,7 @@
 
         function updateReceivedAmountFromReceived() {
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
-            document.getElementById('PayNow').value = receivedAmount.toFixed(2);
+            document.getElementById('PayNow').value = receivedAmount.toFixed(3);
             updateTotals();
         }
 
@@ -2100,11 +2100,11 @@
 
                     // Populate other fields
                     document.getElementById('quantity').value = quantity;
-                    document.getElementById('unitPrice').value = unitPrice.toFixed(2);
-                    document.getElementById('salePrice').value = salePrice.toFixed(2);
+                    document.getElementById('unitPrice').value = unitPrice.toFixed(3);
+                    document.getElementById('salePrice').value = salePrice.toFixed(3);
                     // Calculate item level discount (per unit discount)
                     const itemLevelDiscount = quantity > 0 ? lineDiscountAmount / quantity : 0;
-                    document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(2);
+                    document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(3);
 
                     // Calculate payable amount
                     calculatePayableAmount();

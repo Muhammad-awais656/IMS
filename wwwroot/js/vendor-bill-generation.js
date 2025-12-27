@@ -294,8 +294,8 @@ function setupEventHandlers() {
                 sizeCb.value(item.productRangeId);
             }, 200);
             $("#quantity").val(item.quantity);
-            $("#unitPrice").val(item.unitPrice);
-            $("#purchasePrice").val(item.purchasePrice);
+            $("#unitPrice").val(parseFloat(item.unitPrice).toFixed(3));
+            $("#purchasePrice").val(parseFloat(item.purchasePrice).toFixed(3));
             $("#discountAmount").val(item.lineDiscountAmount / item.quantity); // Convert back to per-unit discount
             $("#payableAmount").val(item.payableAmount);
             $("#addToTable").text("Update Item");
@@ -360,8 +360,8 @@ function loadProductSizeData(productRangeId) {
     var selectedItem = productSizeComboBox.dataItem();
     
     if (selectedItem) {
-        $("#unitPrice").val(selectedItem.unitPrice);
-        $("#purchasePrice").val(selectedItem.unitPrice); // Default to unit price
+        $("#unitPrice").val(parseFloat(selectedItem.unitPrice).toFixed(3));
+        $("#purchasePrice").val(parseFloat(selectedItem.unitPrice).toFixed(3)); // Default to unit price
         calculatePayableAmount();
     }
 }
@@ -414,7 +414,7 @@ function calculatePayableAmount() {
     var totalDiscount = discountAmount * quantity; // Calculate total discount
     var payableAmount = totalAmount - totalDiscount; // Use total discount instead of per-unit discount
     
-    $("#payableAmount").val(payableAmount.toFixed(2));
+    $("#payableAmount").val(payableAmount.toFixed(3));
 }
 
 function calculateDueAmount() {
@@ -426,7 +426,7 @@ function calculateDueAmount() {
     var netTotal = totalAmount - discountAmountTotal;
     var dueAmount = netTotal - payNow;
     
-    $("#dueAmount").val(dueAmount.toFixed(2));
+    $("#dueAmount").val(dueAmount.toFixed(3));
     $("#receivedAmount").val(payNow);
 }
 
@@ -439,8 +439,8 @@ function calculateTotals() {
         totalDiscount += item.lineDiscountAmount;
     });
     
-    $("#totalAmount").val(totalAmount.toFixed(2));
-    $("#discountAmountTotal").val(totalDiscount.toFixed(2));
+    $("#totalAmount").val(totalAmount.toFixed(3));
+    $("#discountAmountTotal").val(totalDiscount.toFixed(3));
     
     // Update bill amount if online payment is selected
     var paymentMethod = $("#paymentMethod").val();
@@ -484,8 +484,8 @@ function addProductToTable() {
         productName: selectedProduct.text,
         productCode: selectedProduct.code || "",
         measuringUnitAbbreviation: selectedProductSize.measuringUnitAbbreviation || "",
-        unitPrice: unitPrice,
-        purchasePrice: purchasePrice,
+        unitPrice: parseFloat(parseFloat(unitPrice).toFixed(3)),
+        purchasePrice: parseFloat(parseFloat(purchasePrice).toFixed(3)),
         quantity: quantity,
         salePrice: unitPrice,
         lineDiscountAmount: discountAmount * quantity,
@@ -523,9 +523,9 @@ function updateBillDetailsTable() {
         // Helper function to safely format decimal values
         function safeToFixed(value, decimals) {
             if (value === null || value === undefined || isNaN(value)) {
-                return "0.00";
+                return "0.000";
             }
-            return parseFloat(value).toFixed(decimals || 2);
+            return parseFloat(value).toFixed(decimals || 3);
         }
         
         // Calculate unit discount price safely
@@ -536,12 +536,12 @@ function updateBillDetailsTable() {
         
         row.append("<td>" + (item.productCode || "") + "</td>");
         row.append("<td>" + (item.productName || "") + "</td>");
-        row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
-        row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
-        row.append("<td>" + safeToFixed(item.purchasePrice, 2) + "</td>");
+        row.append("<td>" + safeToFixed(unitDiscountPrice, 3) + "</td>");
+        row.append("<td>" + safeToFixed(item.unitPrice, 3) + "</td>");
+        row.append("<td>" + safeToFixed(item.purchasePrice, 3) + "</td>");
         row.append("<td>" + (item.quantity || 0) + "</td>");
-        row.append("<td>" + safeToFixed(item.lineDiscountAmount, 2) + "</td>");
-        row.append("<td>" + safeToFixed(item.payableAmount, 2) + "</td>");
+        row.append("<td>" + safeToFixed(item.lineDiscountAmount, 3) + "</td>");
+        row.append("<td>" + safeToFixed(item.payableAmount, 3) + "</td>");
         row.append("<td>"
             + "<button type='button' class='btn btn-sm btn-warning me-1 edit-row' data-index='" + index + "' title='Edit'><i class='fa-solid fa-edit'></i></button>"
             + "<button type='button' class='btn btn-sm btn-danger remove-row' data-index='" + index + "' title='Remove'><i class='fa-solid fa-trash'></i></button>"
@@ -763,7 +763,7 @@ function loadAccountBalance(accountId) {
         .then(data => {
             console.log("Account balance data received:", data);
             if (data.success) {
-                $("#accountBalance").val(data.balance.toFixed(2));
+                $("#accountBalance").val(data.balance.toFixed(3));
                 updateBillAmount();
             } else {
                 console.error("Error loading account balance:", data.message);
@@ -783,7 +783,7 @@ function updateBillAmount() {
     var payNow = parseFloat($("#payNow").val()) || 0;
     
     var billAmount = totalAmount - discountAmountTotal;
-    $("#billAmount").val(billAmount.toFixed(2));
+    $("#billAmount").val(billAmount.toFixed(3));
 }
 
 // Function to validate account balance
@@ -800,13 +800,13 @@ function validateAccountBalance() {
         
         if (accountBalance <= 0) {
             $("#accountBalance").addClass('is-invalid');
-            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(3));
             return false;
         }
         
         if (payNow > accountBalance) {
             $("#payNow").addClass('is-invalid');
-            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(3) + ", Payment amount: $" + payNow.toFixed(3));
             return false;
         }
         
@@ -882,12 +882,12 @@ function validateBillForm() {
         var payNow = parseFloat($("#payNow").val()) || 0;
         
         if (accountBalance <= 0) {
-            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+            showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(3));
             return false;
         }
         
         if (payNow > accountBalance) {
-            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+            showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(3) + ", Payment amount: $" + payNow.toFixed(3));
             return false;
         }
     }
@@ -924,8 +924,8 @@ function collectBillFormData(actionType) {
             ProductId: parseInt(item.productId),
             ProductRangeId: parseInt(item.productRangeId),
             ProductSize: item.measuringUnitAbbreviation || "",
-            UnitPrice: parseFloat(item.unitPrice),
-            PurchasePrice: parseFloat(item.purchasePrice),
+            UnitPrice: parseFloat(parseFloat(item.unitPrice).toFixed(3)),
+            PurchasePrice: parseFloat(parseFloat(item.purchasePrice).toFixed(3)),
             Quantity: parseInt(item.quantity),
             SalePrice: parseFloat(item.salePrice),
             LineDiscountAmount: parseFloat(item.lineDiscountAmount),

@@ -42,9 +42,9 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pCreatedDate", customer.CreatedDate == default(DateTime) ? DBNull.Value : customer.CreatedDate);
                         command.Parameters.AddWithValue("@pIsEnabled", customer.IsEnabled);
                         command.Parameters.AddWithValue("@pCreatedBy", customer.CreatedBy);
-                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", customer.InvoiceCreditPeriod ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@pStartWorkingTime", customer.StartWorkingTime ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@pEndWorkingTime", customer.EndWorkingTime ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", DBNull.Value);
+                        command.Parameters.AddWithValue("@pStartWorkingTime", DBNull.Value);
+                        command.Parameters.AddWithValue("@pEndWorkingTime", DBNull.Value);
                         
                         var CustomerIdParam = new SqlParameter("@pCustomerId", SqlDbType.BigInt)
                         {
@@ -295,11 +295,11 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pCustomerEmailCC", customer.CustomerEmailCc ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerAddress", customer.CustomerAddress ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pIsEnabled", customer.IsEnabled);
-                        command.Parameters.AddWithValue("@pStartWorkingTime", customer.StartWorkingTime ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@pEndWorkingTime", customer.EndWorkingTime ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pStartWorkingTime", DBNull.Value);
+                        command.Parameters.AddWithValue("@pEndWorkingTime", DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedDate", customer.ModifiedDate == default(DateTime) ? DBNull.Value : customer.ModifiedDate);
                         command.Parameters.AddWithValue("@ModifiedBy", customer.ModifiedBy);
-                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", customer.InvoiceCreditPeriod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pInvoiceCreditPeriod", DBNull.Value);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {
