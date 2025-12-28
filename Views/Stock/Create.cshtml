@@ -16,8 +16,8 @@
                             <span asp-validation-for="CategoryIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
-                            <label asp-for="ProductIdFk" class="form-label">Product:</label>
-                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control", @id = "ProductIdFk" })
+                            <label asp-for="ProductIdFk" class="form-label">Product Name:</label>
+                            <input id="productDropdown" name="ProductIdFk" style="width: 100%;" />
                             <span asp-validation-for="ProductIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
@@ -56,48 +56,30 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function() {
-            // Handle category change event
-            $('#CategoryIdFk').change(function() {
-                var categoryId = $(this).val();
-                var productDropdown = $('#ProductIdFk');
-                
-                // Clear existing products
-                productDropdown.empty();
-                productDropdown.append('<option value="">&lt;-- Select Product --&gt;</option>');
-                
-                if (categoryId && categoryId !== '') {
-                    // Show loading state
-                    productDropdown.prop('disabled', true);
-                    
-                    // Fetch products for selected category
-                    $.ajax({
-                        url: '@Url.Action("GetProductsByCategory", "Stock")',
-                        type: 'GET',
-                        data: { categoryId: categoryId },
-                        success: function(data) {
-                            $.each(data, function(index, item) {
-                                productDropdown.append('<option value="' + item.value + '">' + item.text + '</option>');
-                            });
-                            productDropdown.prop('disabled', false);
-                        },
-                        error: function() {
-                            alert('Error loading products for selected category.');
-                            productDropdown.prop('disabled', false);
+            // Initialize Kendo UI ComboBox for Product Name dropdown (same as Product Management screen)
+            $("#productDropdown").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Product/GetProducts",
+                            dataType: "json"
                         }
-                    });
-                } else {
-                    productDropdown.prop('disabled', false);
-                }
-            });
-
-            // Handle product selection to load existing stock
-            $('#ProductIdFk').change(function() {
-                var productId = $(this).val();
-                if (productId && productId !== '') {
-                    loadExistingStock(productId);
-                } else {
-                    // Clear available quantity if no product selected
-                    $('#AvailableQuantity').val(0);
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Product --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function(e) {
+                    var productId = this.value();
+                    if (productId && productId !== '') {
+                        loadExistingStock(productId);
+                    } else {
+                        // Clear available quantity if no product selected
+                        $('#AvailableQuantity').val(0);
+                    }
                 }
             });
 
