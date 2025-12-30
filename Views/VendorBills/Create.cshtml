@@ -90,7 +90,7 @@
                                             <table class="table table-striped table-hover mb-0">
                                                 <thead class="table-dark">
                                                     <tr>
-                                                        <th>Product code</th>
+                                                        <th>Measuring Unit</th>
                                                         <th>Product</th>
                                                         <th>Unit price</th>
                                                         <th>Bill price</th>
@@ -785,8 +785,9 @@
             addUpdateButton.className = 'btn btn-warning me-2';
             
             // Get current values from the row
-            const productCode = cells[0].textContent;
-            const productName = cells[1].textContent;
+            // cells[0] is now Measuring Unit, cells[1] is Product Name
+            const measuringUnit = cells[0].textContent.trim();
+            const productName = cells[1].textContent.trim();
             const unitPrice = parseFloat(cells[2].textContent.replace('$', ''));
             const unitPurchasePrice = parseFloat(cells[3].textContent.replace('$', ''));
             const quantity = parseInt(cells[4].textContent);
@@ -796,7 +797,7 @@
             // Get hidden input values
             const productId = row.querySelector('input[name*=".ProductId"]').value;
             const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
-            const productSize = row.querySelector('input[name*=".ProductSize"]').value;
+            const productSize = row.querySelector('input[name*=".ProductSize"]') ? row.querySelector('input[name*=".ProductSize"]').value : measuringUnit;
             
             console.log('Editing product:', {
                 productId: productId,
@@ -974,30 +975,39 @@
             {
                 foreach (var item in Model.BillItems)
                 {
+                    var productSize = item.ProductSize ?? "N/A";
                     <text>
-                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', @item.UnitPrice, @item.Quantity, @item.DiscountAmount, @item.PayableAmount);
+                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', '@Html.Raw(productSize)', @item.UnitPrice, @item.BillPrice, @item.Quantity, @item.DiscountAmount, @item.PayableAmount);
                     </text>
                 }
             }
         }
 
-        function addExistingItemToTable(productId, productRangeId, productName, unitPrice, quantity, discountAmount, payableAmount) {
+        function addExistingItemToTable(productId, productRangeId, productName, measuringUnitAbbreviation, unitPrice, purchasePrice, quantity, discountAmount, payableAmount) {
             const tbody = document.getElementById('productListBody');
             const row = document.createElement('tr');
+            const measuringUnit = measuringUnitAbbreviation && measuringUnitAbbreviation !== 'null' && measuringUnitAbbreviation.trim() !== '' ? measuringUnitAbbreviation : 'N/A';
             row.innerHTML = `
+                <td>${measuringUnit}</td>
                 <td>${productName}</td>
-                <td>${unitPrice.toFixed(3)}</td>
+                <td>$${parseFloat(unitPrice).toFixed(2)}</td>
+                <td>$${parseFloat(purchasePrice).toFixed(2)}</td>
                 <td>${quantity}</td>
-                <td>${discountAmount.toFixed(3)}</td>
-                <td>${payableAmount.toFixed(3)}</td>
+                <td>$${parseFloat(discountAmount).toFixed(2)}</td>
+                <td>$${parseFloat(payableAmount).toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)">
+                    <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
                 <input type="hidden" name="BillItems[${rowIndex}].ProductId" value="${productId}" />
                 <input type="hidden" name="BillItems[${rowIndex}].ProductRangeId" value="${productRangeId}" />
+                <input type="hidden" name="BillItems[${rowIndex}].ProductSize" value="${measuringUnit}" />
                 <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
+                <input type="hidden" name="BillItems[${rowIndex}].BillPrice" value="${purchasePrice}" />
                 <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
                 <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
                 <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />

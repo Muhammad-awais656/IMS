@@ -3,6 +3,7 @@ let billDetails = [];
 let currentProductId = null;
 let currentProductRangeId = null;
 let editingIndex = -1;
+let selectedProductSize = null;
 
 function initializeVendorBillGeneration() {
     // Initialize Kendo UI components
@@ -107,10 +108,10 @@ function initializeProductSizeComboBox() {
             data: []
         },
         change: function(e) {
-            if (this.value()) {
-                currentProductRangeId = this.value();
-                loadProductSizeData(this.value());
-            }
+            onProductSizeChange();
+        },
+        select: function(e) {
+            onProductSizeChange();
         }
     });
 }
@@ -277,7 +278,18 @@ function setupEventHandlers() {
             loadProductSizes(item.productId);
             setTimeout(function(){
                 sizeCb.value(item.productRangeId);
-            }, 200);
+                // Set selectedProductSize from the item being edited
+                selectedProductSize = {
+                    productRangeId: item.productRangeId,
+                    measuringUnitId: item.measuringUnitId || null,
+                    rangeFrom: item.rangeFrom || null,
+                    rangeTo: item.rangeTo || null,
+                    unitPrice: item.unitPrice,
+                    measuringUnitName: item.measuringUnitName || "",
+                    measuringUnitAbbreviation: item.measuringUnitAbbreviation || item.productSize || "N/A"
+                };
+                console.log("Selected product size set from edit:", selectedProductSize);
+            }, 300);
             $("#quantity").val(item.quantity);
             $("#unitPrice").val(item.unitPrice);
             $("#purchasePrice").val(item.purchasePrice);
@@ -340,15 +352,49 @@ function loadProductSizes(productId) {
         });
 }
 
-function loadProductSizeData(productRangeId) {
+function onProductSizeChange() {
+    console.log("onProductSizeChange function called");
     var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
-    var selectedItem = productSizeComboBox.dataItem();
+    var selectedValue = productSizeComboBox ? productSizeComboBox.value() : null;
+    var selectedItem = productSizeComboBox ? productSizeComboBox.dataItem() : null;
     
-    if (selectedItem) {
-        $("#unitPrice").val(selectedItem.unitPrice);
-        $("#purchasePrice").val(selectedItem.unitPrice); // Default to unit price
+    console.log("Selected value:", selectedValue);
+    console.log("Selected item:", selectedItem);
+    console.log("Selected item keys:", selectedItem ? Object.keys(selectedItem) : "null");
+    
+    if (selectedValue && selectedItem) {
+        // Store the selected product size data globally - match Sales pattern exactly
+        selectedProductSize = {
+            productRangeId: selectedItem.value || selectedItem.productRangeId,
+            measuringUnitId: selectedItem.measuringUnitId,
+            rangeFrom: selectedItem.rangeFrom,
+            rangeTo: selectedItem.rangeTo,
+            unitPrice: selectedItem.unitPrice,
+            measuringUnitName: selectedItem.measuringUnitName,
+            measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+        };
+        
+        console.log("Selected product size stored:", selectedProductSize);
+        console.log("Measuring unit abbreviation:", selectedProductSize.measuringUnitAbbreviation);
+        
+        // Populate unit price
+        $("#unitPrice").val(parseFloat(selectedProductSize.unitPrice).toFixed(2));
+        $("#purchasePrice").val(parseFloat(selectedProductSize.unitPrice).toFixed(2)); // Default to unit price
+        
+        // Update current product range ID
+        currentProductRangeId = selectedValue;
+        
         calculatePayableAmount();
+    } else {
+        console.warn("No selected item found in product size combo");
+        selectedProductSize = null;
+        currentProductRangeId = null;
     }
+}
+
+// Keep loadProductSizeData for backward compatibility if needed
+function loadProductSizeData(productRangeId) {
+    onProductSizeChange();
 }
 
 function loadProductStock(productId) {
@@ -451,7 +497,11 @@ function addProductToTable() {
     }
     
     var selectedProduct = productComboBox.dataItem();
-    var selectedProductSize = productSizeComboBox.dataItem();
+    
+    if (!selectedProductSize) {
+        showWarningMessage("Please select a product size");
+        return;
+    }
     
     var quantity = parseFloat($("#quantity").val()) || 0;
     var unitPrice = parseFloat($("#unitPrice").val()) || 0;
@@ -464,11 +514,22 @@ function addProductToTable() {
         return;
     }
     
+    // Get measuring unit abbreviation from selected product size - match Sales pattern exactly
+    var measuringUnitAbbreviation = selectedProductSize ? (selectedProductSize.measuringUnitAbbreviation || 'N/A') : 'N/A';
+    
+    console.log('Adding product to table:', {
+        productId: selectedProduct.value,
+        productName: selectedProduct.text,
+        measuringUnitAbbreviation: measuringUnitAbbreviation,
+        selectedProductSize: selectedProductSize,
+        productRangeId: selectedProductSize.productRangeId
+    });
+    
     var billDetail = {
         productId: parseInt(selectedProduct.value),
         productName: selectedProduct.text,
         productCode: selectedProduct.code || "",
-        measuringUnitAbbreviation: selectedProductSize.measuringUnitAbbreviation || "",
+        measuringUnitAbbreviation: measuringUnitAbbreviation,
         unitPrice: unitPrice,
         purchasePrice: purchasePrice,
         quantity: quantity,
@@ -504,6 +565,9 @@ function updateBillDetailsTable() {
     
     billDetails.forEach(function(item, index) {
         console.log('Processing item at index', index, ':', item);
+        console.log('Item measuringUnitAbbreviation:', item.measuringUnitAbbreviation);
+        console.log('Item productCode:', item.productCode);
+        
         var row = $("<tr>");
         // Helper function to safely format decimal values
         function safeToFixed(value, decimals) {
@@ -519,7 +583,19 @@ function updateBillDetailsTable() {
             unitDiscountPrice = item.lineDiscountAmount / item.quantity;
         }
         
-        row.append("<td>" + (item.productCode || "") + "</td>");
+        // Ensure we use measuringUnitAbbreviation, not productCode
+        var measuringUnit = item.measuringUnitAbbreviation || 
+                           item.MeasuringUnitAbbreviation || 
+                           item.measuring_unit_abbreviation || 
+                           "N/A";
+        
+        // Double check we're not accidentally using productCode
+        if (measuringUnit === "N/A" && item.productCode) {
+            console.warn("Warning: measuringUnitAbbreviation is N/A, but productCode exists:", item.productCode);
+            console.warn("This should not happen - measuring unit should come from product size selection");
+        }
+        
+        row.append("<td>" + measuringUnit + "</td>");
         row.append("<td>" + (item.productName || "") + "</td>");
         row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
         row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
@@ -552,6 +628,7 @@ function resetProductFields() {
     
     currentProductId = null;
     currentProductRangeId = null;
+    selectedProductSize = null;
 }
 
 // Form submission

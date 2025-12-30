@@ -608,49 +608,62 @@ namespace IMS.Services
                     {
                         try
                         {
-                            // Update the main bill
-                            using (var command = new SqlCommand(@"
-                                UPDATE PurchaseOrders 
-                                SET VendorId = @VendorId, BillNumber = @BillNumber, BillDate = @BillDate,
-                                    TotalAmount = @TotalAmount, DiscountAmount = @DiscountAmount,
-                                    PaidAmount = @PaidAmount, DueAmount = @DueAmount, Description = @Description
-                                WHERE BillId = @BillId", connection, transaction))
+                            // Step 1: Update the main bill using UpdateBill stored procedure
+                            using (var command = new SqlCommand("UpdateBill", connection, transaction))
                             {
-                                command.Parameters.AddWithValue("@BillId", billId);
-                                command.Parameters.AddWithValue("@VendorId", model.VendorId);
-                                command.Parameters.AddWithValue("@BillNumber", model.BillNumber);
-                                command.Parameters.AddWithValue("@BillDate", model.BillDate);
-                                command.Parameters.AddWithValue("@TotalAmount", model.TotalAmount);
-                                command.Parameters.AddWithValue("@DiscountAmount", model.DiscountAmount);
-                                command.Parameters.AddWithValue("@PaidAmount", model.PaidAmount);
-                                command.Parameters.AddWithValue("@DueAmount", model.DueAmount);
-                                command.Parameters.AddWithValue("@Description", model.Description ?? "");
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pBillId", billId);
+                                command.Parameters.AddWithValue("@pTotalAmount", model.TotalAmount);
+                                command.Parameters.AddWithValue("@pTotalReceivedAmount", model.PaidAmount);
+                                command.Parameters.AddWithValue("@pTotalDueAmount", model.DueAmount);
+                                command.Parameters.AddWithValue("@pSupplierId_FK", model.VendorId);
+                                command.Parameters.AddWithValue("@pModifiedDate", model.ModifiedDate == default(DateTime) ? DateTime.Now : model.ModifiedDate);
+                                command.Parameters.AddWithValue("@pModifiedBy", model.ModifiedBy);
+                                command.Parameters.AddWithValue("@pDiscountAmount", model.DiscountAmount);
+                                command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
+                                command.Parameters.AddWithValue("@pBillDescription", model.Description ?? (object)DBNull.Value);
+                                command.Parameters.AddWithValue("@pBillDate", model.BillDate);
 
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // Delete existing bill items
-                            using (var command = new SqlCommand("UPDATE PurchaseOrderItems SET IsDeleted = 1 WHERE BillId = @BillId", connection, transaction))
+                            // Step 2: Delete transactions using TransactionsDelete stored procedure
+                            using (var command = new SqlCommand("TransactionsDelete", connection, transaction))
                             {
-                                command.Parameters.AddWithValue("@BillId", billId);
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pSaleId", billId);
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // Insert new bill items
+                            // Step 3: Delete existing bill details using DeleteBillDetailByBillId stored procedure
+                            using (var command = new SqlCommand("DeleteBillDetailByBillId", connection, transaction))
+                            {
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pBillId", billId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // Step 4: Add new bill details using AddBillDetails stored procedure
                             foreach (var item in model.BillDetails)
                             {
-                                using (var command = new SqlCommand(@"
-                                    INSERT INTO PurchaseOrderItems (BillId, ProductId, ProductRangeId, UnitPrice, Quantity, DiscountAmount, PayableAmount, CreatedDate)
-                                    VALUES (@BillId, @ProductId, @ProductRangeId, @UnitPrice, @Quantity, @DiscountAmount, @PayableAmount, @CreatedDate)", connection, transaction))
+                                using (var command = new SqlCommand("AddBillDetails", connection, transaction))
                                 {
-                                    command.Parameters.AddWithValue("@BillId", billId);
-                                    command.Parameters.AddWithValue("@ProductId", item.ProductId);
-                                    command.Parameters.AddWithValue("@ProductRangeId", item.ProductRangeId);
-                                    command.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
-                                    command.Parameters.AddWithValue("@Quantity", item.Quantity);
-                                    command.Parameters.AddWithValue("@DiscountAmount", item.LineDiscountAmount);
-                                    command.Parameters.AddWithValue("@PayableAmount", item.PayableAmount);
-                                    command.Parameters.AddWithValue("@CreatedDate", DateTime.Now);
+                                    command.CommandType = CommandType.StoredProcedure;
+                                    command.Parameters.AddWithValue("@pBillId_FK", billId);
+                                    command.Parameters.AddWithValue("@pPrductId_FK", item.ProductId);
+                                    command.Parameters.AddWithValue("@pUnitPrice", item.UnitPrice);
+                                    command.Parameters.AddWithValue("@pQuantity", item.Quantity);
+                                    command.Parameters.AddWithValue("@pPurchasePrice", item.PurchasePrice);
+                                    command.Parameters.AddWithValue("@pLineDiscountAmount", item.LineDiscountAmount);
+                                    command.Parameters.AddWithValue("@pPayableAmount", item.PayableAmount);
+                                    command.Parameters.AddWithValue("@ProductRangeId_FK", item.ProductRangeId);
+                                    
+                                    // Output parameter for BillDetailsId
+                                    var billDetailsIdParam = new SqlParameter("@pBillDetailsId", SqlDbType.BigInt)
+                                    {
+                                        Direction = ParameterDirection.Output
+                                    };
+                                    command.Parameters.Add(billDetailsIdParam);
 
                                     await command.ExecuteNonQueryAsync();
                                 }
@@ -659,9 +672,10 @@ namespace IMS.Services
                             transaction.Commit();
                             return true;
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             transaction.Rollback();
+                            _logger.LogError(ex, "Error updating vendor bill {BillId} in transaction", billId);
                             throw;
                         }
                     }

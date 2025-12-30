@@ -883,6 +883,12 @@ namespace IMS.Controllers
             {
                 if (ModelState.IsValid)
                 {
+                    // Get user ID from session
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    long userId = long.Parse(userIdStr);
+                    model.ModifiedBy = userId;
+                    model.ModifiedDate = DateTime.Now;
+                    
                     // Update the vendor bill
                     var success = await _vendorBillsService.UpdateVendorBillAsync(id, model);
                     
