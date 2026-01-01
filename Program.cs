@@ -16,6 +16,12 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Pakistan Standard Time (UTC+5) as default timezone
+// Set default culture to en-PK (English - Pakistan) for date/time formatting
+var pakistanCulture = new CultureInfo("en-PK");
+CultureInfo.DefaultThreadCurrentCulture = pakistanCulture;
+CultureInfo.DefaultThreadCurrentUICulture = pakistanCulture;
+
 //                 Without localization
 builder.Services.AddControllersWithViews(options =>
 {
@@ -112,18 +118,18 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-//var supportedCultures = new[]
-//{
-//    new CultureInfo("en-US"), // English (United States)
-//    new CultureInfo("es-ES"), // Spanish (Spain)
-//    new CultureInfo("ur-PK"), // Urdu (Pakistan)
-//};
-//app.UseRequestLocalization(new RequestLocalizationOptions
-//{
-//    DefaultRequestCulture = new RequestCulture("en-US"),
-//    SupportedCultures = supportedCultures,
-//    SupportedUICultures = supportedCultures
-//});
+// Configure Pakistan Standard Time for the application
+// Set culture to en-PK for proper date/time formatting
+var supportedCultures = new[]
+{
+    new CultureInfo("en-PK"), // English (Pakistan) - for Pakistan Standard Time
+};
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture("en-PK"),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
