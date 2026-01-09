@@ -222,10 +222,25 @@
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
-                               asp-route-pageSize="@Model.PageSize">First</a>
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-searchpName="@Context.Request.Query["searchpName"]"
+                               asp-route-searchpCode="@Context.Request.Query["searchpCode"]"
+                               asp-route-searchpFrom="@Context.Request.Query["searchpFrom"]"
+                               asp-route-searchpTo="@Context.Request.Query["searchpTo"]"
+                               asp-route-catId="@Context.Request.Query["catId"]"
+                               asp-route-searchULabelId="@Context.Request.Query["searchULabelId"]"
+                               asp-route-searchUMUTId="@Context.Request.Query["searchUMUTId"]">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" 
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-searchpName="@Context.Request.Query["searchpName"]"
+                               asp-route-searchpCode="@Context.Request.Query["searchpCode"]"
+                               asp-route-searchpFrom="@Context.Request.Query["searchpFrom"]"
+                               asp-route-searchpTo="@Context.Request.Query["searchpTo"]"
+                               asp-route-catId="@Context.Request.Query["catId"]"
+                               asp-route-searchULabelId="@Context.Request.Query["searchULabelId"]"
+                               asp-route-searchUMUTId="@Context.Request.Query["searchUMUTId"]">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -239,14 +254,38 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize">@i</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" 
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-searchpName="@Context.Request.Query["searchpName"]"
+                                   asp-route-searchpCode="@Context.Request.Query["searchpCode"]"
+                                   asp-route-searchpFrom="@Context.Request.Query["searchpFrom"]"
+                                   asp-route-searchpTo="@Context.Request.Query["searchpTo"]"
+                                   asp-route-catId="@Context.Request.Query["catId"]"
+                                   asp-route-searchULabelId="@Context.Request.Query["searchULabelId"]"
+                                   asp-route-searchUMUTId="@Context.Request.Query["searchUMUTId"]">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" 
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-searchpName="@Context.Request.Query["searchpName"]"
+                               asp-route-searchpCode="@Context.Request.Query["searchpCode"]"
+                               asp-route-searchpFrom="@Context.Request.Query["searchpFrom"]"
+                               asp-route-searchpTo="@Context.Request.Query["searchpTo"]"
+                               asp-route-catId="@Context.Request.Query["catId"]"
+                               asp-route-searchULabelId="@Context.Request.Query["searchULabelId"]"
+                               asp-route-searchUMUTId="@Context.Request.Query["searchUMUTId"]">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize">Last</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" 
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-searchpName="@Context.Request.Query["searchpName"]"
+                               asp-route-searchpCode="@Context.Request.Query["searchpCode"]"
+                               asp-route-searchpFrom="@Context.Request.Query["searchpFrom"]"
+                               asp-route-searchpTo="@Context.Request.Query["searchpTo"]"
+                               asp-route-catId="@Context.Request.Query["catId"]"
+                               asp-route-searchULabelId="@Context.Request.Query["searchULabelId"]"
+                               asp-route-searchUMUTId="@Context.Request.Query["searchUMUTId"]">Last</a>
                         </li>
                     </ul>
                 </nav>
