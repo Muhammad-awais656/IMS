@@ -153,12 +153,12 @@ namespace IMS.Controllers
                     long userId = long.Parse(userIdStr ?? "1");
                     
                     personalPayment.CreatedBy = userId;
-                    personalPayment.CreatedDate = DateTime.Now;
-                    personalPayment.ModifiedDate = DateTime.Now;
+                    personalPayment.CreatedDate = DateTimeHelper.Now;
+                    personalPayment.ModifiedDate = DateTimeHelper.Now;
                     personalPayment.ModifiedBy = userId;
                     personalPayment.PaymentDate = HttpContext.Request.Form["PaymentDate"].ToString() != "" 
                         ? Convert.ToDateTime(HttpContext.Request.Form["PaymentDate"]) 
-                        : DateTime.Now;
+                        : DateTimeHelper.Now;
 
                     var result = await _personalPaymentService.CreatePersonalPaymentAsync(personalPayment);
                     if (result)
@@ -218,7 +218,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    personalPayment.ModifiedDate = DateTime.Now;
+                    personalPayment.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr ?? "1");
                     personalPayment.ModifiedBy = userId;

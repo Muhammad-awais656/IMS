@@ -73,7 +73,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminLabel.CreatedBy = userId;
-                    adminLabel.CreatedDate = DateTime.Now;
+                    adminLabel.CreatedDate = DateTimeHelper.Now;
                    
                     var result = await _adminLabelsService.CreateAdminLablesAsync(adminLabel);
                     if (result)
@@ -121,7 +121,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    AdminLabels.ModifiedDate = DateTime.Now;
+                    AdminLabels.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     AdminLabels.ModifiedBy = userId;

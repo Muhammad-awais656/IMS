@@ -126,10 +126,10 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     expense.CreatedBy = userId;
-                    expense.CreatedDate = DateTime.Now;
-                    expense.ModifiedDate = DateTime.Now;
+                    expense.CreatedDate = DateTimeHelper.Now;
+                    expense.ModifiedDate = DateTimeHelper.Now;
                     expense.ModifiedBy = userId;
-                    expense.ExpenseDate= HttpContext.Request.Form["FromDate"].ToString() != "" ? Convert.ToDateTime(HttpContext.Request.Form["FromDate"].ToString()) : DateTime.Now;
+                    expense.ExpenseDate= HttpContext.Request.Form["FromDate"].ToString() != "" ? Convert.ToDateTime(HttpContext.Request.Form["FromDate"].ToString()) : DateTimeHelper.Now;
                     var result = await _expenseService.CreateExpenseAsync(expense);
                     if (result)
                     {
@@ -179,11 +179,11 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    expense.ModifiedDate = DateTime.Now;
+                    expense.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     expense.ModifiedBy = userId;
-                    expense.ExpenseDate = HttpContext.Request.Form["FromDate"].ToString() != "" ? Convert.ToDateTime(HttpContext.Request.Form["FromDate"].ToString()) : DateTime.Now;
+                    expense.ExpenseDate = HttpContext.Request.Form["FromDate"].ToString() != "" ? Convert.ToDateTime(HttpContext.Request.Form["FromDate"].ToString()) : DateTimeHelper.Now;
                     var response = await _expenseService.UpdateExpenseAsync(expense);
                     if (response != 0)
                     {

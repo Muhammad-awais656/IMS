@@ -196,9 +196,9 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     product.CreatedBy = userId;
-                    product.CreatedDate = DateTime.Now;
+                    product.CreatedDate = DateTimeHelper.Now;
                     product.ModifiedBy = userId;
-                    product.ModifiedDate = DateTime.Now;
+                    product.ModifiedDate = DateTimeHelper.Now;
                     
                     var result = await _productService.CreateProductAsync(product);
                     if (result)
@@ -373,7 +373,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     product.ModifiedBy = userId;
-                    product.ModifiedDate = DateTime.Now;
+                    product.ModifiedDate = DateTimeHelper.Now;
                     
                     var result = await _productService.UpdateProductAsync(product);
                     if (result > 0)

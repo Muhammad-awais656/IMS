@@ -1,4 +1,5 @@
 ﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,8 +31,8 @@ namespace IMS.Controllers
             {
                 if (billDateFrom == null && billDateTo ==null)
                 {
-                    billDateFrom = DateTime.Now.AddMonths(-1);
-                    billDateTo = DateTime.Now;
+                    billDateFrom = DateTimeHelper.Now.AddMonths(-1);
+                    billDateTo = DateTimeHelper.Now;
 
                 }
                 var filters = new VendorPaymentFilters
@@ -176,7 +177,7 @@ namespace IMS.Controllers
                     supplierId: model.SupplierId,
                     paymentDate: model.PaymentDate,
                     createdBy: createdBy,
-                    createdDate: DateTime.Now,
+                    createdDate: DateTimeHelper.Now,
                     description: model.Description,
                     paymentMethod: model.PaymentMethod,
                     onlineAccountId: model.OnlineAccountId
@@ -215,7 +216,7 @@ namespace IMS.Controllers
                                 model.PaymentAmount, // Debit the payment amount from the online account
                                 transactionDescription,
                                 createdBy,
-                                DateTime.Now
+                                DateTimeHelper.Now
                             );
 
                             _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Bill ID: {BillId}",

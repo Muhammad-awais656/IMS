@@ -69,7 +69,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminMeasuringUnitType.CreatedBy = userId;
-                    adminMeasuringUnitType.CreatedDate = DateTime.Now;
+                    adminMeasuringUnitType.CreatedDate = DateTimeHelper.Now;
 
                     var result = await _adminMeasuringUnitTypesService.CreateAdminMeasuringUnitTypesAsync(adminMeasuringUnitType);
                     if (result)
@@ -117,7 +117,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    adminMeasuringUnitType.ModifiedDate = DateTime.Now;
+                    adminMeasuringUnitType.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminMeasuringUnitType.ModifiedBy = userId;

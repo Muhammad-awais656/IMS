@@ -1,4 +1,5 @@
 ﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using IMS.Services;
@@ -35,8 +36,8 @@ namespace IMS.Controllers
                 };
                 if (filters.PaymentDateFrom == null && filters.PaymentDateTo==null)
                 {
-                    filters.PaymentDateFrom = DateTime.Now;
-                    filters.PaymentDateTo = DateTime.Now;
+                    filters.PaymentDateFrom = DateTimeHelper.Today;
+                    filters.PaymentDateTo = DateTimeHelper.Today;
                 }
                 var viewModel = await _customerPaymentService.GetAllPaymentsAsync(pageNumber, pageSize ?? 10, filters);
 
@@ -112,7 +113,7 @@ namespace IMS.Controllers
                         paymentMethod = model.PaymentMethod,
                         onlineAccountId = model.OnlineAccountId,
                         CreatedBy = userId, // TODO: Get from current user session
-                        CreatedDate = DateTime.Now,
+                        CreatedDate = DateTimeHelper.Now,
                         Description = model.Description
                     };
 
@@ -132,7 +133,7 @@ namespace IMS.Controllers
                                     model.PaymentAmount, // Credit the received amount to the online account
                                     transactionDescription,
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
 
                                 _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}",
@@ -223,7 +224,7 @@ namespace IMS.Controllers
                         paymentMethod = model.PaymentMethod,
                         onlineAccountId = model.OnlineAccountId,
                         ModifiedBy = 1, // TODO: Get from current user session
-                        ModifiedDate = DateTime.Now,
+                        ModifiedDate = DateTimeHelper.Now,
                         Description = model.Description
                     };
 
@@ -281,7 +282,7 @@ namespace IMS.Controllers
         {
             try
             {
-                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTime.Now, 1); // TODO: Get from current user session
+                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTimeHelper.Now, 1); // TODO: Get from current user session
                 if (result > 0)
                 {
                     TempData["SuccessMessage"] = "Payment deleted successfully.";

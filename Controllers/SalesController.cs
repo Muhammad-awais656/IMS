@@ -61,22 +61,34 @@ namespace IMS.Controllers
                 {
                     stockFilters.BillNumber = billNumber;
                 }
-                if (saleFrom.HasValue)
-                {
-                    stockFilters.SaleFrom = saleFrom;
-                }
-                if (saleDateTo.HasValue)
-                {
-                    stockFilters.SaleDateTo = saleDateTo;
-                }
                 if (!string.IsNullOrEmpty(description))
                 {
                     stockFilters.Description = description;
                 }
-                if (saleFrom == null && saleDateTo==null)
+                
+                // Handle date filters - use Pakistan Standard Time
+                if (saleFrom == null && saleDateTo == null)
                 {
-                    stockFilters.SaleFrom = DateTime.Now;
-                    stockFilters.SaleDateTo = DateTime.Now;
+                    // Use Pakistan Standard Time for default dates (today)
+                    stockFilters.SaleFrom = DateTimeHelper.Today;
+                    stockFilters.SaleDateTo = DateTimeHelper.Today;
+                }
+                else
+                {
+                    // Convert provided dates to Pakistan time
+                    // Date inputs provide date-only values, so we treat them as Pakistan dates
+                    if (saleFrom.HasValue)
+                    {
+                        // Ensure the date is treated as Pakistan time (start of day)
+                        var pakistanFromDate = saleFrom.Value.Date;
+                        stockFilters.SaleFrom = pakistanFromDate;
+                    }
+                    if (saleDateTo.HasValue)
+                    {
+                        // Set to end of day in Pakistan time
+                        var pakistanToDate = saleDateTo.Value.Date.AddDays(1).AddTicks(-1);
+                        stockFilters.SaleDateTo = pakistanToDate;
+                    }
                 }
                 var viewModel = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
                 
@@ -156,9 +168,9 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     sale.CreatedBy = userId;
-                    sale.CreatedDate = DateTime.Now;
+                    sale.CreatedDate = DateTimeHelper.Now;
                     sale.ModifiedBy = userId;
-                    sale.ModifiedDate = DateTime.Now;
+                    sale.ModifiedDate = DateTimeHelper.Now;
 
                     var result = await _salesService.CreateSaleAsync(sale);
                     if (result)
@@ -233,7 +245,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    sale.ModifiedDate = DateTime.Now;
+                    sale.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     sale.ModifiedBy = userId;
@@ -299,7 +311,7 @@ namespace IMS.Controllers
             {
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr);
-                var modifiedDate = DateTime.Now;
+                var modifiedDate = DateTimeHelper.Now;
                 
                 var res = await _salesService.DeleteSaleAsync(id, modifiedDate, userId);
                 if (res != 0)
@@ -353,7 +365,7 @@ namespace IMS.Controllers
                 ViewBag.NextBillNumber = nextBillNumber;
 
 
-                return View(new AddSaleViewModel { SaleDate = DateTime.Now });
+                return View(new AddSaleViewModel { SaleDate = DateTimeHelper.Now });
             }
             catch (Exception ex)
             {
@@ -576,7 +588,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     
-                    DateTime currentDateTime = DateTime.Now;
+                    DateTime currentDateTime = DateTimeHelper.Now;
                     long saleId;
 
                     // Check if we're editing an existing sale

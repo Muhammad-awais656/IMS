@@ -1,6 +1,7 @@
 ﻿using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Wordprocessing;
 using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.Models;
 using IMS.Services;
 using iTextSharp.text;
@@ -36,8 +37,8 @@ namespace IMS.Controllers
         public async Task<IActionResult> SalesReport(int pageNumber = 1, int? pageSize = null)
         {
             SalesReportsFilters salesReportsFilters = new SalesReportsFilters();
-            salesReportsFilters.FromDate = DateTime.Now;
-            salesReportsFilters.ToDate = DateTime.Now;
+            salesReportsFilters.FromDate = DateTimeHelper.Today;
+            salesReportsFilters.ToDate = DateTimeHelper.Today;
            
             int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
             if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
@@ -97,8 +98,8 @@ namespace IMS.Controllers
             var salesReportsFilters = new SalesReportsFilters
             {
                 CustomerId = custId,
-                FromDate = fromDate ?? DateTime.Now, // default today if null
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Today, // default today if null (Pakistan time)
+                ToDate = toDate ?? DateTimeHelper.Today
             };
             var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
 
@@ -108,7 +109,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"SalesReport_{DateTime.Now}.xlsx";
+            string filename = $"SalesReport_{DateTimeHelper.Now:yyyyMMdd_hhmmtt}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -129,8 +130,8 @@ public async Task<IActionResult> ExportPdf(int pageNumber = 1, int? pageSize = n
             var salesReportsFilters = new SalesReportsFilters
             {
                 CustomerId = custId,
-                FromDate = fromDate ?? DateTime.Now, // default today if null
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Today, // default today if null (Pakistan time)
+                ToDate = toDate ?? DateTimeHelper.Today
             };
 
             var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
@@ -184,7 +185,7 @@ public async Task<IActionResult> ExportPdf(int pageNumber = 1, int? pageSize = n
 
             document.Add(table);
             document.Close();
-                string filename = $"SalesReport_{DateTime.Now}.pdf";
+                string filename = $"SalesReport_{DateTimeHelper.Now:yyyyMMdd_hhmmtt}.pdf";
             return File(stream.ToArray(), "application/pdf", filename);
         }
     }

@@ -84,9 +84,9 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminSupplier.CreatedBy = userId;
-                    adminSupplier.CreatedDate = DateTime.Now;
+                    adminSupplier.CreatedDate = DateTimeHelper.Now;
                     adminSupplier.ModifiedBy = userId;
-                    adminSupplier.ModifiedDate = DateTime.Now;
+                    adminSupplier.ModifiedDate = DateTimeHelper.Now;
 
                     var result = await _vndorservice.CreateVendorAsync(adminSupplier);
                     if (result)
@@ -134,7 +134,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    adminSupplier.ModifiedDate = DateTime.Now;
+                    adminSupplier.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminSupplier.ModifiedBy = userId;

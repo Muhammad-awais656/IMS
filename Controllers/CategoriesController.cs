@@ -71,9 +71,9 @@ namespace IMS.Controllers
                     
                     // Handle null values for optional fields
                     adminCategory.CreatedBy = userId;
-                    adminCategory.CreatedDate = DateTime.Now;
+                    adminCategory.CreatedDate = DateTimeHelper.Now;
                     adminCategory.ModifiedBy = userId;
-                    adminCategory.ModifiedDate = DateTime.Now;
+                    adminCategory.ModifiedDate = DateTimeHelper.Now;
                     
                     // Ensure optional fields are properly handled
                     if (string.IsNullOrWhiteSpace(adminCategory.CategoryDescription))
@@ -140,7 +140,7 @@ namespace IMS.Controllers
                     long userId = long.Parse(userIdStr);
                     
                     // Handle null values for optional fields
-                    adminCategory.ModifiedDate = DateTime.Now;
+                    adminCategory.ModifiedDate = DateTimeHelper.Now;
                     adminCategory.ModifiedBy = userId;
                     
                     // Ensure optional fields are properly handled
