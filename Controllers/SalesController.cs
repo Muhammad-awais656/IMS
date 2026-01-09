@@ -804,11 +804,13 @@ namespace IMS.Controllers
             try
             {
                 var products = await _productService.GetAllEnabledProductsAsync();
-                var result = products.Select(p => new
-                {
-                    value = p.ProductId.ToString(),
-                    text = p.ProductName
-                }).ToList();
+                var result = products
+                    .OrderBy(p => p.ProductName)
+                    .Select(p => new
+                    {
+                        value = p.ProductId.ToString(),
+                        text = p.ProductName
+                    }).ToList();
                 
                 return Json(result);
             }

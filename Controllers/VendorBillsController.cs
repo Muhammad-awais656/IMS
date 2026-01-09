@@ -312,12 +312,14 @@ namespace IMS.Controllers
             try
             {
                 var products = await _vendorBillsService.GetAllProductsAsync();
-                var result = products.Select(p => new
-                {
-                    value = p.ProductId.ToString(),
-                    text = p.ProductName,
-                    code = p.ProductCode ?? ""
-                }).ToList();
+                var result = products
+                    .OrderBy(p => p.ProductName)
+                    .Select(p => new
+                    {
+                        value = p.ProductId.ToString(),
+                        text = p.ProductName,
+                        code = p.ProductCode ?? ""
+                    }).ToList();
                 
                 return Json(new { data = result });
             }

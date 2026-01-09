@@ -355,7 +355,9 @@ namespace IMS.Controllers
             try
             {
                 var products = await _stockService.GetProductsByCategoryIdAsync(categoryId);
-                return Json(products.Select(p => new { value = p.ProductId, text = p.ProductName }));
+                return Json(products
+                    .OrderBy(p => p.ProductName)
+                    .Select(p => new { value = p.ProductId, text = p.ProductName }));
             }
             catch (Exception ex)
             {

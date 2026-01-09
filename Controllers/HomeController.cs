@@ -70,12 +70,14 @@ namespace IMS.Controllers
             {
                 var firstProduct = enabledProducts.Result.First();
                 var stockStatus= await _dashboardService.GetStockStatusAsync(firstProduct.ProductId);
-                model.ProductList = enabledProducts.Result.Select(x => new SelectListItem
-                {
-                    Value = x.ProductId.ToString(),
-                    Text = x.ProductName
+                model.ProductList = enabledProducts.Result
+                    .OrderBy(x => x.ProductName)
+                    .Select(x => new SelectListItem
+                    {
+                        Value = x.ProductId.ToString(),
+                        Text = x.ProductName
 
-                }).ToList();
+                    }).ToList();
                 var liststock=new StockStaus {
                     ProductId = firstProduct.ProductId,
                     ProductName = firstProduct.ProductName,
