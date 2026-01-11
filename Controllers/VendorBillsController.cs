@@ -1,6 +1,7 @@
 ﻿using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using IMS.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -12,18 +13,22 @@ namespace IMS.Controllers
         private readonly IVendorBillsService _vendorBillsService;
         private readonly IVendor _vendorService;
         private readonly ILogger<VendorBillsController> _logger;
+        private readonly IProductService _productService;
+        private readonly IAdminMeasuringUnitService _measuringUnitService;
 
-        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger)
+        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger, IProductService productService, IAdminMeasuringUnitService measuringUnitService)
         {
             _vendorBillsService = vendorBillsService;
             _vendorService = vendorService;
             _logger = logger;
+            _productService = productService;
+            _measuringUnitService = measuringUnitService;
         }
 
         // GET: VendorBillsController
         public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
             long? vendorId = null, long? billNumber = null,
-            DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
+            DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null, long? selectedUnitId = null)
         {
             try
             {
@@ -58,6 +63,7 @@ namespace IMS.Controllers
                 ViewData["billDateFrom"] = billDateFrom?.ToString("yyyy-MM-dd");
                 ViewData["billDateTo"] = billDateTo?.ToString("yyyy-MM-dd");
                 ViewData["description"] = description;
+                ViewData["selectedUnitId"] = selectedUnitId;
 
                 return View(viewModel);
             }
@@ -406,17 +412,119 @@ namespace IMS.Controllers
                 var stock = await _vendorService.GetStockByProductIdAsync(productId);
                 if (stock != null)
                 {
-                    return Json(new { success = true, availableQuantity = stock.AvailableQuantity });
+                    // Get product to find base unit
+                    var product = await _productService.GetProductByIdAsync(productId);
+                    long? baseUnitId = null;
+                    
+                    if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
+                    {
+                        // Get the smallest unit for this measuring unit type as base unit
+                        var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
+                        var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                        if (smallestUnit != null)
+                        {
+                            baseUnitId = smallestUnit.MeasuringUnitId;
+                        }
+                        else if (measuringUnits.Any())
+                        {
+                            // If no smallest unit is marked, use the first enabled unit as base unit
+                            baseUnitId = measuringUnits.First().MeasuringUnitId;
+                            _logger.LogWarning("No smallest unit marked for product {ProductId}, using first unit {UnitId} as base unit", productId, baseUnitId);
+                        }
+                    }
+                    
+                    return Json(new { 
+                        success = true, 
+                        availableQuantity = stock.AvailableQuantity,
+                        baseUnitId = baseUnitId
+                    });
                 }
                 else
                 {
-                    return Json(new { success = false, message = "Stock information not found", availableQuantity = 0 });
+                    return Json(new { success = false, message = "Stock information not found", availableQuantity = 0, baseUnitId = (long?)null });
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting available stock for product {ProductId}", productId);
-                return Json(new { success = false, message = "Error retrieving stock information", availableQuantity = 0 });
+                return Json(new { success = false, message = "Error retrieving stock information", availableQuantity = 0, baseUnitId = (long?)null });
+            }
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> ConvertUnitAndGetStock(long productId, long? fromUnitId, long? toUnitId, decimal stockInBaseUnit)
+        {
+            try
+            {
+                if (!fromUnitId.HasValue || !toUnitId.HasValue)
+                {
+                    _logger.LogInformation("ConvertUnitAndGetStock: Missing unit IDs - fromUnitId: {FromUnitId}, toUnitId: {ToUnitId}", fromUnitId, toUnitId);
+                    return Json(new { success = true, convertedStock = stockInBaseUnit, conversionFactor = 1 });
+                }
+
+                _logger.LogInformation("ConvertUnitAndGetStock: Converting {StockInBaseUnit} from unit {FromUnitId} to unit {ToUnitId}", 
+                    stockInBaseUnit, fromUnitId.Value, toUnitId.Value);
+
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                
+                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId.Value, toUnitId.Value, 1);
+                
+                if (conversionResult.HasValue)
+                {
+                    // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                    // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
+                    var convertedStock = stockInBaseUnit * conversionResult.Value;
+                    
+                    _logger.LogInformation("ConvertUnitAndGetStock: Conversion successful - {StockInBaseUnit} * {ConversionFactor} = {ConvertedStock}", 
+                        stockInBaseUnit, conversionResult.Value, convertedStock);
+                    
+                    return Json(new { success = true, convertedStock = convertedStock, conversionFactor = conversionResult.Value });
+                }
+                else
+                {
+                    _logger.LogWarning("ConvertUnitAndGetStock: No conversion found from unit {FromUnitId} to unit {ToUnitId}", 
+                        fromUnitId.Value, toUnitId.Value);
+                    // No conversion found, return original stock
+                    return Json(new { success = true, convertedStock = stockInBaseUnit, conversionFactor = 1 });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting unit for product {ProductId}: {Message}", productId, ex.Message);
+                return Json(new { success = false, message = "Error converting unit", convertedStock = stockInBaseUnit, conversionFactor = 1 });
+            }
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> ConvertQuantityToBaseUnit(long productId, long fromUnitId, long toUnitId, decimal quantity)
+        {
+            try
+            {
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId, toUnitId, 1);
+                
+                if (conversionResult.HasValue)
+                {
+                    // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                    // So to convert quantity, we multiply: quantity * conversionResult
+                    var convertedQuantity = quantity * conversionResult.Value;
+                    
+                    _logger.LogInformation("Converted {Quantity} from unit {FromUnitId} to base unit {ToUnitId}: {ConvertedQuantity}", 
+                        quantity, fromUnitId, toUnitId, convertedQuantity);
+                    
+                    return Json(new { success = true, convertedQuantity = convertedQuantity, conversionFactor = conversionResult.Value });
+                }
+                else
+                {
+                    _logger.LogWarning("No conversion found from unit {FromUnitId} to unit {ToUnitId}", fromUnitId, toUnitId);
+                    // No conversion found, return original quantity
+                    return Json(new { success = true, convertedQuantity = quantity, conversionFactor = 1 });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting quantity for product {ProductId}", productId);
+                return Json(new { success = false, message = "Error converting quantity", convertedQuantity = quantity });
             }
         }
 
@@ -811,7 +919,7 @@ namespace IMS.Controllers
         }
 
         // GET: VendorBillsController/Edit/5
-        public async Task<ActionResult> Edit(long id)
+        public async Task<ActionResult> Edit(long id, bool IsEditMode = true)
         {
             try
             {
@@ -833,6 +941,33 @@ namespace IMS.Controllers
                 var vendors = await _vendorBillsService.GetAllVendorsAsync();
                 ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", vendorBill.VendorId);
 
+                // Get product ranges for all products to get measuring unit information
+                var billDetailsList = new List<VendorBillDetailViewModel>();
+                foreach (var item in billItems)
+                {
+                    // Get product ranges for this product
+                    var productRanges = await _vendorBillsService.GetProductSizesAsync(item.ProductId);
+                    var productRange = productRanges.FirstOrDefault(pr => pr.ProductRangeId == item.ProductRangeId);
+                    
+                    var billDetail = new VendorBillDetailViewModel
+                    {
+                        ProductId = item.ProductId,
+                        ProductName = item.ProductName,
+                        ProductSize = item.ProductSize,
+                        UnitPrice = item.UnitPrice,
+                        PurchasePrice = item.BillPrice,
+                        Quantity = (decimal)item.Quantity, // Changed to decimal
+                        SalePrice = item.UnitPrice,
+                        LineDiscountAmount = item.DiscountAmount,
+                        PayableAmount = item.PayableAmount,
+                        ProductRangeId = item.ProductRangeId,
+                        ProductCode = item.ProductCode,
+                        MeasuringUnitId = productRange?.MeasuringUnitIdFk,
+                        MeasuringUnitAbbreviation = productRange?.MeasuringUnitAbbreviation
+                    };
+                    billDetailsList.Add(billDetail);
+                }
+
                 // Create VendorBillGenerationViewModel with existing data
                 var viewModel = new VendorBillGenerationViewModel
                 {
@@ -847,23 +982,12 @@ namespace IMS.Controllers
                     Description = vendorBill.Description,
                     PaymentMethod = vendorBill.PaymentMethod,
                     OnlineAccountId = vendorBill.OnlineAccountId,
-                    BillDetails = billItems.Select(item => new VendorBillDetailViewModel
-                    {
-                        ProductId = item.ProductId,
-                        ProductName = item.ProductName,
-                        ProductSize = item.ProductSize,
-                        UnitPrice = item.UnitPrice,
-                        PurchasePrice = item.BillPrice,
-                        Quantity = (long)item.Quantity,
-                        SalePrice = item.UnitPrice,
-                        LineDiscountAmount = item.DiscountAmount,
-                        PayableAmount = item.PayableAmount,
-                        ProductRangeId = item.ProductRangeId,
-                        ProductCode = item.ProductCode
-                    }).ToList()
+                    IsEditMode = IsEditMode, // Pass IsEditMode to the model
+                    BillDetails = billDetailsList
                 };
 
                 ViewBag.IsEdit = true;
+                ViewBag.IsEditMode = IsEditMode;
                 return View("GenerateBill", viewModel);
             }
             catch (Exception ex)
@@ -881,6 +1005,9 @@ namespace IMS.Controllers
         {
             try
             {
+                // Check if this is an AJAX request
+                bool isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+                
                 if (ModelState.IsValid)
                 {
                     // Get user ID from session
@@ -894,32 +1021,61 @@ namespace IMS.Controllers
                     
                     if (success)
                     {
+                        if (isAjaxRequest)
+                        {
+                            return Json(new { success = true, message = "Vendor bill updated successfully!", billId = id });
+                        }
                         TempData["SuccessMessage"] = "Vendor bill updated successfully!";
                         return RedirectToAction(nameof(Index));
                     }
                     else
                     {
+                        if (isAjaxRequest)
+                        {
+                            return Json(new { success = false, message = "Error updating vendor bill." });
+                        }
                         TempData["ErrorMessage"] = "Error updating vendor bill.";
                     }
                 }
                 else
                 {
+                    var errorMessages = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+                    
+                    if (isAjaxRequest)
+                    {
+                        return Json(new { success = false, message = "Please correct the validation errors.", errors = errorMessages });
+                    }
                     TempData["ErrorMessage"] = "Please correct the validation errors.";
                 }
 
-                // Reload data for the view
-                var products = await _vendorBillsService.GetAllProductsAsync();
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+                // Reload data for the view (only for non-AJAX requests)
+                if (!isAjaxRequest)
+                {
+                    var products = await _vendorBillsService.GetAllProductsAsync();
+                    ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
 
-                var vendors = await _vendorBillsService.GetAllVendorsAsync();
-                ViewBag.Vendors = new SelectList(vendors, "VendorId", "VendorName", model.VendorId);
+                    var vendors = await _vendorBillsService.GetAllVendorsAsync();
+                    ViewBag.Vendors = new SelectList(vendors, "VendorId", "VendorName", model.VendorId);
 
-                ViewBag.IsEdit = true;
-                return View("Create", model);
+                    ViewBag.IsEdit = true;
+                    return View("GenerateBill", model);
+                }
+                
+                return Json(new { success = false, message = "Error updating vendor bill." });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating vendor bill {BillId}", id);
+                
+                bool isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+                if (isAjaxRequest)
+                {
+                    return Json(new { success = false, message = "Error updating vendor bill: " + ex.Message });
+                }
+                
                 TempData["ErrorMessage"] = "Error updating vendor bill.";
                 return RedirectToAction(nameof(Index));
             }
@@ -955,13 +1111,17 @@ namespace IMS.Controllers
             {
                 _logger.LogInformation("Attempting to delete vendor bill with ID: {BillId}", id);
                 
-                // Call service to delete the bill
-                var result = await _vendorBillsService.DeleteVendorBillAsync(id);
+                // Get user ID from session
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr ?? "1"); // Default to 1 if not found
+                
+                // Call service to delete the bill (this will restore stock and mark transactions as deleted)
+                var result = await _vendorBillsService.DeleteVendorBillAsync(id, userId);
                 
                 if (result)
                 {
                     _logger.LogInformation("Vendor bill deleted successfully with ID: {BillId}", id);
-                    TempData["SuccessMessage"] = "Vendor bill deleted successfully.";
+                    TempData["SuccessMessage"] = "Vendor bill deleted successfully. Stock has been restored and transactions marked as deleted.";
                 }
                 else
                 {
@@ -974,7 +1134,7 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting vendor bill with ID: {BillId}", id);
-                TempData["ErrorMessage"] = "Error deleting vendor bill.";
+                TempData["ErrorMessage"] = "Error deleting vendor bill: " + ex.Message;
                 return RedirectToAction(nameof(Index));
             }
         }

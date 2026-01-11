@@ -24,6 +24,7 @@ namespace IMS.Models
         public string? ActionType { get; set; }
         public string? PaymentMethod { get; set; } // Cash or Online
         public long? OnlineAccountId { get; set; } // Personal Payment ID when Online is selected
+        public bool IsEditMode { get; set; } = false; // Indicates if the form is in edit mode
         public DateTime CreatedDate { get; set; }
         public DateTime ModifiedDate { get; set; }
         public long ModifiedBy { get; set; }
@@ -37,11 +38,13 @@ namespace IMS.Models
         public string ProductSize { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public decimal PurchasePrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
         public long ProductRangeId { get; set; }
+        public long? MeasuringUnitId { get; set; }
+        public string? MeasuringUnitAbbreviation { get; set; }
     }
 
     public class VendorBillWithVendorViewModel

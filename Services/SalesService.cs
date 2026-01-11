@@ -227,7 +227,7 @@ namespace IMS.Services
             return response;
         }
 
-        public long AddSaleDetails(long saleId, long productId, decimal unitPrice, long quantity, decimal salePrice,
+        public long AddSaleDetails(long saleId, long productId, decimal unitPrice, decimal quantity, decimal salePrice,
         decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue)
         {
             long saleDetailsId = 0;
@@ -243,7 +243,9 @@ namespace IMS.Services
                     command.Parameters.AddWithValue("@pSaleId_FK", saleId);
                     command.Parameters.AddWithValue("@pPrductId_FK", productId);
                     command.Parameters.AddWithValue("@pUnitPrice", unitPrice);
-                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    // Convert decimal quantity to long for database (round to nearest whole number)
+                    // Note: Database stores as long, but we accept decimal for precision during conversion
+                    command.Parameters.AddWithValue("@pQuantity", (long)Math.Round(quantity, MidpointRounding.AwayFromZero));
                     command.Parameters.AddWithValue("@pSalePrice", salePrice);
                     command.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                     command.Parameters.AddWithValue("@pPayableAmount", payableAmount);
@@ -407,6 +409,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pBillNumber", sale.BillNumber);
                         command.Parameters.AddWithValue("@pSaleDescription", sale.SaleDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleDate", sale.SaleDate);
+                       
 
                         var rowsAffected = await command.ExecuteNonQueryAsync();
                         response = rowsAffected;
@@ -429,16 +432,276 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    
-                    using (var command = new SqlCommand("DeleteSale", connection))
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pSaleId", id);
-                        command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
-                        command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                        try
+                        {
+                            // Step 1: Get sale details to reverse stock (using the same connection/transaction)
+                            var saleDetails = new List<SaleDetailViewModel>();
+                            using (var command = new SqlCommand("GetSaleDetailsBySaleId", connection, transaction))
+                            {
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pSaleId", id);
+                                using (var reader = await command.ExecuteReaderAsync())
+                                {
+                                    while (await reader.ReadAsync())
+                                    {
+                                        saleDetails.Add(new SaleDetailViewModel
+                                        {
+                                            ProductId = reader.IsDBNull("PrductId_FK") ? 0 : reader.GetInt64("PrductId_FK"),
+                                            ProductRangeId = reader.IsDBNull("ProductRangeId_FK") ? 0 : reader.GetInt64("ProductRangeId_FK"),
+                                            ProductName = reader.IsDBNull("ProductName") ? string.Empty : reader.GetString("ProductName"),
+                                            MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
+                                            UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
+                                            Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
+                                            SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
+                                            LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
+                                            PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount"),
+                                            PaymentMethod = reader.IsDBNull("PaymentMethod") ? string.Empty : reader.GetString("PaymentMethod"),
+                                        });
+                                    }
+                                }
+                            }
+                            _logger.LogInformation("Found {Count} sale details to process for sale {SaleId}", saleDetails.Count, id);
 
-                        var rowsAffected = await command.ExecuteNonQueryAsync();
-                        response = rowsAffected;
+                            // Step 2: Restore stock for each product (increase available quantity, decrease used quantity)
+                            foreach (var detail in saleDetails)
+                            {
+                                // Get stock within the transaction
+                                StockMaster? prodMaster = null;
+                                using (var stockCommand = new SqlCommand("GetStockByProductId", connection, transaction))
+                                {
+                                    stockCommand.CommandType = CommandType.StoredProcedure;
+                                    stockCommand.Parameters.AddWithValue("@pProductId", detail.ProductId);
+                                    using (var reader = await stockCommand.ExecuteReaderAsync())
+                                    {
+                                        if (await reader.ReadAsync())
+                                        {
+                                            prodMaster = new StockMaster
+                                            {
+                                                StockMasterId = reader.GetInt64(reader.GetOrdinal("StockMasterId")),
+                                                ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
+                                                AvailableQuantity = reader.GetDecimal(reader.GetOrdinal("AvailableQuantity")),
+                                                UsedQuantity = reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
+                                                TotalQuantity = reader.GetDecimal(reader.GetOrdinal("TotalQuantity"))
+                                            };
+                                        }
+                                    }
+                                }
+
+                                if (prodMaster != null)
+                                {
+                                    // Calculate new quantities (restore stock that was decreased)
+                                    var newAvailableQuantity = prodMaster.AvailableQuantity + (decimal)detail.Quantity;
+                                    var newUsedQuantity = prodMaster.UsedQuantity - (decimal)detail.Quantity;
+                                    
+                                    // Ensure quantities don't go negative
+                                    if (newUsedQuantity < 0) newUsedQuantity = 0;
+
+                                    // Update stock quantity (INCREASE available quantity, DECREASE used quantity) within transaction
+                                    using (var updateStockCommand = new SqlCommand("UpdateStock", connection, transaction))
+                                    {
+                                        updateStockCommand.CommandType = CommandType.StoredProcedure;
+                                        updateStockCommand.Parameters.AddWithValue("@pStockMasterId", prodMaster.StockMasterId);
+                                        updateStockCommand.Parameters.AddWithValue("@pProductId", detail.ProductId);
+                                        updateStockCommand.Parameters.AddWithValue("@pAvailableQuantity", newAvailableQuantity);
+                                        updateStockCommand.Parameters.AddWithValue("@pUsedQuantity", newUsedQuantity);
+                                        updateStockCommand.Parameters.AddWithValue("@TotalQuantity", prodMaster.TotalQuantity); // Total quantity remains same
+                                        updateStockCommand.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                                        updateStockCommand.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
+
+                                        await updateStockCommand.ExecuteNonQueryAsync();
+                                    }
+
+                                    _logger.LogInformation("Stock restored for product {ProductId}: Increased available by {Quantity}, Decreased used by {Quantity}. New available: {NewAvailable}, New used: {NewUsed}",
+                                        detail.ProductId, detail.Quantity, detail.Quantity, newAvailableQuantity, newUsedQuantity);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Stock master not found for product {ProductId} when deleting sale {SaleId}", detail.ProductId, id);
+                                }
+                            }
+
+                            // Step 3: Delete sale details using DeleteSaleDetailBySaleId stored procedure
+                            using (var command = new SqlCommand("DeleteSaleDetailBySaleId", connection, transaction))
+                            {
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pSaleId", id);
+                                var detailsAffected = await command.ExecuteNonQueryAsync();
+                                _logger.LogInformation("Deleted {Count} sale details for sale {SaleId}", detailsAffected, id);
+                            }
+
+                            // Step 4: Mark transactions as deleted (soft delete) where SaleId = id
+                            using (var command = new SqlCommand(@"
+                                UPDATE StockTransactions 
+                                SET IsDeleted = 1, ModifiedDate = GETDATE() 
+                                WHERE SaleId = @SaleId AND (IsDeleted = 0 OR IsDeleted IS NULL)", connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@SaleId", id);
+                                var transactionsAffected = await command.ExecuteNonQueryAsync();
+                                _logger.LogInformation("Marked {Count} transactions as deleted for sale {SaleId}", transactionsAffected, id);
+                            }
+
+                            // Step 4.5: Handle online payment records if payment method is Online
+                            // Get sale information to check payment method
+                            string? paymentMethod = null;
+                            long? personalPaymentId = null;
+                            using (var saleCommand = new SqlCommand("GetSaleBySaleId", connection, transaction))
+                            {
+                                saleCommand.CommandType = CommandType.StoredProcedure;
+                                saleCommand.Parameters.AddWithValue("@pSaleId", id);
+                                using (var reader = await saleCommand.ExecuteReaderAsync())
+                                {
+                                    if (await reader.ReadAsync())
+                                    {
+                                        paymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod");
+                                        personalPaymentId = reader.IsDBNull("PersonalPaymentId") ? null : reader.GetInt64("PersonalPaymentId");
+                                    }
+                                }
+                            }
+
+                            if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger.LogInformation("Sale {SaleId} has Online payment method, updating PersonalPaymentSaleDetail and PersonalPayments", id);
+
+                                // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentSaleDetail for this sale
+                                var personalPaymentIds = new List<long>();
+                                using (var command = new SqlCommand(@"
+                                    SELECT DISTINCT PersonalPaymentId 
+                                    FROM PersonalPaymentSaleDetail 
+                                    WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@SaleId", id);
+                                    using (var reader = await command.ExecuteReaderAsync())
+                                    {
+                                        while (await reader.ReadAsync())
+                                        {
+                                            if (!reader.IsDBNull("PersonalPaymentId"))
+                                            {
+                                                personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Also add the PersonalPaymentId from the sale if it exists
+                                if (personalPaymentId.HasValue && personalPaymentId.Value > 0 && !personalPaymentIds.Contains(personalPaymentId.Value))
+                                {
+                                    personalPaymentIds.Add(personalPaymentId.Value);
+                                }
+
+                                // Step 4.5.2: Update PersonalPaymentSaleDetail - Set IsActive = 0 where SaleId = id
+                                using (var command = new SqlCommand(@"
+                                    UPDATE PersonalPaymentSaleDetail 
+                                    SET IsActive = 0, ModifiedDate = GETDATE() 
+                                    WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@SaleId", id);
+                                    var detailsAffected = await command.ExecuteNonQueryAsync();
+                                    _logger.LogInformation("Updated {Count} PersonalPaymentSaleDetail records (IsActive = 0) for sale {SaleId}", detailsAffected, id);
+                                }
+
+                                // Step 4.5.3: Calculate total amount from PersonalPaymentSaleDetail and update DebitAmount in PersonalPayments
+                                if (personalPaymentIds.Count > 0)
+                                {
+                                    // Calculate total amount per PersonalPaymentId from PersonalPaymentSaleDetail
+                                    var paymentAmounts = new Dictionary<long, decimal>();
+                                    using (var command = new SqlCommand(@"
+                                        SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
+                                        FROM PersonalPaymentSaleDetail 
+                                        WHERE SaleId = @SaleId AND IsActive = 0
+                                        GROUP BY PersonalPaymentId", connection, transaction))
+                                    {
+                                        command.Parameters.AddWithValue("@SaleId", id);
+                                        using (var reader = await command.ExecuteReaderAsync())
+                                        {
+                                            while (await reader.ReadAsync())
+                                            {
+                                                if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
+                                                {
+                                                    var ppId = reader.GetInt64("PersonalPaymentId");
+                                                    var totalAmount = reader.GetDecimal("TotalAmount");
+                                                    paymentAmounts[ppId] = totalAmount;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Update PersonalPayments - Decrease DebitAmount by the calculated total amount
+                                    foreach (var ppId in personalPaymentIds)
+                                    {
+                                        // Get current DebitAmount for this PersonalPayment
+                                        decimal currentDebitAmount = 0;
+                                        using (var getCommand = new SqlCommand(@"
+                                            SELECT CreditAmount 
+                                            FROM PersonalPayments 
+                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                                        {
+                                            getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                                            var result = await getCommand.ExecuteScalarAsync();
+                                            if (result != null && result != DBNull.Value)
+                                            {
+                                                currentDebitAmount = Convert.ToDecimal(result);
+                                            }
+                                        }
+
+                                        // Calculate new DebitAmount (subtract the total amount from PersonalPaymentSaleDetail)
+                                        decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
+                                        decimal newDebitAmount = currentDebitAmount - amountToSubtract;
+                                        
+                                        // Ensure DebitAmount doesn't go negative
+                                        if (newDebitAmount < 0) newDebitAmount = 0;
+
+                                        // Update PersonalPayments with new DebitAmount
+                                        using (var updateCommand = new SqlCommand(@"
+                                            UPDATE PersonalPayments 
+                                            SET CreditAmount = @NewDebitAmount, ModifiedDate = GETDATE() 
+                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                                        {
+                                            updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                                            updateCommand.Parameters.AddWithValue("@NewDebitAmount", newDebitAmount);
+                                            var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
+                                            _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for sale {SaleId}: DebitAmount decreased by {AmountToSubtract} (from {OldDebitAmount} to {NewDebitAmount}), Rows affected: {RowsAffected}", 
+                                                ppId, id, amountToSubtract, currentDebitAmount, newDebitAmount, paymentsAffected);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("No PersonalPaymentIds found for sale {SaleId} with Online payment method", id);
+                                }
+                            }
+
+                            // Step 5: Mark the sale as deleted (soft delete) using DeleteSale stored procedure
+                            using (var command = new SqlCommand("DeleteSale", connection, transaction))
+                            {
+                                command.CommandType = CommandType.StoredProcedure;
+                                command.Parameters.AddWithValue("@pSaleId", id);
+                                command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
+                                command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+
+                                var rowsAffected = await command.ExecuteNonQueryAsync();
+                                
+                                if (rowsAffected != 0)
+                                {
+                                    transaction.Commit();
+                                    _logger.LogInformation("Sale soft deleted successfully: {SaleId}, Rows affected: {RowsAffected}", id, rowsAffected);
+                                    response = rowsAffected;
+                                }
+                                else
+                                {
+                                    transaction.Rollback();
+                                    _logger.LogWarning("No rows affected when deleting sale {SaleId}", id);
+                                    response = 0;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            _logger.LogError(ex, "Error deleting sale {SaleId} in transaction", id);
+                            throw;
+                        }
                     }
                 }
             }

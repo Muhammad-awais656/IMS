@@ -21,7 +21,7 @@ namespace IMS.Common_Interfaces
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
             string paymentMethod = null, long? onlineAccountId = null);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);
-        long AddSaleDetails(long saleId, long productId, decimal unitPrice, long quantity, decimal salePrice,
+        long AddSaleDetails(long saleId, long productId, decimal unitPrice, decimal quantity, decimal salePrice,
             decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue);
       
         Task<StockMaster> GetStockByProductIdAsync(long productId);

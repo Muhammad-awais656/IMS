@@ -1,0 +1,213 @@
+@using IMS.DAL.PrimaryDBContext
+@model UnitConversion
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-edit me-2"></i>
+            <h4 class="mb-0">Edit Unit Conversion</h4>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="Edit" id="unitConversionForm" novalidate>
+            <input type="hidden" asp-for="UnitConversionId" />
+            <div class="row">
+                <!-- From Unit -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="FromUnitId" class="form-label fw-semibold">
+                        <i class="fa fa-arrow-right me-1 text-primary"></i>From Unit
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input id="fromUnitSelect" style="width: 100%;" />
+                    <input type="hidden" asp-for="FromUnitId" id="fromUnitIdHidden" />
+                    <span asp-validation-for="FromUnitId" class="text-danger small"></span>
+                </div>
+                
+                <!-- To Unit -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="ToUnitId" class="form-label fw-semibold">
+                        <i class="fa fa-arrow-left me-1 text-primary"></i>To Unit
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input id="toUnitSelect" style="width: 100%;" />
+                    <input type="hidden" asp-for="ToUnitId" id="toUnitIdHidden" />
+                    <span asp-validation-for="ToUnitId" class="text-danger small"></span>
+                </div>
+                
+                <!-- Conversion Factor -->
+                <div class="col-md-6 mb-4">
+                    <div class="form-floating">
+                        <input asp-for="ConversionFactor" class="form-control form-control-lg" 
+                               type="number"
+                               step="0.0001"
+                               placeholder="Enter conversion factor" 
+                               required />
+                        <label asp-for="ConversionFactor" class="fw-semibold">
+                            <i class="fa fa-calculator me-1 text-primary"></i>Conversion Factor
+                            <span class="text-danger">*</span>
+                        </label>
+                        <small class="form-text text-muted">Example: If 1 carton = 20 kg, enter 20</small>
+                    </div>
+                    <span asp-validation-for="ConversionFactor" class="text-danger small"></span>
+                </div>
+                
+                <!-- Description -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="Description" class="form-label fw-semibold">
+                        <i class="fa fa-align-left me-1 text-primary"></i>Description
+                    </label>
+                    <textarea asp-for="Description" class="form-control" 
+                              rows="3" 
+                              placeholder="Enter description (optional)"></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+                
+                <!-- Enabled Toggle -->
+                <div class="col-12 mb-4">
+                    <div class="card bg-light">
+                        <div class="card-body py-3">
+                            <div class="form-check form-switch d-flex align-items-center">
+                                <input type="checkbox" asp-for="IsEnabled" class="form-check-input me-3" id="isEnabledSwitch" style="transform: scale(1.2);" />
+                                <label asp-for="IsEnabled" class="form-check-label fw-semibold mb-0" for="isEnabledSwitch">
+                                    <i class="fa fa-toggle-on me-1 text-success"></i>Enabled
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Update Unit Conversion
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            // Get current values from model
+            var currentFromUnitId = "@Model.FromUnitId";
+            var currentToUnitId = "@Model.ToUnitId";
+
+            // Initialize Kendo UI ComboBoxes for measuring units
+            function initializeKendoDropdowns() {
+                // From Unit ComboBox
+                $("#fromUnitSelect").kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/UnitConversion/GetMeasuringUnits",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select From Unit --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    value: currentFromUnitId,
+                    change: function(e) {
+                        var value = this.value();
+                        $("#fromUnitIdHidden").val(value);
+                        validateUnitSelection();
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        $("#fromUnitIdHidden").val(dataItem.value);
+                        validateUnitSelection();
+                    }
+                });
+
+                // To Unit ComboBox
+                $("#toUnitSelect").kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/UnitConversion/GetMeasuringUnits",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select To Unit --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    value: currentToUnitId,
+                    change: function(e) {
+                        var value = this.value();
+                        $("#toUnitIdHidden").val(value);
+                        validateUnitSelection();
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        $("#toUnitIdHidden").val(dataItem.value);
+                        validateUnitSelection();
+                    }
+                });
+
+                // Set initial values in hidden fields
+                $("#fromUnitIdHidden").val(currentFromUnitId);
+                $("#toUnitIdHidden").val(currentToUnitId);
+            }
+
+            // Validate that From Unit and To Unit are different
+            function validateUnitSelection() {
+                var fromUnit = $("#fromUnitIdHidden").val();
+                var toUnit = $("#toUnitIdHidden").val();
+                
+                if (fromUnit && toUnit && fromUnit === toUnit) {
+                    alert('From Unit and To Unit cannot be the same.');
+                    // Clear the last changed field
+                    var fromComboBox = $("#fromUnitSelect").data("kendoComboBox");
+                    var toComboBox = $("#toUnitSelect").data("kendoComboBox");
+                    
+                    if (fromComboBox && fromComboBox.value() === toUnit) {
+                        fromComboBox.value(currentFromUnitId);
+                        $("#fromUnitIdHidden").val(currentFromUnitId);
+                    } else if (toComboBox && toComboBox.value() === fromUnit) {
+                        toComboBox.value(currentToUnitId);
+                        $("#toUnitIdHidden").val(currentToUnitId);
+                    }
+                }
+            }
+
+            // Initialize dropdowns when Kendo UI is ready
+            if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                initializeKendoDropdowns();
+            } else {
+                // Wait for Kendo UI to load
+                $(window).on('load', function() {
+                    setTimeout(initializeKendoDropdowns, 100);
+                });
+            }
+
+            // Update hidden fields before form submission
+            $("#unitConversionForm").on("submit", function() {
+                var fromComboBox = $("#fromUnitSelect").data("kendoComboBox");
+                var toComboBox = $("#toUnitSelect").data("kendoComboBox");
+                
+                if (fromComboBox) {
+                    $("#fromUnitIdHidden").val(fromComboBox.value());
+                }
+                if (toComboBox) {
+                    $("#toUnitIdHidden").val(toComboBox.value());
+                }
+            });
+        });
+    </script>
+}
+
+
+

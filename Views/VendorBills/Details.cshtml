@@ -77,14 +77,22 @@
                     
                     <div class="row mt-4">
                         <div class="col-12">
-                            <h5>Bill Items</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Bill Items</h5>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="selectedUnitId" class="form-label mb-0 text-muted">
+                                        <i class="fa-solid fa-ruler me-1"></i>Display Unit:
+                                    </label>
+                                    <input id="selectedUnitId" name="selectedUnitId" style="width: 200px;" />
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
                                             <th>Sr#</th>
                                             <th>Product</th>
-                                            <th>Quantity</th>
+                                            <th>Quantity<span id="quantityUnitHeader"></span></th>
                                             <th>Unit Price</th>
                                             <th>Total</th>
                                         </tr>
@@ -98,7 +106,13 @@
                                                 <tr>
                                                     <td>@srNo</td>
                                                     <td>@item.ProductName</td>
-                                                    <td>@item.Quantity</td>
+                                                    <td>
+                                                        <span class="bill-item-quantity" 
+                                                              data-base-quantity="@item.Quantity" 
+                                                              data-product-id="@item.ProductId"
+                                                              data-product-range-id="@item.ProductRangeId">@item.Quantity</span>
+                                                        <span class="unit-abbreviation text-muted small"></span>
+                                                    </td>
                                                     <td>@item.UnitPrice.ToString("N2")</td>
                                                     <td>@item.PayableAmount.ToString("N2")</td>
                                                 </tr>
@@ -122,35 +136,177 @@
     </div>
 </div>
 
-<script>
-    // Auto-print functionality when coming from saveAndPrint
-    window.onload = function() {
-        @if (ViewBag.Print == true)
-        {
-            <text>
-            // Auto-print both vendor and merchant copies in separate tabs
-            setTimeout(function() {
-                // Open vendor copy in new tab and print
-                const vendorUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false, autoPrint = false })' + '?print=true';
-                const vendorWindow = window.open(vendorUrl, '_blank');
-                
-                // Open merchant copy in another new tab after a delay
-                setTimeout(function() {
-                    const merchantUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true, autoPrint = false })' + '?print=true';
-                    const merchantWindow = window.open(merchantUrl, '_blank');
-                    
-                    // Show notification
-                    if (typeof showSuccessMessage === 'function') {
-                        showSuccessMessage('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
-                    } else {
-                        alert('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize Measuring Unit Dropdown
+            initializeMeasuringUnitDropdown();
+        });
+
+        // Initialize Measuring Unit Dropdown
+        function initializeMeasuringUnitDropdown() {
+            if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                $("#selectedUnitId").kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/UnitConversion/GetMeasuringUnits",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- All Units (Base) --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    change: function(e) {
+                        var value = this.value();
+                        if (value && value !== '') {
+                            convertAllBillItemQuantities(value);
+                        } else {
+                            resetBillItemQuantitiesToBase();
+                        }
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        if (dataItem.value && dataItem.value !== '') {
+                            convertAllBillItemQuantities(dataItem.value);
+                        } else {
+                            resetBillItemQuantitiesToBase();
+                        }
                     }
-                }, 1000);
-            }, 500);
-            </text>
+                });
+            } else {
+                setTimeout(initializeMeasuringUnitDropdown, 100);
+            }
         }
-    };
-</script>
+
+        // Convert all bill item quantities to selected unit
+        function convertAllBillItemQuantities(selectedUnitId) {
+            // Get unit abbreviation and update header first
+            var unitCombo = $("#selectedUnitId").data("kendoComboBox");
+            var selectedUnit = unitCombo ? unitCombo.dataItem() : null;
+            var unitAbbreviation = selectedUnit && selectedUnit.measuringUnitAbbreviation ? selectedUnit.measuringUnitAbbreviation : '';
+            updateQuantityHeader(unitAbbreviation);
+            
+            $('.bill-item-quantity').each(function() {
+                var $quantitySpan = $(this);
+                var baseQuantity = parseFloat($quantitySpan.data('base-quantity')) || 0;
+                var productId = $quantitySpan.data('product-id');
+                var productRangeId = $quantitySpan.data('product-range-id');
+                var $unitAbbreviation = $quantitySpan.siblings('.unit-abbreviation');
+                
+                if (productId && baseQuantity > 0) {
+                    // Get product's base unit
+                    $.ajax({
+                        url: '/Stock/GetProductBaseUnit',
+                        type: 'GET',
+                        data: { productId: productId },
+                        success: function(baseUnitData) {
+                            if (baseUnitData.success && baseUnitData.baseUnitId) {
+                                var baseUnitId = baseUnitData.baseUnitId;
+                                
+                                if (selectedUnitId == baseUnitId) {
+                                    // Same unit, no conversion
+                                    $quantitySpan.text(baseQuantity.toFixed(3));
+                                    $unitAbbreviation.text('');
+                                } else {
+                                    // Convert from base unit to selected unit
+                                    $.ajax({
+                                        url: '/Stock/ConvertStockForDisplay',
+                                        type: 'GET',
+                                        data: {
+                                            productId: productId,
+                                            fromUnitId: baseUnitId,
+                                            toUnitId: selectedUnitId,
+                                            stockInBaseUnit: baseQuantity
+                                        },
+                                        success: function(conversionData) {
+                                            if (conversionData.success) {
+                                                var convertedQuantity = parseFloat(conversionData.convertedStock) || baseQuantity;
+                                                $quantitySpan.text(convertedQuantity.toFixed(3));
+                                                
+                                                if (unitAbbreviation) {
+                                                    $unitAbbreviation.text(' ' + unitAbbreviation);
+                                                } else {
+                                                    $unitAbbreviation.text('');
+                                                }
+                                            } else {
+                                                $quantitySpan.text(baseQuantity.toFixed(3));
+                                                $unitAbbreviation.text('');
+                                            }
+                                        },
+                                        error: function() {
+                                            $quantitySpan.text(baseQuantity.toFixed(3));
+                                            $unitAbbreviation.text('');
+                                        }
+                                    });
+                                }
+                            } else {
+                                $quantitySpan.text(baseQuantity.toFixed(3));
+                                $unitAbbreviation.text('');
+                            }
+                        },
+                        error: function() {
+                            $quantitySpan.text(baseQuantity.toFixed(3));
+                            $unitAbbreviation.text('');
+                        }
+                    });
+                }
+            });
+        }
+
+        // Reset quantities to base unit
+        function resetBillItemQuantitiesToBase() {
+            $('.bill-item-quantity').each(function() {
+                var $quantitySpan = $(this);
+                var baseQuantity = parseFloat($quantitySpan.data('base-quantity')) || 0;
+                $quantitySpan.text(baseQuantity.toFixed(3));
+                $quantitySpan.siblings('.unit-abbreviation').text('');
+            });
+            updateQuantityHeader('');
+        }
+
+        // Update quantity column header with unit abbreviation
+        function updateQuantityHeader(unitAbbreviation) {
+            var unitText = unitAbbreviation ? ' (' + unitAbbreviation + ')' : '';
+            $('#quantityUnitHeader').text(unitText);
+        }
+
+        // Auto-print functionality when coming from saveAndPrint
+        window.onload = function() {
+            @if (ViewBag.Print == true)
+            {
+                <text>
+                // Auto-print both vendor and merchant copies in separate tabs
+                setTimeout(function() {
+                    // Open vendor copy in new tab and print
+                    const vendorUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false, autoPrint = false })' + '?print=true';
+                    const vendorWindow = window.open(vendorUrl, '_blank');
+                    
+                    // Open merchant copy in another new tab after a delay
+                    setTimeout(function() {
+                        const merchantUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true, autoPrint = false })' + '?print=true';
+                        const merchantWindow = window.open(merchantUrl, '_blank');
+                        
+                        // Show notification
+                        if (typeof showSuccessMessage === 'function') {
+                            showSuccessMessage('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+                        } else {
+                            alert('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
+                        }
+                    }, 1000);
+                }, 500);
+                </text>
+            }
+        };
+    </script>
+}
+
+
+
 
 
 

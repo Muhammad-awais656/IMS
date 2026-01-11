@@ -49,7 +49,7 @@
                                             </div>
                                             <div class="col-md-2">
                                                 <label for="quantity" class="form-label">Qty :</label>
-                                                <input type="number" id="quantity" class="form-control" value="1" min="1" onchange="calculatePayableAmount()" />
+                                                <input type="number" id="quantity" class="form-control" value="1" min="0" step="0.001" onchange="calculatePayableAmount()" />
                                             </div>
                                         </div>
                                         <div class="row g-3 mt-2">
@@ -499,6 +499,9 @@
             document.getElementById('payableAmount').value = '0';
         }
 
+        // Variable to store current available stock in selected unit
+        let currentAvailableStock = 0;
+
         function onProductSizeChange() {
             debugger;
             console.log('onProductSizeChange called');
@@ -512,9 +515,10 @@
                 document.getElementById('unitPrice').value = selectedItem.unitPrice || '0';
                 document.getElementById('unitPurchasePrice').value = selectedItem.unitPrice || '0';
                 
-                // Store selected product size data
+                // Store selected product size data with measuringUnitId
                 selectedProductSize = {
                     productRangeId: selectedItem.productRangeId,
+                    measuringUnitId: selectedItem.measuringUnitId,
                     unitPrice: selectedItem.unitPrice,
                     measuringUnitName: selectedItem.measuringUnitName,
                     measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
@@ -522,11 +526,113 @@
                 
                 console.log('selectedProductSize set:', selectedProductSize);
                 
+                // Load and display available stock in the product size's unit
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                const productId = productCombo ? productCombo.value() : null;
+                if (productId && selectedItem.measuringUnitId) {
+                    loadAvailableStockInProductSizeUnit(productId, selectedItem.measuringUnitId);
+                }
+                
                 // Recalculate payable amount
                 calculatePayableAmount();
             } else {
                 // Reset fields if no item selected
                 resetProductFields();
+            }
+        }
+
+        // Function to load available stock in product size's unit
+        function loadAvailableStockInProductSizeUnit(productId, productSizeUnitId) {
+            if (!productId || !productSizeUnitId) {
+                console.log("Missing required data for loading stock");
+                return;
+            }
+
+            // Get stock in base unit along with base unit ID
+            fetch(`/VendorBills/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stockInBaseUnit = data.availableQuantity;
+                        const productBaseUnitId = data.baseUnitId;
+                        
+                        // If product size unit is same as base unit, no conversion needed
+                        if (!productBaseUnitId || productSizeUnitId == productBaseUnitId) {
+                            currentAvailableStock = stockInBaseUnit;
+                            updateStockDisplay();
+                        } else {
+                            // Convert stock from base unit to product size unit
+                            console.log('Converting stock:', {
+                                stockInBaseUnit: stockInBaseUnit,
+                                fromUnitId: productBaseUnitId,
+                                toUnitId: productSizeUnitId
+                            });
+                            
+                            fetch(`/VendorBills/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${stockInBaseUnit}`)
+                                .then(response => response.json())
+                                .then(conversionData => {
+                                    if (conversionData.success) {
+                                        currentAvailableStock = conversionData.convertedStock;
+                                        updateStockDisplay();
+                                        console.log('Stock converted to product size unit:', {
+                                            baseStock: stockInBaseUnit,
+                                            baseUnitId: productBaseUnitId,
+                                            productSizeUnitId: productSizeUnitId,
+                                            convertedStock: conversionData.convertedStock,
+                                            conversionFactor: conversionData.conversionFactor
+                                        });
+                                    } else {
+                                        console.warn('Conversion failed, using base unit stock');
+                                        // Fallback to base unit if conversion fails
+                                        currentAvailableStock = stockInBaseUnit;
+                                        updateStockDisplay();
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error converting stock:', error);
+                                    currentAvailableStock = stockInBaseUnit;
+                                    updateStockDisplay();
+                                });
+                        }
+                    } else {
+                        currentAvailableStock = 0;
+                        updateStockDisplay();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading available stock:', error);
+                    currentAvailableStock = 0;
+                    updateStockDisplay();
+                });
+        }
+
+        function updateStockDisplay() {
+            const quantityInput = document.getElementById('quantity');
+            // Use full decimal value for display
+            const maxQuantity = currentAvailableStock;
+
+            // Update max attribute with full decimal value
+            quantityInput.setAttribute('max', maxQuantity);
+
+            // Update placeholder to show available stock with full precision
+            quantityInput.setAttribute('placeholder', `Max: ${maxQuantity.toFixed(3)}`);
+
+            // Get unit name from selected product size
+            let unitName = '';
+            if (selectedProductSize && selectedProductSize.measuringUnitName) {
+                unitName = selectedProductSize.measuringUnitName;
+            } else if (selectedProductSize && selectedProductSize.measuringUnitAbbreviation) {
+                unitName = selectedProductSize.measuringUnitAbbreviation;
+            }
+
+            // Add visual indicator with unit name - show full decimal value
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                if (unitName) {
+                    quantityLabel.innerHTML = `Qty (${unitName}): <small class="text-muted">(Available: ${maxQuantity.toFixed(3)} ${unitName})</small>`;
+                } else {
+                    quantityLabel.innerHTML = `Qty: <small class="text-muted">(Available: ${maxQuantity.toFixed(3)})</small>`;
+                }
             }
         }
 
@@ -606,6 +712,12 @@
                 return;
             }
 
+            // Check stock availability
+            if (quantity > currentAvailableStock) {
+                showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock.toFixed(3)}. You cannot add more than the available stock.`);
+                return;
+            }
+
             // Check for duplicate products
             const existingRows = document.querySelectorAll('#productListBody tr');
             for (let row of existingRows) {
@@ -621,132 +733,321 @@
             const productCode = productItem.code || 'N/A';
             const productSize = sizeItem.text;
 
-            const tableBody = document.getElementById('productListBody');
-            let targetRow;
+            // Convert quantity to base unit if needed (for storage in database)
+            // Get product's base unit first
+            fetch(`/VendorBills/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.baseUnitId) {
+                        const productBaseUnitId = data.baseUnitId;
+                        const productSizeUnitId = selectedProductSize.measuringUnitId;
+                        
+                        // If product size unit is same as base unit, no conversion needed
+                        if (productSizeUnitId == productBaseUnitId) {
+                            addRowToTable(quantity, quantity);
+                        } else {
+                            // Convert quantity from product size unit to base unit
+                            console.log('Converting quantity to base unit:', {
+                                quantity: quantity,
+                                fromUnitId: productSizeUnitId,
+                                toUnitId: productBaseUnitId
+                            });
+                            
+                            fetch(`/VendorBills/ConvertQuantityToBaseUnit?productId=${productId}&fromUnitId=${productSizeUnitId}&toUnitId=${productBaseUnitId}&quantity=${quantity}`)
+                                .then(response => response.json())
+                                .then(conversionData => {
+                                    if (conversionData.success) {
+                                        const baseUnitQuantity = conversionData.convertedQuantity;
+                                        console.log('Quantity converted to base unit:', {
+                                            originalQuantity: quantity,
+                                            baseUnitQuantity: baseUnitQuantity,
+                                            conversionFactor: conversionData.conversionFactor
+                                        });
+                                        addRowToTable(quantity, baseUnitQuantity);
+                                    } else {
+                                        console.warn('Conversion failed, using original quantity');
+                                        addRowToTable(quantity, quantity);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error converting quantity:', error);
+                                    addRowToTable(quantity, quantity);
+                                });
+                        }
+                    } else {
+                        // No base unit found, use quantity as is
+                        addRowToTable(quantity, quantity);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting base unit:', error);
+                    addRowToTable(quantity, quantity);
+                });
+
+            // Function to add row to table with both display and base unit quantities
+            function addRowToTable(displayQuantity, baseUnitQuantity) {
+                const tableBody = document.getElementById('productListBody');
+                let targetRow;
             
-            if (isEditMode) {
-                // Update existing row - find the row by index
-                console.log('=== UPDATE MODE DEBUG ===');
-                console.log('- isEditMode:', isEditMode);
-                console.log('- editingRowIndex:', editingRowIndex);
-                console.log('- editingRow stored:', editingRow);
-                
-                // Get all rows in the table
-                const allRows = tableBody.querySelectorAll('tr');
-                console.log('- Total rows in table:', allRows.length);
-                console.log('- All rows:', allRows);
-                console.log('- Table body:', tableBody);
-                
-                // Find the row by index
-                if (editingRowIndex >= 0 && editingRowIndex < allRows.length) {
-                    targetRow = allRows[editingRowIndex];
-                    console.log('✅ Found row at index:', editingRowIndex, targetRow);
-                    console.log('✅ Row content before update:', targetRow.innerHTML);
+                if (isEditMode) {
+                    // Update existing row - find the row by index
+                    console.log('=== UPDATE MODE DEBUG ===');
+                    console.log('- isEditMode:', isEditMode);
+                    console.log('- editingRowIndex:', editingRowIndex);
+                    console.log('- editingRow stored:', editingRow);
+                    
+                    // Get all rows in the table
+                    const allRows = tableBody.querySelectorAll('tr');
+                    console.log('- Total rows in table:', allRows.length);
+                    console.log('- All rows:', allRows);
+                    console.log('- Table body:', tableBody);
+                    
+                    // Find the row by index
+                    if (editingRowIndex >= 0 && editingRowIndex < allRows.length) {
+                        targetRow = allRows[editingRowIndex];
+                        console.log('✅ Found row at index:', editingRowIndex, targetRow);
+                        console.log('✅ Row content before update:', targetRow.innerHTML);
+                    } else {
+                        console.error('❌ Invalid editing row index:', editingRowIndex);
+                        console.error('❌ Available rows count:', allRows.length);
+                        console.error('❌ All rows array:', Array.from(allRows));
+                        showWarningMessage('Error: Could not find the row to update. Please try again.');
+                        return;
+                    }
                 } else {
-                    console.error('❌ Invalid editing row index:', editingRowIndex);
-                    console.error('❌ Available rows count:', allRows.length);
-                    console.error('❌ All rows array:', Array.from(allRows));
-                    showWarningMessage('Error: Could not find the row to update. Please try again.');
+                    // Add new row
+                    targetRow = tableBody.insertRow();
+                    console.log('Adding new row');
+                }
+                
+                // Validate targetRow before proceeding
+                if (!targetRow) {
+                    console.error('targetRow is null or undefined');
+                    showWarningMessage('Error: Could not find the target row. Please try again.');
                     return;
                 }
-            } else {
-                // Add new row
-                targetRow = tableBody.insertRow();
-                console.log('Adding new row');
-            }
-            
-            // Validate targetRow before proceeding
-            if (!targetRow) {
-                console.error('targetRow is null or undefined');
-                showWarningMessage('Error: Could not find the target row. Please try again.');
-                return;
-            }
-            
-            console.log('targetRow found:', targetRow);
-            if (isEditMode) {
-                // Update existing row content
-                console.log('=== UPDATING ROW CONTENT ===');
-                console.log('Current row content:', targetRow.innerHTML);
-                const newContent = `
-                    <td>${selectedProductSize ? selectedProductSize.measuringUnitAbbreviation : 'N/A'}</td>
-                <td>${productName}</td>
-                <td>$${unitPrice.toFixed(2)}</td>
-                <td>$${unitPurchasePrice.toFixed(2)}</td>
-                <td>${quantity}</td>
-                    <td>$${totalDiscount.toFixed(2)}</td>
-                <td>$${payableAmount.toFixed(2)}</td>
-                <td>
-                        <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
-                            <i class="fa-solid fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                console.log('New content to set:', newContent);
-                targetRow.innerHTML = newContent;
-                console.log('✅ Row updated successfully. New content:', targetRow.innerHTML);
-            } else {
-                // Add new row
-                const rowId = `row-${rowIndex}`;
-                targetRow.innerHTML = `
-                    <td>${selectedProductSize ? selectedProductSize.measuringUnitAbbreviation : 'N/A'}</td>
-                    <td>${productName}</td>
-                    <td>$${unitPrice.toFixed(2)}</td>
-                    <td>$${unitPurchasePrice.toFixed(2)}</td>
-                    <td>${quantity}</td>
-                    <td>$${totalDiscount.toFixed(2)}</td>
-                    <td>$${payableAmount.toFixed(2)}</td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
-                            <i class="fa-solid fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            `;
                 
-                // Set the row ID for easier identification
-                targetRow.setAttribute('data-row-id', rowId);
-            }
+                console.log('targetRow found:', targetRow);
+                const measuringUnitAbbreviation = selectedProductSize ? selectedProductSize.measuringUnitAbbreviation : 'N/A';
+                
+                if (isEditMode) {
+                    // Update existing row content
+                    console.log('=== UPDATING ROW CONTENT ===');
+                    console.log('Current row content:', targetRow.innerHTML);
+                    const newContent = `
+                        <td>${measuringUnitAbbreviation}</td>
+                        <td>${productName}</td>
+                        <td>$${unitPrice.toFixed(2)}</td>
+                        <td>$${unitPurchasePrice.toFixed(2)}</td>
+                        <td>${displayQuantity.toFixed(3)} ${measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : ''}</td>
+                        <td>$${totalDiscount.toFixed(2)}</td>
+                        <td>$${payableAmount.toFixed(2)}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
+                                <i class="fa-solid fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    console.log('New content to set:', newContent);
+                    targetRow.innerHTML = newContent;
+                    console.log('✅ Row updated successfully. New content:', targetRow.innerHTML);
+                } else {
+                    // Add new row
+                    const rowId = `row-${rowIndex}`;
+                    targetRow.innerHTML = `
+                        <td>${measuringUnitAbbreviation}</td>
+                        <td>${productName}</td>
+                        <td>$${unitPrice.toFixed(2)}</td>
+                        <td>$${unitPurchasePrice.toFixed(2)}</td>
+                        <td>${displayQuantity.toFixed(3)} ${measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : ''}</td>
+                        <td>$${totalDiscount.toFixed(2)}</td>
+                        <td>$${payableAmount.toFixed(2)}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-warning me-1" onclick="editProductRow(this)" title="Edit">
+                                <i class="fa-solid fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeProductRow(this)" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    // Set the row ID for easier identification
+                    targetRow.setAttribute('data-row-id', rowId);
+                }
 
-            // Store data in hidden inputs
-            const currentRowIndex = isEditMode ? editingRowIndex : rowIndex;
-            targetRow.innerHTML += `
-                <input type="hidden" name="BillItems[${currentRowIndex}].ProductId" value="${productId}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].ProductRangeId" value="${sizeCombo.value()}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].ProductCode" value="${productCode}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].ProductName" value="${productName}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].ProductSize" value="${productSize}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].UnitPrice" value="${unitPrice}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].BillPrice" value="${unitPurchasePrice}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].Quantity" value="${quantity}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].DiscountAmount" value="${discountAmount}" />
-                <input type="hidden" name="BillItems[${currentRowIndex}].PayableAmount" value="${payableAmount}" />
-            `;
+                // Store data in hidden inputs - use baseUnitQuantity for Quantity field
+                const currentRowIndex = isEditMode ? editingRowIndex : rowIndex;
+                targetRow.innerHTML += `
+                    <input type="hidden" name="BillItems[${currentRowIndex}].ProductId" value="${productId}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].ProductRangeId" value="${sizeCombo.value()}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].ProductCode" value="${productCode}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].ProductName" value="${productName}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].ProductSize" value="${productSize}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].UnitPrice" value="${unitPrice}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].BillPrice" value="${unitPurchasePrice}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].Quantity" value="${baseUnitQuantity}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].DisplayQuantity" value="${displayQuantity}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].DiscountAmount" value="${discountAmount}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].PayableAmount" value="${payableAmount}" />
+                `;
 
-            if (!isEditMode) {
-            rowIndex++;
+                if (!isEditMode) {
+                    rowIndex++;
+                }
+                
+                // Update available stock after adding item
+                updateAvailableStockAfterAdd(baseUnitQuantity);
+                
+                // Reset edit mode and button
+                console.log('Resetting edit mode after update');
+                isEditMode = false;
+                editingRowIndex = -1;
+                editingRow = null;
+                resetButtonToAdd();
+                
+                updateTotals();
+                resetProductFields();
+                console.log('Update completed successfully');
+                
+                // Show success message
+                showSuccessMessage('Product added to bill successfully!');
             }
+        }
+
+        // Function to update available stock after adding an item
+        function updateAvailableStockAfterAdd(quantityInBaseUnit) {
+            // For vendor bills, we're adding stock (increasing), so we add the quantity back
+            // Get the current product size selection to determine the unit
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const currentProductId = productCombo ? productCombo.value() : null;
             
-            // Reset edit mode and button
-            console.log('Resetting edit mode after update');
-            isEditMode = false;
-            editingRowIndex = -1;
-            editingRow = null;
-            resetButtonToAdd();
-            
-            updateTotals();
-            resetProductFields();
-            console.log('Update completed successfully');
+            // Only update stock if the added item is from the currently selected product
+            if (currentProductId && selectedProductSize) {
+                const productSizeUnitId = selectedProductSize.measuringUnitId;
+                
+                // Get base unit and convert quantityInBaseUnit to product size unit for display
+                fetch(`/VendorBills/GetAvailableStock?productId=${currentProductId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.baseUnitId) {
+                            const productBaseUnitId = data.baseUnitId;
+                            
+                            if (productSizeUnitId == productBaseUnitId) {
+                                // Same unit, just add back (vendor bills increase stock)
+                                currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                updateStockDisplay();
+                            } else {
+                                // Convert quantityInBaseUnit to product size unit for display
+                                fetch(`/VendorBills/ConvertUnitAndGetStock?productId=${currentProductId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${quantityInBaseUnit}`)
+                                    .then(response => response.json())
+                                    .then(conversionData => {
+                                        if (conversionData.success) {
+                                            const quantityInProductSizeUnit = conversionData.convertedStock;
+                                            currentAvailableStock = currentAvailableStock + quantityInProductSizeUnit;
+                                            updateStockDisplay();
+                                        } else {
+                                            // Fallback: just add back base unit (may show incorrect value)
+                                            currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                            updateStockDisplay();
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error converting quantity for stock update:', error);
+                                        currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                        updateStockDisplay();
+                                    });
+                            }
+                        } else {
+                            // No base unit, just add back
+                            currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                            updateStockDisplay();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating stock after add:', error);
+                    });
+            }
         }
 
         function removeProductRow(button) {
             const row = button.closest('tr');
+            
+            // Get base unit quantity from hidden field to restore stock
+            const baseUnitQuantityInput = row.querySelector('input[name*=".Quantity"]');
+            const baseUnitQuantity = baseUnitQuantityInput ? parseFloat(baseUnitQuantityInput.value) : 0;
+            
+            // Get product ID to update stock
+            const productIdInput = row.querySelector('input[name*=".ProductId"]');
+            const productId = productIdInput ? productIdInput.value : null;
+            
+            // Remove the row
             row.remove();
+            
+            // Update available stock after removing item (for vendor bills, removing decreases stock)
+            if (productId && baseUnitQuantity > 0) {
+                updateAvailableStockAfterRemove(baseUnitQuantity);
+            }
+            
             updateTotals();
+        }
+
+        // Function to update available stock after removing an item
+        function updateAvailableStockAfterRemove(quantityInBaseUnit) {
+            // For vendor bills, we're removing stock (decreasing), so we subtract the quantity
+            // Get the current product size selection to determine the unit
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const currentProductId = productCombo ? productCombo.value() : null;
+            
+            // Only update stock if the removed item is from the currently selected product
+            if (currentProductId && selectedProductSize) {
+                const productSizeUnitId = selectedProductSize.measuringUnitId;
+                
+                // Get base unit and convert quantityInBaseUnit to product size unit for display
+                fetch(`/VendorBills/GetAvailableStock?productId=${currentProductId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.baseUnitId) {
+                            const productBaseUnitId = data.baseUnitId;
+                            
+                            if (productSizeUnitId == productBaseUnitId) {
+                                // Same unit, just subtract
+                                currentAvailableStock = Math.max(0, currentAvailableStock - quantityInBaseUnit);
+                                updateStockDisplay();
+                            } else {
+                                // Convert quantityInBaseUnit to product size unit for display
+                                fetch(`/VendorBills/ConvertUnitAndGetStock?productId=${currentProductId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${quantityInBaseUnit}`)
+                                    .then(response => response.json())
+                                    .then(conversionData => {
+                                        if (conversionData.success) {
+                                            const quantityInProductSizeUnit = conversionData.convertedStock;
+                                            currentAvailableStock = Math.max(0, currentAvailableStock - quantityInProductSizeUnit);
+                                            updateStockDisplay();
+                                        } else {
+                                            // Fallback: just subtract base unit (may show incorrect value)
+                                            currentAvailableStock = Math.max(0, currentAvailableStock - quantityInBaseUnit);
+                                            updateStockDisplay();
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error converting quantity for stock update:', error);
+                                        currentAvailableStock = Math.max(0, currentAvailableStock - quantityInBaseUnit);
+                                        updateStockDisplay();
+                                    });
+                            }
+                        } else {
+                            // No base unit, just subtract
+                            currentAvailableStock = Math.max(0, currentAvailableStock - quantityInBaseUnit);
+                            updateStockDisplay();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating stock after remove:', error);
+                    });
+            }
         }
 
         function editProductRow(button) {
@@ -790,7 +1091,9 @@
             const productName = cells[1].textContent.trim();
             const unitPrice = parseFloat(cells[2].textContent.replace('$', ''));
             const unitPurchasePrice = parseFloat(cells[3].textContent.replace('$', ''));
-            const quantity = parseInt(cells[4].textContent);
+            // Extract quantity from cell (may include unit abbreviation)
+            const quantityText = cells[4].textContent.trim();
+            const quantity = parseFloat(quantityText.split(' ')[0]) || 0; // Get numeric part before unit abbreviation
             const discountAmount = parseFloat(cells[5].textContent.replace('$', ''));
             const payableAmount = parseFloat(cells[6].textContent.replace('$', ''));
             
@@ -798,6 +1101,12 @@
             const productId = row.querySelector('input[name*=".ProductId"]').value;
             const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
             const productSize = row.querySelector('input[name*=".ProductSize"]') ? row.querySelector('input[name*=".ProductSize"]').value : measuringUnit;
+            // Get base unit quantity from hidden field if available
+            const baseUnitQuantityInput = row.querySelector('input[name*=".Quantity"]');
+            const baseUnitQuantity = baseUnitQuantityInput ? parseFloat(baseUnitQuantityInput.value) : quantity;
+            // Get display quantity from hidden field if available
+            const displayQuantityInput = row.querySelector('input[name*=".DisplayQuantity"]');
+            const displayQuantity = displayQuantityInput ? parseFloat(displayQuantityInput.value) : quantity;
             
             console.log('Editing product:', {
                 productId: productId,
@@ -838,8 +1147,59 @@
                         const sizeData = sizeCombo.dataSource.data();
                         const selectedSize = sizeData.find(s => s.value === productRangeId);
                         if (selectedSize) {
-                            selectedProductSize = selectedSize;
-                            console.log('Product size selected for edit:', selectedSize);
+                            selectedProductSize = {
+                                productRangeId: selectedSize.value || selectedSize.productRangeId,
+                                measuringUnitId: selectedSize.measuringUnitId,
+                                unitPrice: selectedSize.unitPrice,
+                                measuringUnitName: selectedSize.measuringUnitName,
+                                measuringUnitAbbreviation: selectedSize.measuringUnitAbbreviation
+                            };
+                            console.log('Product size selected for edit:', selectedProductSize);
+                            
+                            // Convert base unit quantity to product size unit for display
+                            if (selectedProductSize.measuringUnitId && baseUnitQuantity !== displayQuantity) {
+                                // Need to convert from base unit to product size unit
+                                fetch(`/VendorBills/GetAvailableStock?productId=${productId}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success && data.baseUnitId) {
+                                            const productBaseUnitId = data.baseUnitId;
+                                            const productSizeUnitId = selectedProductSize.measuringUnitId;
+                                            
+                                            if (productSizeUnitId == productBaseUnitId) {
+                                                // Same unit, use base unit quantity
+                                                document.getElementById('quantity').value = baseUnitQuantity.toFixed(3);
+                                            } else {
+                                                // Convert base unit quantity to product size unit for display
+                                                fetch(`/VendorBills/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${baseUnitQuantity}`)
+                                                    .then(response => response.json())
+                                                    .then(conversionData => {
+                                                        if (conversionData.success) {
+                                                            const displayQty = conversionData.convertedStock;
+                                                            document.getElementById('quantity').value = displayQty.toFixed(3);
+                                                        } else {
+                                                            // Fallback: use display quantity if available, otherwise base unit
+                                                            document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                                        }
+                                                    })
+                                                    .catch(error => {
+                                                        console.error('Error converting quantity for edit:', error);
+                                                        document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                                    });
+                                            }
+                                        } else {
+                                            // No base unit found, use display quantity or base unit
+                                            document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error getting base unit for edit:', error);
+                                        document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                    });
+                            } else {
+                                // Use display quantity or base unit
+                                document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                            }
                         }
                     }
                 }, 800); // Increased delay to ensure sizes are loaded

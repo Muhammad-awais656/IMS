@@ -21,6 +21,12 @@ namespace IMS.Controllers
         {
             return View();
         }
+
+        // GET: Settings/UnitConversions
+        public IActionResult UnitConversions()
+        {
+            return RedirectToAction("Index", "UnitConversion");
+        }
         [HttpGet]
         public async Task<IActionResult> GetAllExpenseTypes(int pageNumber = 1, int? pageSize = null,string? ExpenseTypeName=null)
         {

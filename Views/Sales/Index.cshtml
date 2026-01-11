@@ -154,7 +154,7 @@
                                     </label>
                                     <input type="date" name="saleDateTo" id="saleDateTo" class="form-control" value="@(Context.Request.Query["saleDateTo"].FirstOrDefault() ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
                                 </div>
-                                <div class="col-lg-3 col-md-6">
+                                <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-align-left me-1 text-primary"></i>Description
                                     </label>
@@ -334,7 +334,8 @@
                                asp-route-billNumber="@Context.Request.Query["billNumber"]"
                                asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
                                asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                               asp-route-description="@Context.Request.Query["description"]">First</a>
+                               asp-route-description="@Context.Request.Query["description"]"
+>First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" 
@@ -445,6 +446,7 @@
                     customerCombo.value(selectedCustomerId);
                 }
             }
+
 
             // Add event listeners for date inputs to auto-submit form when dates change
             $('#saleFrom, #saleDateTo').on('change', function() {

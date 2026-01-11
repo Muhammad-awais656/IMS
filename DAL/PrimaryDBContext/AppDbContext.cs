@@ -31,6 +31,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AdminMeasuringUnitType> AdminMeasuringUnitTypes { get; set; }
 
+    public virtual DbSet<UnitConversion> UnitConversions { get; set; }
+
     public virtual DbSet<AdminRole> AdminRoles { get; set; }
 
     public virtual DbSet<AdminSize> AdminSizes { get; set; }
@@ -441,6 +443,18 @@ public partial class AppDbContext : DbContext
 
             entity.Property(e => e.UserName).HasMaxLength(100);
             entity.Property(e => e.UserPassword).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<UnitConversion>(entity =>
+        {
+            entity.HasKey(e => e.UnitConversionId);
+
+            entity.ToTable("UnitConversions");
+
+            entity.Property(e => e.ConversionFactor).HasColumnType("numeric(18, 4)");
+            entity.Property(e => e.Description).HasMaxLength(200);
+            entity.Property(e => e.CreatedDate).HasColumnType("datetime");
+            entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
         });
 
         OnModelCreatingPartial(modelBuilder);

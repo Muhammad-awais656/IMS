@@ -22,6 +22,7 @@ namespace IMS.Models
         public long ProductId { get; set; }
         public string ProductSize { get; set; }
         public string ProductName { get; set; }
+        
         public string MeasuringUnitAbbreviation { get; set; }
         public decimal UnitPrice { get; set; }
         public long Quantity { get; set; }
@@ -29,6 +30,9 @@ namespace IMS.Models
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
         public long ProductRangeId { get; set; }
+
+        public string? PaymentMethod { get; set; }
+
     }
 
     public class AddSaleViewModel
@@ -50,6 +54,7 @@ namespace IMS.Models
         public string ActionType { get; set; }
         public string PaymentMethod { get; set; } // Cash or Online
         public long? OnlineAccountId { get; set; } // Personal Payment ID when Online is selected
+        public bool IsEditMode { get; set; } = false; // Indicates if the form is in edit mode
         public DateTime CreatedDate { get; set; }
         public long CreatedBy { get; set; }
         public DateTime ModifiedDate { get; set; }

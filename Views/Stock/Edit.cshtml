@@ -13,22 +13,31 @@
                         <input type="hidden" asp-for="StockMasterId" />
                         <div class="col">
                             <label asp-for="ProductIdFk" class="form-label">Product:</label>
-                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control" })
+                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control", @id = "ProductIdFk" })
                             <span asp-validation-for="ProductIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
+                            <label for="MeasuringUnitId" class="form-label">Measuring Unit:</label>
+                            <input id="MeasuringUnitId" name="MeasuringUnitId" style="width: 100%;" />
+                            <input type="hidden" id="MeasuringUnitIdHidden" />
+                            <small class="form-text text-muted">Select unit for the stock quantity</small>
+                        </div>
+                        <div class="col">
                             <label asp-for="AvailableQuantity" class="form-label">Available Quantity:</label>
-                            <input asp-for="AvailableQuantity" class="form-control" type="number" step="0.001" />
+                            <input asp-for="AvailableQuantity" class="form-control" type="number" step="0.001" id="AvailableQuantity" />
+                            <span class="unit-abbreviation text-muted small"></span>
                             <span asp-validation-for="AvailableQuantity" class="text-danger"></span>
                         </div>
                         <div class="col">
                             <label asp-for="UsedQuantity" class="form-label">Used Quantity:</label>
-                            <input asp-for="UsedQuantity" class="form-control" type="number" step="0.001" readonly />
+                            <input asp-for="UsedQuantity" class="form-control" type="number" step="0.001" readonly id="UsedQuantity" />
+                            <span class="unit-abbreviation text-muted small"></span>
                             <small class="form-text text-muted">Read-only field</small>
                         </div>
                         <div class="col">
                             <label asp-for="TotalQuantity" class="form-label">Total Quantity:</label>
-                            <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" />
+                            <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" id="TotalQuantity" />
+                            <span class="unit-abbreviation text-muted small"></span>
                             <span asp-validation-for="TotalQuantity" class="text-danger"></span>
                         </div>
                         
@@ -52,6 +61,39 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function() {
+            var baseAvailableQuantity = parseFloat($('#AvailableQuantity').val()) || 0;
+            var baseUsedQuantity = parseFloat($('#UsedQuantity').val()) || 0;
+            var baseTotalQuantity = parseFloat($('#TotalQuantity').val()) || 0;
+            
+            // Store base quantities
+            $('#AvailableQuantity').data('base-quantity', baseAvailableQuantity);
+            $('#UsedQuantity').data('base-quantity', baseUsedQuantity);
+            $('#TotalQuantity').data('base-quantity', baseTotalQuantity);
+            
+            // Initialize Measuring Unit Dropdown
+            initializeMeasuringUnitDropdown();
+            
+            // Load measuring units when product is selected
+            $('#ProductIdFk').on('change', function() {
+                var productId = $(this).val();
+                if (productId) {
+                    loadMeasuringUnitsForProduct(productId);
+                } else {
+                    var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                    if (unitCombo) {
+                        unitCombo.value("");
+                        unitCombo.dataSource.data([]);
+                        unitCombo.enable(false);
+                    }
+                }
+            });
+            
+            // Load measuring units on page load if product is already selected
+            var productId = $('#ProductIdFk').val();
+            if (productId) {
+                loadMeasuringUnitsForProduct(productId);
+            }
+            
             // Auto-calculate total quantity when available quantity changes
             $('#AvailableQuantity').on('input', function() {
                 calculateTotalFromAvailableUsed();
@@ -66,7 +108,7 @@
                 const availableQty = parseFloat($('#AvailableQuantity').val()) || 0;
                 const usedQty = parseFloat($('#UsedQuantity').val()) || 0;
                 const totalQty = availableQty + usedQty;
-                $('#TotalQuantity').val(totalQty);
+                $('#TotalQuantity').val(totalQty.toFixed(3));
             }
 
             function calculateAvailableFromTotal() {
@@ -75,32 +117,356 @@
                 
                 // Available = Total - Used (Used remains unchanged)
                 const newAvailable = Math.max(0, totalQty - currentUsed);
-                $('#AvailableQuantity').val(newAvailable);
+                $('#AvailableQuantity').val(newAvailable.toFixed(3));
             }
 
-            // Add validation before form submission
+            // Initialize Measuring Unit Dropdown
+            function initializeMeasuringUnitDropdown() {
+                if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                    $("#MeasuringUnitId").kendoComboBox({
+                        dataSource: {
+                            transport: {
+                                read: {
+                                    url: "/UnitConversion/GetMeasuringUnits",
+                                    dataType: "json"
+                                }
+                            }
+                        },
+                        dataTextField: "text",
+                        dataValueField: "value",
+                        placeholder: "-- Select Measuring Unit --",
+                        filter: "contains",
+                        suggest: true,
+                        minLength: 1,
+                        change: function(e) {
+                            var value = this.value();
+                            $("#MeasuringUnitIdHidden").val(value);
+                            var productId = $('#ProductIdFk').val();
+                            if (value && value !== '' && productId) {
+                                loadStockInSelectedUnit(productId, value);
+                            } else {
+                                resetStockQuantitiesToBase();
+                            }
+                        },
+                        select: function(e) {
+                            var dataItem = this.dataItem(e.item.index());
+                            $("#MeasuringUnitIdHidden").val(dataItem.value);
+                            var productId = $('#ProductIdFk').val();
+                            if (dataItem.value && dataItem.value !== '' && productId) {
+                                loadStockInSelectedUnit(productId, dataItem.value);
+                            } else {
+                                resetStockQuantitiesToBase();
+                            }
+                        }
+                    });
+                    
+                } else {
+                    setTimeout(initializeMeasuringUnitDropdown, 100);
+                }
+            }
+
+            // Load measuring units for product
+            function loadMeasuringUnitsForProduct(productId) {
+                $.ajax({
+                    url: '/Stock/GetMeasuringUnitsByProduct',
+                    type: 'GET',
+                    data: { productId: productId },
+                    success: function(data) {
+                        if (data && data.length > 0) {
+                            var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            if (unitCombo) {
+                                unitCombo.dataSource.data(data);
+                                unitCombo.enable(true);
+                            }
+                        }
+                    },
+                    error: function() {
+                        console.error('Error loading measuring units for product');
+                    }
+                });
+            }
+
+            // Load stock in selected unit
+            function loadStockInSelectedUnit(productId, selectedUnitId) {
+                $.ajax({
+                    url: '/Stock/GetExistingStock',
+                    type: 'GET',
+                    data: { 
+                        productId: productId,
+                        selectedUnitId: selectedUnitId
+                    },
+                    success: function(data) {
+                        if (data.success) {
+                            const stockInBaseUnit = parseFloat(data.availableQuantity) || 0;
+                            const stockInSelectedUnit = parseFloat(data.convertedStock) || stockInBaseUnit;
+                            const baseUnitId = data.baseUnitId ? parseInt(data.baseUnitId) : null;
+                            const selectedUnitIdNum = parseInt(selectedUnitId);
+                            
+                            // Get unit abbreviation
+                            const unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            const selectedUnit = unitCombo ? unitCombo.dataItem(unitCombo.selectedIndex) : null;
+                            const unitAbbreviation = selectedUnit ? selectedUnit.measuringUnitAbbreviation : '';
+                            
+                            if (baseUnitId && selectedUnitIdNum != baseUnitId) {
+                                // Convert all quantities
+                                convertQuantitiesToSelectedUnit(selectedUnitId, baseUnitId, productId, unitAbbreviation);
+                            } else {
+                                // Same unit or no base unit, show base quantities
+                                resetStockQuantitiesToBase();
+                            }
+                        }
+                    },
+                    error: function() {
+                        console.error('Error loading stock in selected unit');
+                        resetStockQuantitiesToBase();
+                    }
+                });
+            }
+
+            // Convert quantities to selected unit
+            function convertQuantitiesToSelectedUnit(selectedUnitId, baseUnitId, productId, unitAbbreviation) {
+                // Convert Available Quantity
+                var baseAvailable = parseFloat($('#AvailableQuantity').data('base-quantity')) || 0;
+                convertSingleQuantity('AvailableQuantity', baseAvailable, selectedUnitId, baseUnitId, productId, unitAbbreviation);
+                
+                // Convert Used Quantity
+                var baseUsed = parseFloat($('#UsedQuantity').data('base-quantity')) || 0;
+                convertSingleQuantity('UsedQuantity', baseUsed, selectedUnitId, baseUnitId, productId, unitAbbreviation);
+                
+                // Convert Total Quantity
+                var baseTotal = parseFloat($('#TotalQuantity').data('base-quantity')) || 0;
+                convertSingleQuantity('TotalQuantity', baseTotal, selectedUnitId, baseUnitId, productId, unitAbbreviation);
+            }
+
+            // Convert single quantity
+            function convertSingleQuantity(fieldId, baseQuantity, selectedUnitId, baseUnitId, productId, unitAbbreviation) {
+                if (baseQuantity > 0) {
+                    $.ajax({
+                        url: '/Stock/ConvertStockForDisplay',
+                        type: 'GET',
+                        data: {
+                            productId: productId,
+                            fromUnitId: baseUnitId,
+                            toUnitId: selectedUnitId,
+                            stockInBaseUnit: baseQuantity
+                        },
+                        success: function(conversionData) {
+                            if (conversionData.success) {
+                                var convertedQuantity = parseFloat(conversionData.convertedStock) || baseQuantity;
+                                $('#' + fieldId).val(convertedQuantity.toFixed(3));
+                                $('#' + fieldId).siblings('.unit-abbreviation').text(' ' + unitAbbreviation);
+                            } else {
+                                $('#' + fieldId).val(baseQuantity.toFixed(3));
+                                $('#' + fieldId).siblings('.unit-abbreviation').text('');
+                            }
+                        },
+                        error: function() {
+                            $('#' + fieldId).val(baseQuantity.toFixed(3));
+                            $('#' + fieldId).siblings('.unit-abbreviation').text('');
+                        }
+                    });
+                } else {
+                    $('#' + fieldId).val('0.000');
+                    $('#' + fieldId).siblings('.unit-abbreviation').text(' ' + unitAbbreviation);
+                }
+            }
+
+            // Reset quantities to base unit
+            function resetStockQuantitiesToBase() {
+                var baseAvailable = parseFloat($('#AvailableQuantity').data('base-quantity')) || 0;
+                var baseUsed = parseFloat($('#UsedQuantity').data('base-quantity')) || 0;
+                var baseTotal = parseFloat($('#TotalQuantity').data('base-quantity')) || 0;
+                
+                $('#AvailableQuantity').val(baseAvailable.toFixed(3));
+                $('#UsedQuantity').val(baseUsed.toFixed(3));
+                $('#TotalQuantity').val(baseTotal.toFixed(3));
+                
+                $('.unit-abbreviation').text('');
+            }
+
+            // Add validation and conversion before form submission
             $('form').on('submit', function(e) {
+                var categoryCombo = $("#CategoryIdFk")?.data("kendoComboBox");
+                var productCombo = $("#ProductIdFk")?.data("kendoComboBox");
+                var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                
+                if (unitCombo) {
+                    $("#MeasuringUnitIdHidden").val(unitCombo.value());
+                }
+
+                // Convert quantity to base unit if a measuring unit is selected
+                var measuringUnitId = unitCombo ? unitCombo.value() : null;
+                var productId = $('#ProductIdFk').val();
+                var availableQty = parseFloat($('#AvailableQuantity').val()) || 0;
+                var usedQty = parseFloat($('#UsedQuantity').val()) || 0;
+                var totalQty = parseFloat($('#TotalQuantity').val()) || 0;
+
+                if (measuringUnitId && productId && (availableQty > 0 || usedQty > 0 || totalQty > 0)) {
+                    // Prevent default submission, convert quantities, then submit
+                    e.preventDefault();
+                    
+                    // Get base unit for the product
+                    $.ajax({
+                        url: '/Stock/GetProductBaseUnit',
+                        type: 'GET',
+                        data: { productId: productId },
+                        success: function(baseUnitData) {
+                            if (baseUnitData.success && baseUnitData.baseUnitId) {
+                                var baseUnitId = baseUnitData.baseUnitId;
+                                
+                                // If selected unit is same as base unit, no conversion needed
+                                if (measuringUnitId == baseUnitId) {
+                                    submitForm();
+                                } else {
+                                    // Convert quantities from selected unit to base unit
+                                    convertQuantitiesToBaseUnitAndSubmit(productId, measuringUnitId, baseUnitId, availableQty, usedQty, totalQty);
+                                }
+                            } else {
+                                // No base unit found, submit as is
+                                submitForm();
+                            }
+                        },
+                        error: function() {
+                            // Error getting base unit, submit as is
+                            submitForm();
+                        }
+                    });
+                } else {
+                    // No unit selected, validate and submit
+                    if (availableQty < 0 || usedQty < 0 || totalQty < 0) {
+                        e.preventDefault();
+                        alert('Quantities cannot be negative.');
+                        return false;
+                    }
+                    
+                    const calculatedTotal = availableQty + usedQty;
+                    if (Math.abs(totalQty - calculatedTotal) > 0.001) {
+                        e.preventDefault();
+                        alert('Total quantity must equal Available quantity + Used quantity.');
+                        return false;
+                    }
+                    
+                    return true;
+                }
+            });
+
+            // Convert quantities to base unit and submit
+            function convertQuantitiesToBaseUnitAndSubmit(productId, measuringUnitId, baseUnitId, availableQty, usedQty, totalQty) {
+                var conversionsNeeded = 0;
+                var conversionsCompleted = 0;
+                var convertedAvailable = availableQty;
+                var convertedUsed = usedQty;
+                var convertedTotal = totalQty;
+
+                function checkAndSubmit() {
+                    conversionsCompleted++;
+                    if (conversionsCompleted >= conversionsNeeded) {
+                        // All conversions done, update form and submit
+                        $('#AvailableQuantity').val(convertedAvailable.toFixed(3));
+                        $('#UsedQuantity').val(convertedUsed.toFixed(3));
+                        $('#TotalQuantity').val(convertedTotal.toFixed(3));
+                        submitForm();
+                    }
+                }
+
+                // Convert Available Quantity
+                if (availableQty > 0) {
+                    conversionsNeeded++;
+                    $.ajax({
+                        url: '/Stock/ConvertQuantityToBaseUnit',
+                        type: 'GET',
+                        data: {
+                            productId: productId,
+                            fromUnitId: measuringUnitId,
+                            toUnitId: baseUnitId,
+                            quantity: availableQty
+                        },
+                        success: function(data) {
+                            if (data.success) {
+                                convertedAvailable = parseFloat(data.convertedQuantity) || availableQty;
+                            }
+                            checkAndSubmit();
+                        },
+                        error: function() {
+                            checkAndSubmit();
+                        }
+                    });
+                }
+
+                // Convert Used Quantity
+                if (usedQty > 0) {
+                    conversionsNeeded++;
+                    $.ajax({
+                        url: '/Stock/ConvertQuantityToBaseUnit',
+                        type: 'GET',
+                        data: {
+                            productId: productId,
+                            fromUnitId: measuringUnitId,
+                            toUnitId: baseUnitId,
+                            quantity: usedQty
+                        },
+                        success: function(data) {
+                            if (data.success) {
+                                convertedUsed = parseFloat(data.convertedQuantity) || usedQty;
+                            }
+                            checkAndSubmit();
+                        },
+                        error: function() {
+                            checkAndSubmit();
+                        }
+                    });
+                }
+
+                // Convert Total Quantity
+                if (totalQty > 0) {
+                    conversionsNeeded++;
+                    $.ajax({
+                        url: '/Stock/ConvertQuantityToBaseUnit',
+                        type: 'GET',
+                        data: {
+                            productId: productId,
+                            fromUnitId: measuringUnitId,
+                            toUnitId: baseUnitId,
+                            quantity: totalQty
+                        },
+                        success: function(data) {
+                            if (data.success) {
+                                convertedTotal = parseFloat(data.convertedQuantity) || totalQty;
+                            }
+                            checkAndSubmit();
+                        },
+                        error: function() {
+                            checkAndSubmit();
+                        }
+                    });
+                }
+
+                // If no conversions needed, submit immediately
+                if (conversionsNeeded === 0) {
+                    submitForm();
+                }
+            }
+
+            function submitForm() {
+                // Validate before submitting
                 const availableQty = parseFloat($('#AvailableQuantity').val()) || 0;
                 const usedQty = parseFloat($('#UsedQuantity').val()) || 0;
                 const totalQty = parseFloat($('#TotalQuantity').val()) || 0;
                 
-                // Check if quantities are valid
                 if (availableQty < 0 || usedQty < 0 || totalQty < 0) {
-                    e.preventDefault();
                     alert('Quantities cannot be negative.');
                     return false;
                 }
                 
-                // Check if total equals available + used
                 const calculatedTotal = availableQty + usedQty;
-                if (totalQty !== calculatedTotal) {
-                    e.preventDefault();
+                if (Math.abs(totalQty - calculatedTotal) > 0.001) {
                     alert('Total quantity must equal Available quantity + Used quantity.');
                     return false;
                 }
                 
-                return true;
-            });
+                // Submit the form
+                $('form')[0].submit();
+            }
         });
     </script>
 }

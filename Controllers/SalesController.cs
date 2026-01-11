@@ -16,14 +16,16 @@ namespace IMS.Controllers
         private readonly IProductService _productService;
         private readonly ICustomer _customerService;
         private readonly IPersonalPaymentService _personalPaymentService;
+        private readonly IAdminMeasuringUnitService _measuringUnitService;
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService)
         {
             _salesService = salesService;
             _logger = logger;
             _productService = productService;
             _customerService = customerService;
             _personalPaymentService = personalPaymentService;
+            _measuringUnitService = measuringUnitService;
         }
 
         // GET: SalesController
@@ -364,7 +366,7 @@ namespace IMS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult> EditSale(long id)
+        public async Task<ActionResult> EditSale(long id, bool IsEditMode = true)
         {
             try
             {
@@ -402,7 +404,8 @@ namespace IMS.Controllers
                     Description = sale.SaleDescription,
                     SaleId = sale.SaleId, // Add this to track the sale being edited
                     PaymentMethod = sale.PaymentMethod ?? "Cash", // Use stored payment method or default to Cash
-                    OnlineAccountId = sale.PersonalPaymentId ?? sale.OnlineAccountId // Use PersonalPaymentId if available, otherwise OnlineAccountId
+                    OnlineAccountId = sale.PersonalPaymentId ?? sale.OnlineAccountId, // Use PersonalPaymentId if available, otherwise OnlineAccountId
+                    IsEditMode = IsEditMode // Pass IsEditMode to the model
                 };
 
                 // Get previous due amount for the customer
@@ -413,6 +416,7 @@ namespace IMS.Controllers
                 }
 
                 ViewBag.IsEdit = true;
+                ViewBag.IsEditMode = IsEditMode;
                 ViewBag.SaleId = sale.SaleId;
 
                 return View("AddSale", viewModel);
@@ -463,17 +467,36 @@ namespace IMS.Controllers
                 var stock = await _salesService.GetStockByProductIdAsync(productId);
                 if (stock != null)
                 {
-                    return Json(new { success = true, availableQuantity = stock.AvailableQuantity });
+                    // Get product to find base unit
+                    var product = await _productService.GetProductByIdAsync(productId);
+                    long? baseUnitId = null;
+                    
+                    if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
+                    {
+                        // Get the smallest unit for this measuring unit type as base unit
+                        var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
+                        var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                        if (smallestUnit != null)
+                        {
+                            baseUnitId = smallestUnit.MeasuringUnitId;
+                        }
+                    }
+                    
+                    return Json(new { 
+                        success = true, 
+                        availableQuantity = stock.AvailableQuantity,
+                        baseUnitId = baseUnitId
+                    });
                 }
                 else
                 {
-                    return Json(new { success = false, message = "Stock information not found", availableQuantity = 0 });
+                    return Json(new { success = false, message = "Stock information not found", availableQuantity = 0, baseUnitId = (long?)null });
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting available stock for product {ProductId}", productId);
-                return Json(new { success = false, message = "Error retrieving stock information", availableQuantity = 0 });
+                return Json(new { success = false, message = "Error retrieving stock information", availableQuantity = 0, baseUnitId = (long?)null });
             }
         }
 
@@ -933,6 +956,117 @@ namespace IMS.Controllers
             {
                 _logger.LogError(ex, "Error getting product sizes for Kendo combobox");
                 return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to get available units for conversion
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableUnits()
+        {
+            try
+            {
+                // Get all enabled measuring units
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(null);
+                var result = measuringUnits.Select(u => new
+                {
+                    value = u.MeasuringUnitId.ToString(),
+                    text = $"{u.MeasuringUnitName} ({u.MeasuringUnitAbbreviation})",
+                    measuringUnitId = u.MeasuringUnitId,
+                    measuringUnitName = u.MeasuringUnitName,
+                    measuringUnitAbbreviation = u.MeasuringUnitAbbreviation
+                }).ToList();
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting available units");
+                return Json(new List<object>());
+            }
+        }
+
+        // AJAX endpoint to convert unit and get stock in selected unit
+        [HttpGet]
+        public async Task<JsonResult> ConvertQuantityToBaseUnit(long productId, long fromUnitId, long toUnitId, decimal quantity)
+        {
+            try
+            {
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId, toUnitId, 1);
+                
+                if (conversionResult.HasValue)
+                {
+                    // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                    // So to convert quantity, we multiply: quantity * conversionResult
+                    var convertedQuantity = quantity * conversionResult.Value;
+                    
+                    _logger.LogInformation("Converted {Quantity} from unit {FromUnitId} to base unit {ToUnitId}: {ConvertedQuantity}", 
+                        quantity, fromUnitId, toUnitId, convertedQuantity);
+                    
+                    return Json(new { success = true, convertedQuantity = convertedQuantity, conversionFactor = conversionResult.Value });
+                }
+                else
+                {
+                    _logger.LogWarning("No conversion found from unit {FromUnitId} to unit {ToUnitId}", fromUnitId, toUnitId);
+                    // No conversion found, return original quantity
+                    return Json(new { success = true, convertedQuantity = quantity, conversionFactor = 1 });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting quantity for product {ProductId}", productId);
+                return Json(new { success = false, message = "Error converting quantity", convertedQuantity = quantity });
+            }
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> ConvertUnitAndGetStock(long productId, long? fromUnitId, long? toUnitId, decimal stockInBaseUnit)
+        {
+            try
+            {
+                if (!fromUnitId.HasValue || !toUnitId.HasValue)
+                {
+                    _logger.LogInformation("ConvertUnitAndGetStock: Missing unit IDs - fromUnitId: {FromUnitId}, toUnitId: {ToUnitId}", fromUnitId, toUnitId);
+                    return Json(new { success = true, convertedStock = stockInBaseUnit, conversionFactor = 1 });
+                }
+
+                _logger.LogInformation("ConvertUnitAndGetStock: Converting {StockInBaseUnit} from unit {FromUnitId} to unit {ToUnitId}", 
+                    stockInBaseUnit, fromUnitId.Value, toUnitId.Value);
+
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                
+                // ConvertUnitAsync returns the result of converting 1 unit from fromUnitId to toUnitId
+                // For example: if 1 bori = 50 kg, then ConvertUnitAsync(kg, bori, 1) should return 0.02 (1/50)
+                // But if we have FromUnitId=bori, ToUnitId=kg with factor=50, then:
+                // - Direct: ConvertUnitAsync(bori, kg, 1) = 1 * 50 = 50
+                // - Reverse: ConvertUnitAsync(kg, bori, 1) = 1 / 50 = 0.02
+                
+                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId.Value, toUnitId.Value, 1);
+                
+                if (conversionResult.HasValue)
+                {
+                    // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                    // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
+                    // Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
+                    var convertedStock = stockInBaseUnit * conversionResult.Value;
+                    
+                    _logger.LogInformation("ConvertUnitAndGetStock: Conversion successful - {StockInBaseUnit} * {ConversionFactor} = {ConvertedStock}", 
+                        stockInBaseUnit, conversionResult.Value, convertedStock);
+                    
+                    return Json(new { success = true, convertedStock = convertedStock, conversionFactor = conversionResult.Value });
+                }
+                else
+                {
+                    _logger.LogWarning("ConvertUnitAndGetStock: No conversion found from unit {FromUnitId} to unit {ToUnitId}", 
+                        fromUnitId.Value, toUnitId.Value);
+                    // No conversion found, return original stock
+                    return Json(new { success = true, convertedStock = stockInBaseUnit, conversionFactor = 1 });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting unit for product {ProductId}: {Message}", productId, ex.Message);
+                return Json(new { success = false, message = "Error converting unit", convertedStock = stockInBaseUnit, conversionFactor = 1 });
             }
         }
     }

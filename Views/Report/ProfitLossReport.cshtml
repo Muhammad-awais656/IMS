@@ -35,9 +35,13 @@
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-gift me-1 text-primary"></i>Product
                             </label>
-                            @Html.DropDownList("ProfitLossReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>, 
-                                "-- Select Product --", 
-                                new { @class = "form-control", @id = "productComboBox" })
+                            <br />
+                           <div>
+                                @Html.DropDownList("ProfitLossReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
+                                "-- Select Product --",
+                                                                new { @class = "form-control", @id = "productComboBox" })
+
+                           </div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
@@ -277,4 +281,7 @@
         });
     </script>
 }
+
+
+
 

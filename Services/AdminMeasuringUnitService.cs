@@ -347,15 +347,30 @@ namespace IMS.Services
                             while (await reader.ReadAsync())
                             {
                                 // Main Measuring Unit
-                        adminMeasuringUnits.Add(new AdminMeasuringUnit
-                        {
-                            MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
-                            MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
-                            IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
-                            
-                        });
-
-                               
+                                var unit = new AdminMeasuringUnit
+                                {
+                                    MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
+                                    MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                                    IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled")),
+                                    IsSmallestUnit = reader.GetBoolean(reader.GetOrdinal("IsSmallestUnit"))
+                                };
+                                
+                                // Try to get abbreviation if available
+                                try
+                                {
+                                    var abbrevOrdinal = reader.GetOrdinal("MeasuringUnitAbbreviation");
+                                    if (!reader.IsDBNull(abbrevOrdinal))
+                                    {
+                                        unit.MeasuringUnitAbbreviation = reader.GetString(abbrevOrdinal);
+                                    }
+                                }
+                                catch
+                                {
+                                    // Abbreviation column not available, use empty string
+                                    unit.MeasuringUnitAbbreviation = "";
+                                }
+                                
+                                adminMeasuringUnits.Add(unit);
                             }
                         }
                     }

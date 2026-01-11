@@ -561,7 +561,7 @@ namespace IMS.Services
             }
         }
 
-        public async Task<long> AddVendorBillDetails(long billId, long productId, decimal unitPrice, decimal purchasePrice, long quantity, decimal salePrice, decimal lineDiscountAmount, decimal payableAmount, long productRangeId)
+        public async Task<long> AddVendorBillDetails(long billId, long productId, decimal unitPrice, decimal purchasePrice, decimal quantity, decimal salePrice, decimal lineDiscountAmount, decimal payableAmount, long productRangeId)
         {
        
             try
@@ -569,42 +569,15 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     connection.Open();
-                    //using (var command = new SqlCommand("AddVendorBillDetails", connection))
-                    //{
-                    //    command.CommandType = CommandType.StoredProcedure;
-                    //    command.Parameters.AddWithValue("@BillId", billId);
-                    //    command.Parameters.AddWithValue("@ProductId", productId);
-                    //    command.Parameters.AddWithValue("@UnitPrice", unitPrice);
-                    //    command.Parameters.AddWithValue("@PurchasePrice", purchasePrice);
-                    //    command.Parameters.AddWithValue("@Quantity", quantity);
-                    //    command.Parameters.AddWithValue("@SalePrice", salePrice);
-                    //    command.Parameters.AddWithValue("@LineDiscountAmount", lineDiscountAmount);
-                    //    command.Parameters.AddWithValue("@PayableAmount", payableAmount);
-                    //    command.Parameters.AddWithValue("@ProductRangeId", productRangeId);
-
-                    //    var billDetailsIdParam = new SqlParameter("@BillDetailsId", SqlDbType.BigInt)
-                    //    {
-                    //        Direction = ParameterDirection.Output
-                    //    };
-                    //    command.Parameters.Add(billDetailsIdParam);
-
-                    //    var returnValueParam = new SqlParameter("@ReturnValue", SqlDbType.Int)
-                    //    {
-                    //        Direction = ParameterDirection.Output
-                    //    };
-                    //    command.Parameters.Add(returnValueParam);
-
-                    //    command.ExecuteNonQuery();
-                    //    returnValue = (int)returnValueParam.Value;
-                    //    return (long)billDetailsIdParam.Value;
-                    //}
                     using (var itemCommand = new SqlCommand("AddBillDetails", connection))
                     {
                         itemCommand.CommandType = CommandType.StoredProcedure;
                         itemCommand.Parameters.AddWithValue("@pBillId_FK", billId);
                         itemCommand.Parameters.AddWithValue("@pPrductId_FK", productId);
                         itemCommand.Parameters.AddWithValue("@pUnitPrice", unitPrice);
-                        itemCommand.Parameters.AddWithValue("@pQuantity", quantity);
+                        // Convert decimal quantity to long for database (round to nearest whole number)
+                        // Note: Database stores as long, but we accept decimal for precision during conversion
+                        itemCommand.Parameters.AddWithValue("@pQuantity", (long)Math.Round(quantity, MidpointRounding.AwayFromZero));
                         itemCommand.Parameters.AddWithValue("@pPurchasePrice", purchasePrice);
                         itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                         itemCommand.Parameters.AddWithValue("@pPayableAmount", payableAmount);

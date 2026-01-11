@@ -27,6 +27,7 @@ public partial class Sale
     public long? PersonalPaymentId { get; set; }
 
     public bool IsDeleted { get; set; }
+    public bool IsEditMode { get; set; }
 
     public DateTime CreatedDate { get; set; }
 

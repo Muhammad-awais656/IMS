@@ -12,17 +12,25 @@
                     <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
                         <div class="col">
                             <label asp-for="CategoryIdFk" class="form-label">Category:</label>
-                            @Html.DropDownList("CategoryIdFk", ViewBag.Categories as IEnumerable<SelectListItem>, "<-- Select Category -->", new { @class = "form-control", @id = "CategoryIdFk" })
+                            <input id="CategoryIdFk" name="CategoryIdFk" style="width: 100%;" />
+                            <input type="hidden" asp-for="CategoryIdFk" id="CategoryIdFkHidden" />
                             <span asp-validation-for="CategoryIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
                             <label asp-for="ProductIdFk" class="form-label">Product:</label>
-                            @Html.DropDownList("ProductIdFk", ViewBag.Products as IEnumerable<SelectListItem>, "<-- Select Product -->", new { @class = "form-control", @id = "ProductIdFk" })
+                            <input id="ProductIdFk" name="ProductIdFk" style="width: 100%;" />
+                            <input type="hidden" asp-for="ProductIdFk" id="ProductIdFkHidden" />
                             <span asp-validation-for="ProductIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
+                            <label for="MeasuringUnitId" class="form-label">Measuring Unit:</label>
+                            <input id="MeasuringUnitId" name="MeasuringUnitId" style="width: 100%;" />
+                            <input type="hidden" id="MeasuringUnitIdHidden" />
+                            <small class="form-text text-muted">Select unit for the stock quantity</small>
+                        </div>
+                        <div class="col">
                             <label asp-for="TotalQuantity" class="form-label">New Stock Quantity:</label>
-                            <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" />
+                            <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" id="TotalQuantity" />
                             <small class="form-text text-muted">Quantity of new stock being added</small>
                             <span asp-validation-for="TotalQuantity" class="text-danger"></span>
                         </div>
@@ -56,18 +64,175 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function() {
-            // Handle category change event
-            $('#CategoryIdFk').change(function() {
-                var categoryId = $(this).val();
-                var productDropdown = $('#ProductIdFk');
+            // Initialize Kendo UI ComboBoxes
+            function initializeKendoDropdowns() {
+                // Category ComboBox
+                $("#CategoryIdFk").kendoComboBox({
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "/Stock/GetCategories",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Category --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    change: function(e) {
+                        var value = this.value();
+                        $("#CategoryIdFkHidden").val(value);
+                        loadProductsByCategory(value);
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        $("#CategoryIdFkHidden").val(dataItem.value);
+                        loadProductsByCategory(dataItem.value);
+                    }
+                });
+
+                // Product ComboBox - initially disabled, enabled when category is selected
+                $("#ProductIdFk").kendoComboBox({
+                    dataSource: {
+                        data: []
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Product --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    enabled: false,
+                    change: function(e) {
+                        var value = this.value();
+                        $("#ProductIdFkHidden").val(value);
+                        if (value && value !== '') {
+                            loadExistingStock(value);
+                            loadMeasuringUnitsForProduct(value);
+                        } else {
+                            // Clear available quantity if no product selected
+                            $('#AvailableQuantity').val(0);
+                            $('#AvailableQuantity').data('existing-available-in-base-unit', 0);
+                            $('#AvailableQuantity').data('existing-available-in-selected-unit', 0);
+                            $('#AvailableQuantity').data('base-unit-id', null);
+                            const label = $('label[for="AvailableQuantity"]');
+                            label.html('Available Quantity: <small class="text-muted">(No existing stock)</small>');
+                            
+                            // Clear measuring unit dropdown
+                            var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            if (unitCombo) {
+                                unitCombo.value("");
+                                unitCombo.dataSource.data([]);
+                                unitCombo.enable(false);
+                            }
+                        }
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        $("#ProductIdFkHidden").val(dataItem.value);
+                        if (dataItem.value && dataItem.value !== '') {
+                            loadExistingStock(dataItem.value);
+                            loadMeasuringUnitsForProduct(dataItem.value);
+                        }
+                    }
+                });
+
+                // Measuring Unit ComboBox - initially disabled, enabled when product is selected
+                $("#MeasuringUnitId").kendoComboBox({
+                    dataSource: {
+                        data: []
+                    },
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    placeholder: "-- Select Measuring Unit --",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    enabled: false,
+                    change: function(e) {
+                        var value = this.value();
+                        $("#MeasuringUnitIdHidden").val(value);
+                        var productCombo = $("#ProductIdFk").data("kendoComboBox");
+                        var productId = productCombo ? productCombo.value() : null;
+                        
+                        if (value && value !== '' && productId) {
+                            loadStockInSelectedUnit(productId, value);
+                        } else if (!value && productId) {
+                            // Unit cleared, show in base unit
+                            loadExistingStock(productId);
+                        }
+                    },
+                    select: function(e) {
+                        var dataItem = this.dataItem(e.item.index());
+                        $("#MeasuringUnitIdHidden").val(dataItem.value);
+                        if (dataItem.value && dataItem.value !== '') {
+                            var productCombo = $("#ProductIdFk").data("kendoComboBox");
+                            var productId = productCombo ? productCombo.value() : null;
+                            if (productId) {
+                                loadStockInSelectedUnit(productId, dataItem.value);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Function to load measuring units for a product
+            function loadMeasuringUnitsForProduct(productId) {
+                var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
                 
-                // Clear existing products
-                productDropdown.empty();
-                productDropdown.append('<option value="">&lt;-- Select Product --&gt;</option>');
+                if (!unitCombo) {
+                    return;
+                }
+
+                // Clear and disable unit dropdown
+                unitCombo.value("");
+                unitCombo.dataSource.data([]);
+                $("#MeasuringUnitIdHidden").val("");
+                
+                if (productId && productId !== '') {
+                    // Fetch measuring units for the product's measuring unit type
+                    $.ajax({
+                        url: '@Url.Action("GetMeasuringUnitsByProduct", "Stock")',
+                        type: 'GET',
+                        data: { productId: productId },
+                        success: function(data) {
+                            if (data && data.length > 0) {
+                                unitCombo.dataSource.data(data);
+                                unitCombo.enable(true);
+                            } else {
+                                unitCombo.enable(false);
+                                console.log('No measuring units found for this product');
+                            }
+                        },
+                        error: function() {
+                            console.error('Error loading measuring units for product');
+                            unitCombo.enable(false);
+                        }
+                    });
+                } else {
+                    unitCombo.enable(false);
+                }
+            }
+
+            // Function to load products by category
+            function loadProductsByCategory(categoryId) {
+                var productCombo = $("#ProductIdFk").data("kendoComboBox");
+                
+                if (!productCombo) {
+                    return;
+                }
+
+                // Clear and disable product dropdown
+                productCombo.value("");
+                productCombo.dataSource.data([]);
+                $("#ProductIdFkHidden").val("");
                 
                 if (categoryId && categoryId !== '') {
                     // Show loading state
-                    productDropdown.prop('disabled', true);
+                    productCombo.enable(false);
                     
                     // Fetch products for selected category
                     $.ajax({
@@ -75,41 +240,128 @@
                         type: 'GET',
                         data: { categoryId: categoryId },
                         success: function(data) {
-                            $.each(data, function(index, item) {
-                                productDropdown.append('<option value="' + item.value + '">' + item.text + '</option>');
-                            });
-                            productDropdown.prop('disabled', false);
+                            if (data && data.length > 0) {
+                                productCombo.dataSource.data(data);
+                                productCombo.enable(true);
+                            } else {
+                                productCombo.enable(false);
+                                console.log('No products found for selected category');
+                            }
                         },
                         error: function() {
+                            console.error('Error loading products for selected category');
                             alert('Error loading products for selected category.');
-                            productDropdown.prop('disabled', false);
+                            productCombo.enable(false);
                         }
                     });
                 } else {
-                    productDropdown.prop('disabled', false);
+                    productCombo.enable(false);
                 }
-            });
-
-            // Handle product selection to load existing stock
-            $('#ProductIdFk').change(function() {
-                var productId = $(this).val();
-                if (productId && productId !== '') {
-                    loadExistingStock(productId);
-                } else {
-                    // Clear available quantity if no product selected
-                    $('#AvailableQuantity').val(0);
-                }
-            });
+            }
 
             // Auto-calculate available quantity when total quantity changes
             $('#TotalQuantity').on('input', function() {
                 const newStockQty = parseFloat($(this).val()) || 0;
-                const existingAvailable = parseFloat($('#AvailableQuantity').data('existing-available')) || 0;
+                const existingAvailable = parseFloat($('#AvailableQuantity').data('existing-available-in-selected-unit')) || 0;
                 
-                // New available = Existing available + New stock quantity
+                // New available = Existing available + New stock quantity (both in selected unit)
                 const newAvailable = existingAvailable + newStockQty;
-                $('#AvailableQuantity').val(newAvailable);
+                $('#AvailableQuantity').val(newAvailable.toFixed(3));
+                
+                // Update label with unit abbreviation
+                updateAvailableQuantityLabel(existingAvailable, newStockQty, newAvailable);
             });
+
+            // Function to update available quantity label with unit abbreviation
+            function updateAvailableQuantityLabel(existingStock, newStock, totalAvailable) {
+                const unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                const selectedUnit = unitCombo ? unitCombo.dataItem(unitCombo.selectedIndex) : null;
+                const unitAbbreviation = selectedUnit ? selectedUnit.measuringUnitAbbreviation : '';
+                
+                const label = $('label[for="AvailableQuantity"]');
+                if (existingStock > 0) {
+                    label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(Current: ' + existingStock.toFixed(3) + ' ' + unitAbbreviation + ' + New: ' + newStock.toFixed(3) + ' ' + unitAbbreviation + ' = ' + totalAvailable.toFixed(3) + ' ' + unitAbbreviation + ')</small>');
+                } else {
+                    label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(No existing stock + New: ' + newStock.toFixed(3) + ' ' + unitAbbreviation + ' = ' + totalAvailable.toFixed(3) + ' ' + unitAbbreviation + ')</small>');
+                }
+            }
+
+            // Function to load stock in selected unit
+            function loadStockInSelectedUnit(productId, selectedUnitId) {
+                console.log('loadStockInSelectedUnit called with productId:', productId, 'selectedUnitId:', selectedUnitId);
+                
+                // Get stock and convert based on selected unit ID
+                $.ajax({
+                    url: '@Url.Action("GetExistingStock", "Stock")',
+                    type: 'GET',
+                    data: { 
+                        productId: productId,
+                        selectedUnitId: selectedUnitId  // Pass selected unit ID
+                    },
+                    success: function(data) {
+                        console.log('GetExistingStock response:', data);
+                        
+                        if (data.success) {
+                            const stockInBaseUnit = parseFloat(data.availableQuantity) || 0;
+                            const stockInSelectedUnit = parseFloat(data.convertedStock) || stockInBaseUnit;
+                            const baseUnitId = data.baseUnitId ? parseInt(data.baseUnitId) : null;
+                            const selectedUnitIdNum = parseInt(selectedUnitId);
+                            
+                            console.log('Stock in base unit:', stockInBaseUnit, 'Stock in selected unit:', stockInSelectedUnit, 'Base unit ID:', baseUnitId, 'Selected unit ID:', selectedUnitIdNum);
+                            
+                            // Store base unit stock for form submission
+                            $('#AvailableQuantity').data('existing-available-in-base-unit', stockInBaseUnit);
+                            $('#AvailableQuantity').data('existing-available-in-selected-unit', stockInSelectedUnit);
+                            $('#AvailableQuantity').data('base-unit-id', baseUnitId);
+                            
+                            // Display stock in selected unit
+                            $('#AvailableQuantity').val(stockInSelectedUnit.toFixed(3));
+                            
+                            const unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            const selectedUnit = unitCombo ? unitCombo.dataItem(unitCombo.selectedIndex) : null;
+                            const unitAbbreviation = selectedUnit ? selectedUnit.measuringUnitAbbreviation : '';
+                            
+                            const label = $('label[for="AvailableQuantity"]');
+                            if (data.conversionApplied) {
+                                label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(Current: ' + stockInSelectedUnit.toFixed(3) + ' ' + unitAbbreviation + ')</small>');
+                            } else if (!baseUnitId) {
+                                label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(Current: ' + stockInSelectedUnit.toFixed(3) + ' - Base unit not configured, conversion unavailable)</small>');
+                            } else if (selectedUnitIdNum == baseUnitId) {
+                                label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(Current: ' + stockInSelectedUnit.toFixed(3) + ' ' + unitAbbreviation + ')</small>');
+                            } else {
+                                label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(Current: ' + stockInSelectedUnit.toFixed(3) + ' ' + unitAbbreviation + ' - Conversion not available)</small>');
+                            }
+                            
+                            // Recalculate if there's already a new stock quantity entered
+                            const newStockQty = parseFloat($('#TotalQuantity').val()) || 0;
+                            if (newStockQty > 0) {
+                                const newAvailable = stockInSelectedUnit + newStockQty;
+                                $('#AvailableQuantity').val(newAvailable.toFixed(3));
+                                updateAvailableQuantityLabel(stockInSelectedUnit, newStockQty, newAvailable);
+                            }
+                        } else {
+                            console.log('No existing stock found for product');
+                            // No existing stock
+                            $('#AvailableQuantity').data('existing-available-in-base-unit', 0);
+                            $('#AvailableQuantity').data('existing-available-in-selected-unit', 0);
+                            $('#AvailableQuantity').val(0);
+                            
+                            const unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            const selectedUnit = unitCombo ? unitCombo.dataItem(unitCombo.selectedIndex) : null;
+                            const unitAbbreviation = selectedUnit ? selectedUnit.measuringUnitAbbreviation : '';
+                            
+                            const label = $('label[for="AvailableQuantity"]');
+                            label.html('Available Quantity (' + unitAbbreviation + '): <small class="text-muted">(No existing stock)</small>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading existing stock:', error, xhr.responseText);
+                        $('#AvailableQuantity').data('existing-available-in-base-unit', 0);
+                        $('#AvailableQuantity').data('existing-available-in-selected-unit', 0);
+                        $('#AvailableQuantity').val(0);
+                    }
+                });
+            }
 
             function loadExistingStock(productId) {
                 $.ajax({
@@ -118,16 +370,29 @@
                     data: { productId: productId },
                     success: function(data) {
                         if (data.success) {
-                            // Store existing available quantity for calculation
-                            $('#AvailableQuantity').data('existing-available', data.availableQuantity);
-                            $('#AvailableQuantity').val(data.availableQuantity);
+                            // Store existing available quantity in base unit
+                            $('#AvailableQuantity').data('existing-available-in-base-unit', data.availableQuantity);
+                            $('#AvailableQuantity').data('base-unit-id', data.baseUnitId);
                             
-                            // Update the label to show existing stock info
-                            const label = $('label[for="AvailableQuantity"]');
-                            label.html('Available Quantity: <small class="text-muted">(Current: ' + data.availableQuantity + ')</small>');
+                            // Check if a measuring unit is already selected
+                            const unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                            const selectedUnitId = unitCombo ? unitCombo.value() : null;
+                            
+                            if (selectedUnitId && data.baseUnitId) {
+                                // If unit is selected, convert and display in that unit
+                                loadStockInSelectedUnit(productId, selectedUnitId);
+                            } else {
+                                // No unit selected, show in base unit
+                                $('#AvailableQuantity').data('existing-available-in-selected-unit', data.availableQuantity);
+                                $('#AvailableQuantity').val(data.availableQuantity);
+                                
+                                const label = $('label[for="AvailableQuantity"]');
+                                label.html('Available Quantity: <small class="text-muted">(Current: ' + data.availableQuantity + ')</small>');
+                            }
                         } else {
                             // No existing stock
-                            $('#AvailableQuantity').data('existing-available', 0);
+                            $('#AvailableQuantity').data('existing-available-in-base-unit', 0);
+                            $('#AvailableQuantity').data('existing-available-in-selected-unit', 0);
                             $('#AvailableQuantity').val(0);
                             
                             const label = $('label[for="AvailableQuantity"]');
@@ -136,10 +401,104 @@
                     },
                     error: function() {
                         console.error('Error loading existing stock');
-                        $('#AvailableQuantity').data('existing-available', 0);
+                        $('#AvailableQuantity').data('existing-available-in-base-unit', 0);
+                        $('#AvailableQuantity').data('existing-available-in-selected-unit', 0);
                         $('#AvailableQuantity').val(0);
                     }
                 });
+            }
+
+            // Initialize Kendo dropdowns when ready
+            if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                initializeKendoDropdowns();
+            } else {
+                // Wait for Kendo UI to load
+                $(window).on('load', function() {
+                    setTimeout(initializeKendoDropdowns, 100);
+                });
+            }
+
+            // Update hidden fields before form submission and convert quantity to base unit
+            $('form').on("submit", function(e) {
+                var categoryCombo = $("#CategoryIdFk").data("kendoComboBox");
+                var productCombo = $("#ProductIdFk").data("kendoComboBox");
+                var unitCombo = $("#MeasuringUnitId").data("kendoComboBox");
+                
+                if (categoryCombo) {
+                    $("#CategoryIdFkHidden").val(categoryCombo.value());
+                }
+                if (productCombo) {
+                    $("#ProductIdFkHidden").val(productCombo.value());
+                }
+                if (unitCombo) {
+                    $("#MeasuringUnitIdHidden").val(unitCombo.value());
+                }
+
+                // Convert quantity to base unit if a measuring unit is selected
+                var measuringUnitId = unitCombo ? unitCombo.value() : null;
+                var quantity = parseFloat($('#TotalQuantity').val()) || 0;
+                var productId = productCombo ? productCombo.value() : null;
+
+                if (measuringUnitId && productId && quantity > 0) {
+                    // Prevent default submission, convert quantity, then submit
+                    e.preventDefault();
+                    
+                    // Get base unit for the product
+                    $.ajax({
+                        url: '@Url.Action("GetProductBaseUnit", "Stock")',
+                        type: 'GET',
+                        data: { productId: productId },
+                        success: function(baseUnitData) {
+                            if (baseUnitData.success && baseUnitData.baseUnitId) {
+                                var baseUnitId = baseUnitData.baseUnitId;
+                                
+                                // If selected unit is same as base unit, no conversion needed
+                                if (measuringUnitId == baseUnitId) {
+                                    submitForm();
+                                } else {
+                                    // Convert quantity from selected unit to base unit
+                                    $.ajax({
+                                        url: '@Url.Action("ConvertQuantityToBaseUnit", "Stock")',
+                                        type: 'GET',
+                                        data: { 
+                                            productId: productId,
+                                            fromUnitId: measuringUnitId,
+                                            toUnitId: baseUnitId,
+                                            quantity: quantity
+                                        },
+                                        success: function(conversionData) {
+                                            if (conversionData.success) {
+                                                // Update the quantity field with converted value
+                                                $('#TotalQuantity').val(conversionData.convertedQuantity);
+                                                submitForm();
+                                            } else {
+                                                alert('Error converting quantity to base unit. Please try again.');
+                                            }
+                                        },
+                                        error: function() {
+                                            alert('Error converting quantity. Please try again.');
+                                        }
+                                    });
+                                }
+                            } else {
+                                // No base unit found, submit as is
+                                submitForm();
+                            }
+                        },
+                        error: function() {
+                            // Error getting base unit, submit as is
+                            submitForm();
+                        }
+                    });
+                } else {
+                    // No unit selected or no quantity, submit as is
+                    return true;
+                }
+            });
+
+            function submitForm() {
+                // Submit the form
+                $('form')[0].submit();
             }
         });
     </script>

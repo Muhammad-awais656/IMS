@@ -31,7 +31,7 @@ namespace IMS.Common_Interfaces
         Task<decimal> GetAccountBalanceAsync(long accountId);
         
         // Delete method
-        Task<bool> DeleteVendorBillAsync(long billId);
+        Task<bool> DeleteVendorBillAsync(long billId, long userId);
         
         // Get all bill numbers for vendor
         Task<List<VendorBillViewModel>> GetAllBillNumbersForVendorAsync(long vendorId);

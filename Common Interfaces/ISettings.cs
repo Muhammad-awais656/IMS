@@ -68,5 +68,17 @@ namespace IMS.Common_Interfaces
 
     }
 
+    public interface IUnitConversionService
+    {
+        Task<List<UnitConversion>> GetAllUnitConversionsAsync();
+        Task<UnitConversion> GetUnitConversionByIdAsync(long id);
+        Task<bool> CreateUnitConversionAsync(UnitConversion unitConversion);
+        Task<int> UpdateUnitConversionAsync(UnitConversion unitConversion);
+        Task<int> DeleteUnitConversionAsync(long id);
+        Task<decimal?> ConvertUnitAsync(long fromUnitId, long toUnitId, decimal quantity);
+        Task<List<UnitConversion>> GetConversionsByFromUnitAsync(long fromUnitId);
+        Task<List<UnitConversion>> GetEnabledConversionsAsync();
+    }
+
 
 }

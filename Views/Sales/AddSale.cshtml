@@ -43,15 +43,15 @@
                         <label for="productSizeSelect" class="form-label">Product Size:</label>
                         <input id="productSizeSelect" name="ProductSizeId" style="width: 100%;" />
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="quantity" class="form-label">Quantity:</label>
-                        <input type="number" id="quantity" class="form-control" value="1" min="1" />
+                        <input type="number" id="quantity" class="form-control" value="1" min="0.01" step="0.01" />
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="unitPrice" class="form-label">Unit Price:</label>
                         <input type="number" id="unitPrice" class="form-control" value="0" step="0.01" readonly />
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="salePrice" class="form-label">Sale Price:</label>
                         <input type="number" id="salePrice" class="form-control" value="0" step="0.01" />
                     </div>
@@ -228,6 +228,7 @@
         let rowIndex = 0;
         let selectedProductSize = null;
         let currentAvailableStock = 0;
+        let baseUnitId = null; // The base unit for the product (from product size)
 
         // Initialize on page load
         $(document).ready(function() {
@@ -435,6 +436,8 @@
                     onProductSizeChange();
                 }
             });
+
+            // Unit dropdown removed - using product size unit directly
 
             // Customer Selection Combobox
             $("#customerSelect").kendoComboBox({
@@ -732,7 +735,22 @@
                 if (e.target.classList.contains('remove-row') || e.target.closest('.remove-row')) {
                     const row = e.target.closest('tr');
                     if (row) {
+                        // Get the base unit quantity from hidden field before removing
+                        const quantityInput = row.querySelector('input[name*=".Quantity"]');
+                        const baseUnitQuantity = quantityInput ? parseFloat(quantityInput.value) || 0 : 0;
+                        const productIdInput = row.querySelector('input[name*=".ProductId"]');
+                        const productId = productIdInput ? productIdInput.value : null;
+                        const productRangeIdInput = row.querySelector('input[name*=".ProductRangeId"]');
+                        const productRangeId = productRangeIdInput ? productRangeIdInput.value : null;
+                        
+                        // Remove the row
                         row.remove();
+                        
+                        // Restore stock if we have the necessary information
+                        if (productId && baseUnitQuantity > 0) {
+                            restoreStockAfterRemove(productId, productRangeId, baseUnitQuantity);
+                        }
+                        
                         updateTotals();
                         showSuccessMessage('Product removed from sale successfully!');
                     }
@@ -900,25 +918,38 @@
 
         function updateStockDisplay() {
             const quantityInput = document.getElementById('quantity');
-            const maxQuantity = Math.floor(currentAvailableStock);
+            // Use full decimal value for display, but allow decimal input
+            const maxQuantity = currentAvailableStock;
 
-            // Update max attribute
+            // Update max attribute with full decimal value
             quantityInput.setAttribute('max', maxQuantity);
 
-            // Update placeholder to show available stock
-            quantityInput.setAttribute('placeholder', `Max: ${maxQuantity}`);
+            // Update placeholder to show available stock with full precision
+            quantityInput.setAttribute('placeholder', `Max: ${maxQuantity.toFixed(3)}`);
 
-            // Add visual indicator
+            // Get unit name from selected product size
+            let unitName = '';
+            if (selectedProductSize && selectedProductSize.measuringUnitName) {
+                unitName = selectedProductSize.measuringUnitName;
+            } else if (selectedProductSize && selectedProductSize.measuringUnitAbbreviation) {
+                unitName = selectedProductSize.measuringUnitAbbreviation;
+            }
+
+            // Add visual indicator with unit name - show full decimal value
             const quantityLabel = document.querySelector('label[for="quantity"]');
             if (quantityLabel) {
-                quantityLabel.innerHTML = `Quantity: <small class="text-muted">(Available: ${maxQuantity})</small>`;
+                if (unitName) {
+                    quantityLabel.innerHTML = `Quantity (${unitName}): <small class="text-muted">(Available: ${maxQuantity.toFixed(3)} ${unitName})</small>`;
+                } else {
+                    quantityLabel.innerHTML = `Quantity: <small class="text-muted">(Available: ${maxQuantity.toFixed(3)})</small>`;
+                }
             }
         }
 
         function validateQuantityInput() {
             const quantityInput = document.getElementById('quantity');
             const quantity = parseFloat(quantityInput.value) || 0;
-            const maxQuantity = Math.floor(currentAvailableStock);
+            const maxQuantity = currentAvailableStock; // Use full decimal value
 
             // Remove previous validation styling
             quantityInput.classList.remove('is-invalid', 'is-valid');
@@ -927,7 +958,7 @@
                 if (quantity > maxQuantity) {
                     // Show error styling
                     quantityInput.classList.add('is-invalid');
-                    quantityInput.setCustomValidity(`Maximum quantity allowed: ${maxQuantity}`);
+                    quantityInput.setCustomValidity(`Maximum quantity allowed: ${maxQuantity.toFixed(3)}`);
                 } else {
                     // Show valid styling
                     quantityInput.classList.add('is-valid');
@@ -1039,21 +1070,97 @@
                     console.log("Sale price set to:", salePriceElement.value);
                 }
 
+                // Set base unit ID from product size
+                baseUnitId = selectedItem.measuringUnitId;
+                
                 // Calculate payable amount
                 calculatePayableAmount();
+                
+                // Load and display available stock in the product size's unit
+                const productCombo = $("#productSelect").data("kendoComboBox");
+                const productId = productCombo ? productCombo.value() : null;
+                if (productId) {
+                    loadAvailableStockInProductSizeUnit(productId, selectedItem.measuringUnitId);
+                }
             } else {
                 selectedProductSize = null;
                 resetProductFields();
             }
         }
 
+        // Function to load available stock in product size's unit
+        function loadAvailableStockInProductSizeUnit(productId, productSizeUnitId) {
+            if (!productId || !productSizeUnitId) {
+                console.log("Missing required data for loading stock");
+                return;
+            }
+
+            // Get stock in base unit along with base unit ID
+            fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stockInBaseUnit = data.availableQuantity;
+                        const productBaseUnitId = data.baseUnitId;
+                        
+                        // If product size unit is same as base unit, no conversion needed
+                        if (!productBaseUnitId || productSizeUnitId == productBaseUnitId) {
+                            currentAvailableStock = stockInBaseUnit;
+                            updateStockDisplay();
+                        } else {
+                            // Convert stock from base unit to product size unit
+                            console.log('Converting stock:', {
+                                stockInBaseUnit: stockInBaseUnit,
+                                fromUnitId: productBaseUnitId,
+                                toUnitId: productSizeUnitId
+                            });
+                            
+                            fetch(`/Sales/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${stockInBaseUnit}`)
+                                .then(response => response.json())
+                                .then(conversionData => {
+                                    if (conversionData.success) {
+                                        currentAvailableStock = conversionData.convertedStock;
+                                        updateStockDisplay();
+                                        console.log('Stock converted to product size unit:', {
+                                            baseStock: stockInBaseUnit,
+                                            baseUnitId: productBaseUnitId,
+                                            productSizeUnitId: productSizeUnitId,
+                                            convertedStock: conversionData.convertedStock,
+                                            conversionFactor: conversionData.conversionFactor
+                                        });
+                                    } else {
+                                        console.warn('Conversion failed, using base unit stock');
+                                        // Fallback to base unit if conversion fails
+                                        currentAvailableStock = stockInBaseUnit;
+                                        updateStockDisplay();
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error converting stock:', error);
+                                    currentAvailableStock = stockInBaseUnit;
+                                    updateStockDisplay();
+                                });
+                        }
+                    } else {
+                        currentAvailableStock = 0;
+                        updateStockDisplay();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading available stock:', error);
+                    currentAvailableStock = 0;
+                    updateStockDisplay();
+                });
+        }
+
         function calculatePayableAmount() {
-            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            let quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-            const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
+            
+            // Calculate payable amount (no unit conversion needed - quantity is already in product size unit)
+            const totalDiscount = discount * quantity;
             const payable = (salePrice * quantity) - totalDiscount;
-
             document.getElementById('payableAmount').value = payable.toFixed(2);
             console.log('Payable calculation:', {
                 quantity: quantity,
@@ -1094,15 +1201,22 @@
                 productName = selectedDataItem ? (selectedDataItem.productName || selectedDataItem.text || '') : productCombo.text();
             }
             
-            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            let quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-            const payable = parseFloat(document.getElementById('payableAmount').value) || 0;
-            const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
+            let payable = parseFloat(document.getElementById('payableAmount').value) || 0;
             
-            // Get measuring unit abbreviation from selected product size
-            const measuringUnitAbbreviation = selectedProductSize ? (selectedProductSize.measuringUnitAbbreviation || 'N/A') : 'N/A';
+            // Get measuring unit abbreviation from product size
+            let measuringUnitAbbreviation = 'N/A';
+            if (selectedProductSize) {
+                measuringUnitAbbreviation = selectedProductSize.measuringUnitAbbreviation || 'N/A';
+            }
+            
+            // Quantity is in product size unit - will be converted to base unit for storage
+            let quantityInBaseUnit = quantity;
+            
+            const totalDiscount = discount * quantity; // Calculate total discount from per-unit discount
             
             console.log('Adding product to table:', {
                 productId: productId,
@@ -1160,52 +1274,223 @@
                 }
             }
 
-            // Add to table
-            const tbody = document.getElementById('saleDetailsBody');
-            const newRow = document.createElement('tr');
+            // Convert quantity to base unit if needed (for storage in database)
+            // Get product's base unit first
+            fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.baseUnitId) {
+                        const productBaseUnitId = data.baseUnitId;
+                        const productSizeUnitId = selectedProductSize.measuringUnitId;
+                        
+                        // If product size unit is same as base unit, no conversion needed
+                        if (productSizeUnitId == productBaseUnitId) {
+                            quantityInBaseUnit = quantity;
+                            addRowToTable(quantity, quantityInBaseUnit);
+                        } else {
+                            // Convert quantity from product size unit to base unit
+                            console.log('Converting quantity to base unit:', {
+                                quantity: quantity,
+                                fromUnitId: productSizeUnitId,
+                                toUnitId: productBaseUnitId
+                            });
+                            
+                            fetch(`/Sales/ConvertQuantityToBaseUnit?productId=${productId}&fromUnitId=${productSizeUnitId}&toUnitId=${productBaseUnitId}&quantity=${quantity}`)
+                                .then(response => response.json())
+                                .then(conversionData => {
+                                    if (conversionData.success) {
+                                        quantityInBaseUnit = conversionData.convertedQuantity;
+                                        console.log('Quantity converted to base unit:', {
+                                            originalQuantity: quantity,
+                                            baseUnitQuantity: quantityInBaseUnit,
+                                            conversionFactor: conversionData.conversionFactor
+                                        });
+                                        addRowToTable(quantity, quantityInBaseUnit);
+                                    } else {
+                                        console.warn('Conversion failed, using original quantity');
+                                        quantityInBaseUnit = quantity;
+                                        addRowToTable(quantity, quantityInBaseUnit);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error converting quantity:', error);
+                                    quantityInBaseUnit = quantity;
+                                    addRowToTable(quantity, quantityInBaseUnit);
+                                });
+                        }
+                    } else {
+                        // No base unit found, use quantity as is
+                        quantityInBaseUnit = quantity;
+                        addRowToTable(quantity, quantityInBaseUnit);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting base unit:', error);
+                    quantityInBaseUnit = quantity;
+                    addRowToTable(quantity, quantityInBaseUnit);
+                });
 
-            newRow.innerHTML = `
-                <td>${measuringUnitAbbreviation}</td>
-                <td>${productName || 'Product'}</td>
-                <td>Rs${discount.toFixed(2)}</td>
-                <td>Rs${salePrice.toFixed(2)}</td>
-                <td>${quantity}</td>
-                <td>Rs${totalDiscount.toFixed(2)}</td>
-                <td>Rs${payable.toFixed(2)}</td>
-                <td>
-                    <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
-                        <i class="fa-solid fa-edit"></i>
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${selectedProductSize.productRangeId}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${selectedProductSize.measuringUnitAbbreviation}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${Math.floor(quantity)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
-            `;
+            // Function to add row to table with both display and base unit quantities
+            function addRowToTable(displayQuantity, baseUnitQuantity) {
+                const tbody = document.getElementById('saleDetailsBody');
+                const newRow = document.createElement('tr');
 
-            tbody.appendChild(newRow);
-            rowIndex++;
+                newRow.innerHTML = `
+                    <td>${measuringUnitAbbreviation}</td>
+                    <td>${productName || 'Product'}</td>
+                    <td>Rs${discount.toFixed(2)}</td>
+                    <td>Rs${salePrice.toFixed(2)}</td>
+                    <td>${displayQuantity.toFixed(2)} ${measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : ''}</td>
+                    <td>Rs${totalDiscount.toFixed(2)}</td>
+                    <td>Rs${payable.toFixed(2)}</td>
+                    <td>
+                        <button type="button" class="btn btn-warning btn-sm edit-row me-1" title="Edit this item">
+                            <i class="fa-solid fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm remove-row" title="Remove this item">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                    <input type="hidden" name="SaleDetails[${rowIndex}].ProductId" value="${productId}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${selectedProductSize.productRangeId}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${measuringUnitAbbreviation}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${baseUnitQuantity}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].DisplayQuantity" value="${displayQuantity}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(2)}" />
+                    <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
+                `;
 
-            // Reset fields
-            resetFields();
+                tbody.appendChild(newRow);
+                rowIndex++;
 
-            // Update totals immediately after adding product
-            updateTotals();
+                // Update available stock after adding item
+                updateAvailableStockAfterAdd(baseUnitQuantity);
 
-            // Show success message
-            showSuccessMessage('Product added to sale successfully!');
+                // Reset fields
+                resetFields();
+                updateTotals();
+                
+                // Show success message
+                showSuccessMessage('Product added to sale successfully!');
+
+                // Focus on product selection for next item
+                setTimeout(() => {
+                    const productCombo = $("#productSelect").data("kendoComboBox");
+                    if (productCombo) {
+                        productCombo.focus();
+                    }
+                }, 100);
+            }
+
+        }
+
+        // Function to restore stock after removing an item
+        function restoreStockAfterRemove(productId, productRangeId, quantityInBaseUnit) {
+            // Get the current product size selection to determine the unit
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const currentProductId = productCombo ? productCombo.value() : null;
             
+            // Only restore stock if the removed item is from the currently selected product
+            if (currentProductId && currentProductId == productId && selectedProductSize) {
+                const productSizeUnitId = selectedProductSize.measuringUnitId;
+                
+                // Get base unit and convert quantityInBaseUnit to product size unit for display
+                fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.baseUnitId) {
+                            const productBaseUnitId = data.baseUnitId;
+                            
+                            if (productSizeUnitId == productBaseUnitId) {
+                                // Same unit, just add back
+                                currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                updateStockDisplay();
+                            } else {
+                                // Convert quantityInBaseUnit to product size unit for display
+                                fetch(`/Sales/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${quantityInBaseUnit}`)
+                                    .then(response => response.json())
+                                    .then(conversionData => {
+                                        if (conversionData.success) {
+                                            const quantityInProductSizeUnit = conversionData.convertedStock;
+                                            currentAvailableStock = currentAvailableStock + quantityInProductSizeUnit;
+                                            updateStockDisplay();
+                                        } else {
+                                            // Fallback: just add back base unit (may show incorrect value)
+                                            currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                            updateStockDisplay();
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error converting quantity for stock restore:', error);
+                                        currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                                        updateStockDisplay();
+                                    });
+                            }
+                        } else {
+                            // No base unit, just add back
+                            currentAvailableStock = currentAvailableStock + quantityInBaseUnit;
+                            updateStockDisplay();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error restoring stock after remove:', error);
+                    });
+            }
+        }
 
-            // Focus on product selection for next item
-            if (productCombo) {
-                productCombo.focus();
+        // Function to update available stock after adding an item
+        function updateAvailableStockAfterAdd(quantityInBaseUnit) {
+            // Deduct the quantity from current available stock
+            // currentAvailableStock is in product size unit, so we need to convert quantityInBaseUnit back to product size unit
+            const productCombo = $("#productSelect").data("kendoComboBox");
+            const productId = productCombo ? productCombo.value() : null;
+            
+            if (productId && selectedProductSize) {
+                const productSizeUnitId = selectedProductSize.measuringUnitId;
+                
+                // Get base unit and convert quantityInBaseUnit back to product size unit for display
+                fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.baseUnitId) {
+                            const productBaseUnitId = data.baseUnitId;
+                            
+                            if (productSizeUnitId == productBaseUnitId) {
+                                // Same unit, just deduct
+                                currentAvailableStock = currentAvailableStock - quantityInBaseUnit;
+                                updateStockDisplay();
+                            } else {
+                                // Convert quantityInBaseUnit to product size unit for display
+                                fetch(`/Sales/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${quantityInBaseUnit}`)
+                                    .then(response => response.json())
+                                    .then(conversionData => {
+                                        if (conversionData.success) {
+                                            const quantityInProductSizeUnit = conversionData.convertedStock;
+                                            currentAvailableStock = currentAvailableStock - quantityInProductSizeUnit;
+                                            updateStockDisplay();
+                                        } else {
+                                            // Fallback: just deduct from base unit (may show incorrect value)
+                                            currentAvailableStock = currentAvailableStock - quantityInBaseUnit;
+                                            updateStockDisplay();
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error converting quantity for stock update:', error);
+                                        currentAvailableStock = currentAvailableStock - quantityInBaseUnit;
+                                        updateStockDisplay();
+                                    });
+                            }
+                        } else {
+                            // No base unit, just deduct
+                            currentAvailableStock = currentAvailableStock - quantityInBaseUnit;
+                            updateStockDisplay();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating stock after add:', error);
+                    });
             }
         }
 
@@ -1223,6 +1508,9 @@
                 sizeCombo.dataSource.data([]);
                 sizeCombo.enable(false);
             }
+
+            // Unit dropdown removed - no longer needed
+            baseUnitId = null;
 
             // Reset other fields
             document.getElementById('quantity').value = "1";
@@ -1322,13 +1610,9 @@
             console.log('Detail object keys:', Object.keys(detail));
 
             // Get product name and measuring unit abbreviation from the detail object
-            // Code column will show MeasuringUnitAbbreviation (productSize)
-            // Product column will show ProductName
             const productName = detail.productName || detail.ProductName || detail.product_name || 'Product';
             
             // Try multiple property name variations for measuring unit abbreviation
-            // ASP.NET Core JSON serialization typically uses camelCase, so MeasuringUnitAbbreviation becomes measuringUnitAbbreviation
-            // Check for null/undefined/empty string values
             let measuringUnitAbbreviation = 'N/A';
             if (detail.measuringUnitAbbreviation && typeof detail.measuringUnitAbbreviation === 'string' && detail.measuringUnitAbbreviation.trim() !== '') {
                 measuringUnitAbbreviation = detail.measuringUnitAbbreviation;
@@ -1358,7 +1642,7 @@
             const newRow = document.createElement('tr');
 
             // Safely get values with fallbacks
-            const quantity = detail.quantity || detail.Quantity || 0;
+            const quantityInBaseUnit = detail.quantity || detail.Quantity || 0; // Quantity is stored in base unit
             const lineDiscountAmount = detail.lineDiscountAmount || detail.LineDiscountAmount || 0;
             const salePrice = detail.salePrice || detail.SalePrice || 0;
             const payableAmount = detail.payableAmount || detail.PayableAmount || 0;
@@ -1370,15 +1654,91 @@
             const productSize = measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : 
                                (detail.productSize || detail.ProductSize || '');
 
-            // Calculate item level discount (per unit discount)
-            const itemLevelDiscount = quantity > 0 ? parseFloat(lineDiscountAmount) / quantity : 0;
+            // Convert quantity from base unit to product size unit for display
+            // First, get the product's base unit and product size's measuring unit
+            if (productId && productRangeId) {
+                // Get product sizes to find the measuring unit ID for this product range
+                fetch(`/Sales/GetProductSizes?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(productSizes => {
+                        // Find the product size that matches the productRangeId
+                        const matchingProductSize = productSizes.find(ps => 
+                            (ps.value == productRangeId || ps.productRangeId == productRangeId)
+                        );
+                        
+                        if (matchingProductSize && matchingProductSize.measuringUnitId) {
+                            const productSizeUnitId = matchingProductSize.measuringUnitId;
+                            
+                            // Get product's base unit
+                            fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success && data.baseUnitId) {
+                                        const productBaseUnitId = data.baseUnitId;
+                                        
+                                        // If product size unit is same as base unit, no conversion needed
+                                        if (productSizeUnitId == productBaseUnitId) {
+                                            addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                        } else {
+                                            // Convert quantity from base unit to product size unit
+                                            fetch(`/Sales/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${quantityInBaseUnit}`)
+                                                .then(response => response.json())
+                                                .then(conversionData => {
+                                                    if (conversionData.success) {
+                                                        const displayQuantity = conversionData.convertedStock;
+                                                        console.log('Quantity converted for display:', {
+                                                            baseQuantity: quantityInBaseUnit,
+                                                            displayQuantity: displayQuantity,
+                                                            unit: measuringUnitAbbreviation
+                                                        });
+                                                        addRowToTableWithQuantity(newRow, displayQuantity, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                                    } else {
+                                                        console.warn('Conversion failed, using base unit quantity');
+                                                        addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                                    }
+                                                })
+                                                .catch(error => {
+                                                    console.error('Error converting quantity:', error);
+                                                    addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                                });
+                                        }
+                                    } else {
+                                        console.warn('Could not get base unit, using quantity as is');
+                                        addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error getting base unit:', error);
+                                    addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                                });
+                        } else {
+                            console.warn('Could not find product size or measuring unit ID, using quantity as is');
+                            addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error getting product sizes:', error);
+                        addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+                    });
+            } else {
+                // No product ID or product range ID, use quantity as is
+                addRowToTableWithQuantity(newRow, quantityInBaseUnit, quantityInBaseUnit, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice);
+            }
+        }
+
+        // Helper function to add row to table with converted quantity
+        function addRowToTableWithQuantity(newRow, displayQuantity, baseUnitQuantity, measuringUnitAbbreviation, productName, salePrice, lineDiscountAmount, payableAmount, productId, productRangeId, productSize, unitPrice) {
+            const tbody = document.getElementById('saleDetailsBody');
+            
+            // Calculate item level discount (per unit discount) based on display quantity
+            const itemLevelDiscount = displayQuantity > 0 ? parseFloat(lineDiscountAmount) / displayQuantity : 0;
             
             newRow.innerHTML = `
                 <td>${measuringUnitAbbreviation}</td>
                 <td>${productName}</td>
                 <td>Rs${itemLevelDiscount.toFixed(2)}</td>
                 <td>Rs${parseFloat(salePrice).toFixed(2)}</td>
-                <td>${quantity}</td>
+                <td>${displayQuantity.toFixed(3)} ${measuringUnitAbbreviation !== 'N/A' ? measuringUnitAbbreviation : ''}</td>
                 <td>Rs${parseFloat(lineDiscountAmount).toFixed(2)}</td>
                 <td>Rs${parseFloat(payableAmount).toFixed(2)}</td>
                 <td>
@@ -1393,7 +1753,8 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${productRangeId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${productSize}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${parseFloat(unitPrice).toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${baseUnitQuantity}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].DisplayQuantity" value="${displayQuantity}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${parseFloat(salePrice).toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${parseFloat(lineDiscountAmount).toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${parseFloat(payableAmount).toFixed(2)}" />
@@ -2150,7 +2511,9 @@
                 const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
                 const productSize = row.querySelector('input[name*=".ProductSize"]').value;
                 const unitPrice = parseFloat(row.querySelector('input[name*=".UnitPrice"]').value);
-                const quantity = parseFloat(row.querySelector('input[name*=".Quantity"]').value);
+                const baseUnitQuantity = parseFloat(row.querySelector('input[name*=".Quantity"]').value); // This is in base unit
+                const displayQuantityInput = row.querySelector('input[name*=".DisplayQuantity"]');
+                const displayQuantity = displayQuantityInput ? parseFloat(displayQuantityInput.value) : baseUnitQuantity; // Use display quantity if available
                 const salePrice = parseFloat(row.querySelector('input[name*=".SalePrice"]').value);
                 const lineDiscountAmount = parseFloat(row.querySelector('input[name*=".LineDiscountAmount"]').value);
 
@@ -2175,20 +2538,68 @@
                         );
                         if (sizeData) {
                             sizeCombo.value(sizeData.value);
-                            // Trigger size change to load unit price
+                            // Trigger size change to load unit price and set selectedProductSize
                             sizeCombo.trigger("change");
+                            
+                            // After size is selected, convert base unit quantity to product size unit for display
+                            setTimeout(() => {
+                                if (selectedProductSize) {
+                                    const productSizeUnitId = selectedProductSize.measuringUnitId;
+                                    
+                                    // Get base unit and convert quantity for display
+                                    fetch(`/Sales/GetAvailableStock?productId=${productId}`)
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if (data.success && data.baseUnitId) {
+                                                const productBaseUnitId = data.baseUnitId;
+                                                
+                                                if (productSizeUnitId == productBaseUnitId) {
+                                                    // Same unit, use base unit quantity
+                                                    document.getElementById('quantity').value = baseUnitQuantity.toFixed(3);
+                                                } else {
+                                                    // Convert base unit quantity to product size unit for display
+                                                    fetch(`/Sales/ConvertUnitAndGetStock?productId=${productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${baseUnitQuantity}`)
+                                                        .then(response => response.json())
+                                                        .then(conversionData => {
+                                                            if (conversionData.success) {
+                                                                const displayQty = conversionData.convertedStock;
+                                                                document.getElementById('quantity').value = displayQty.toFixed(3);
+                                                            } else {
+                                                                // Fallback: use display quantity if available, otherwise base unit
+                                                                document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                                            }
+                                                        })
+                                                        .catch(error => {
+                                                            console.error('Error converting quantity for edit:', error);
+                                                            document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                                        });
+                                                }
+                                            } else {
+                                                // No base unit found, use display quantity or base unit
+                                                document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error getting base unit for edit:', error);
+                                            document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                        });
+                                } else {
+                                    // No product size selected, use display quantity or base unit
+                                    document.getElementById('quantity').value = (displayQuantity || baseUnitQuantity).toFixed(3);
+                                }
+                            }, 200);
                         }
                     }
 
-                    // Populate other fields
-                    document.getElementById('quantity').value = quantity;
+                    // Populate other fields (quantity will be set after conversion)
                     document.getElementById('unitPrice').value = unitPrice.toFixed(2);
                     document.getElementById('salePrice').value = salePrice.toFixed(2);
-                    // Calculate item level discount (per unit discount)
-                    const itemLevelDiscount = quantity > 0 ? lineDiscountAmount / quantity : 0;
+                    // Calculate item level discount (per unit discount) - use display quantity for calculation
+                    const qtyForDiscount = displayQuantity || baseUnitQuantity;
+                    const itemLevelDiscount = qtyForDiscount > 0 ? lineDiscountAmount / qtyForDiscount : 0;
                     document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(2);
 
-                    // Calculate payable amount
+                    // Calculate payable amount (will be recalculated when quantity is set)
                     calculatePayableAmount();
 
                     // Remove the row from table (user will add it back with updated values)

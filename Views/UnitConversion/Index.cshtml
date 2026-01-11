@@ -1,0 +1,113 @@
+@{
+    ViewData["Title"] = "Unit Conversions";
+    var conversions = ViewBag.Conversions as IEnumerable<dynamic> ?? new List<dynamic>();
+}
+
+<link href="~/css/product-management.css" rel="stylesheet" />
+<link href="~/css/user-management.css" rel="stylesheet" />
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-0"><i class="fa-solid fa-exchange-alt me-2"></i>Unit Conversion Configuration</h2>
+                <small class="text-white-50">Configure unit conversions (e.g., 1 bori = 50kg) that will be used throughout the application in Stocks, Sales, and Bills.</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-check-circle me-2"></i>@TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="text-muted">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                <small>These conversions are automatically applied in Stocks, Sales, and Bill Generation.</small>
+            </div>
+            <a asp-action="Create" class="btn btn-success">
+                <i class="fa-solid fa-plus me-2"></i>Create Unit Conversion
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered custom-table">
+                <thead>
+                    <tr>
+                        <th>Conversion</th>
+                        <th>Conversion Factor</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (conversions.Any())
+                    {
+                        @foreach (var item in conversions)
+                        {
+                            <tr>
+                                <td>
+                                    <strong class="text-primary">1 @item.FromUnitName</strong>
+                                    <i class="fa-solid fa-equals mx-2 text-muted"></i>
+                                    <strong class="text-success">@item.ConversionFactor @item.ToUnitName</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@item.ConversionFactor</span>
+                                </td>
+                                <td>@(item.Description ?? "-")</td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input @(item.IsEnabled ? "bg-success" : "bg-danger")"
+                                               type="checkbox"
+                                               @(item.IsEnabled ? "checked" : "")
+                                               disabled>
+                                        <label class="form-check-label ms-2">
+                                            @(item.IsEnabled ? "Active" : "Inactive")
+                                        </label>
+                                    </div>
+                                </td>
+                                <td class="table-actions">
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Edit" asp-route-id="@item.UnitConversionId" class="btn btn-sm btn-outline-warning" title="Edit Unit Conversion">
+                                            <i class="fa-solid fa-edit"></i> Edit
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.UnitConversionId" class="btn btn-sm btn-outline-danger" title="Delete Unit Conversion">
+                                            <i class="fa-solid fa-trash"></i> Delete
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fa-solid fa-info-circle fa-2x mb-3 d-block"></i>
+                                    <p class="mb-2">No unit conversions configured yet.</p>
+                                    <p class="small">Configure unit conversions like "1 bori = 50kg" to enable automatic conversions throughout the application.</p>
+                                    <a asp-action="Create" class="btn btn-primary mt-2">
+                                        <i class="fa-solid fa-plus me-2"></i>Create Your First Unit Conversion
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
