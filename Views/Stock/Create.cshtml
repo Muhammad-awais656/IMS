@@ -12,7 +12,7 @@
                     <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
                         <div class="col">
                             <label asp-for="CategoryIdFk" class="form-label">Category:</label>
-                            @Html.DropDownList("CategoryIdFk", ViewBag.Categories as IEnumerable<SelectListItem>, "<-- Select Category -->", new { @class = "form-control", @id = "CategoryIdFk" })
+                            <input id="categoryDropdown" name="CategoryIdFk" style="width: 100%;" />
                             <span asp-validation-for="CategoryIdFk" class="text-danger"></span>
                         </div>
                         <div class="col">
@@ -56,15 +56,69 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Product Name dropdown (same as Product Management screen)
-            $("#productDropdown").kendoComboBox({
+            // Initialize Kendo UI ComboBox for Category dropdown
+            var categoryComboBox = $("#categoryDropdown").kendoComboBox({
                 dataSource: {
                     transport: {
                         read: {
-                            url: "/Product/GetProducts",
+                            url: "/Product/GetCategories",
                             dataType: "json"
                         }
                     }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Category --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function(e) {
+                    var categoryId = this.value();
+                    var productComboBox = $("#productDropdown").data("kendoComboBox");
+                    
+                    // Clear product selection when category changes
+                    if (productComboBox) {
+                        productComboBox.value("");
+                        productComboBox.text("");
+                    }
+                    
+                    // Update product dropdown based on category selection
+                    if (categoryId && categoryId !== '') {
+                        // Parse categoryId as integer to ensure correct type
+                        var categoryIdNum = parseInt(categoryId, 10);
+                        
+                        // Load products for selected category
+                        productComboBox.setDataSource(new kendo.data.DataSource({
+                            transport: {
+                                read: {
+                                    url: "/Stock/GetProductsByCategory",
+                                    data: function() {
+                                        return { categoryId: categoryIdNum };
+                                    },
+                                    dataType: "json"
+                                }
+                            }
+                        }));
+                        productComboBox.enable(true);
+                        productComboBox.dataSource.read();
+                    } else {
+                        // If no category selected, disable product dropdown
+                        productComboBox.setDataSource(new kendo.data.DataSource({
+                            data: []
+                        }));
+                        productComboBox.enable(false);
+                    }
+                    
+                    // Clear available quantity when category changes
+                    $('#AvailableQuantity').val(0);
+                    $('#AvailableQuantity').data('existing-available', 0);
+                }
+            }).data("kendoComboBox");
+
+            // Initialize Kendo UI ComboBox for Product Name dropdown
+            var productComboBox = $("#productDropdown").kendoComboBox({
+                dataSource: {
+                    data: []
                 },
                 dataTextField: "text",
                 dataValueField: "value",
@@ -72,6 +126,7 @@
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
+                enabled: false, // Disabled until category is selected
                 change: function(e) {
                     var productId = this.value();
                     if (productId && productId !== '') {
@@ -81,7 +136,7 @@
                         $('#AvailableQuantity').val(0);
                     }
                 }
-            });
+            }).data("kendoComboBox");
 
             // Auto-calculate available quantity when total quantity changes
             $('#TotalQuantity').on('input', function() {

@@ -190,12 +190,13 @@
                 {
                     @foreach (var item in Model.SaleDetails)
                     {
+                        var lineTotal = item.SalePrice * item.Quantity;
                         <tr style="border:1px solid black;font-size:15px;width:100%;">
                             <td style="border:1px solid black;font-size:15px;width:5%;">@srNo</td>
                             <td style="border:1px solid black;width:45%;">@item.ProductName</td>
                             <td style="border:1px solid black;width:15%;">@item.Quantity</td>
                             <td style="border:1px solid black;width:20%;">@item.UnitPrice.ToString("N2")</td>
-                            <td style="border:1px solid black;width:15%;">@item.SalePrice.ToString("N2")</td>
+                            <td style="border:1px solid black;width:15%;">@lineTotal.ToString("N2")</td>
                         </tr>
 
                         srNo++;
