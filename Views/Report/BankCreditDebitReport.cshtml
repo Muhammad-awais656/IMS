@@ -1,15 +1,14 @@
-﻿@model IMS.Models.ReportsViewModel;
+@model IMS.Models.BankCreditDebitReportViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
 }
-@* <div class="container mt-4"> *@
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white py-3">
         <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
-                <i class="fa fa-chart-line me-2"></i>
-                <h4 class="mb-0">Sales Report</h4>
+                <i class="fa fa-university me-2"></i>
+                <h4 class="mb-0">Bank Credit / Debit Report</h4>
             </div>
             <div class="d-flex gap-2">
                 <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
@@ -30,18 +29,21 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form id="filterForm" asp-action="SalesReport" asp-controller="Report" method="get">
+                <form id="filterForm" asp-action="BankCreditDebitReport" asp-controller="Report" method="get">
                     <div class="row g-3">
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
-                                <i class="fa fa-user me-1 text-primary"></i>Customer
+                                <i class="fa fa-university me-1 text-primary"></i>Bank Account
                             </label>
                             <br />
-                            @Html.DropDownList("SalesReportsFilters.CustomerIdFk", ViewBag.Customers as IEnumerable<SelectListItem>, 
-                                "-- Select Customer --", 
-                                new { @class = "form-control", @id = "customerComboBox" })
+                           <div>
+                                @Html.DropDownList("BankCreditDebitReportFilters.PersonalPaymentId", ViewBag.Accounts as IEnumerable<SelectListItem>,
+                                "-- Select Account --",
+                                                                new { @class = "form-control", @id = "accountComboBox" })
+
+                           </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>From Date
                             </label>
@@ -49,7 +51,7 @@
                                    value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString())"
                                    class="form-control" />
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>To Date
                             </label>
@@ -57,12 +59,22 @@
                                    value="@(string.IsNullOrEmpty(Context.Request.Query["ToDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["ToDate"].ToString())"
                                    class="form-control" />
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-exchange-alt me-1 text-primary"></i>Transaction Type
+                            </label>
+                            <select name="TransactionType" class="form-control">
+                                <option value="">-- All --</option>
+                                <option value="Credit" selected="@(Context.Request.Query["TransactionType"] == "Credit")">Credit</option>
+                                <option value="Debit" selected="@(Context.Request.Query["TransactionType"] == "Debit")">Debit</option>
+                            </select>
+                        </div>
                         <div class="col-md-3 d-flex align-items-end">
                             <div class="d-flex gap-2 w-100">
                                 <button type="submit" class="btn btn-primary flex-fill">
                                     <i class="fa fa-search me-1"></i> Search
                                 </button>
-                                <a asp-action="SalesReport" class="btn btn-outline-secondary flex-fill">
+                                <a asp-action="BankCreditDebitReport" class="btn btn-outline-secondary flex-fill">
                                     <i class="fa fa-refresh me-1"></i> Refresh
                                 </a>
                             </div>
@@ -74,35 +86,27 @@
 
         <!-- Summary Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card bg-success text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total Amount</h6>
-                        <h3 class="mb-0">@Model.TotalAmount.ToString("N2")</h3>
+                        <h6 class="card-title">Total Credit</h6>
+                        <h3 class="mb-0">@Model.TotalCreditAmount.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-warning text-white">
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total Discount</h6>
-                        <h3 class="mb-0">@Model.TotalDiscountAmount.ToString("N2")</h3>
+                        <h6 class="card-title">Total Debit</h6>
+                        <h3 class="mb-0">@Model.TotalDebitAmount.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
+            <div class="col-md-4">
+                <div class="card @(Model.NetBalance >= 0 ? "bg-primary" : "bg-warning") text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total Received</h6>
-                        <h3 class="mb-0">@Model.TotalReceivedAmount.ToString("N2")</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <h6 class="card-title">Total Due</h6>
-                        <h3 class="mb-0">@Model.TotalDueAmount.ToString("N2")</h3>
+                        <h6 class="card-title">Net Balance</h6>
+                        <h3 class="mb-0">@Model.NetBalance.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
@@ -112,50 +116,60 @@
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
-                    <i class="fa fa-table me-2"></i>Sales Report Data
+                    <i class="fa fa-table me-2"></i>Bank Credit / Debit Report Data
                 </h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" id="printArea">
-                    <table id="salesTable" class="table table-hover table-striped mb-0">
+                    <table id="bankCreditDebitTable" class="table table-hover table-striped mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th><i class="fa fa-hashtag me-1"></i>Sale ID</th>
-                                <th><i class="fa fa-user me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-calendar me-1"></i>Date</th>
+                                <th><i class="fa fa-university me-1"></i>Bank Name</th>
+                                <th><i class="fa fa-credit-card me-1"></i>Account #</th>
+                                <th><i class="fa fa-user me-1"></i>Account Holder</th>
+                                <th><i class="fa fa-building me-1"></i>Branch</th>
+                                <th><i class="fa fa-exchange-alt me-1"></i>Type</th>
+                                <th><i class="fa fa-dollar-sign me-1"></i>Amount</th>
+                                <th><i class="fa fa-balance-scale me-1"></i>Balance</th>
                                 <th><i class="fa fa-file-text me-1"></i>Bill #</th>
-                                <th><i class="fa fa-calendar me-1"></i>Sale Date</th>
-                                <th><i class="fa fa-dollar-sign me-1"></i>Total Amount</th>
-                                <th><i class="fa fa-percent me-1"></i>Discount</th>
-                                <th><i class="fa fa-credit-card me-1"></i>Paid Amount</th>
-                                <th><i class="fa fa-calculator me-1"></i>Total Payable</th>
                                 <th><i class="fa fa-comment me-1"></i>Description</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @if (Model.SalesList.Any())
+                            @if (Model.TransactionList.Any())
                             {
-                                @foreach (var item in Model.SalesList)
+                                @foreach (var item in Model.TransactionList)
                                 {
                                     <tr>
-                                        <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.SaleId)</span></td>
-                                        <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
-                                        <td><code>@Html.DisplayFor(modelitem => item.BillNumber)</code></td>
-                                        <td>@item.SaleDate.ToString("dd/MM/yyyy")</td>
-                                        <td><strong class="text-success">@item.TotalAmount.ToString("N2")</strong></td>
-                                        <td><span class="text-warning">@item.DiscountAmount.ToString("N2")</span></td>
-                                        <td><span class="text-info">@item.TotalReceivedAmount.ToString("N2")</span></td>
-                                        <td><strong class="text-primary">@item.TotalDueAmount.ToString("N2")</strong></td>
-                                        <td>@Html.DisplayFor(modelItem => item.SaleDescription)</td>
+                                        <td>@item.TransactionDate.ToString("dd/MM/yyyy")</td>
+                                        <td><strong>@Html.DisplayFor(modelItem => item.BankName)</strong></td>
+                                        <td><code>@Html.DisplayFor(modelitem => item.AccountNumber)</code></td>
+                                        <td>@Html.DisplayFor(modelitem => item.AccountHolderName)</td>
+                                        <td>@Html.DisplayFor(modelitem => item.BankBranch)</td>
+                                        <td>
+                                            <span class="badge @(item.TransactionType == "Credit" ? "bg-success" : "bg-danger")">
+                                                @item.TransactionType
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <strong class="@(item.TransactionType == "Credit" ? "text-success" : "text-danger")">
+                                                @item.Amount.ToString("N2")
+                                            </strong>
+                                        </td>
+                                        <td><strong class="text-primary">@item.Balance.ToString("N2")</strong></td>
+                                        <td>@(item.BillNumber?.ToString() ?? "-")</td>
+                                        <td>@Html.DisplayFor(modelitem => item.TransactionDescription)</td>
                                     </tr>
                                 }
                             }
                             else
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center py-4">
+                                    <td colspan="10" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-                                            <h5 class="text-muted">No Sales Data Found</h5>
+                                            <h5 class="text-muted">No Transaction Data Found</h5>
                                             <p class="text-muted">Try adjusting your filter criteria to see more results.</p>
                                         </div>
                                     </td>
@@ -189,9 +203,10 @@
                 </div>
                 @if (Model.TotalPages > 1)
                 {
-                    var custId = Model.SalesReportsFilters?.CustomerId?.ToString() ?? "";
-                    var fromDate = Model.SalesReportsFilters?.FromDate?.ToString("yyyy-MM-dd") ?? "";
-                    var toDate = Model.SalesReportsFilters?.ToDate?.ToString("yyyy-MM-dd") ?? "";
+                    var accountId = Model.Filters?.PersonalPaymentId?.ToString() ?? "";
+                    var fromDate = Model.Filters?.FromDate?.ToString("yyyy-MM-dd") ?? "";
+                    var toDate = Model.Filters?.ToDate?.ToString("yyyy-MM-dd") ?? "";
+                    var transactionType = Model.Filters?.TransactionType ?? "";
                     
                     // Build query string parameters
                     var queryParams = new List<string>
@@ -199,24 +214,26 @@
                         $"pageSize={Model.PageSize}"
                     };
                     
-                    if (!string.IsNullOrEmpty(custId))
-                        queryParams.Add($"custId={custId}");
+                    if (!string.IsNullOrEmpty(accountId))
+                        queryParams.Add($"accountId={accountId}");
                     if (!string.IsNullOrEmpty(fromDate))
                         queryParams.Add($"FromDate={fromDate}");
                     if (!string.IsNullOrEmpty(toDate))
                         queryParams.Add($"ToDate={toDate}");
+                    if (!string.IsNullOrEmpty(transactionType))
+                        queryParams.Add($"TransactionType={transactionType}");
                     
                     var queryString = string.Join("&", queryParams);
                     
-                    <nav aria-label="Sales Report pagination" class="mt-3">
+                    <nav aria-label="Bank Credit Debit Report pagination" class="mt-3">
                         <ul class="pagination justify-content-center mb-0">
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=1&@queryString">
+                                <a class="page-link" href="/Report/BankCreditDebitReport?pageNumber=1&@queryString">
                                     <i class="fa fa-angle-double-left me-1"></i>First
                                 </a>
                             </li>
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@(Model.CurrentPage - 1)&@queryString">
+                                <a class="page-link" href="/Report/BankCreditDebitReport?pageNumber=@(Model.CurrentPage - 1)&@queryString">
                                     <i class="fa fa-angle-left me-1"></i>Previous
                                 </a>
                             </li>
@@ -231,16 +248,16 @@
                             @for (int i = startPage; i <= endPage; i++)
                             {
                                 <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                    <a class="page-link" href="/Report/SalesReport?pageNumber=@i&@queryString">@i</a>
+                                    <a class="page-link" href="/Report/BankCreditDebitReport?pageNumber=@i&@queryString">@i</a>
                                 </li>
                             }
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@(Model.CurrentPage + 1)&@queryString">
+                                <a class="page-link" href="/Report/BankCreditDebitReport?pageNumber=@(Model.CurrentPage + 1)&@queryString">
                                     Next<i class="fa fa-angle-right ms-1"></i>
                                 </a>
                             </li>
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@Model.TotalPages&@queryString">
+                                <a class="page-link" href="/Report/BankCreditDebitReport?pageNumber=@Model.TotalPages&@queryString">
                                     Last<i class="fa fa-angle-double-right ms-1"></i>
                                 </a>
                             </li>
@@ -251,76 +268,58 @@
         </div>
         </div>
     </div>
-    @*  </div> *@
 </div>
 
 @section Scripts {
     <script>
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Customer
-            $("#customerComboBox").kendoComboBox({
-                placeholder: "-- Select Customer --",
+            // Initialize Kendo UI ComboBox for Account
+            $("#accountComboBox").kendoComboBox({
+                placeholder: "-- Select Account --",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
                 dataTextField: "Text",
                 dataValueField: "Value",
                 change: function(e) {
-                    console.log("Customer selection changed:", e.sender.value());
+                    console.log("Account selection changed:", e.sender.value());
                 },
                 select: function(e) {
-                    console.log("Customer selected:", e.item);
+                    console.log("Account selected:", e.item);
                 }
             });
         });
 
-        function SearchNameChange(){
-            debugger;
-
-            const search = document.querySelector('input[name="searchUsername"]').value;
-            window.location.href = '@Url.Action("SalesReport", "Report")'
-                + '?pageNumber=1&pageSize=' + select.value
-                + (search ? '&searchUsername=' + encodeURIComponent(search) : '');
-        }
-
-
-           function changePageSize(select) {
-              
-            var custId = document.getElementById("customerComboBox").value;
+        function changePageSize(select) {
+            var accountId = document.getElementById("accountComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
+            var transactionType = document.querySelector("select[name='TransactionType']").value;
 
-            var url = `/Report/SalesReport?pageNumber=1&custId=${custId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/BankCreditDebitReport?pageNumber=1&accountId=${accountId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}&TransactionType=${transactionType}`;
             window.location.href = url;
-            
         }
-
-
-          
-     
-
-
     </script>
     <script>
         document.getElementById("exportExcelBtn").addEventListener("click", function () {
-            var custId = document.getElementById("customerComboBox").value;
+            var accountId = document.getElementById("accountComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
+            var transactionType = document.querySelector("select[name='TransactionType']").value;
 
-            var url = `/Report/ExportExcel?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/ExportBankCreditDebitExcel?accountId=${accountId}&FromDate=${fromDate}&ToDate=${toDate}&TransactionType=${transactionType}`;
             window.location.href = url;
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
-            var custId = document.getElementById("customerComboBox").value;
+            var accountId = document.getElementById("accountComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
+            var transactionType = document.querySelector("select[name='TransactionType']").value;
 
-            var url = `/Report/ExportPdf?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/ExportBankCreditDebitPdf?accountId=${accountId}&FromDate=${fromDate}&ToDate=${toDate}&TransactionType=${transactionType}`;
             window.location.href = url;
         });
-
-           
-
     </script>
 }
+

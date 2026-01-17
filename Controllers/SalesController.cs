@@ -606,7 +606,10 @@ namespace IMS.Controllers
                     if (model.SaleId.HasValue && model.SaleId > 0)
                     {
                         _logger.LogInformation("Updating existing sale with ID: {SaleId}", model.SaleId);
-                        
+                        //Update Stock
+                        await _salesService.TransactionDeleteAndStockUpdate(model.SaleId.Value);
+                        // Delete existing sale details
+                        await _salesService.DeleteSaleDetailsBySaleIdAsync(model.SaleId.Value);
                         // Update existing sale
                         var updateResult = await _salesService.UpdateSaleAsync(new Sale
                         {
@@ -620,7 +623,9 @@ namespace IMS.Controllers
                             SaleDescription = model.Description ?? "Update Sales Return",
                             SaleDate = model.SaleDate,
                             ModifiedBy = userId,
-                            ModifiedDate = currentDateTime
+                            ModifiedDate = currentDateTime,
+                            PaymentMethod = model.PaymentMethod,
+                            OnlineAccountId = model.PaymentMethod== "Online" ? model.OnlineAccountId : null,
                         });
 
                         if (updateResult == 0)
@@ -629,10 +634,7 @@ namespace IMS.Controllers
                             await ReloadViewDataAsync();
                             return View(model);
                         }
-                        //Update Stock
-                        await _salesService.TransactionDeleteAndStockUpdate(model.SaleId.Value);
-                        // Delete existing sale details
-                        await _salesService.DeleteSaleDetailsBySaleIdAsync(model.SaleId.Value);
+                       
                         
                         saleId = model.SaleId.Value;
                     }
@@ -674,6 +676,10 @@ namespace IMS.Controllers
                                 detail.LineDiscountAmount,
                                 detail.PayableAmount,
                                 detail.ProductRangeId,
+                                 currentDateTime,
+                                   userId,
+                                    model.PaymentMethod,
+                               model.OnlineAccountId,
                                 out detailReturnValue
                             );
 

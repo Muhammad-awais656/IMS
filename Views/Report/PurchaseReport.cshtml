@@ -1,15 +1,14 @@
-﻿@model IMS.Models.ReportsViewModel;
+@model IMS.Models.PurchaseReportViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
 }
-@* <div class="container mt-4"> *@
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white py-3">
         <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
-                <i class="fa fa-chart-line me-2"></i>
-                <h4 class="mb-0">Sales Report</h4>
+                <i class="fa fa-shopping-cart me-2"></i>
+                <h4 class="mb-0">Purchase Report</h4>
             </div>
             <div class="d-flex gap-2">
                 <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
@@ -30,16 +29,16 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form id="filterForm" asp-action="SalesReport" asp-controller="Report" method="get">
+                <form id="filterForm" asp-action="PurchaseReport" asp-controller="Report" method="get">
                     <div class="row g-3">
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
-                                <i class="fa fa-user me-1 text-primary"></i>Customer
+                                <i class="fa fa-truck me-1 text-primary"></i>Vendor
                             </label>
                             <br />
-                            @Html.DropDownList("SalesReportsFilters.CustomerIdFk", ViewBag.Customers as IEnumerable<SelectListItem>, 
-                                "-- Select Customer --", 
-                                new { @class = "form-control", @id = "customerComboBox" })
+                            @Html.DropDownList("PurchaseReportFilters.VendorId", ViewBag.Vendors as IEnumerable<SelectListItem>, 
+                                "-- Select Vendor --", 
+                                new { @class = "form-control", @id = "vendorComboBox" })
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
@@ -62,7 +61,7 @@
                                 <button type="submit" class="btn btn-primary flex-fill">
                                     <i class="fa fa-search me-1"></i> Search
                                 </button>
-                                <a asp-action="SalesReport" class="btn btn-outline-secondary flex-fill">
+                                <a asp-action="PurchaseReport" class="btn btn-outline-secondary flex-fill">
                                     <i class="fa fa-refresh me-1"></i> Refresh
                                 </a>
                             </div>
@@ -93,8 +92,8 @@
             <div class="col-md-3">
                 <div class="card bg-info text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total Received</h6>
-                        <h3 class="mb-0">@Model.TotalReceivedAmount.ToString("N2")</h3>
+                        <h6 class="card-title">Total Paid</h6>
+                        <h3 class="mb-0">@Model.TotalPaidAmount.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
@@ -112,40 +111,40 @@
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
-                    <i class="fa fa-table me-2"></i>Sales Report Data
+                    <i class="fa fa-table me-2"></i>Purchase Report Data
                 </h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" id="printArea">
-                    <table id="salesTable" class="table table-hover table-striped mb-0">
+                    <table id="purchaseTable" class="table table-hover table-striped mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th><i class="fa fa-hashtag me-1"></i>Sale ID</th>
-                                <th><i class="fa fa-user me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-hashtag me-1"></i>Purchase ID</th>
+                                <th><i class="fa fa-truck me-1"></i>Vendor Name</th>
                                 <th><i class="fa fa-file-text me-1"></i>Bill #</th>
-                                <th><i class="fa fa-calendar me-1"></i>Sale Date</th>
+                                <th><i class="fa fa-calendar me-1"></i>Purchase Date</th>
                                 <th><i class="fa fa-dollar-sign me-1"></i>Total Amount</th>
                                 <th><i class="fa fa-percent me-1"></i>Discount</th>
                                 <th><i class="fa fa-credit-card me-1"></i>Paid Amount</th>
-                                <th><i class="fa fa-calculator me-1"></i>Total Payable</th>
+                                <th><i class="fa fa-calculator me-1"></i>Due Amount</th>
                                 <th><i class="fa fa-comment me-1"></i>Description</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @if (Model.SalesList.Any())
+                            @if (Model.PurchaseList.Any())
                             {
-                                @foreach (var item in Model.SalesList)
+                                @foreach (var item in Model.PurchaseList)
                                 {
                                     <tr>
-                                        <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.SaleId)</span></td>
-                                        <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
+                                        <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.PurchaseOrderId)</span></td>
+                                        <td>@Html.DisplayFor(modelitem => item.VendorName)</td>
                                         <td><code>@Html.DisplayFor(modelitem => item.BillNumber)</code></td>
-                                        <td>@item.SaleDate.ToString("dd/MM/yyyy")</td>
+                                        <td>@item.PurchaseDate.ToString("dd/MM/yyyy")</td>
                                         <td><strong class="text-success">@item.TotalAmount.ToString("N2")</strong></td>
                                         <td><span class="text-warning">@item.DiscountAmount.ToString("N2")</span></td>
-                                        <td><span class="text-info">@item.TotalReceivedAmount.ToString("N2")</span></td>
-                                        <td><strong class="text-primary">@item.TotalDueAmount.ToString("N2")</strong></td>
-                                        <td>@Html.DisplayFor(modelItem => item.SaleDescription)</td>
+                                        <td><span class="text-info">@item.PaidAmount.ToString("N2")</span></td>
+                                        <td><strong class="text-primary">@item.DueAmount.ToString("N2")</strong></td>
+                                        <td>@Html.DisplayFor(modelItem => item.PurchaseDescription)</td>
                                     </tr>
                                 }
                             }
@@ -155,7 +154,7 @@
                                     <td colspan="9" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-                                            <h5 class="text-muted">No Sales Data Found</h5>
+                                            <h5 class="text-muted">No Purchase Data Found</h5>
                                             <p class="text-muted">Try adjusting your filter criteria to see more results.</p>
                                         </div>
                                     </td>
@@ -189,9 +188,9 @@
                 </div>
                 @if (Model.TotalPages > 1)
                 {
-                    var custId = Model.SalesReportsFilters?.CustomerId?.ToString() ?? "";
-                    var fromDate = Model.SalesReportsFilters?.FromDate?.ToString("yyyy-MM-dd") ?? "";
-                    var toDate = Model.SalesReportsFilters?.ToDate?.ToString("yyyy-MM-dd") ?? "";
+                    var vendorId = Model.Filters?.VendorId?.ToString() ?? "";
+                    var fromDate = Model.Filters?.FromDate?.ToString("yyyy-MM-dd") ?? "";
+                    var toDate = Model.Filters?.ToDate?.ToString("yyyy-MM-dd") ?? "";
                     
                     // Build query string parameters
                     var queryParams = new List<string>
@@ -199,8 +198,8 @@
                         $"pageSize={Model.PageSize}"
                     };
                     
-                    if (!string.IsNullOrEmpty(custId))
-                        queryParams.Add($"custId={custId}");
+                    if (!string.IsNullOrEmpty(vendorId))
+                        queryParams.Add($"vendorId={vendorId}");
                     if (!string.IsNullOrEmpty(fromDate))
                         queryParams.Add($"FromDate={fromDate}");
                     if (!string.IsNullOrEmpty(toDate))
@@ -208,15 +207,15 @@
                     
                     var queryString = string.Join("&", queryParams);
                     
-                    <nav aria-label="Sales Report pagination" class="mt-3">
+                    <nav aria-label="Purchase Report pagination" class="mt-3">
                         <ul class="pagination justify-content-center mb-0">
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=1&@queryString">
+                                <a class="page-link" href="/Report/PurchaseReport?pageNumber=1&@queryString">
                                     <i class="fa fa-angle-double-left me-1"></i>First
                                 </a>
                             </li>
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@(Model.CurrentPage - 1)&@queryString">
+                                <a class="page-link" href="/Report/PurchaseReport?pageNumber=@(Model.CurrentPage - 1)&@queryString">
                                     <i class="fa fa-angle-left me-1"></i>Previous
                                 </a>
                             </li>
@@ -231,16 +230,16 @@
                             @for (int i = startPage; i <= endPage; i++)
                             {
                                 <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                    <a class="page-link" href="/Report/SalesReport?pageNumber=@i&@queryString">@i</a>
+                                    <a class="page-link" href="/Report/PurchaseReport?pageNumber=@i&@queryString">@i</a>
                                 </li>
                             }
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@(Model.CurrentPage + 1)&@queryString">
+                                <a class="page-link" href="/Report/PurchaseReport?pageNumber=@(Model.CurrentPage + 1)&@queryString">
                                     Next<i class="fa fa-angle-right ms-1"></i>
                                 </a>
                             </li>
                             <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                <a class="page-link" href="/Report/SalesReport?pageNumber=@Model.TotalPages&@queryString">
+                                <a class="page-link" href="/Report/PurchaseReport?pageNumber=@Model.TotalPages&@queryString">
                                     Last<i class="fa fa-angle-double-right ms-1"></i>
                                 </a>
                             </li>
@@ -251,76 +250,55 @@
         </div>
         </div>
     </div>
-    @*  </div> *@
 </div>
 
 @section Scripts {
     <script>
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Customer
-            $("#customerComboBox").kendoComboBox({
-                placeholder: "-- Select Customer --",
+            // Initialize Kendo UI ComboBox for Vendor
+            $("#vendorComboBox").kendoComboBox({
+                placeholder: "-- Select Vendor --",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
                 dataTextField: "Text",
                 dataValueField: "Value",
                 change: function(e) {
-                    console.log("Customer selection changed:", e.sender.value());
+                    console.log("Vendor selection changed:", e.sender.value());
                 },
                 select: function(e) {
-                    console.log("Customer selected:", e.item);
+                    console.log("Vendor selected:", e.item);
                 }
             });
         });
 
-        function SearchNameChange(){
-            debugger;
-
-            const search = document.querySelector('input[name="searchUsername"]').value;
-            window.location.href = '@Url.Action("SalesReport", "Report")'
-                + '?pageNumber=1&pageSize=' + select.value
-                + (search ? '&searchUsername=' + encodeURIComponent(search) : '');
-        }
-
-
-           function changePageSize(select) {
-              
-            var custId = document.getElementById("customerComboBox").value;
+        function changePageSize(select) {
+            var vendorId = document.getElementById("vendorComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
 
-            var url = `/Report/SalesReport?pageNumber=1&custId=${custId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/PurchaseReport?pageNumber=1&vendorId=${vendorId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}`;
             window.location.href = url;
-            
         }
-
-
-          
-     
-
-
     </script>
     <script>
         document.getElementById("exportExcelBtn").addEventListener("click", function () {
-            var custId = document.getElementById("customerComboBox").value;
+            var vendorId = document.getElementById("vendorComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
 
-            var url = `/Report/ExportExcel?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/ExportPurchaseExcel?vendorId=${vendorId}&FromDate=${fromDate}&ToDate=${toDate}`;
             window.location.href = url;
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
-            var custId = document.getElementById("customerComboBox").value;
+            var vendorId = document.getElementById("vendorComboBox").value;
             var fromDate = document.querySelector("input[name='FromDate']").value;
             var toDate = document.querySelector("input[name='ToDate']").value;
 
-            var url = `/Report/ExportPdf?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
+            var url = `/Report/ExportPurchasePdf?vendorId=${vendorId}&FromDate=${fromDate}&ToDate=${toDate}`;
             window.location.href = url;
         });
-
-           
-
     </script>
 }
+

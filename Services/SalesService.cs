@@ -228,7 +228,7 @@ namespace IMS.Services
         }
 
         public long AddSaleDetails(long saleId, long productId, decimal unitPrice, decimal quantity, decimal salePrice,
-        decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue)
+        decimal lineDiscountAmount, decimal payableAmount, long productRangeId,DateTime currentdate,long userId,string paymentMethod,long? onlineAccountId, out int returnValue)
         {
             long saleDetailsId = 0;
             returnValue = 0;
@@ -250,7 +250,11 @@ namespace IMS.Services
                     command.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                     command.Parameters.AddWithValue("@pPayableAmount", payableAmount);
                     command.Parameters.AddWithValue("@ProductRangeId_FK", productRangeId);
-
+                    command.Parameters.AddWithValue("@CreatedDate", currentdate);
+                    command.Parameters.AddWithValue("@CreatedBy", userId);
+                    command.Parameters.AddWithValue("@PaymentMethod", paymentMethod ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@onlineAccountId", onlineAccountId ?? (object)DBNull.Value);
+                    
                     SqlParameter saleDetailsIdParam = new SqlParameter("@pSaleDetailsId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
                     command.Parameters.Add(saleDetailsIdParam);
 
@@ -409,6 +413,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pBillNumber", sale.BillNumber);
                         command.Parameters.AddWithValue("@pSaleDescription", sale.SaleDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleDate", sale.SaleDate);
+                        command.Parameters.AddWithValue("@PaymentMethod", sale.PaymentMethod);
+                        command.Parameters.AddWithValue("@OnlineAccountId", sale.OnlineAccountId ?? (object)DBNull.Value);
                        
 
                         var rowsAffected = await command.ExecuteNonQueryAsync();

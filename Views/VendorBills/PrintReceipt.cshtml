@@ -187,12 +187,14 @@
                 {
                     @foreach (var item in Model.BillItems)
                     {
+
+                        var lineLevelTotal = @item.UnitPrice * @item.Quantity;
                         <tr>
                             <td>@srNo</td>
                             <td>@item.ProductName</td>
                             <td>@item.Quantity</td>
                             <td>@item.UnitPrice.ToString("N2")</td>
-                            <td>@item.PayableAmount.ToString("N2")</td>
+                            <td>@lineLevelTotal.ToString("N2")</td>
                         </tr>
                         srNo++;
                     }

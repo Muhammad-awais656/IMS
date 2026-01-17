@@ -22,7 +22,7 @@ namespace IMS.Common_Interfaces
             string paymentMethod = null, long? onlineAccountId = null);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);
         long AddSaleDetails(long saleId, long productId, decimal unitPrice, decimal quantity, decimal salePrice,
-            decimal lineDiscountAmount, decimal payableAmount, long productRangeId, out int returnValue);
+            decimal lineDiscountAmount, decimal payableAmount, long productRangeId, DateTime currentdate, long userId, string paymentMethod, long? accountId, out int returnValue);
       
         Task<StockMaster> GetStockByProductIdAsync(long productId);
         long UpdateStock(long stockMasterId, long productId, decimal availableQuantity,decimal totalQty, decimal usedQuantity,

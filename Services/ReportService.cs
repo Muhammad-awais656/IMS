@@ -25,6 +25,10 @@ namespace IMS.Services
             var sale = new List<salesReportItems>();
             var customers = new List<Customer>();
             int totalRecords = 0;
+            decimal totalAmount = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalReceivedAmount = 0;
+            decimal totalDueAmount = 0;
             try
             {
 
@@ -48,7 +52,7 @@ namespace IMS.Services
 
                             while (await reader.ReadAsync())
                             {
-                                sale.Add(new salesReportItems
+                                var saleItem = new salesReportItems
                                 {
                                     SaleId = reader.IsDBNull(reader.GetOrdinal("SaleId"))
             ? 0
@@ -89,11 +93,15 @@ namespace IMS.Services
                                     SaleDescription = reader.IsDBNull(reader.GetOrdinal("SaleDescription"))
             ? string.Empty
             : reader.GetString(reader.GetOrdinal("SaleDescription")),
-
-
-                                });
-                              
-
+                                };
+                                
+                                sale.Add(saleItem);
+                                
+                                // Calculate totals
+                                totalAmount += saleItem.TotalAmount;
+                                totalDiscountAmount += saleItem.DiscountAmount;
+                                totalReceivedAmount += saleItem.TotalReceivedAmount;
+                                totalDueAmount += saleItem.TotalDueAmount;
                             }
 
                             await reader.NextResultAsync();
@@ -106,7 +114,37 @@ namespace IMS.Services
                         }
                     }
 
+                    // Get overall totals from database
+                    var totalsSql = @"
+                        SELECT 
+                            SUM(TotalAmount) AS TotalAmount,
+                            SUM(DiscountAmount) AS TotalDiscountAmount,
+                            SUM(TotalReceivedAmount) AS TotalReceivedAmount,
+                            SUM(TotalDueAmount) AS TotalDueAmount
+                        FROM Sales
+                        WHERE IsDeleted = 0
+                            AND (@CustomerId IS NULL OR CustomerId_FK = @CustomerId)
+                            AND (@FromDate IS NULL OR SaleDate >= @FromDate)
+                            AND (@ToDate IS NULL OR SaleDate <= @ToDate);
+                    ";
 
+                    using (var totalsCommand = new SqlCommand(totalsSql, connection))
+                    {
+                        totalsCommand.Parameters.AddWithValue("@CustomerId", (object)salesReportsFilters?.CustomerId ?? DBNull.Value);
+                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.FromDate);
+                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
+
+                        using (var totalsReader = await totalsCommand.ExecuteReaderAsync())
+                        {
+                            if (await totalsReader.ReadAsync())
+                            {
+                                totalAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalAmount"));
+                                totalDiscountAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalDiscountAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalDiscountAmount"));
+                                totalReceivedAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalReceivedAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalReceivedAmount"));
+                                totalDueAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalDueAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalDueAmount"));
+                            }
+                        }
+                    }
 
                 }
 
@@ -129,7 +167,11 @@ namespace IMS.Services
                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
                    : 1,
                 PageSize = pageSize,
-                TotalCount = totalRecords
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount,
+                TotalDiscountAmount = totalDiscountAmount,
+                TotalReceivedAmount = totalReceivedAmount,
+                TotalDueAmount = totalDueAmount
             };
         }
         public async Task<ReportsViewModel> GetAllSalesReport(int pageNumber, int? pageSize, SalesReportsFilters? salesReportsFilters)
@@ -137,6 +179,10 @@ namespace IMS.Services
             var sale = new List<salesReportItems>();
             var customers = new List<Customer>();
             int totalRecords = 0;
+            decimal totalAmount = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalReceivedAmount = 0;
+            decimal totalDueAmount = 0;
             try
             {
 
@@ -217,7 +263,37 @@ namespace IMS.Services
                         }
                     }
 
+                    // Get overall totals from database
+                    var totalsSql = @"
+                        SELECT 
+                            SUM(TotalAmount) AS TotalAmount,
+                            SUM(DiscountAmount) AS TotalDiscountAmount,
+                            SUM(TotalReceivedAmount) AS TotalReceivedAmount,
+                            SUM(TotalDueAmount) AS TotalDueAmount
+                        FROM Sales
+                        WHERE IsDeleted = 0
+                            AND (@CustomerId IS NULL OR CustomerId_FK = @CustomerId)
+                            AND (@FromDate IS NULL OR SaleDate >= @FromDate)
+                            AND (@ToDate IS NULL OR SaleDate <= @ToDate);
+                    ";
 
+                    using (var totalsCommand = new SqlCommand(totalsSql, connection))
+                    {
+                        totalsCommand.Parameters.AddWithValue("@CustomerId", (object)salesReportsFilters?.CustomerId ?? DBNull.Value);
+                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.FromDate);
+                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
+
+                        using (var totalsReader = await totalsCommand.ExecuteReaderAsync())
+                        {
+                            if (await totalsReader.ReadAsync())
+                            {
+                                totalAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalAmount"));
+                                totalDiscountAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalDiscountAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalDiscountAmount"));
+                                totalReceivedAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalReceivedAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalReceivedAmount"));
+                                totalDueAmount = totalsReader.IsDBNull(totalsReader.GetOrdinal("TotalDueAmount")) ? 0m : totalsReader.GetDecimal(totalsReader.GetOrdinal("TotalDueAmount"));
+                            }
+                        }
+                    }
 
                 }
 
@@ -240,7 +316,11 @@ namespace IMS.Services
                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
                    : 1,
                 PageSize = pageSize,
-                TotalCount = totalRecords
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount,
+                TotalDiscountAmount = totalDiscountAmount,
+                TotalReceivedAmount = totalReceivedAmount,
+                TotalDueAmount = totalDueAmount
             };
         }
 
@@ -555,6 +635,722 @@ namespace IMS.Services
                 TotalSalesAmount = totalSalesAmount,
                 TotalPurchaseCost = totalPurchaseCost,
                 TotalProfitLoss = totalProfitLoss
+            };
+        }
+
+        public async Task<DailyStockReportViewModel> GetDailyStockReport(int pageNumber, int? pageSize, DailyStockReportFilters? filters)
+        {
+            var stockList = new List<DailyStockReportItem>();
+            int totalRecords = 0;
+            decimal totalStockValue = 0;
+            decimal totalAvailableQuantity = 0;
+            decimal totalUsedQuantity = 0;
+            decimal totalQuantity = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            p.ProductId,
+                            p.ProductName,
+                            ISNULL(p.ProductCode, '') AS ProductCode,
+                            ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
+                            ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
+                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
+                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
+                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(p.Location, '') AS StockLocation
+                        FROM Products p
+                        LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
+                        LEFT JOIN (
+                            SELECT 
+                                pr.ProductId_FK,
+                                AVG(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK
+                        WHERE p.IsEnabled = 1
+                            AND (@ProductId IS NULL OR p.ProductId = @ProductId)
+                        ORDER BY p.ProductName
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM Products p
+                        WHERE p.IsEnabled = 1
+                            AND (@ProductId IS NULL OR p.ProductId = @ProductId);
+
+                        SELECT 
+                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
+                            SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
+                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                        FROM Products p
+                        LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
+                        LEFT JOIN (
+                            SELECT 
+                                pr.ProductId_FK,
+                                AVG(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK
+                        WHERE p.IsEnabled = 1
+                            AND (@ProductId IS NULL OR p.ProductId = @ProductId);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
+                        command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read stock data
+                            while (await reader.ReadAsync())
+                            {
+                                stockList.Add(new DailyStockReportItem
+                                {
+                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    TotalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity")),
+                                    UsedQuantity = reader.IsDBNull(reader.GetOrdinal("UsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
+                                    AvailableQuantity = reader.IsDBNull(reader.GetOrdinal("AvailableQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("AvailableQuantity")),
+                                    UnitPrice = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    StockValue = reader.IsDBNull(reader.GetOrdinal("StockValue")) ? 0m : reader.GetDecimal(reader.GetOrdinal("StockValue")),
+                                    StockLocation = reader.IsDBNull(reader.GetOrdinal("StockLocation")) ? string.Empty : reader.GetString(reader.GetOrdinal("StockLocation"))
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords")) ? 0 : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAvailableQuantity = reader.IsDBNull(reader.GetOrdinal("TotalAvailableQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAvailableQuantity"));
+                                totalUsedQuantity = reader.IsDBNull(reader.GetOrdinal("TotalUsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalUsedQuantity"));
+                                totalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity"));
+                                totalStockValue = reader.IsDBNull(reader.GetOrdinal("TotalStockValue")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalStockValue"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new DailyStockReportViewModel
+            {
+                StockList = stockList,
+                Filters = filters ?? new DailyStockReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                   ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                   : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAvailableQuantity = totalAvailableQuantity,
+                TotalUsedQuantity = totalUsedQuantity,
+                TotalQuantity = totalQuantity,
+                TotalStockValue = totalStockValue
+            };
+        }
+
+        public async Task<DailyStockReportViewModel> GetDailyStockReportForExport(int pageNumber, int? pageSize, DailyStockReportFilters? filters)
+        {
+            // For export, get all records without pagination
+            var stockList = new List<DailyStockReportItem>();
+            decimal totalStockValue = 0;
+            decimal totalAvailableQuantity = 0;
+            decimal totalUsedQuantity = 0;
+            decimal totalQuantity = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            p.ProductId,
+                            p.ProductName,
+                            ISNULL(p.ProductCode, '') AS ProductCode,
+                            ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
+                            ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
+                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
+                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
+                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(p.Location, '') AS StockLocation
+                        FROM Products p
+                        LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
+                        LEFT JOIN (
+                            SELECT 
+                                pr.ProductId_FK,
+                                AVG(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK
+                        WHERE p.IsEnabled = 1
+                            AND (@ProductId IS NULL OR p.ProductId = @ProductId)
+                        ORDER BY p.ProductName;
+
+                        SELECT 
+                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
+                            SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
+                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                        FROM Products p
+                        LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
+                        LEFT JOIN (
+                            SELECT 
+                                pr.ProductId_FK,
+                                AVG(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK
+                        WHERE p.IsEnabled = 1
+                            AND (@ProductId IS NULL OR p.ProductId = @ProductId);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                stockList.Add(new DailyStockReportItem
+                                {
+                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    TotalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity")),
+                                    UsedQuantity = reader.IsDBNull(reader.GetOrdinal("UsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
+                                    AvailableQuantity = reader.IsDBNull(reader.GetOrdinal("AvailableQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("AvailableQuantity")),
+                                    UnitPrice = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    StockValue = reader.IsDBNull(reader.GetOrdinal("StockValue")) ? 0m : reader.GetDecimal(reader.GetOrdinal("StockValue")),
+                                    StockLocation = reader.IsDBNull(reader.GetOrdinal("StockLocation")) ? string.Empty : reader.GetString(reader.GetOrdinal("StockLocation"))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAvailableQuantity = reader.IsDBNull(reader.GetOrdinal("TotalAvailableQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAvailableQuantity"));
+                                totalUsedQuantity = reader.IsDBNull(reader.GetOrdinal("TotalUsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalUsedQuantity"));
+                                totalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity"));
+                                totalStockValue = reader.IsDBNull(reader.GetOrdinal("TotalStockValue")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalStockValue"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new DailyStockReportViewModel
+            {
+                StockList = stockList,
+                Filters = filters ?? new DailyStockReportFilters(),
+                CurrentPage = 1,
+                TotalPages = 1,
+                PageSize = stockList.Count,
+                TotalCount = stockList.Count,
+                TotalAvailableQuantity = totalAvailableQuantity,
+                TotalUsedQuantity = totalUsedQuantity,
+                TotalQuantity = totalQuantity,
+                TotalStockValue = totalStockValue
+            };
+        }
+
+        public async Task<BankCreditDebitReportViewModel> GetBankCreditDebitReport(int pageNumber, int? pageSize, BankCreditDebitReportFilters? filters)
+        {
+            var transactionList = new List<BankCreditDebitReportItem>();
+            int totalRecords = 0;
+            decimal totalCreditAmount = 0;
+            decimal totalDebitAmount = 0;
+            decimal netBalance = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            ppsd.PersonalPaymentSaleDetailId AS TransactionId,
+                            ppsd.PersonalPaymentId,
+                            pp.BankName,
+                            pp.AccountNumber,
+                            pp.AccountHolderName,
+                            ISNULL(pp.BankBranch, '') AS BankBranch,
+                            ppsd.TransactionType,
+                            ppsd.Amount,
+                            ppsd.Balance,
+                            ISNULL(ppsd.TransactionDescription, '') AS TransactionDescription,
+                            ppsd.TransactionDate,
+                            ppsd.SaleId,
+                            ISNULL(s.BillNumber, 0) AS BillNumber,
+                            ISNULL(s.SaleDescription, '') AS ReferenceDescription
+                        FROM PersonalPaymentSaleDetail ppsd
+                        INNER JOIN PersonalPayments pp ON ppsd.PersonalPaymentId = pp.PersonalPaymentId
+                        LEFT JOIN Sales s ON ppsd.SaleId = s.SaleId
+                        WHERE ppsd.IsActive = 1
+                            AND (@FromDate IS NULL OR ppsd.TransactionDate >= @FromDate)
+                            AND (@ToDate IS NULL OR ppsd.TransactionDate <= @ToDate)
+                            AND (@PersonalPaymentId IS NULL OR ppsd.PersonalPaymentId = @PersonalPaymentId)
+                            AND (@TransactionType IS NULL OR ppsd.TransactionType = @TransactionType)
+                        ORDER BY ppsd.TransactionDate DESC, pp.BankName, pp.AccountNumber
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM PersonalPaymentSaleDetail ppsd
+                        WHERE ppsd.IsActive = 1
+                            AND (@FromDate IS NULL OR ppsd.TransactionDate >= @FromDate)
+                            AND (@ToDate IS NULL OR ppsd.TransactionDate <= @ToDate)
+                            AND (@PersonalPaymentId IS NULL OR ppsd.PersonalPaymentId = @PersonalPaymentId)
+                            AND (@TransactionType IS NULL OR ppsd.TransactionType = @TransactionType);
+
+                        SELECT 
+                            SUM(CASE WHEN TransactionType = 'Credit' THEN Amount ELSE 0 END) AS TotalCreditAmount,
+                            SUM(CASE WHEN TransactionType = 'Debit' THEN Amount ELSE 0 END) AS TotalDebitAmount,
+                            SUM(CASE WHEN TransactionType = 'Credit' THEN Amount ELSE -Amount END) AS NetBalance
+                        FROM PersonalPaymentSaleDetail ppsd
+                        WHERE ppsd.IsActive = 1
+                            AND (@FromDate IS NULL OR ppsd.TransactionDate >= @FromDate)
+                            AND (@ToDate IS NULL OR ppsd.TransactionDate <= @ToDate)
+                            AND (@PersonalPaymentId IS NULL OR ppsd.PersonalPaymentId = @PersonalPaymentId)
+                            AND (@TransactionType IS NULL OR ppsd.TransactionType = @TransactionType);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
+                        command.Parameters.AddWithValue("@PersonalPaymentId", (object)filters?.PersonalPaymentId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@TransactionType", string.IsNullOrEmpty(filters?.TransactionType) ? DBNull.Value : (object)filters.TransactionType);
+                        command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
+                        command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read transaction data
+                            while (await reader.ReadAsync())
+                            {
+                                transactionList.Add(new BankCreditDebitReportItem
+                                {
+                                    TransactionId = reader.IsDBNull(reader.GetOrdinal("TransactionId")) ? 0 : reader.GetInt64(reader.GetOrdinal("TransactionId")),
+                                    PersonalPaymentId = reader.IsDBNull(reader.GetOrdinal("PersonalPaymentId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PersonalPaymentId")),
+                                    BankName = reader.IsDBNull(reader.GetOrdinal("BankName")) ? string.Empty : reader.GetString(reader.GetOrdinal("BankName")),
+                                    AccountNumber = reader.IsDBNull(reader.GetOrdinal("AccountNumber")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountNumber")),
+                                    AccountHolderName = reader.IsDBNull(reader.GetOrdinal("AccountHolderName")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountHolderName")),
+                                    BankBranch = reader.IsDBNull(reader.GetOrdinal("BankBranch")) ? string.Empty : reader.GetString(reader.GetOrdinal("BankBranch")),
+                                    TransactionType = reader.IsDBNull(reader.GetOrdinal("TransactionType")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransactionType")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    Balance = reader.IsDBNull(reader.GetOrdinal("Balance")) ? 0m : reader.GetDecimal(reader.GetOrdinal("Balance")),
+                                    TransactionDescription = reader.IsDBNull(reader.GetOrdinal("TransactionDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransactionDescription")),
+                                    TransactionDate = reader.IsDBNull(reader.GetOrdinal("TransactionDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("TransactionDate")),
+                                    SaleId = reader.IsDBNull(reader.GetOrdinal("SaleId")) ? null : reader.GetInt64(reader.GetOrdinal("SaleId")),
+                                    BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? null : reader.GetInt64(reader.GetOrdinal("BillNumber")),
+                                    ReferenceDescription = reader.IsDBNull(reader.GetOrdinal("ReferenceDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("ReferenceDescription"))
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords")) ? 0 : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalCreditAmount = reader.IsDBNull(reader.GetOrdinal("TotalCreditAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalCreditAmount"));
+                                totalDebitAmount = reader.IsDBNull(reader.GetOrdinal("TotalDebitAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDebitAmount"));
+                                netBalance = reader.IsDBNull(reader.GetOrdinal("NetBalance")) ? 0m : reader.GetDecimal(reader.GetOrdinal("NetBalance"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new BankCreditDebitReportViewModel
+            {
+                TransactionList = transactionList,
+                Filters = filters ?? new BankCreditDebitReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                   ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                   : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalCreditAmount = totalCreditAmount,
+                TotalDebitAmount = totalDebitAmount,
+                NetBalance = netBalance
+            };
+        }
+
+        public async Task<BankCreditDebitReportViewModel> GetBankCreditDebitReportForExport(int pageNumber, int? pageSize, BankCreditDebitReportFilters? filters)
+        {
+            // For export, get all records without pagination
+            var transactionList = new List<BankCreditDebitReportItem>();
+            decimal totalCreditAmount = 0;
+            decimal totalDebitAmount = 0;
+            decimal netBalance = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            ppsd.PersonalPaymentSaleDetailId AS TransactionId,
+                            ppsd.PersonalPaymentId,
+                            pp.BankName,
+                            pp.AccountNumber,
+                            pp.AccountHolderName,
+                            ISNULL(pp.BankBranch, '') AS BankBranch,
+                            ppsd.TransactionType,
+                            ppsd.Amount,
+                            ppsd.Balance,
+                            ISNULL(ppsd.TransactionDescription, '') AS TransactionDescription,
+                            ppsd.TransactionDate,
+                            ppsd.SaleId,
+                            ISNULL(s.BillNumber, 0) AS BillNumber,
+                            ISNULL(s.SaleDescription, '') AS ReferenceDescription
+                        FROM PersonalPaymentSaleDetail ppsd
+                        INNER JOIN PersonalPayments pp ON ppsd.PersonalPaymentId = pp.PersonalPaymentId
+                        LEFT JOIN Sales s ON ppsd.SaleId = s.SaleId
+                        WHERE ppsd.IsActive = 1
+                            AND (@FromDate IS NULL OR ppsd.TransactionDate >= @FromDate)
+                            AND (@ToDate IS NULL OR ppsd.TransactionDate <= @ToDate)
+                            AND (@PersonalPaymentId IS NULL OR ppsd.PersonalPaymentId = @PersonalPaymentId)
+                            AND (@TransactionType IS NULL OR ppsd.TransactionType = @TransactionType)
+                        ORDER BY ppsd.TransactionDate DESC, pp.BankName, pp.AccountNumber;
+
+                        SELECT 
+                            SUM(CASE WHEN TransactionType = 'Credit' THEN Amount ELSE 0 END) AS TotalCreditAmount,
+                            SUM(CASE WHEN TransactionType = 'Debit' THEN Amount ELSE 0 END) AS TotalDebitAmount,
+                            SUM(CASE WHEN TransactionType = 'Credit' THEN Amount ELSE -Amount END) AS NetBalance
+                        FROM PersonalPaymentSaleDetail ppsd
+                        WHERE ppsd.IsActive = 1
+                            AND (@FromDate IS NULL OR ppsd.TransactionDate >= @FromDate)
+                            AND (@ToDate IS NULL OR ppsd.TransactionDate <= @ToDate)
+                            AND (@PersonalPaymentId IS NULL OR ppsd.PersonalPaymentId = @PersonalPaymentId)
+                            AND (@TransactionType IS NULL OR ppsd.TransactionType = @TransactionType);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
+                        command.Parameters.AddWithValue("@PersonalPaymentId", (object)filters?.PersonalPaymentId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@TransactionType", string.IsNullOrEmpty(filters?.TransactionType) ? DBNull.Value : (object)filters.TransactionType);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                transactionList.Add(new BankCreditDebitReportItem
+                                {
+                                    TransactionId = reader.IsDBNull(reader.GetOrdinal("TransactionId")) ? 0 : reader.GetInt64(reader.GetOrdinal("TransactionId")),
+                                    PersonalPaymentId = reader.IsDBNull(reader.GetOrdinal("PersonalPaymentId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PersonalPaymentId")),
+                                    BankName = reader.IsDBNull(reader.GetOrdinal("BankName")) ? string.Empty : reader.GetString(reader.GetOrdinal("BankName")),
+                                    AccountNumber = reader.IsDBNull(reader.GetOrdinal("AccountNumber")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountNumber")),
+                                    AccountHolderName = reader.IsDBNull(reader.GetOrdinal("AccountHolderName")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountHolderName")),
+                                    BankBranch = reader.IsDBNull(reader.GetOrdinal("BankBranch")) ? string.Empty : reader.GetString(reader.GetOrdinal("BankBranch")),
+                                    TransactionType = reader.IsDBNull(reader.GetOrdinal("TransactionType")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransactionType")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    Balance = reader.IsDBNull(reader.GetOrdinal("Balance")) ? 0m : reader.GetDecimal(reader.GetOrdinal("Balance")),
+                                    TransactionDescription = reader.IsDBNull(reader.GetOrdinal("TransactionDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("TransactionDescription")),
+                                    TransactionDate = reader.IsDBNull(reader.GetOrdinal("TransactionDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("TransactionDate")),
+                                    SaleId = reader.IsDBNull(reader.GetOrdinal("SaleId")) ? null : reader.GetInt64(reader.GetOrdinal("SaleId")),
+                                    BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? null : reader.GetInt64(reader.GetOrdinal("BillNumber")),
+                                    ReferenceDescription = reader.IsDBNull(reader.GetOrdinal("ReferenceDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("ReferenceDescription"))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalCreditAmount = reader.IsDBNull(reader.GetOrdinal("TotalCreditAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalCreditAmount"));
+                                totalDebitAmount = reader.IsDBNull(reader.GetOrdinal("TotalDebitAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDebitAmount"));
+                                netBalance = reader.IsDBNull(reader.GetOrdinal("NetBalance")) ? 0m : reader.GetDecimal(reader.GetOrdinal("NetBalance"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new BankCreditDebitReportViewModel
+            {
+                TransactionList = transactionList,
+                Filters = filters ?? new BankCreditDebitReportFilters(),
+                CurrentPage = 1,
+                TotalPages = 1,
+                PageSize = transactionList.Count,
+                TotalCount = transactionList.Count,
+                TotalCreditAmount = totalCreditAmount,
+                TotalDebitAmount = totalDebitAmount,
+                NetBalance = netBalance
+            };
+        }
+
+        public async Task<PurchaseReportViewModel> GetPurchaseReport(int pageNumber, int? pageSize, PurchaseReportFilters? filters)
+        {
+            var purchaseList = new List<PurchaseReportItem>();
+            int totalRecords = 0;
+            decimal totalAmount = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalPaidAmount = 0;
+            decimal totalDueAmount = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            po.PurchaseOrderId,
+                            ISNULL(s.SupplierName, '') AS VendorName,
+                            po.BillNumber,
+                            po.SupplierId_FK AS VendorIdFk,
+                            po.PurchaseOrderDate AS PurchaseDate,
+                            po.TotalAmount,
+                            po.DiscountAmount,
+                            po.TotalReceivedAmount AS PaidAmount,
+                            po.TotalDueAmount AS DueAmount,
+                            ISNULL(po.PurchaseOrderDescription, '') AS PurchaseDescription
+                        FROM PurchaseOrders po
+                        LEFT JOIN Suppliers s ON po.SupplierId_FK = s.SupplierId
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                            AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
+                        ORDER BY po.PurchaseOrderDate DESC, po.BillNumber DESC
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM PurchaseOrders po
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                            AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
+
+                        SELECT 
+                            SUM(TotalAmount) AS TotalAmount,
+                            SUM(DiscountAmount) AS TotalDiscountAmount,
+                            SUM(TotalReceivedAmount) AS TotalPaidAmount,
+                            SUM(TotalDueAmount) AS TotalDueAmount
+                        FROM PurchaseOrders po
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                            AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
+                        command.Parameters.AddWithValue("@VendorId", (object)filters?.VendorId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
+                        command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read purchase data
+                            while (await reader.ReadAsync())
+                            {
+                                purchaseList.Add(new PurchaseReportItem
+                                {
+                                    PurchaseOrderId = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PurchaseOrderId")),
+                                    VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
+                                    VendorIdFk = reader.IsDBNull(reader.GetOrdinal("VendorIdFk")) ? 0 : reader.GetInt64(reader.GetOrdinal("VendorIdFk")),
+                                    PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),
+                                    TotalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+                                    DiscountAmount = reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
+                                    PaidAmount = reader.IsDBNull(reader.GetOrdinal("PaidAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("PaidAmount")),
+                                    DueAmount = reader.IsDBNull(reader.GetOrdinal("DueAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("DueAmount")),
+                                    PurchaseDescription = reader.IsDBNull(reader.GetOrdinal("PurchaseDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("PurchaseDescription"))
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords")) ? 0 : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                                totalDiscountAmount = reader.IsDBNull(reader.GetOrdinal("TotalDiscountAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDiscountAmount"));
+                                totalPaidAmount = reader.IsDBNull(reader.GetOrdinal("TotalPaidAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPaidAmount"));
+                                totalDueAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new PurchaseReportViewModel
+            {
+                PurchaseList = purchaseList,
+                Filters = filters ?? new PurchaseReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                   ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                   : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount,
+                TotalDiscountAmount = totalDiscountAmount,
+                TotalPaidAmount = totalPaidAmount,
+                TotalDueAmount = totalDueAmount
+            };
+        }
+
+        public async Task<PurchaseReportViewModel> GetPurchaseReportForExport(int pageNumber, int? pageSize, PurchaseReportFilters? filters)
+        {
+            // For export, get all records without pagination
+            var purchaseList = new List<PurchaseReportItem>();
+            decimal totalAmount = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalPaidAmount = 0;
+            decimal totalDueAmount = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT 
+                            po.PurchaseOrderId,
+                            ISNULL(s.SupplierName, '') AS VendorName,
+                            po.BillNumber,
+                            po.SupplierId_FK AS VendorIdFk,
+                            po.PurchaseOrderDate AS PurchaseDate,
+                            po.TotalAmount,
+                            po.DiscountAmount,
+                            po.TotalReceivedAmount AS PaidAmount,
+                            po.TotalDueAmount AS DueAmount,
+                            ISNULL(po.PurchaseOrderDescription, '') AS PurchaseDescription
+                        FROM PurchaseOrders po
+                        LEFT JOIN Suppliers s ON po.SupplierId_FK = s.SupplierId
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                            AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
+                        ORDER BY po.PurchaseOrderDate DESC, po.BillNumber DESC;
+
+                        SELECT 
+                            SUM(TotalAmount) AS TotalAmount,
+                            SUM(DiscountAmount) AS TotalDiscountAmount,
+                            SUM(TotalReceivedAmount) AS TotalPaidAmount,
+                            SUM(TotalDueAmount) AS TotalDueAmount
+                        FROM PurchaseOrders po
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                            AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
+                        command.Parameters.AddWithValue("@VendorId", (object)filters?.VendorId ?? DBNull.Value);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                purchaseList.Add(new PurchaseReportItem
+                                {
+                                    PurchaseOrderId = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PurchaseOrderId")),
+                                    VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
+                                    VendorIdFk = reader.IsDBNull(reader.GetOrdinal("VendorIdFk")) ? 0 : reader.GetInt64(reader.GetOrdinal("VendorIdFk")),
+                                    PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),
+                                    TotalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+                                    DiscountAmount = reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
+                                    PaidAmount = reader.IsDBNull(reader.GetOrdinal("PaidAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("PaidAmount")),
+                                    DueAmount = reader.IsDBNull(reader.GetOrdinal("DueAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("DueAmount")),
+                                    PurchaseDescription = reader.IsDBNull(reader.GetOrdinal("PurchaseDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("PurchaseDescription"))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                                totalDiscountAmount = reader.IsDBNull(reader.GetOrdinal("TotalDiscountAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDiscountAmount"));
+                                totalPaidAmount = reader.IsDBNull(reader.GetOrdinal("TotalPaidAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPaidAmount"));
+                                totalDueAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new PurchaseReportViewModel
+            {
+                PurchaseList = purchaseList,
+                Filters = filters ?? new PurchaseReportFilters(),
+                CurrentPage = 1,
+                TotalPages = 1,
+                PageSize = purchaseList.Count,
+                TotalCount = purchaseList.Count,
+                TotalAmount = totalAmount,
+                TotalDiscountAmount = totalDiscountAmount,
+                TotalPaidAmount = totalPaidAmount,
+                TotalDueAmount = totalDueAmount
             };
         }
 

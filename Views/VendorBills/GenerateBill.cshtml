@@ -1039,6 +1039,7 @@
         }
 
         function addProductToTable() {
+            debugger;
             var productComboBox = $("#productSelect").data("kendoComboBox");
             var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
 
@@ -1071,10 +1072,10 @@
             }
 
             // Check stock availability
-            if (quantity > currentAvailableStock) {
-                showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock.toFixed(3)}. You cannot add more than the available stock.`);
-                return;
-            }
+            // if (quantity > currentAvailableStock) {
+            //     showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock.toFixed(3)}. You cannot add more than the available stock.`);
+            //     return;
+            // }
 
             // Get measuring unit abbreviation from selected product size - match Sales pattern exactly
             var measuringUnitAbbreviation = selectedProductSize ? (selectedProductSize.measuringUnitAbbreviation || 'N/A') : 'N/A';
