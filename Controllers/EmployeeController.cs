@@ -32,10 +32,25 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
+                
+                // Get search parameter from query string
+                var searchUsername = HttpContext.Request.Query["searchUsername"].ToString();
+                
                 if (employeesFilters == null)
                 {
-                    employeesFilters.FirstName = HttpContext.Request.Query["searchUsername"].ToString();
+                    employeesFilters = new EmployeesFilters
+                    {
+                        FirstName = searchUsername
+                    };
                 }
+                else if (string.IsNullOrEmpty(employeesFilters.FirstName))
+                {
+                    employeesFilters.FirstName = searchUsername;
+                }
+                
+                // Preserve search value in ViewData for pagination links
+                ViewData["searchUsername"] = searchUsername;
+                
                 viewModel = await _employeeService.GetAllEmployeesAsync(pageNumber, currentPageSize, employeesFilters);
                
                    

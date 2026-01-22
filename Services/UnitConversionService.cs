@@ -1,6 +1,7 @@
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
+using IMS.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
 
@@ -60,6 +61,127 @@ namespace IMS.Services
                 throw;
             }
             return conversions;
+        }
+
+        public async Task<UnitConversionViewModel> GetAllUnitConversionsPagedAsync(int pageNumber, int pageSize, UnitConversionFilters filters)
+        {
+            var viewModel = new UnitConversionViewModel();
+            var conversions = new List<UnitConversionDisplayModel>();
+            var totalCount = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    // Build WHERE clause for filters
+                    var whereConditions = new List<string>();
+                    var parameters = new List<SqlParameter>();
+
+                    if (!string.IsNullOrEmpty(filters.FromUnitName))
+                    {
+                        whereConditions.Add("fu.MeasuringUnitName LIKE @FromUnitName");
+                        parameters.Add(new SqlParameter("@FromUnitName", $"%{filters.FromUnitName}%"));
+                    }
+
+                    if (!string.IsNullOrEmpty(filters.ToUnitName))
+                    {
+                        whereConditions.Add("tu.MeasuringUnitName LIKE @ToUnitName");
+                        parameters.Add(new SqlParameter("@ToUnitName", $"%{filters.ToUnitName}%"));
+                    }
+
+                    if (filters.IsEnabled.HasValue)
+                    {
+                        whereConditions.Add("uc.IsEnabled = @IsEnabled");
+                        parameters.Add(new SqlParameter("@IsEnabled", filters.IsEnabled.Value));
+                    }
+
+                    if (!string.IsNullOrEmpty(filters.Description))
+                    {
+                        whereConditions.Add("uc.Description LIKE @Description");
+                        parameters.Add(new SqlParameter("@Description", $"%{filters.Description}%"));
+                    }
+
+                    var whereClause = whereConditions.Any() ? "WHERE " + string.Join(" AND ", whereConditions) : "";
+
+                    // Get total count
+                    var countQuery = $@"
+                        SELECT COUNT(*)
+                        FROM UnitConversions uc
+                        INNER JOIN AdminMeasuringUnits fu ON uc.FromUnitId = fu.MeasuringUnitId
+                        INNER JOIN AdminMeasuringUnits tu ON uc.ToUnitId = tu.MeasuringUnitId
+                        {whereClause}";
+
+                    using (var countCmd = new SqlCommand(countQuery, connection))
+                    {
+                        countCmd.Parameters.AddRange(parameters.ToArray());
+                        totalCount = (int)await countCmd.ExecuteScalarAsync();
+                    }
+
+                    // Get paginated data
+                    var offset = (pageNumber - 1) * pageSize;
+                    var dataQuery = $@"
+                        SELECT 
+                            uc.UnitConversionId,
+                            uc.FromUnitId,
+                            uc.ToUnitId,
+                            fu.MeasuringUnitName AS FromUnitName,
+                            tu.MeasuringUnitName AS ToUnitName,
+                            uc.ConversionFactor,
+                            uc.Description,
+                            uc.IsEnabled
+                        FROM UnitConversions uc
+                        INNER JOIN AdminMeasuringUnits fu ON uc.FromUnitId = fu.MeasuringUnitId
+                        INNER JOIN AdminMeasuringUnits tu ON uc.ToUnitId = tu.MeasuringUnitId
+                        {whereClause}
+                        ORDER BY fu.MeasuringUnitName, tu.MeasuringUnitName
+                        OFFSET @Offset ROWS
+                        FETCH NEXT @PageSize ROWS ONLY";
+
+                    using (var cmd = new SqlCommand(dataQuery, connection))
+                    {
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                        cmd.Parameters.Add(new SqlParameter("@Offset", offset));
+                        cmd.Parameters.Add(new SqlParameter("@PageSize", pageSize));
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                conversions.Add(new UnitConversionDisplayModel
+                                {
+                                    UnitConversionId = reader.GetInt64(reader.GetOrdinal("UnitConversionId")),
+                                    FromUnitId = reader.GetInt64(reader.GetOrdinal("FromUnitId")),
+                                    ToUnitId = reader.GetInt64(reader.GetOrdinal("ToUnitId")),
+                                    FromUnitName = reader.GetString(reader.GetOrdinal("FromUnitName")),
+                                    ToUnitName = reader.GetString(reader.GetOrdinal("ToUnitName")),
+                                    ConversionFactor = reader.GetDecimal(reader.GetOrdinal("ConversionFactor")),
+                                    Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
+                                    IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting paginated unit conversions");
+                throw;
+            }
+
+            var totalPages = pageSize > 0 ? (int)Math.Ceiling((double)totalCount / pageSize) : 1;
+
+            return new UnitConversionViewModel
+            {
+                UnitConversionsList = conversions,
+                Filters = filters,
+                CurrentPage = pageNumber,
+                TotalPages = totalPages,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<UnitConversion> GetUnitConversionByIdAsync(long id)
@@ -357,6 +479,7 @@ namespace IMS.Services
         }
     }
 }
+
 
 
 

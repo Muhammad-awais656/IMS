@@ -1,6 +1,7 @@
 using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
+using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -24,59 +25,66 @@ namespace IMS.Controllers
         }
 
         // GET: UnitConversionController
-        public async Task<ActionResult> Index()
+        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, UnitConversionFilters? filters = null)
         {
+            const int DefaultPageSize = 5;
+            var allowedPageSizes = new[] { 5, 10, 25 };
+
             try
             {
-                var conversions = await _unitConversionService.GetAllUnitConversionsAsync();
-                
-                // Get unit names for display - use the same method as the Index page to get ALL units
-                var viewModel = await _measuringUnitService.GetAllAdminMeasuringUnitAsync(1, 10000, null);
-                var allUnits = viewModel.AdminMeasuringUnits ?? new List<AdminMeasuringUnit>();
-                
-                // Create dictionary for quick lookup
-                var unitDict = allUnits.ToDictionary(u => u.MeasuringUnitId, u => u.MeasuringUnitName);
-                
-                _logger.LogInformation("Loaded {Count} measuring units for display", allUnits.Count);
-                _logger.LogInformation("Processing {Count} unit conversions", conversions.Count);
-                
-                var displayViewModel = conversions.Select(c => new
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && allowedPageSizes.Contains(pageSize.Value))
                 {
-                    c.UnitConversionId,
-                    c.FromUnitId,
-                    c.ToUnitId,
-                    FromUnitName = unitDict.ContainsKey(c.FromUnitId) ? unitDict[c.FromUnitId] : $"Unknown (ID: {c.FromUnitId})",
-                    ToUnitName = unitDict.ContainsKey(c.ToUnitId) ? unitDict[c.ToUnitId] : $"Unknown (ID: {c.ToUnitId})",
-                    c.ConversionFactor,
-                    c.Description,
-                    c.IsEnabled
-                }).ToList();
-
-                // Log any missing units for debugging
-                var missingFromUnits = conversions.Where(c => !unitDict.ContainsKey(c.FromUnitId)).ToList();
-                var missingToUnits = conversions.Where(c => !unitDict.ContainsKey(c.ToUnitId)).ToList();
-                
-                if (missingFromUnits.Any())
-                {
-                    _logger.LogWarning("Found {Count} conversions with missing FromUnitIds: {Ids}", 
-                        missingFromUnits.Count, 
-                        string.Join(", ", missingFromUnits.Select(c => c.FromUnitId)));
-                }
-                if (missingToUnits.Any())
-                {
-                    _logger.LogWarning("Found {Count} conversions with missing ToUnitIds: {Ids}", 
-                        missingToUnits.Count, 
-                        string.Join(", ", missingToUnits.Select(c => c.ToUnitId)));
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
 
-                ViewBag.Conversions = displayViewModel;
-                return View();
+                if (filters == null)
+                {
+                    filters = new UnitConversionFilters();
+                }
+
+                // Get filter parameters from query string
+                var fromUnitName = HttpContext.Request.Query["Filters.FromUnitName"].ToString();
+                var toUnitName = HttpContext.Request.Query["Filters.ToUnitName"].ToString();
+                var description = HttpContext.Request.Query["Filters.Description"].ToString();
+                var isEnabledStr = HttpContext.Request.Query["Filters.IsEnabled"].ToString();
+
+                if (!string.IsNullOrEmpty(fromUnitName))
+                {
+                    filters.FromUnitName = fromUnitName;
+                }
+
+                if (!string.IsNullOrEmpty(toUnitName))
+                {
+                    filters.ToUnitName = toUnitName;
+                }
+
+                if (!string.IsNullOrEmpty(description))
+                {
+                    filters.Description = description;
+                }
+
+                if (!string.IsNullOrEmpty(isEnabledStr) && bool.TryParse(isEnabledStr, out bool isEnabled))
+                {
+                    filters.IsEnabled = isEnabled;
+                }
+
+                // Preserve filter parameters in ViewData for pagination links
+                ViewData["Filters.FromUnitName"] = filters.FromUnitName;
+                ViewData["Filters.ToUnitName"] = filters.ToUnitName;
+                ViewData["Filters.Description"] = filters.Description;
+                ViewData["Filters.IsEnabled"] = filters.IsEnabled?.ToString();
+
+                var viewModel = await _unitConversionService.GetAllUnitConversionsPagedAsync(pageNumber, currentPageSize, filters);
+                
+                return View(viewModel);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading unit conversions: {Message}", ex.Message);
                 TempData["ErrorMessage"] = ex.Message;
-                return View();
+                return View(new UnitConversionViewModel());
             }
         }
 

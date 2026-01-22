@@ -1,6 +1,6 @@
+@model IMS.Models.UnitConversionViewModel
 @{
     ViewData["Title"] = "Unit Conversions";
-    var conversions = ViewBag.Conversions as IEnumerable<dynamic> ?? new List<dynamic>();
 }
 
 <link href="~/css/product-management.css" rel="stylesheet" />
@@ -30,6 +30,91 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }
+
+        <!-- Enhanced Search Section -->
+        <div class="card mb-4 user-search-card">
+            <div class="card-header user-search-header bg-transparent border-0 py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0 user-search-title">
+                        <i class="fa-solid fa-search user-search-icon me-2"></i>Search & Filter
+                    </h5>
+                </div>
+            </div>
+            <div class="card-body user-search-section pt-0">
+                <form asp-action="Index" asp-controller="UnitConversion" method="get">
+                    <div class="row g-3 align-items-end">
+                        <!-- From Unit Filter -->
+                        <div class="col-md-3">
+                            <div class="form-floating user-search-floating">
+                                <input type="text"
+                                       name="Filters.FromUnitName"
+                                       value="@Model.Filters.FromUnitName"
+                                       class="form-control user-search-input"
+                                       placeholder="Enter from unit name" />
+                                <label class="text-muted">
+                                    <i class="fa-solid fa-arrow-right me-1"></i>From Unit
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- To Unit Filter -->
+                        <div class="col-md-3">
+                            <div class="form-floating user-search-floating">
+                                <input type="text"
+                                       name="Filters.ToUnitName"
+                                       value="@Model.Filters.ToUnitName"
+                                       class="form-control user-search-input"
+                                       placeholder="Enter to unit name" />
+                                <label class="text-muted">
+                                    <i class="fa-solid fa-arrow-left me-1"></i>To Unit
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Description Filter -->
+                        <div class="col-md-2">
+                            <div class="form-floating user-search-floating">
+                                <input type="text"
+                                       name="Filters.Description"
+                                       value="@Model.Filters.Description"
+                                       class="form-control user-search-input"
+                                       placeholder="Enter description" />
+                                <label class="text-muted">
+                                    <i class="fa-solid fa-comment me-1"></i>Description
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <div class="col-md-2">
+                            <div class="form-floating">
+                                <select name="Filters.IsEnabled" class="form-select">
+                                    <option value="">All</option>
+                                    <option value="true" selected="@(Model.Filters.IsEnabled == true)">Active</option>
+                                    <option value="false" selected="@(Model.Filters.IsEnabled == false)">Inactive</option>
+                                </select>
+                                <label class="text-muted">
+                                    <i class="fa-solid fa-toggle-on me-1"></i>Status
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="col-md-2">
+                            <div class="d-flex user-button-group justify-content-end">
+                                <button type="submit" class="btn btn-user-search">
+                                    <i class="fa-solid fa-magnifying-glass me-2"></i>Search
+                                </button>
+                                <a asp-action="Index" class="btn btn-user-reset">
+                                    <i class="fa-solid fa-refresh me-2"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="text-muted">
                 <i class="fa-solid fa-info-circle me-1"></i>
@@ -51,9 +136,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (conversions.Any())
+                    @if (Model.UnitConversionsList != null && Model.UnitConversionsList.Any())
                     {
-                        @foreach (var item in conversions)
+                        @foreach (var item in Model.UnitConversionsList)
                         {
                             <tr>
                                 <td>
@@ -95,10 +180,10 @@
                             <td colspan="5" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="fa-solid fa-info-circle fa-2x mb-3 d-block"></i>
-                                    <p class="mb-2">No unit conversions configured yet.</p>
-                                    <p class="small">Configure unit conversions like "1 bori = 50kg" to enable automatic conversions throughout the application.</p>
+                                    <p class="mb-2">No unit conversions found.</p>
+                                    <p class="small">Try adjusting your search criteria or create a new unit conversion.</p>
                                     <a asp-action="Create" class="btn btn-primary mt-2">
-                                        <i class="fa-solid fa-plus me-2"></i>Create Your First Unit Conversion
+                                        <i class="fa-solid fa-plus me-2"></i>Create Unit Conversion
                                     </a>
                                 </div>
                             </td>
@@ -107,7 +192,95 @@
                 </tbody>
             </table>
         </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
+            <div class="end-0">
+                <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
+                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
+                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                </select>
+            </div>
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Unit Conversion pagination">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-Filters.FromUnitName="@ViewData["Filters.FromUnitName"]"
+                               asp-route-Filters.ToUnitName="@ViewData["Filters.ToUnitName"]"
+                               asp-route-Filters.Description="@ViewData["Filters.Description"]"
+                               asp-route-Filters.IsEnabled="@ViewData["Filters.IsEnabled"]">First</a>
+                        </li>
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
+                               asp-route-Filters.FromUnitName="@ViewData["Filters.FromUnitName"]"
+                               asp-route-Filters.ToUnitName="@ViewData["Filters.ToUnitName"]"
+                               asp-route-Filters.Description="@ViewData["Filters.Description"]"
+                               asp-route-Filters.IsEnabled="@ViewData["Filters.IsEnabled"]">Previous</a>
+                        </li>
+                        @{
+                            int startPage = Math.Max(1, Model.CurrentPage - 1);
+                            int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                            if (endPage - startPage < 2)
+                            {
+                                startPage = Math.Max(1, endPage - 2);
+                            }
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize"
+                                   asp-route-Filters.FromUnitName="@ViewData["Filters.FromUnitName"]"
+                                   asp-route-Filters.ToUnitName="@ViewData["Filters.ToUnitName"]"
+                                   asp-route-Filters.Description="@ViewData["Filters.Description"]"
+                                   asp-route-Filters.IsEnabled="@ViewData["Filters.IsEnabled"]">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize"
+                               asp-route-Filters.FromUnitName="@ViewData["Filters.FromUnitName"]"
+                               asp-route-Filters.ToUnitName="@ViewData["Filters.ToUnitName"]"
+                               asp-route-Filters.Description="@ViewData["Filters.Description"]"
+                               asp-route-Filters.IsEnabled="@ViewData["Filters.IsEnabled"]">Next</a>
+                        </li>
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize"
+                               asp-route-Filters.FromUnitName="@ViewData["Filters.FromUnitName"]"
+                               asp-route-Filters.ToUnitName="@ViewData["Filters.ToUnitName"]"
+                               asp-route-Filters.Description="@ViewData["Filters.Description"]"
+                               asp-route-Filters.IsEnabled="@ViewData["Filters.IsEnabled"]">Last</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
     </div>
 </div>
 
-
+@section Scripts {
+    <script>
+        function changePageSize(select) {
+            // Get current form values
+            const form = document.querySelector('form');
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+            
+            // Add all form data to params
+            for (let [key, value] of formData.entries()) {
+                if (value.trim() !== '') {
+                    params.append(key, value);
+                }
+            }
+            
+            // Add pagination
+            params.set('pageNumber', '1');
+            params.set('pageSize', select.value);
+            
+            // Redirect with parameters
+            window.location.href = '@Url.Action("Index", "UnitConversion")' + '?' + params.toString();
+        }
+    </script>
+}

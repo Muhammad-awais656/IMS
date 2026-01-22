@@ -29,18 +29,6 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    // Get total count
-                    using (var command = new SqlCommand("SELECT COUNT(*) FROM PersonalPayments", connection))
-                    {
-                        try
-                        {
-                            totalCount = (int)await command.ExecuteScalarAsync();
-                        }
-                        catch
-                        {
-                        }
-                    }
-
                     using (var command = new SqlCommand("GetAllPersonalPayments", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
@@ -62,6 +50,7 @@ namespace IMS.Services
                         {
                             using (var reader = await command.ExecuteReaderAsync())
                             {
+                                // Read first result set - paginated payment data
                                 while (await reader.ReadAsync())
                                 {
                                     personalPayments.Add(new PersonalPaymentModel
@@ -82,19 +71,145 @@ namespace IMS.Services
                                         ModifiedBy = "System" // You might want to join with user table
                                     });
                                 }
+                                
+                                // Move to second result set (total count)
+                                if (await reader.NextResultAsync())
+                                {
+                                    if (await reader.ReadAsync())
+                                    {
+                                        try
+                                        {
+                                            totalCount = reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                                        }
+                                        catch
+                                        {
+                                            // Try alternative column names
+                                            try
+                                            {
+                                                totalCount = reader.GetInt32(reader.GetOrdinal("TotalCount"));
+                                            }
+                                            catch
+                                            {
+                                                _logger.LogWarning("TotalRecords or TotalCount column not found in second result set");
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            _logger.LogError(ex, "Error reading personal payments data");
+                            throw;
+                        }
+                    }
+
+                    // If totalCount is still 0, we need to get it separately
+                    // This happens if the stored procedure doesn't return a second result set
+                    if (totalCount == 0 && personalPayments.Count > 0 && connection.State == System.Data.ConnectionState.Open)
+                    {
+                        _logger.LogWarning("Total count not returned from stored procedure, querying separately");
+                        try
+                        {
+                            // Query total count with same filters
+                            using (var countCommand = new SqlCommand("GetAllPersonalPayments", connection))
+                            {
+                                countCommand.CommandType = CommandType.StoredProcedure;
+                                countCommand.Parameters.AddWithValue("@PageNumber", 1);
+                                countCommand.Parameters.AddWithValue("@PageSize", int.MaxValue); // Get all to count
+                                countCommand.Parameters.AddWithValue("@SearchBankName", string.IsNullOrEmpty(filters.BankName) ? DBNull.Value : filters.BankName);
+                                countCommand.Parameters.AddWithValue("@SearchAccountNumber", string.IsNullOrEmpty(filters.AccountNumber) ? DBNull.Value : filters.AccountNumber);
+                                countCommand.Parameters.AddWithValue("@SearchPaymentDescription", string.IsNullOrEmpty(filters.PaymentDescription) ? DBNull.Value : filters.PaymentDescription);
+                                countCommand.Parameters.AddWithValue("@CreditAmountFrom", filters.CreditAmountFrom ?? (object)DBNull.Value);
+                                countCommand.Parameters.AddWithValue("@CreditAmountTo", filters.CreditAmountTo ?? (object)DBNull.Value);
+                                countCommand.Parameters.AddWithValue("@DebitAmountFrom", filters.DebitAmountFrom ?? (object)DBNull.Value);
+                                countCommand.Parameters.AddWithValue("@DebitAmountTo", filters.DebitAmountTo ?? (object)DBNull.Value);
+                                countCommand.Parameters.AddWithValue("@DateFrom", filters.DateFrom == default(DateTime) ? DBNull.Value : filters.DateFrom);
+                                countCommand.Parameters.AddWithValue("@DateTo", filters.DateTo == default(DateTime) ? DBNull.Value : filters.DateTo);
+                                countCommand.Parameters.AddWithValue("@TransactionType", string.IsNullOrEmpty(filters.TransactionType) ? DBNull.Value : filters.TransactionType);
+                                countCommand.Parameters.AddWithValue("@IsActive", filters.IsActive ?? (object)DBNull.Value);
+
+                                using (var countReader = await countCommand.ExecuteReaderAsync())
+                                {
+                                    var tempCount = 0;
+                                    while (await countReader.ReadAsync())
+                                    {
+                                        tempCount++;
+                                    }
+                                    totalCount = tempCount;
+                                    
+                                    // Try to get total from second result set
+                                    if (await countReader.NextResultAsync())
+                                    {
+                                        if (await countReader.ReadAsync())
+                                        {
+                                            try
+                                            {
+                                                totalCount = countReader.GetInt32(countReader.GetOrdinal("TotalRecords"));
+                                            }
+                                            catch
+                                            {
+                                                try
+                                                {
+                                                    totalCount = countReader.GetInt32(countReader.GetOrdinal("TotalCount"));
+                                                }
+                                                catch
+                                                {
+                                                    // Use tempCount we already calculated
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error getting total count separately");
+                            // Fall back to using record count
+                            if (totalCount == 0)
+                            {
+                                totalCount = personalPayments.Count;
+                            }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting paginated personal payments");
+                throw;
             }
 
-            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            // Ensure totalCount is at least the number of records we have
+            // This handles cases where stored procedure doesn't return total count
+            if (totalCount == 0 && personalPayments.Count > 0)
+            {
+                // If we have records but no total count, and we're on page 1 with full page,
+                // estimate that there might be more pages
+                if (pageNumber == 1 && personalPayments.Count == pageSize)
+                {
+                    // Likely more records exist, set a minimum to show pagination
+                    totalCount = pageSize + 1; // At least one more record
+                    _logger.LogWarning("Total count not available, estimating based on returned records");
+                }
+                else
+                {
+                    // Use actual count as fallback
+                    totalCount = personalPayments.Count;
+                }
+            }
+
+            var totalPages = pageSize > 0 ? (int)Math.Ceiling((double)totalCount / pageSize) : 1;
+            
+            // Ensure at least 1 page
+            if (totalPages < 1 && personalPayments.Count > 0)
+            {
+                totalPages = 1;
+            }
+
+            _logger.LogInformation("Personal Payments pagination: Page {PageNumber}/{TotalPages}, PageSize: {PageSize}, TotalCount: {TotalCount}, RecordsReturned: {RecordsCount}",
+                pageNumber, totalPages, pageSize, totalCount, personalPayments.Count);
 
             return new PersonalPaymentViewModel
             {
@@ -293,20 +408,95 @@ namespace IMS.Services
                             {
                                 while (await reader.ReadAsync())
                                 {
-                                    bankNamesList.Add(reader.GetString(reader.GetOrdinal("BankName")));
+                                    var bankName = reader.GetString(reader.GetOrdinal("BankName"));
+                                    // Only add unique bank names
+                                    if (!string.IsNullOrEmpty(bankName) && !bankNamesList.Contains(bankName))
+                                    {
+                                        bankNamesList.Add(bankName);
+                                    }
                                 }
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            _logger.LogError(ex, "Error reading bank names from stored procedure");
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting bank names");
             }
             return bankNamesList;
+        }
+
+        public async Task<List<(long PersonalPaymentId, string BankName)>> GetBankAccountsAsync()
+        {
+            var bankAccountsList = new List<(long PersonalPaymentId, string BankName)>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT DISTINCT PersonalPaymentId, BankName 
+                        FROM PersonalPayments 
+                        WHERE IsActive = 1
+                        ORDER BY BankName", connection))
+                    {
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    var personalPaymentId = reader.GetInt64(reader.GetOrdinal("PersonalPaymentId"));
+                                    var bankName = reader.GetString(reader.GetOrdinal("BankName"));
+                                    if (!string.IsNullOrEmpty(bankName))
+                                    {
+                                        bankAccountsList.Add((personalPaymentId, bankName));
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error reading bank accounts from database");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting bank accounts");
+            }
+            return bankAccountsList;
+        }
+
+        public async Task<string?> GetBankNameByIdAsync(long personalPaymentId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT BankName 
+                        FROM PersonalPayments 
+                        WHERE PersonalPaymentId = @PersonalPaymentId", connection))
+                    {
+                        command.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                        var result = await command.ExecuteScalarAsync();
+                        return result?.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting bank name by ID: {PersonalPaymentId}", personalPaymentId);
+                return null;
+            }
         }
 
         public async Task<decimal> GetTotalCreditAmountAsync()
@@ -517,6 +707,203 @@ namespace IMS.Services
                     transactions = new List<object>(),
                     accountSummary = new object()
                 };
+            }
+        }
+
+        public async Task<decimal> GetAccountBalanceAsync(long personalPaymentId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT ISNULL(CreditAmount, 0) - ISNULL(DebitAmount, 0) AS Balance
+                        FROM PersonalPayments
+                        WHERE PersonalPaymentId = @PersonalPaymentId AND IsActive = 1", connection))
+                    {
+                        command.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                        var result = await command.ExecuteScalarAsync();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return Convert.ToDecimal(result);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting account balance for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+            }
+            return 0;
+        }
+
+        public async Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Get current balance
+                            decimal currentCreditAmount = 0;
+                            using (var getCommand = new SqlCommand(@"
+                                SELECT ISNULL(CreditAmount, 0) AS CreditAmount
+                                FROM PersonalPayments
+                                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            {
+                                getCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                var result = await getCommand.ExecuteScalarAsync();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    currentCreditAmount = Convert.ToDecimal(result);
+                                }
+                            }
+
+                            // Update CreditAmount in PersonalPayments
+                            using (var updateCommand = new SqlCommand(@"
+                                UPDATE PersonalPayments
+                                SET CreditAmount = ISNULL(CreditAmount, 0) + @Amount,
+                                    ModifiedDate = GETDATE(),
+                                    ModifiedBy = @ModifiedBy
+                                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            {
+                                updateCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                updateCommand.Parameters.AddWithValue("@Amount", amount);
+                                updateCommand.Parameters.AddWithValue("@ModifiedBy", createdBy);
+                                await updateCommand.ExecuteNonQueryAsync();
+                            }
+
+                            // Calculate new balance
+                            decimal newBalance = currentCreditAmount + amount;
+
+                            // Create transaction record in PersonalPaymentSaleDetail
+                            // Using SaleId = 0 to indicate manual deposit transaction
+                            using (var insertCommand = new SqlCommand(@"
+                                INSERT INTO PersonalPaymentSaleDetail 
+                                (PersonalPaymentId, SaleId, TransactionType, Amount, Balance, TransactionDescription, 
+                                 TransactionDate, IsActive, CreatedDate, CreatedBy, ModifiedDate, ModifiedBy)
+                                VALUES 
+                                (@PersonalPaymentId, 0, 'Credit', @Amount, @Balance, @Description, 
+                                 GETDATE(), 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
+                            {
+                                insertCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                insertCommand.Parameters.AddWithValue("@Amount", amount);
+                                insertCommand.Parameters.AddWithValue("@Balance", newBalance);
+                                insertCommand.Parameters.AddWithValue("@Description", description ?? "Bank Deposit");
+                                insertCommand.Parameters.AddWithValue("@CreatedBy", createdBy);
+                                await insertCommand.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing bank deposit for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return false;
+            }
+        }
+
+        public async Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Get current balance
+                            decimal currentCreditAmount = 0;
+                            decimal currentDebitAmount = 0;
+                            using (var getCommand = new SqlCommand(@"
+                                SELECT ISNULL(CreditAmount, 0) AS CreditAmount, ISNULL(DebitAmount, 0) AS DebitAmount
+                                FROM PersonalPayments
+                                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            {
+                                getCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                using (var reader = await getCommand.ExecuteReaderAsync())
+                                {
+                                    if (await reader.ReadAsync())
+                                    {
+                                        currentCreditAmount = reader.GetDecimal(reader.GetOrdinal("CreditAmount"));
+                                        currentDebitAmount = reader.GetDecimal(reader.GetOrdinal("DebitAmount"));
+                                    }
+                                }
+                            }
+
+                            // Check if sufficient balance
+                            decimal currentBalance = currentCreditAmount - currentDebitAmount;
+                            if (amount > currentBalance)
+                            {
+                                throw new Exception("Insufficient balance");
+                            }
+
+                            // Update DebitAmount in PersonalPayments
+                            using (var updateCommand = new SqlCommand(@"
+                                UPDATE PersonalPayments
+                                SET DebitAmount = ISNULL(DebitAmount, 0) + @Amount,
+                                    ModifiedDate = GETDATE(),
+                                    ModifiedBy = @ModifiedBy
+                                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            {
+                                updateCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                updateCommand.Parameters.AddWithValue("@Amount", amount);
+                                updateCommand.Parameters.AddWithValue("@ModifiedBy", createdBy);
+                                await updateCommand.ExecuteNonQueryAsync();
+                            }
+
+                            // Calculate new balance
+                            decimal newBalance = currentBalance - amount;
+
+                            // Create transaction record in PersonalPaymentSaleDetail
+                            // Using SaleId = 0 to indicate manual withdraw transaction
+                            using (var insertCommand = new SqlCommand(@"
+                                INSERT INTO PersonalPaymentSaleDetail 
+                                (PersonalPaymentId, SaleId, TransactionType, Amount, Balance, TransactionDescription, 
+                                 TransactionDate, IsActive, CreatedDate, CreatedBy, ModifiedDate, ModifiedBy)
+                                VALUES 
+                                (@PersonalPaymentId, 0, 'Debit', @Amount, @Balance, @Description, 
+                                 GETDATE(), 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
+                            {
+                                insertCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
+                                insertCommand.Parameters.AddWithValue("@Amount", amount);
+                                insertCommand.Parameters.AddWithValue("@Balance", newBalance);
+                                insertCommand.Parameters.AddWithValue("@Description", description ?? "Bank Withdraw");
+                                insertCommand.Parameters.AddWithValue("@CreatedBy", createdBy);
+                                await insertCommand.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing bank withdraw for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return false;
             }
         }
     }

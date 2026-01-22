@@ -35,8 +35,20 @@ namespace IMS.Controllers
                 }
 
                 // Apply filters from query parameters
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["PaymentFilters.BankName"]))
+                // Check for PersonalPaymentId first (from Kendo dropdown)
+                var bankIdParam = HttpContext.Request.Query["PaymentFilters.PersonalPaymentId"].ToString();
+                if (!string.IsNullOrEmpty(bankIdParam) && long.TryParse(bankIdParam, out long bankId))
                 {
+                    // Get BankName from PersonalPaymentId
+                    var bankName = await _personalPaymentService.GetBankNameByIdAsync(bankId);
+                    if (!string.IsNullOrEmpty(bankName))
+                    {
+                        filters.BankName = bankName;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(HttpContext.Request.Query["PaymentFilters.BankName"]))
+                {
+                    // Fallback to direct BankName filter
                     filters.BankName = HttpContext.Request.Query["PaymentFilters.BankName"];
                 }
 
@@ -96,6 +108,27 @@ namespace IMS.Controllers
 
                 ViewBag.TransactionTypes = new SelectList(transactionTypes, filters.TransactionType);
                 ViewBag.BankNames = new SelectList(bankNames, filters.BankName);
+
+                // Preserve filter parameters in ViewData for pagination links
+                // Store PersonalPaymentId if we filtered by it
+                if (!string.IsNullOrEmpty(bankIdParam) && long.TryParse(bankIdParam, out long storedBankId))
+                {
+                    ViewData["PaymentFilters.PersonalPaymentId"] = storedBankId.ToString();
+                }
+                else
+                {
+                    ViewData["PaymentFilters.PersonalPaymentId"] = "";
+                }
+                ViewData["PaymentFilters.BankName"] = filters.BankName;
+                ViewData["PaymentFilters.AccountNumber"] = filters.AccountNumber;
+                ViewData["PaymentFilters.TransactionType"] = filters.TransactionType;
+                ViewData["PaymentFilters.PaymentDescription"] = filters.PaymentDescription;
+                ViewData["CreditAmountFrom"] = filters.CreditAmountFrom?.ToString();
+                ViewData["CreditAmountTo"] = filters.CreditAmountTo?.ToString();
+                ViewData["DebitAmountFrom"] = filters.DebitAmountFrom?.ToString();
+                ViewData["DebitAmountTo"] = filters.DebitAmountTo?.ToString();
+                ViewData["FromDate"] = filters.DateFrom != default(DateTime) ? filters.DateFrom.ToString("yyyy-MM-dd") : "";
+                ViewData["ToDate"] = filters.DateTo != default(DateTime) ? filters.DateTo.ToString("yyyy-MM-dd") : "";
 
                 viewModel = await _personalPaymentService.GetAllPersonalPaymentsAsync(pageNumber, currentPageSize, filters);
             }
@@ -316,5 +349,140 @@ namespace IMS.Controllers
                 });
             }
         }
+
+        // GET: PersonalPaymentsController/GetBankNames
+        [HttpGet]
+        public async Task<JsonResult> GetBankNames()
+        {
+            try
+            {
+                var bankAccounts = await _personalPaymentService.GetBankAccountsAsync();
+                
+                if (bankAccounts == null || bankAccounts.Count == 0)
+                {
+                    // Return at least the "All" option
+                    return Json(new List<object> { new { value = "", text = "--All Banks--" } });
+                }
+
+                var bankOptions = bankAccounts.Select(account => new
+                {
+                    value = account.PersonalPaymentId.ToString(),
+                    text = account.BankName
+                }).OrderBy(b => b.text)
+                  .ToList();
+
+                // Add "All" option at the beginning
+                bankOptions.Insert(0, new { value = "", text = "--All Banks--" });
+
+                return Json(bankOptions);
+            }
+            catch (Exception ex)
+            {
+                // Log error and return at least the "All" option
+                return Json(new List<object> { new { value = "", text = "--All Banks--" } });
+            }
+        }
+
+        // GET: PersonalPaymentsController/GetAccountBalance
+        [HttpGet]
+        public async Task<JsonResult> GetAccountBalance(long accountId)
+        {
+            try
+            {
+                var balance = await _personalPaymentService.GetAccountBalanceAsync(accountId);
+                return Json(new { success = true, balance = balance });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, balance = 0, message = ex.Message });
+            }
+        }
+
+        // POST: PersonalPaymentsController/BankDeposit
+        [HttpPost]
+        [IgnoreAntiforgeryToken] // JSON endpoints don't support standard anti-forgery token validation
+        public async Task<JsonResult> BankDeposit([FromBody] BankDepositWithdrawRequest request)
+        {
+            try
+            {
+                if (request == null || request.PersonalPaymentId <= 0 || request.Amount <= 0)
+                {
+                    return Json(new { success = false, message = "Invalid request parameters" });
+                }
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr ?? "1");
+
+                var result = await _personalPaymentService.ProcessBankDepositAsync(
+                    request.PersonalPaymentId, 
+                    request.Amount, 
+                    request.Description ?? "Bank Deposit",
+                    userId);
+
+                if (result)
+                {
+                    return Json(new { success = true, message = "Deposit processed successfully" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Failed to process deposit" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: PersonalPaymentsController/BankWithdraw
+        [HttpPost]
+        [IgnoreAntiforgeryToken] // JSON endpoints don't support standard anti-forgery token validation
+        public async Task<JsonResult> BankWithdraw([FromBody] BankDepositWithdrawRequest request)
+        {
+            try
+            {
+                if (request == null || request.PersonalPaymentId <= 0 || request.Amount <= 0)
+                {
+                    return Json(new { success = false, message = "Invalid request parameters" });
+                }
+
+                // Check if sufficient balance exists
+                var currentBalance = await _personalPaymentService.GetAccountBalanceAsync(request.PersonalPaymentId);
+                if (request.Amount > currentBalance)
+                {
+                    return Json(new { success = false, message = "Insufficient balance. Available balance: " + currentBalance.ToString("N2") });
+                }
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr ?? "1");
+
+                var result = await _personalPaymentService.ProcessBankWithdrawAsync(
+                    request.PersonalPaymentId, 
+                    request.Amount, 
+                    request.Description ?? "Bank Withdraw",
+                    userId);
+
+                if (result)
+                {
+                    return Json(new { success = true, message = "Withdraw processed successfully" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Failed to process withdraw" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+    }
+
+    // Request model for Bank Deposit/Withdraw
+    public class BankDepositWithdrawRequest
+    {
+        public long PersonalPaymentId { get; set; }
+        public decimal Amount { get; set; }
+        public string? Description { get; set; }
     }
 }

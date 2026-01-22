@@ -71,6 +71,7 @@ namespace IMS.Common_Interfaces
     public interface IUnitConversionService
     {
         Task<List<UnitConversion>> GetAllUnitConversionsAsync();
+        Task<UnitConversionViewModel> GetAllUnitConversionsPagedAsync(int pageNumber, int pageSize, UnitConversionFilters filters);
         Task<UnitConversion> GetUnitConversionByIdAsync(long id);
         Task<bool> CreateUnitConversionAsync(UnitConversion unitConversion);
         Task<int> UpdateUnitConversionAsync(UnitConversion unitConversion);

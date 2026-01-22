@@ -118,12 +118,6 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    // Total count
-                    using (var countCmd = new SqlCommand("SELECT COUNT(*) FROM Employees", connection))
-                    {
-                        totalCount = (int)await countCmd.ExecuteScalarAsync();
-                    }
-
                     using (var cmd = new SqlCommand("GetAllEmployees", connection))
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
@@ -143,6 +137,7 @@ namespace IMS.Services
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
+                            // Read first result set - paginated employee data
                             while (await reader.ReadAsync())
                             {
                                 // Main Employee
@@ -170,12 +165,15 @@ namespace IMS.Services
                                     ModifiedByUserIdFk = reader.GetInt64(reader.GetOrdinal("ModifiedByUserId_FK"))
                                 });
                             }
+                            
+                            // Move to second result set (total count)
+                            await reader.NextResultAsync();
+                            
+                            if (await reader.ReadAsync())
+                            {
+                                totalCount = reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
                         }
-                    }
-
-                    if (employeesFilters!=null)
-                    {
-                        totalCount = employees.Count;
                     }
                 }
             }
