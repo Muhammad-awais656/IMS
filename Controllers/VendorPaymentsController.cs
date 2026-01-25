@@ -309,13 +309,13 @@ namespace IMS.Controllers
                 // Populate the form view model with bill payment information
                 var viewModel = new VendorPaymentFormViewModel
                 {
-                    SupplierId = vendorBill.VendorId,
+                    SupplierId = vendorBill.SupplierIdFk,
                     BillId = vendorBill.BillId,
-                    PaymentAmount = vendorBill.PaidAmount,
-                    PaymentDate = vendorBill.BillDate,
+                    PaymentAmount = vendorBill.PaymentAmount,
+                    PaymentDate = vendorBill.PaymentDate,
                     Description = vendorBill.Description,
                     PaymentMethod = vendorBill.PaymentMethod,
-                    OnlineAccountId = vendorBill.OnlineAccountId
+                    OnlineAccountId = vendorBill.onlineAccountId
                 };
 
                 // Load vendor list
@@ -358,19 +358,19 @@ namespace IMS.Controllers
 
                 // If payment method changed from Online to something else, or amount changed for Online payment
                 // we need to handle the transaction reversal/update
-                if (existingBill.PaymentMethod == "Online" && existingBill.OnlineAccountId.HasValue)
+                if (existingBill.PaymentMethod == "Online" && existingBill.onlineAccountId.HasValue)
                 {
                     // If changing from Online to Cash or changing the amount, we need to reverse the old transaction
-                    if (model.PaymentMethod != "Online" || model.PaymentAmount != existingBill.PaidAmount)
+                    if (model.PaymentMethod != "Online" || model.PaymentAmount != existingBill.PaymentAmount)
                     {
                         try
                         {
                             // Reverse the old online payment transaction (credit back the amount)
                             await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                existingBill.OnlineAccountId.Value,
+                                existingBill.onlineAccountId.Value,
                                 id,
-                                -existingBill.PaidAmount, // Negative to reverse
-                                $"Reversed payment for Bill #{existingBill.BillNumber}",
+                                -existingBill.PaymentAmount, // Negative to reverse
+                                $"Reversed payment for Bill #{existingBill.BillId}",
                                 userId,
                                 DateTime.Now
                             );
@@ -392,12 +392,12 @@ namespace IMS.Controllers
                 {
                     BillId = id,
                     VendorId = model.SupplierId,
-                    BillNumber = existingBill.BillNumber,
-                    BillDate = existingBill.BillDate,
-                    TotalAmount = existingBill.TotalAmount,
-                    DiscountAmount = existingBill.DiscountAmount,
+                    BillNumber = existingBill.BillId,
+                    BillDate = existingBill.PaymentDate,
+                    TotalAmount = existingBill.PaymentAmount,
+                    DiscountAmount = existingBill.PaymentAmount,
                     PaidAmount = model.PaymentAmount,
-                    DueAmount = existingBill.TotalAmount - existingBill.DiscountAmount - model.PaymentAmount,
+                    DueAmount = existingBill.PaymentAmount - model.PaymentAmount,
                     Description = model.Description ?? existingBill.Description,
                     PaymentMethod = model.PaymentMethod,
                     OnlineAccountId = model.PaymentMethod == "Online" ? model.OnlineAccountId : null,
@@ -499,9 +499,9 @@ namespace IMS.Controllers
                 }
 
                 // Calculate TotalPayableAmount if not set
-                if (vendorBill.TotalPayableAmount == 0)
+                if (vendorBill.PaymentAmount == 0)
                 {
-                    vendorBill.TotalPayableAmount = vendorBill.TotalAmount - vendorBill.DiscountAmount;
+                    vendorBill.PaymentAmount = vendorBill.PaymentAmount;
                 }
 
                 return View(vendorBill);

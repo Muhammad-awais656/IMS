@@ -549,7 +549,7 @@ namespace IMS.Services
         }
 
 
-        public async Task<VendorBillViewModel?> GetVendorBillByPaymentIdAsync(long paymentId)
+        public async Task<BillPayment?> GetVendorBillByPaymentIdAsync(long paymentId)
         {
             try
             {
@@ -580,9 +580,9 @@ namespace IMS.Services
                                 long? onlineAccountId = null;
                                 try
                                 {
-                                    if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
+                                    if (!reader.IsDBNull(reader.GetOrdinal("onlineAccountId")))
                                     {
-                                        onlineAccountId = reader.GetInt64("OnlineAccountId");
+                                        onlineAccountId = reader.GetInt64("onlineAccountId");
                                     }
                                 }
                                 catch
@@ -590,20 +590,16 @@ namespace IMS.Services
                                     onlineAccountId = null;
                                 }
 
-                                return new VendorBillViewModel
+                                return new BillPayment
                                 {
+                                    PaymentId = reader.GetInt64("PaymentId"),
+                                    PaymentAmount = reader.GetDecimal("PaymentAmount"),
                                     BillId = reader.GetInt64("BillId"),
-                                    VendorId = reader.GetInt64("SupplierId_FK"),
-                                    VendorName = reader.GetString("VendorName"),
-                                    BillNumber = reader.GetInt64("BillNumber"),
-                                    BillDate = reader.GetDateTime("PurchaseOrderDate"),
-                                    TotalAmount = reader.GetDecimal("TotalAmount"),
-                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
-                                    PaidAmount = reader.GetDecimal("TotalReceivedAmount"),
-                                    DueAmount = reader.GetDecimal("TotalDueAmount"),
-                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription"),
+                                    SupplierIdFk = reader.GetInt64("SupplierId_FK"),
+                                    Description = reader.IsDBNull("Description") ? "" : reader.GetString("Description"),
+                                    PaymentDate =  reader.GetDateTime("PaymentDate"),
                                     PaymentMethod = paymentMethod,
-                                    OnlineAccountId = onlineAccountId
+                                    onlineAccountId = onlineAccountId
                                 };
                             }
                         }

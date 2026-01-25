@@ -693,7 +693,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pDebitAmount", amount);
                         command.Parameters.AddWithValue("@pTransactionDescription", description);
                         command.Parameters.AddWithValue("@pCreatedBy", createdBy);
-                        command.Parameters.AddWithValue("@pCreatedDate", createdDate);
+                        //command.Parameters.AddWithValue("@pCreatedDate", createdDate);
 
                         var transactionIdParam = new SqlParameter("@pPersonalPaymentPurchaseDetailId", SqlDbType.BigInt)
                         {
