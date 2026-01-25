@@ -548,6 +548,76 @@ namespace IMS.Services
             return null;
         }
 
+
+        public async Task<VendorBillViewModel?> GetVendorBillByPaymentIdAsync(long paymentId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("GetBillPaymentByPaymentId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@paymentId", paymentId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var paymentMethod = "";
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
+                                    {
+                                        paymentMethod = reader.GetString("PaymentMethod");
+                                    }
+                                }
+                                catch
+                                {
+                                    paymentMethod = "";
+                                }
+
+                                long? onlineAccountId = null;
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
+                                    {
+                                        onlineAccountId = reader.GetInt64("OnlineAccountId");
+                                    }
+                                }
+                                catch
+                                {
+                                    onlineAccountId = null;
+                                }
+
+                                return new VendorBillViewModel
+                                {
+                                    BillId = reader.GetInt64("BillId"),
+                                    VendorId = reader.GetInt64("SupplierId_FK"),
+                                    VendorName = reader.GetString("VendorName"),
+                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    BillDate = reader.GetDateTime("PurchaseOrderDate"),
+                                    TotalAmount = reader.GetDecimal("TotalAmount"),
+                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
+                                    PaidAmount = reader.GetDecimal("TotalReceivedAmount"),
+                                    DueAmount = reader.GetDecimal("TotalDueAmount"),
+                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription"),
+                                    PaymentMethod = paymentMethod,
+                                    OnlineAccountId = onlineAccountId
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendor bill by ID {BillId}", paymentId);
+                throw;
+            }
+            return null;
+        }
+
         public async Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId)
         {
             var billItems = new List<BillItemViewModel>();
@@ -573,6 +643,19 @@ namespace IMS.Services
                                     productSize = rangeFrom.ToString("0.##") + " - " + rangeTo.ToString("0.##");
                                 }
                                 
+                                var measuringUnitAbbreviation = "";
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("MeasuringUnitAbbreviation")))
+                                    {
+                                        measuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation");
+                                    }
+                                }
+                                catch
+                                {
+                                    measuringUnitAbbreviation = "";
+                                }
+                                
                                 billItems.Add(new BillItemViewModel
                                 {
                                     BillItemId = reader.GetInt64("PurchaseOrderId_FK"),
@@ -584,7 +667,8 @@ namespace IMS.Services
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
                                     ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
                                     ProductCode = productCode,
-                                    ProductSize = productSize
+                                    ProductSize = productSize,
+                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation
                                 });
                             }
                         }

@@ -43,6 +43,7 @@ namespace IMS.Models
         public decimal TotalReceivedAmount { get; set; }
         public decimal TotalDueAmount { get; set; }
         public long? CustomerId { get; set; }
+        public long? VendorId { get; set; }
         public string BillNo { get; set; }
         public DateTime SaleDate { get; set; }
         public decimal PayNow { get; set; }
@@ -128,6 +129,7 @@ namespace IMS.Models
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
         public long ProductRangeId { get; set; }
+        public string? MeasuringUnitAbbreviation { get; set; }
     }
 }
 

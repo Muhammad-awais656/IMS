@@ -54,7 +54,7 @@ namespace IMS.Services
                             {
                                 var payment = new VendorBillViewModel
                                 {
-                                    BillId = reader.IsDBNull(reader.GetOrdinal("BillId")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillId")),
+                                    PaymentId = reader.IsDBNull(reader.GetOrdinal("PaymentId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PaymentId")),
                                     BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
                                     VendorName = reader.IsDBNull(reader.GetOrdinal("SupplierName")) ? string.Empty : reader.GetString(reader.GetOrdinal("SupplierName")),
                                     BillDate = reader.IsDBNull(reader.GetOrdinal("PaymentDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PaymentDate")),

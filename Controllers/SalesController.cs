@@ -17,8 +17,10 @@ namespace IMS.Controllers
         private readonly ICustomer _customerService;
         private readonly IPersonalPaymentService _personalPaymentService;
         private readonly IAdminMeasuringUnitService _measuringUnitService;
+        private readonly IVendor _vendorService;
+        private const string VendorCustomerPrefix = "Vendor - ";
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService)
         {
             _salesService = salesService;
             _logger = logger;
@@ -26,6 +28,7 @@ namespace IMS.Controllers
             _customerService = customerService;
             _personalPaymentService = personalPaymentService;
             _measuringUnitService = measuringUnitService;
+            _vendorService = vendorService;
         }
 
         // GET: SalesController
@@ -408,8 +411,32 @@ namespace IMS.Controllers
                     IsEditMode = IsEditMode // Pass IsEditMode to the model
                 };
 
-                // Get previous due amount for the customer
+                // If this sale was created for a vendor, map back to vendor selection
+                bool isVendorCustomer = false;
                 if (sale.CustomerIdFk > 0)
+                {
+                    var customerDetails = await _customerService.GetCustomerIdAsync(sale.CustomerIdFk);
+                    if (customerDetails != null &&
+                        !string.IsNullOrWhiteSpace(customerDetails.CustomerName) &&
+                        customerDetails.CustomerName.StartsWith(VendorCustomerPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var vendorName = customerDetails.CustomerName.Substring(VendorCustomerPrefix.Length).Trim();
+                        var vendors = await _vendorService.GetAllEnabledVendors();
+                        var matchedVendor = vendors.FirstOrDefault(v =>
+                            v.SupplierName.Equals(vendorName, StringComparison.OrdinalIgnoreCase));
+
+                        if (matchedVendor != null)
+                        {
+                            viewModel.VendorId = matchedVendor.SupplierId;
+                            viewModel.CustomerId = null;
+                            viewModel.PreviousDue = 0;
+                            isVendorCustomer = true;
+                        }
+                    }
+                }
+
+                // Get previous due amount for the customer
+                if (!isVendorCustomer && sale.CustomerIdFk > 0)
                 {
                     var previousDueAmount = await _salesService.GetPreviousDueAmountByCustomerIdAsync(sale.CustomerIdFk);
                     viewModel.PreviousDue = previousDueAmount;
@@ -577,17 +604,42 @@ namespace IMS.Controllers
                 {
                     _logger.LogInformation("ModelState is valid - proceeding with sale creation");
                     
-                // Validate customer selection
-                if (!model.CustomerId.HasValue || model.CustomerId == 0)
+                var hasCustomer = model.CustomerId.HasValue && model.CustomerId > 0;
+                var hasVendor = model.VendorId.HasValue && model.VendorId > 0;
+
+                if (!hasCustomer && !hasVendor)
                 {
-                        _logger.LogWarning("Customer validation failed - CustomerId is null or 0");
-                        TempData["ErrorMessage"] = "Please select a customer.";
-                        await ReloadViewDataAsync();
-                        return View(model);
+                    _logger.LogWarning("Customer/Vendor validation failed - both are null or 0");
+                    TempData["ErrorMessage"] = "Please select a customer or vendor.";
+                    await ReloadViewDataAsync();
+                    return View(model);
                 }
 
-                // Validate sale details
-                if (model.SaleDetails == null || !model.SaleDetails.Any())
+                if (hasCustomer && hasVendor)
+                {
+                    _logger.LogWarning("Customer/Vendor validation failed - both provided");
+                    TempData["ErrorMessage"] = "Please select either a customer or a vendor, not both.";
+                    await ReloadViewDataAsync();
+                    return View(model);
+                }
+
+                    if (hasVendor)
+                    {
+                        var vendorUserIdStr = HttpContext.Session.GetString("UserId");
+                        long vendorUserId = long.Parse(vendorUserIdStr);
+                        var resolvedCustomerId = await ResolveCustomerIdForVendorAsync(model.VendorId!.Value, vendorUserId);
+                        if (!resolvedCustomerId.HasValue)
+                        {
+                            TempData["ErrorMessage"] = "Unable to map vendor to a customer record.";
+                            await ReloadViewDataAsync();
+                            return View(model);
+                        }
+
+                        model.CustomerId = resolvedCustomerId.Value;
+                    }
+
+                    // Validate sale details
+                    if (model.SaleDetails == null || !model.SaleDetails.Any())
                 {
                         _logger.LogWarning("Sale details validation failed - SaleDetails is null or empty");
                         TempData["ErrorMessage"] = "Please add at least one product to the sale.";
@@ -869,6 +921,76 @@ namespace IMS.Controllers
                 _logger.LogError(ex, "Error getting customers for Kendo combobox");
                 return Json(new List<object>());
             }
+        }
+
+        // AJAX endpoint to get vendors for Kendo combobox
+        [HttpGet]
+        public async Task<IActionResult> GetVendors()
+        {
+            try
+            {
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                var result = vendors?.Select(v => new
+                {
+                    value = v.SupplierId.ToString(),
+                    text = v.SupplierName
+                }).ToList();
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendors for Kendo combobox");
+                return Json(new List<object>());
+            }
+        }
+
+        private async Task<long?> ResolveCustomerIdForVendorAsync(long vendorId, long userId)
+        {
+            var vendor = await _vendorService.GetVendorByIdAsync(vendorId);
+            if (vendor == null)
+            {
+                _logger.LogWarning("Vendor not found for vendorId {VendorId}", vendorId);
+                return null;
+            }
+
+            var vendorCustomerName = $"{VendorCustomerPrefix}{vendor.SupplierName}";
+            var customers = await _customerService.GetAllEnabledCustomers();
+            var existingCustomer = customers.FirstOrDefault(c =>
+                !string.IsNullOrWhiteSpace(c.CustomerName) &&
+                c.CustomerName.Equals(vendorCustomerName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingCustomer != null)
+            {
+                return existingCustomer.CustomerId;
+            }
+
+            var newCustomer = new Customer
+            {
+                CustomerName = vendorCustomerName,
+                CustomerContactNumber = vendor.SupplierPhoneNumber,
+                CustomerEmail = vendor.SupplierEmail,
+                CustomerAddress = vendor.SupplierAddress,
+                IsEnabled = true,
+                CreatedBy = userId,
+                CreatedDate = DateTime.Now,
+                ModifiedBy = userId,
+                ModifiedDate = DateTime.Now
+            };
+
+            var created = await _customerService.CreateCustomerAsync(newCustomer);
+            if (!created)
+            {
+                _logger.LogWarning("Failed to create customer record for vendor {VendorName}", vendor.SupplierName);
+                return null;
+            }
+
+            customers = await _customerService.GetAllEnabledCustomers();
+            existingCustomer = customers.FirstOrDefault(c =>
+                !string.IsNullOrWhiteSpace(c.CustomerName) &&
+                c.CustomerName.Equals(vendorCustomerName, StringComparison.OrdinalIgnoreCase));
+
+            return existingCustomer?.CustomerId;
         }
 
         // GET: SalesController/PrintReceipt/5

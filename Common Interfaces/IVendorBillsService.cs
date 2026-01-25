@@ -24,6 +24,7 @@ namespace IMS.Common_Interfaces
         
         // Edit functionality methods
         Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId);
+        Task<VendorBillViewModel?> GetVendorBillByPaymentIdAsync(long paymentId);
         Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId);
         Task<bool> UpdateVendorBillAsync(long billId, VendorBillGenerationViewModel model);
         

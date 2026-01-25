@@ -5,55 +5,55 @@
 }
 
 
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white py-3">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <i class="fa-solid fa-credit-card me-2"></i>
-                            <h4 class="mb-0">Personal Payment Accounts</h4>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-success btn-sm" onclick="showBankDepositModal()">
-                                <i class="fa-solid fa-arrow-down me-1"></i>Bank Deposit
-                            </button>
-                            <button type="button" class="btn btn-warning btn-sm" onclick="showBankWithdrawModal()">
-                                <i class="fa-solid fa-arrow-up me-1"></i>Bank Withdraw
-                            </button>
-                            <a asp-action="Create" class="btn btn-light btn-sm">
-                                <i class="fa-solid fa-plus me-1"></i>Add Account
-                            </a>
-                        </div>
-                    </div>
+<div class="col-12">
+    <div class="card">
+        <div class="card-header bg-primary text-white py-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-credit-card me-2"></i>
+                    <h4 class="mb-0">Personal Payment Accounts</h4>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm" onclick="showBankDepositModal()">
+                        <i class="fa-solid fa-arrow-down me-1"></i>Bank Deposit
+                    </button>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="showBankWithdrawModal()">
+                        <i class="fa-solid fa-arrow-up me-1"></i>Bank Withdraw
+                    </button>
+                    <a asp-action="Create" class="btn btn-light btn-sm">
+                        <i class="fa-solid fa-plus me-1"></i>Add Account
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Enhanced Filter Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fa fa-filter me-2 text-primary"></i>Search & Filter
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Enhanced Filter Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                <i class="fa fa-filter me-2 text-primary"></i>Search & Filter
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="get" asp-action="Index">
-                                @Html.AntiForgeryToken()
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="bankComboBox" class="form-label fw-semibold">
-                                            <i class="fa fa-university me-1 text-primary"></i>Bank Name
-                                        </label>
-                                        <input id="bankComboBox" style="width: 100%;" />
-                                        <input type="hidden" name="PaymentFilters.PersonalPaymentId" id="bankIdHidden" value="" />
-                                        <input type="hidden" name="PaymentFilters.BankName" id="bankNameHidden" value="@Model.PaymentFilters.BankName" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="PaymentFilters.AccountNumber" class="form-label fw-semibold">
-                                            <i class="fa fa-credit-card me-1 text-primary"></i>Account Number
-                                        </label>
-                                        <input type="text" name="PaymentFilters.AccountNumber" class="form-control" 
-                                               value="@Model.PaymentFilters.AccountNumber" placeholder="Enter account number">
-                                    </div>
-                                   @*  <div class="col-md-3">
+                    <form method="get" asp-action="Index">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="bankComboBox" class="form-label fw-semibold">
+                                    <i class="fa fa-university me-1 text-primary"></i>Bank Name
+                                </label>
+                                <input id="bankComboBox" style="width: 100%;" />
+                                <input type="hidden" name="PaymentFilters.PersonalPaymentId" id="bankIdHidden" value="" />
+                                <input type="hidden" name="PaymentFilters.BankName" id="bankNameHidden" value="@Model.PaymentFilters.BankName" />
+                            </div>
+                            <div class="col-md-3">
+                                <label for="PaymentFilters.AccountNumber" class="form-label fw-semibold">
+                                    <i class="fa fa-credit-card me-1 text-primary"></i>Account Number
+                                </label>
+                                <input type="text" name="PaymentFilters.AccountNumber" class="form-control"
+                                       value="@Model.PaymentFilters.AccountNumber" placeholder="Enter account number">
+                            </div>
+                            @*  <div class="col-md-3">
                                         <label for="PaymentFilters.TransactionType" class="form-label fw-semibold">
                                             <i class="fa fa-exchange-alt me-1 text-primary"></i>Transaction Type
                                         </label>
@@ -71,256 +71,256 @@
                                         <input type="text" name="PaymentFilters.PaymentDescription" class="form-control" 
                                                value="@Model.PaymentFilters.PaymentDescription" placeholder="Enter description">
                                     </div> *@
-                                    <div class="col-md-3">
-                                        <label for="FromDate" class="form-label fw-semibold">
-                                            <i class="fa fa-calendar me-1 text-primary"></i>From Date
-                                        </label>
-                                        <input type="date" name="FromDate" class="form-control" 
-                                               value="@(Model.PaymentFilters.DateFrom != default(DateTime) ? Model.PaymentFilters.DateFrom.ToString("yyyy-MM-dd") : "")">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="ToDate" class="form-label fw-semibold">
-                                            <i class="fa fa-calendar me-1 text-primary"></i>To Date
-                                        </label>
-                                        <input type="date" name="ToDate" class="form-control" 
-                                               value="@(Model.PaymentFilters.DateTo != default(DateTime) ? Model.PaymentFilters.DateTo.ToString("yyyy-MM-dd") : "")">
-                                    </div>
-                                    <div class="col-md-6 d-flex align-items-end">
-                                        <div class="d-flex gap-2 w-100">
-                                            <button type="submit" class="btn btn-primary flex-fill">
-                                                <i class="fa fa-search me-1"></i>Search
-                                            </button>
-                                            <a asp-action="Index" class="btn btn-outline-secondary flex-fill">
-                                                <i class="fa fa-refresh me-1"></i>Clear
-                                            </a>
-                                        </div>
-                                    </div>
+                            <div class="col-md-3">
+                                <label for="FromDate" class="form-label fw-semibold">
+                                    <i class="fa fa-calendar me-1 text-primary"></i>From Date
+                                </label>
+                                <input type="date" name="FromDate" class="form-control"
+                                       value="@(Model.PaymentFilters.DateFrom != default(DateTime) ? Model.PaymentFilters.DateFrom.ToString("yyyy-MM-dd") : "")">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="ToDate" class="form-label fw-semibold">
+                                    <i class="fa fa-calendar me-1 text-primary"></i>To Date
+                                </label>
+                                <input type="date" name="ToDate" class="form-control"
+                                       value="@(Model.PaymentFilters.DateTo != default(DateTime) ? Model.PaymentFilters.DateTo.ToString("yyyy-MM-dd") : "")">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="submit" class="btn btn-primary flex-fill">
+                                        <i class="fa fa-search me-1"></i>Search
+                                    </button>
+                                    <a asp-action="Index" class="btn btn-outline-secondary flex-fill">
+                                        <i class="fa fa-refresh me-1"></i>Clear
+                                    </a>
                                 </div>
-                            </form>
+                            </div>
                         </div>
-                    </div>
+                    </form>
+                </div>
+            </div>
 
-                    <!-- Enhanced Results Section -->
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="fa fa-table me-2"></i>Payment Records
-                            </h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-striped mb-0">
-                                    <thead class="table-dark">
+            <!-- Enhanced Results Section -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-table me-2"></i>Payment Records
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fa fa-university me-1"></i>Bank Name</th>
+                                    <th><i class="fa fa-credit-card me-1"></i>Account Number</th>
+                                    <th><i class="fa fa-user me-1"></i>Account Holder</th>
+                                    <th><i class="fa fa-arrow-up me-1 text-success"></i>Credit Amount</th>
+                                    <th><i class="fa fa-arrow-down me-1 text-danger"></i>Debit Amount</th>
+                                    <th><i class="fa fa-calculator me-1"></i>Balance</th>
+                                    @*  <th><i class="fa fa-comment me-1"></i>Description</th> *@
+                                    <th><i class="fa fa-calendar me-1"></i>Modified Payment Date</th>
+                                    <th><i class="fa fa-cogs me-1"></i>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.PersonalPaymentList != null && Model.PersonalPaymentList.Any())
+                                {
+                                    @foreach (var payment in Model.PersonalPaymentList)
+                                    {
                                         <tr>
-                                            <th><i class="fa fa-university me-1"></i>Bank Name</th>
-                                            <th><i class="fa fa-credit-card me-1"></i>Account Number</th>
-                                            <th><i class="fa fa-user me-1"></i>Account Holder</th>
-                                            <th><i class="fa fa-arrow-up me-1 text-success"></i>Credit Amount</th>
-                                            <th><i class="fa fa-arrow-down me-1 text-danger"></i>Debit Amount</th>
-                                            <th><i class="fa fa-calculator me-1"></i>Balance</th>
-                                           @*  <th><i class="fa fa-comment me-1"></i>Description</th> *@
-                                            <th><i class="fa fa-calendar me-1"></i>Payment Date</th>
-                                            <th><i class="fa fa-cogs me-1"></i>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if (Model.PersonalPaymentList != null && Model.PersonalPaymentList.Any())
-                                        {
-                                            @foreach (var payment in Model.PersonalPaymentList)
-                                            {
-                                                <tr>
-                                                    <td><span class="badge bg-info">@payment.BankName</span></td>
-                                                    <td><code>@payment.AccountNumber</code></td>
-                                                    <td><strong>@payment.AccountHolderName</strong></td>
-                                                    <td class="text-end">
-                                                        @if (payment.CreditAmount > 0)
-                                                        {
-                                                            <span class="text-success fw-bold">@payment.CreditAmount.ToString("C", new CultureInfo("ur-PK"))</span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="text-muted">-</span>
-                                                        }
-                                                    </td>
-                                                    <td class="text-end">
-                                                        @if (payment.DebitAmount > 0)
-                                                        {
-                                                            <span class="text-danger fw-bold">@payment.DebitAmount.ToString("C", new CultureInfo("ur-PK"))</span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="text-muted">-</span>
-                                                        }
-                                                    </td>
-                                                    <td class="text-end fw-bold @(payment.NetAmount >= 0 ? "text-success" : "text-danger")">
-                                                        @payment.NetAmount.ToString("C", new CultureInfo("ur-PK"))
-                                                    </td>
-                                                   @*  <td>@payment.PaymentDescription</td> *@
+                                            <td><span class="badge bg-info">@payment.BankName</span></td>
+                                            <td><code>@payment.AccountNumber</code></td>
+                                            <td><strong>@payment.AccountHolderName</strong></td>
+                                            <td class="text-end">
+                                                @if (payment.CreditAmount > 0)
+                                                {
+                                                    <span class="text-success fw-bold">@payment.CreditAmount.ToString("C", new CultureInfo("ur-PK"))</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                @if (payment.DebitAmount > 0)
+                                                {
+                                                    <span class="text-danger fw-bold">@payment.DebitAmount.ToString("C", new CultureInfo("ur-PK"))</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-end fw-bold @(payment.NetAmount >= 0 ? "text-success" : "text-danger")">
+                                                @payment.NetAmount.ToString("C", new CultureInfo("ur-PK"))
+                                            </td>
+                                            @*  <td>@payment.PaymentDescription</td> *@
                                             <td>@payment.ModifiedDate.ToString("MMM dd, yyyy")</td>
-                                                    <td>
-                                                        <div class="btn-group" role="group">
-                                                            <a asp-action="Details" asp-route-id="@payment.PersonalPaymentId" 
-                                                               class="btn btn-sm btn-outline-info" title="View Details">
-                                                                <i class="fa fa-eye"></i>
-                                                            </a>
-                                                            <a asp-action="Edit" asp-route-id="@payment.PersonalPaymentId" 
-                                                               class="btn btn-sm btn-outline-warning" title="Edit">
-                                                                <i class="fa fa-edit"></i>
-                                                            </a>
-                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                                    title="Transaction History" 
-                                                                    onclick="showTransactionHistory(@payment.PersonalPaymentId, '@payment.BankName', '@payment.AccountNumber')">
-                                                                <i class="fa fa-history"></i>
-                                                            </button>
-                                                            <a asp-action="Delete" asp-route-id="@payment.PersonalPaymentId" 
-                                                               class="btn btn-sm btn-outline-danger" title="Delete">
-                                                                <i class="fa fa-trash"></i>
-                                                            </a>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <tr>
-                                                <td colspan="9" class="text-center py-4">
-                                                    <div class="d-flex flex-column align-items-center">
-                                                        <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-                                                        <h5 class="text-muted">No Personal Payments Found</h5>
-                                                        <p class="text-muted">Try adjusting your search criteria or add a new payment.</p>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Enhanced Pagination Section -->
-                    <div class="card mt-4">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                <div class="d-flex align-items-center">
-                                    <i class="fa fa-info-circle me-2 text-primary"></i>
-                                    <span class="text-muted">
-                                        <strong>@Model.TotalCount</strong> total payments | Showing <strong>@Model.PageSize</strong> records per page
-                                    </div>
-                                <div class="d-flex align-items-center gap-3">
-                                    <label for="pageSize" class="form-label mb-0 text-muted">
-                                        <i class="fa fa-list me-1"></i>Items Per Page:
-                                    </label>
-                                    <select id="pageSize" class="form-select form-select-sm w-auto" onchange="changePageSize(this)">
-                                        <option value="5" selected="@(Model.PageSize == 5)">5</option>
-                                        <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                                        <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                                    </select>
-                                </div>
-                            </div>
-                            @if (Model.TotalPages > 1)
-                            {
-                                <nav aria-label="Personal Payments pagination" class="mt-3">
-                                    <ul class="pagination justify-content-center mb-0">
-                                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize"
-                                               asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
-                                               asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
-                                               asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
-                                               asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
-                                               asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
-                                               asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
-                                               asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
-                                               asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
-                                               asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
-                                               asp-route-FromDate="@ViewData["FromDate"]"
-                                               asp-route-ToDate="@ViewData["ToDate"]">
-                                                <i class="fa fa-angle-double-left me-1"></i>First
-                                            </a>
-                                        </li>
-                                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                                               asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
-                                               asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
-                                               asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
-                                               asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
-                                               asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
-                                               asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
-                                               asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
-                                               asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
-                                               asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
-                                               asp-route-FromDate="@ViewData["FromDate"]"
-                                               asp-route-ToDate="@ViewData["ToDate"]">
-                                                <i class="fa fa-angle-left me-1"></i>Previous
-                                            </a>
-                                        </li>
-                                        @{
-                                            int startPage = Math.Max(1, Model.CurrentPage - 1);
-                                            int endPage = Math.Min(Model.TotalPages, startPage + 2);
-                                            if (endPage - startPage < 2)
-                                            {
-                                                startPage = Math.Max(1, endPage - 2);
-                                            }
-                                        }
-                                        @for (int i = startPage; i <= endPage; i++)
-                                        {
-                                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize"
-                                                   asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
-                                                   asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
-                                                   asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
-                                                   asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
-                                                   asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
-                                                   asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
-                                                   asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
-                                                   asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
-                                                   asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
-                                                   asp-route-FromDate="@ViewData["FromDate"]"
-                                                   asp-route-ToDate="@ViewData["ToDate"]">@i</a>
-                                            </li>
-                                        }
-                                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize"
-                                               asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
-                                               asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
-                                               asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
-                                               asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
-                                               asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
-                                               asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
-                                               asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
-                                               asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
-                                               asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
-                                               asp-route-FromDate="@ViewData["FromDate"]"
-                                               asp-route-ToDate="@ViewData["ToDate"]">
-                                                Next<i class="fa fa-angle-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize"
-                                               asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
-                                               asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
-                                               asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
-                                               asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
-                                               asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
-                                               asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
-                                               asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
-                                               asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
-                                               asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
-                                               asp-route-FromDate="@ViewData["FromDate"]"
-                                               asp-route-ToDate="@ViewData["ToDate"]">
-                                                Last<i class="fa fa-angle-double-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </nav>
-                            }
-                        </div>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a asp-action="Details" asp-route-id="@payment.PersonalPaymentId"
+                                                       class="btn btn-sm btn-outline-info" title="View Details">
+                                                        <i class="fa fa-eye"></i>
+                                                    </a>
+                                                    <a asp-action="Edit" asp-route-id="@payment.PersonalPaymentId"
+                                                       class="btn btn-sm btn-outline-warning" title="Edit">
+                                                        <i class="fa fa-edit"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                                            title="Transaction History"
+                                                            onclick="showTransactionHistory(@payment.PersonalPaymentId, '@payment.BankName', '@payment.AccountNumber')">
+                                                        <i class="fa fa-history"></i>
+                                                    </button>
+                                                    <a asp-action="Delete" asp-route-id="@payment.PersonalPaymentId"
+                                                       class="btn btn-sm btn-outline-danger" title="Delete">
+                                                        <i class="fa fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4">
+                                            <div class="d-flex flex-column align-items-center">
+                                                <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                                <h5 class="text-muted">No Personal Payments Found</h5>
+                                                <p class="text-muted">Try adjusting your search criteria or add a new payment.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+
+            <!-- Enhanced Pagination Section -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-info-circle me-2 text-primary"></i>
+                            <span class="text-muted">
+                                <strong>@Model.TotalCount</strong> total payments | Showing <strong>@Model.PageSize</strong> records per page
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <label for="pageSize" class="form-label mb-0 text-muted">
+                                <i class="fa fa-list me-1"></i>Items Per Page:
+                            </label>
+                            <select id="pageSize" class="form-select form-select-sm w-auto" onchange="changePageSize(this)">
+                                <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                                <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                                <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                            </select>
+                        </div>
+                    </div>
+                    @if (Model.TotalPages > 1)
+                    {
+                        <nav aria-label="Personal Payments pagination" class="mt-3">
+                            <ul class="pagination justify-content-center mb-0">
+                                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize"
+                                       asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
+                                       asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
+                                       asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
+                                       asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
+                                       asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
+                                       asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
+                                       asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
+                                       asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
+                                       asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
+                                       asp-route-FromDate="@ViewData["FromDate"]"
+                                       asp-route-ToDate="@ViewData["ToDate"]">
+                                        <i class="fa fa-angle-double-left me-1"></i>First
+                                    </a>
+                                </li>
+                                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
+                                       asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
+                                       asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
+                                       asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
+                                       asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
+                                       asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
+                                       asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
+                                       asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
+                                       asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
+                                       asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
+                                       asp-route-FromDate="@ViewData["FromDate"]"
+                                       asp-route-ToDate="@ViewData["ToDate"]">
+                                        <i class="fa fa-angle-left me-1"></i>Previous
+                                    </a>
+                                </li>
+                                @{
+                                    int startPage = Math.Max(1, Model.CurrentPage - 1);
+                                    int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                                    if (endPage - startPage < 2)
+                                    {
+                                        startPage = Math.Max(1, endPage - 2);
+                                    }
+                                }
+                                @for (int i = startPage; i <= endPage; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize"
+                                           asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
+                                           asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
+                                           asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
+                                           asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
+                                           asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
+                                           asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
+                                           asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
+                                           asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
+                                           asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
+                                           asp-route-FromDate="@ViewData["FromDate"]"
+                                           asp-route-ToDate="@ViewData["ToDate"]">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize"
+                                       asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
+                                       asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
+                                       asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
+                                       asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
+                                       asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
+                                       asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
+                                       asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
+                                       asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
+                                       asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
+                                       asp-route-FromDate="@ViewData["FromDate"]"
+                                       asp-route-ToDate="@ViewData["ToDate"]">
+                                        Next<i class="fa fa-angle-right ms-1"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                    <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize"
+                                       asp-route-PaymentFilters.PersonalPaymentId="@ViewData["PaymentFilters.PersonalPaymentId"]"
+                                       asp-route-PaymentFilters.BankName="@ViewData["PaymentFilters.BankName"]"
+                                       asp-route-PaymentFilters.AccountNumber="@ViewData["PaymentFilters.AccountNumber"]"
+                                       asp-route-PaymentFilters.TransactionType="@ViewData["PaymentFilters.TransactionType"]"
+                                       asp-route-PaymentFilters.PaymentDescription="@ViewData["PaymentFilters.PaymentDescription"]"
+                                       asp-route-CreditAmountFrom="@ViewData["CreditAmountFrom"]"
+                                       asp-route-CreditAmountTo="@ViewData["CreditAmountTo"]"
+                                       asp-route-DebitAmountFrom="@ViewData["DebitAmountFrom"]"
+                                       asp-route-DebitAmountTo="@ViewData["DebitAmountTo"]"
+                                       asp-route-FromDate="@ViewData["FromDate"]"
+                                       asp-route-ToDate="@ViewData["ToDate"]">
+                                        Last<i class="fa fa-angle-double-right ms-1"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                </div>
+            </div>
         </div>
-    
+    </div>
+</div>
+
 
 <!-- Transaction History Modal -->
 <div class="modal fade" id="transactionHistoryModal" tabindex="-1" aria-labelledby="transactionHistoryModalLabel" aria-hidden="true">
@@ -345,7 +345,7 @@
                         <p class="mb-1"><strong>Total Transactions:</strong> <span id="modalTransactionCount"></span></p>
                     </div>
                 </div>
-                
+
                 <!-- Filters -->
                 <div class="row mb-3">
                     <div class="col-md-3">
@@ -370,7 +370,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Loading indicator -->
                 <div id="historyLoading" class="text-center py-4" style="display: none;">
                     <div class="spinner-border text-primary" role="status">
@@ -378,7 +378,7 @@
                     </div>
                     <p class="mt-2">Loading transaction history...</p>
                 </div>
-                
+
                 <!-- Transaction History Table -->
                 <div class="table-responsive">
                     <table class="table table-striped table-hover" id="transactionHistoryTable">
@@ -397,7 +397,7 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 <!-- Pagination for history -->
                 <nav aria-label="Transaction history pagination" id="historyPagination" style="display: none;">
                     <ul class="pagination justify-content-center" id="historyPaginationList">
@@ -533,64 +533,375 @@
 </div>
 
 @section Scripts {
-<script>
-    let currentPersonalPaymentId = null;
-    let currentHistoryPage = 1;
-    const historyPageSize = 10;
+    <script>
+        let currentPersonalPaymentId = null;
+        let currentHistoryPage = 1;
+        const historyPageSize = 10;
 
-    // Ensure jQuery is loaded before using it
-    if (typeof jQuery === 'undefined') {
-        console.error("jQuery is not loaded. Please ensure jQuery is loaded before this script.");
-    } else {
-        $(document).ready(function() {
-            // Wait for Kendo UI to be available
-            if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
-                initializeBankComboBox();
-                initializeDepositWithdrawModals();
-            } else {
-                // Retry after a short delay if Kendo isn't loaded yet
-                console.log("Kendo UI not loaded, retrying in 500ms...");
-                setTimeout(function() {
-                    if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
-                        initializeBankComboBox();
-                        initializeDepositWithdrawModals();
-                    } else {
-                        console.error("Kendo UI ComboBox not available. Please ensure Kendo UI scripts are loaded.");
+        // Ensure jQuery is loaded before using it
+        if (typeof jQuery === 'undefined') {
+            console.error("jQuery is not loaded. Please ensure jQuery is loaded before this script.");
+        } else {
+            $(document).ready(function() {
+                // Wait for Kendo UI to be available
+                if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                    initializeBankComboBox();
+                    initializeDepositWithdrawModals();
+                } else {
+                    // Retry after a short delay if Kendo isn't loaded yet
+                    console.log("Kendo UI not loaded, retrying in 500ms...");
+                    setTimeout(function() {
+                        if (typeof kendo !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                            initializeBankComboBox();
+                            initializeDepositWithdrawModals();
+                        } else {
+                            console.error("Kendo UI ComboBox not available. Please ensure Kendo UI scripts are loaded.");
+                        }
+                    }, 500);
+                }
+            });
+        }
+
+        function initializeBankComboBox() {
+            try {
+                // Check if element exists
+                if ($("#bankComboBox").length === 0) {
+                    console.error("Bank ComboBox element not found");
+                    return;
+                }
+
+                // Destroy existing ComboBox if it exists
+                var existingCombo = $("#bankComboBox").data("kendoComboBox");
+                if (existingCombo) {
+                    existingCombo.destroy();
+                }
+
+                // Get initial value from hidden input or query parameter (PersonalPaymentId)
+                var initialValue = $("#bankIdHidden").val() || getQueryParam('PaymentFilters.PersonalPaymentId') || "";
+
+                // If we have BankName but not PersonalPaymentId, try to find matching ID
+                var bankNameValue = $("#bankNameHidden").val() || getQueryParam('PaymentFilters.BankName') || "";
+
+                console.log("Initializing Bank ComboBox");
+                console.log("Initial PersonalPaymentId:", initialValue);
+                console.log("Initial BankName:", bankNameValue);
+                console.log("Endpoint URL:", "@Url.Action("GetBankNames", "PersonalPayments")");
+
+                // Initialize Kendo ComboBox - similar to Product dropdown on Add Sale screen
+                $("#bankComboBox").kendoComboBox({
+
+                    placeholder: "--All Banks--",
+                    filter: "contains",
+                    suggest: true,
+                    minLength: 1,
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    dataSource: {
+                        transport: {
+                            read: {
+                                url: "@Url.Action("GetBankNames", "PersonalPayments")",
+                                dataType: "json"
+                            }
+                        }
+                    },
+                    value: initialValue,
+                    change: function(e) {
+                        var selectedValue = this.value() || "";
+                        var selectedItem = this.dataItem();
+                        console.log("Bank selection changed - PersonalPaymentId:", selectedValue);
+                        console.log("Selected item:", selectedItem);
+
+                        // Update hidden inputs for form submission
+                        $("#bankIdHidden").val(selectedValue);
+                        if (selectedItem && selectedItem.text) {
+                            $("#bankNameHidden").val(selectedItem.text);
+                        } else {
+                            $("#bankNameHidden").val("");
+                        }
+                    },
+                    select: function(e) {
+                        var dataItem = e.item ? this.dataItem(e.item.index()) : null;
+                        var selectedValue = dataItem ? dataItem.value : "";
+                        var selectedText = dataItem ? dataItem.text : "";
+                        console.log("Bank selected - PersonalPaymentId:", selectedValue, "BankName:", selectedText);
+
+                        // Update hidden inputs for form submission
+                        $("#bankIdHidden").val(selectedValue);
+                        $("#bankNameHidden").val(selectedText);
+                    },
+                    dataBound: function(e) {
+                        console.log("Bank names loaded successfully. Total:", e.sender.dataSource.total());
+
+                        // Set the value after data is loaded if we have an initial PersonalPaymentId
+                        if (initialValue) {
+                            e.sender.value(initialValue);
+                        } else if (bankNameValue) {
+                            // Try to find by BankName if we don't have PersonalPaymentId
+                            var dataSource = e.sender.dataSource;
+                            var items = dataSource.data();
+                            var matchingItem = items.find(function(item) {
+                                return item.text === bankNameValue;
+                            });
+                            if (matchingItem) {
+                                e.sender.value(matchingItem.value);
+                                $("#bankIdHidden").val(matchingItem.value);
+                            }
+                        }
                     }
-                }, 500);
+                });
+
+                console.log("Bank ComboBox initialized successfully");
+            } catch (error) {
+                console.error("Error initializing Bank ComboBox:", error);
             }
-        });
-    }
+        }
 
-    function initializeBankComboBox() {
-        try {
-            // Check if element exists
-            if ($("#bankComboBox").length === 0) {
-                console.error("Bank ComboBox element not found");
-                return;
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name) || "";
+        }
+
+        function changePageSize(selectElement) {
+            const pageSize = selectElement.value;
+            console.log("Changing page size to:", pageSize);
+
+            // Get current URL parameters to preserve all filters
+            const urlParams = new URLSearchParams(window.location.search);
+            const params = new URLSearchParams();
+
+            // Copy all existing query parameters except pageNumber and pageSize
+            for (const [key, value] of urlParams.entries()) {
+                if (key !== 'pageNumber' && key !== 'pageSize') {
+                    params.append(key, value);
+                }
             }
 
-            // Destroy existing ComboBox if it exists
-            var existingCombo = $("#bankComboBox").data("kendoComboBox");
-            if (existingCombo) {
-                existingCombo.destroy();
+            // Get current form values and add/update them
+            const form = document.querySelector('form');
+            if (form) {
+                const formData = new FormData(form);
+                for (let [key, value] of formData.entries()) {
+                    const stringValue = String(value || '').trim();
+                    if (stringValue !== '') {
+                        params.set(key, stringValue);
+                    }
+                }
             }
 
-            // Get initial value from hidden input or query parameter (PersonalPaymentId)
-            var initialValue = $("#bankIdHidden").val() || getQueryParam('PaymentFilters.PersonalPaymentId') || "";
-            
-            // If we have BankName but not PersonalPaymentId, try to find matching ID
-            var bankNameValue = $("#bankNameHidden").val() || getQueryParam('PaymentFilters.BankName') || "";
-            
-            console.log("Initializing Bank ComboBox");
-            console.log("Initial PersonalPaymentId:", initialValue);
-            console.log("Initial BankName:", bankNameValue);
-            console.log("Endpoint URL:", "@Url.Action("GetBankNames", "PersonalPayments")");
+            // Ensure PersonalPaymentId is included if bank is selected in Kendo ComboBox
+            const bankCombo = $("#bankComboBox").data("kendoComboBox");
+            if (bankCombo && bankCombo.value()) {
+                params.set('PaymentFilters.PersonalPaymentId', bankCombo.value());
+                const selectedItem = bankCombo.dataItem();
+                if (selectedItem && selectedItem.text) {
+                    params.set('PaymentFilters.BankName', selectedItem.text);
+                }
+            } else {
+                // Get from hidden input if Kendo ComboBox is not initialized
+                const bankId = $("#bankIdHidden").val();
+                if (bankId) {
+                    params.set('PaymentFilters.PersonalPaymentId', bankId);
+                }
+            }
 
-            // Initialize Kendo ComboBox - similar to Product dropdown on Add Sale screen
-            $("#bankComboBox").kendoComboBox({
-               
-                placeholder: "--All Banks--",
+            // Add pagination parameters
+            params.set('pageNumber', '1');
+            params.set('pageSize', pageSize);
+
+            console.log("Redirecting with params:", params.toString());
+
+            // Redirect with parameters
+            window.location.href = '@Url.Action("Index", "PersonalPayments")' + '?' + params.toString();
+        }
+
+        function showTransactionHistory(personalPaymentId, bankName, accountNumber) {
+            currentPersonalPaymentId = personalPaymentId;
+
+            // Set modal title and account details
+            document.getElementById('modalBankName').textContent = bankName;
+            document.getElementById('modalAccountNumber').textContent = accountNumber;
+
+            // Reset filters
+            document.getElementById('historyFromDate').value = '';
+            document.getElementById('historyToDate').value = '';
+            document.getElementById('historyTransactionType').value = '';
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('transactionHistoryModal'));
+            modal.show();
+
+            // Load initial data
+            loadTransactionHistory();
+        }
+
+        function loadTransactionHistory(page = 1) {
+            if (!currentPersonalPaymentId) return;
+
+            currentHistoryPage = page;
+
+            // Show loading indicator
+            document.getElementById('historyLoading').style.display = 'block';
+            document.getElementById('transactionHistoryTable').style.display = 'none';
+            document.getElementById('historyPagination').style.display = 'none';
+
+            // Get filter values
+            const fromDate = document.getElementById('historyFromDate').value;
+            const toDate = document.getElementById('historyToDate').value;
+            const transactionType = document.getElementById('historyTransactionType').value;
+
+            // Build query parameters
+            const params = new URLSearchParams({
+                personalPaymentId: currentPersonalPaymentId,
+                pageNumber: page,
+                pageSize: historyPageSize
+            });
+
+            if (fromDate) params.append('fromDate', fromDate);
+            if (toDate) params.append('toDate', toDate);
+            if (transactionType) params.append('transactionType', transactionType);
+
+            // Make AJAX call
+            fetch(`/PersonalPayments/GetTransactionHistory?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayTransactionHistory(data);
+                })
+                .catch(error => {
+                    console.error('Error loading transaction history:', error);
+                    showHistoryError('Failed to load transaction history. Please try again.');
+                })
+                .finally(() => {
+                    document.getElementById('historyLoading').style.display = 'none';
+                    document.getElementById('transactionHistoryTable').style.display = 'table';
+                });
+        }
+
+        function displayTransactionHistory(data) {
+            const tbody = document.getElementById('transactionHistoryBody');
+            tbody.innerHTML = '';
+
+            if (data.transactions && data.transactions.length > 0) {
+                // Update account summary
+                if (data.accountSummary) {
+                    document.getElementById('modalCurrentBalance').textContent =
+                        'Rs' + parseFloat(data.accountSummary.currentBalance).toFixed(2);
+                    document.getElementById('modalTransactionCount').textContent = data.accountSummary.transactionCount;
+                }
+
+                // Display transactions
+                data.transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    // Determine reference text - show "Manual Deposit/Withdraw" for manual transactions (SaleId = 0)
+                    let referenceText = '-';
+                    const saleId = transaction.saleId || transaction.SaleId || 0;
+                    if (saleId === 0 || saleId === '0') {
+                        // Manual transaction
+                        if (transaction.transactionType === 'Credit') {
+                            referenceText = '<span class="badge bg-info">Manual Deposit</span>';
+                        } else if (transaction.transactionType === 'Debit') {
+                            referenceText = '<span class="badge bg-warning">Manual Withdraw</span>';
+                        }
+                    } else {
+                        const billNumber = transaction.billNumber || transaction.BillNumber || 0;
+                        const saleDescription = transaction.saleDescription || transaction.SaleDescription || '';
+                        if (billNumber && billNumber > 0) {
+                            referenceText = 'Bill #' + billNumber;
+                        } else if (saleDescription) {
+                            referenceText = saleDescription;
+                        }
+                    }
+
+                    row.innerHTML = `
+                        <td>${new Date(transaction.transactionDate).toLocaleDateString()}</td>
+                        <td>
+                            <span class="badge ${transaction.transactionType === 'Credit' ? 'bg-success' : 'bg-danger'}">
+                                ${transaction.transactionType}
+                            </span>
+                        </td>
+                        <td class="text-end ${transaction.transactionType === 'Credit' ? 'text-success' : 'text-danger'}">
+                            Rs${parseFloat(transaction.amount).toFixed(2)}
+                        </td>
+                        <td class="text-end fw-bold">Rs${parseFloat(transaction.balance).toFixed(2)}</td>
+                        <td>${transaction.transactionDescription || '-'}</td>
+                        <td>${referenceText}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Display pagination if needed
+                if (data.totalPages > 1) {
+                    displayHistoryPagination(data.currentPage, data.totalPages);
+                    document.getElementById('historyPagination').style.display = 'block';
+                }
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-inbox fa-2x mb-2"></i>
+                            <br>No transactions found
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function displayHistoryPagination(currentPage, totalPages) {
+            const paginationList = document.getElementById('historyPaginationList');
+            paginationList.innerHTML = '';
+
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `
+                <a class="page-link" href="#" onclick="loadTransactionHistory(${currentPage - 1}); return false;">
+                    Previous
+                </a>
+            `;
+            paginationList.appendChild(prevLi);
+
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `
+                    <a class="page-link" href="#" onclick="loadTransactionHistory(${i}); return false;">
+                        ${i}
+                    </a>
+                `;
+                paginationList.appendChild(li);
+            }
+
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `
+                <a class="page-link" href="#" onclick="loadTransactionHistory(${currentPage + 1}); return false;">
+                    Next
+                </a>
+            `;
+            paginationList.appendChild(nextLi);
+        }
+
+        function showHistoryError(message) {
+            const tbody = document.getElementById('transactionHistoryBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger py-4">
+                        <i class="fa-solid fa-exclamation-triangle fa-2x mb-2"></i>
+                        <br>${message}
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Initialize Deposit and Withdraw Modals
+        function initializeDepositWithdrawModals() {
+            // Initialize Deposit Bank ComboBox
+            $("#depositBankSelect").kendoComboBox({
+                placeholder: "--Select Bank Account--",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
@@ -604,603 +915,293 @@
                         }
                     }
                 },
-                value: initialValue,
                 change: function(e) {
-                    var selectedValue = this.value() || "";
-                    var selectedItem = this.dataItem();
-                    console.log("Bank selection changed - PersonalPaymentId:", selectedValue);
-                    console.log("Selected item:", selectedItem);
-                    
-                    // Update hidden inputs for form submission
-                    $("#bankIdHidden").val(selectedValue);
-                    if (selectedItem && selectedItem.text) {
-                        $("#bankNameHidden").val(selectedItem.text);
+                    const bankId = this.value();
+                    $("#depositBankIdHidden").val(bankId);
+                    if (bankId) {
+                        loadAccountBalance(bankId, 'deposit');
                     } else {
-                        $("#bankNameHidden").val("");
+                        $("#availableBalanceDeposit").val('');
+                        $("#newBalanceDeposit").text('-');
                     }
-                },
-                select: function(e) {
-                    var selectedValue = e.item ? e.item.value() : "";
-                    var selectedText = e.item ? e.item.text() : "";
-                    console.log("Bank selected - PersonalPaymentId:", selectedValue, "BankName:", selectedText);
-                    
-                    // Update hidden inputs for form submission
-                    $("#bankIdHidden").val(selectedValue);
-                    $("#bankNameHidden").val(selectedText);
-                },
-                dataBound: function(e) {
-                    console.log("Bank names loaded successfully. Total:", e.sender.dataSource.total());
-                    
-                    // Set the value after data is loaded if we have an initial PersonalPaymentId
-                    if (initialValue) {
-                        e.sender.value(initialValue);
-                    } else if (bankNameValue) {
-                        // Try to find by BankName if we don't have PersonalPaymentId
-                        var dataSource = e.sender.dataSource;
-                        var items = dataSource.data();
-                        var matchingItem = items.find(function(item) {
-                            return item.text === bankNameValue;
-                        });
-                        if (matchingItem) {
-                            e.sender.value(matchingItem.value);
-                            $("#bankIdHidden").val(matchingItem.value);
+                }
+            });
+
+            // Initialize Withdraw Bank ComboBox
+            $("#withdrawBankSelect").kendoComboBox({
+                placeholder: "--Select Bank Account--",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "text",
+                dataValueField: "value",
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetBankNames", "PersonalPayments")",
+                            dataType: "json"
                         }
                     }
-                }
-            });
-
-            console.log("Bank ComboBox initialized successfully");
-        } catch (error) {
-            console.error("Error initializing Bank ComboBox:", error);
-        }
-    }
-
-    function getQueryParam(name) {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(name) || "";
-    }
-
-    function changePageSize(selectElement) {
-        const pageSize = selectElement.value;
-        console.log("Changing page size to:", pageSize);
-        
-        // Get current URL parameters to preserve all filters
-        const urlParams = new URLSearchParams(window.location.search);
-        const params = new URLSearchParams();
-        
-        // Copy all existing query parameters except pageNumber and pageSize
-        for (const [key, value] of urlParams.entries()) {
-            if (key !== 'pageNumber' && key !== 'pageSize') {
-                params.append(key, value);
-            }
-        }
-        
-        // Get current form values and add/update them
-        const form = document.querySelector('form');
-        if (form) {
-            const formData = new FormData(form);
-            for (let [key, value] of formData.entries()) {
-                const stringValue = String(value || '').trim();
-                if (stringValue !== '') {
-                    params.set(key, stringValue);
-                }
-            }
-        }
-        
-        // Ensure PersonalPaymentId is included if bank is selected in Kendo ComboBox
-        const bankCombo = $("#bankComboBox").data("kendoComboBox");
-        if (bankCombo && bankCombo.value()) {
-            params.set('PaymentFilters.PersonalPaymentId', bankCombo.value());
-            const selectedItem = bankCombo.dataItem();
-            if (selectedItem && selectedItem.text) {
-                params.set('PaymentFilters.BankName', selectedItem.text);
-            }
-        } else {
-            // Get from hidden input if Kendo ComboBox is not initialized
-            const bankId = $("#bankIdHidden").val();
-            if (bankId) {
-                params.set('PaymentFilters.PersonalPaymentId', bankId);
-            }
-        }
-        
-        // Add pagination parameters
-        params.set('pageNumber', '1');
-        params.set('pageSize', pageSize);
-        
-        console.log("Redirecting with params:", params.toString());
-        
-        // Redirect with parameters
-        window.location.href = '@Url.Action("Index", "PersonalPayments")' + '?' + params.toString();
-    }
-
-    function showTransactionHistory(personalPaymentId, bankName, accountNumber) {
-        currentPersonalPaymentId = personalPaymentId;
-        
-        // Set modal title and account details
-        document.getElementById('modalBankName').textContent = bankName;
-        document.getElementById('modalAccountNumber').textContent = accountNumber;
-        
-        // Reset filters
-        document.getElementById('historyFromDate').value = '';
-        document.getElementById('historyToDate').value = '';
-        document.getElementById('historyTransactionType').value = '';
-        
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('transactionHistoryModal'));
-        modal.show();
-        
-        // Load initial data
-        loadTransactionHistory();
-    }
-
-    function loadTransactionHistory(page = 1) {
-        if (!currentPersonalPaymentId) return;
-        
-        currentHistoryPage = page;
-        
-        // Show loading indicator
-        document.getElementById('historyLoading').style.display = 'block';
-        document.getElementById('transactionHistoryTable').style.display = 'none';
-        document.getElementById('historyPagination').style.display = 'none';
-        
-        // Get filter values
-        const fromDate = document.getElementById('historyFromDate').value;
-        const toDate = document.getElementById('historyToDate').value;
-        const transactionType = document.getElementById('historyTransactionType').value;
-        
-        // Build query parameters
-        const params = new URLSearchParams({
-            personalPaymentId: currentPersonalPaymentId,
-            pageNumber: page,
-            pageSize: historyPageSize
-        });
-        
-        if (fromDate) params.append('fromDate', fromDate);
-        if (toDate) params.append('toDate', toDate);
-        if (transactionType) params.append('transactionType', transactionType);
-        
-        // Make AJAX call
-        fetch(`/PersonalPayments/GetTransactionHistory?${params.toString()}`)
-            .then(response => response.json())
-            .then(data => {
-                displayTransactionHistory(data);
-            })
-            .catch(error => {
-                console.error('Error loading transaction history:', error);
-                showHistoryError('Failed to load transaction history. Please try again.');
-            })
-            .finally(() => {
-                document.getElementById('historyLoading').style.display = 'none';
-                document.getElementById('transactionHistoryTable').style.display = 'table';
-            });
-    }
-
-    function displayTransactionHistory(data) {
-        const tbody = document.getElementById('transactionHistoryBody');
-        tbody.innerHTML = '';
-        
-        if (data.transactions && data.transactions.length > 0) {
-            // Update account summary
-            if (data.accountSummary) {
-                document.getElementById('modalCurrentBalance').textContent = 
-                    'Rs' + parseFloat(data.accountSummary.currentBalance).toFixed(2);
-                document.getElementById('modalTransactionCount').textContent = data.accountSummary.transactionCount;
-            }
-            
-            // Display transactions
-            data.transactions.forEach(transaction => {
-                const row = document.createElement('tr');
-                // Determine reference text - show "Manual Deposit/Withdraw" for manual transactions (SaleId = 0)
-                let referenceText = '-';
-                const saleId = transaction.saleId || transaction.SaleId || 0;
-                if (saleId === 0 || saleId === '0') {
-                    // Manual transaction
-                    if (transaction.transactionType === 'Credit') {
-                        referenceText = '<span class="badge bg-info">Manual Deposit</span>';
-                    } else if (transaction.transactionType === 'Debit') {
-                        referenceText = '<span class="badge bg-warning">Manual Withdraw</span>';
-                    }
-                } else {
-                    const billNumber = transaction.billNumber || transaction.BillNumber || 0;
-                    const saleDescription = transaction.saleDescription || transaction.SaleDescription || '';
-                    if (billNumber && billNumber > 0) {
-                        referenceText = 'Bill #' + billNumber;
-                    } else if (saleDescription) {
-                        referenceText = saleDescription;
-                    }
-                }
-                
-                row.innerHTML = `
-                    <td>${new Date(transaction.transactionDate).toLocaleDateString()}</td>
-                    <td>
-                        <span class="badge ${transaction.transactionType === 'Credit' ? 'bg-success' : 'bg-danger'}">
-                            ${transaction.transactionType}
-                        </span>
-                    </td>
-                    <td class="text-end ${transaction.transactionType === 'Credit' ? 'text-success' : 'text-danger'}">
-                        Rs${parseFloat(transaction.amount).toFixed(2)}
-                    </td>
-                    <td class="text-end fw-bold">Rs${parseFloat(transaction.balance).toFixed(2)}</td>
-                    <td>${transaction.transactionDescription || '-'}</td>
-                    <td>${referenceText}</td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            // Display pagination if needed
-            if (data.totalPages > 1) {
-                displayHistoryPagination(data.currentPage, data.totalPages);
-                document.getElementById('historyPagination').style.display = 'block';
-            }
-        } else {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        <i class="fa-solid fa-inbox fa-2x mb-2"></i>
-                        <br>No transactions found
-                    </td>
-                </tr>
-            `;
-        }
-    }
-
-    function displayHistoryPagination(currentPage, totalPages) {
-        const paginationList = document.getElementById('historyPaginationList');
-        paginationList.innerHTML = '';
-        
-        // Previous button
-        const prevLi = document.createElement('li');
-        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `
-            <a class="page-link" href="#" onclick="loadTransactionHistory(${currentPage - 1}); return false;">
-                Previous
-            </a>
-        `;
-        paginationList.appendChild(prevLi);
-        
-        // Page numbers
-        const startPage = Math.max(1, currentPage - 2);
-        const endPage = Math.min(totalPages, currentPage + 2);
-        
-        for (let i = startPage; i <= endPage; i++) {
-            const li = document.createElement('li');
-            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-            li.innerHTML = `
-                <a class="page-link" href="#" onclick="loadTransactionHistory(${i}); return false;">
-                    ${i}
-                </a>
-            `;
-            paginationList.appendChild(li);
-        }
-        
-        // Next button
-        const nextLi = document.createElement('li');
-        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `
-            <a class="page-link" href="#" onclick="loadTransactionHistory(${currentPage + 1}); return false;">
-                Next
-            </a>
-        `;
-        paginationList.appendChild(nextLi);
-    }
-
-    function showHistoryError(message) {
-        const tbody = document.getElementById('transactionHistoryBody');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center text-danger py-4">
-                    <i class="fa-solid fa-exclamation-triangle fa-2x mb-2"></i>
-                    <br>${message}
-                </td>
-            </tr>
-        `;
-    }
-
-    // Initialize Deposit and Withdraw Modals
-    function initializeDepositWithdrawModals() {
-        // Initialize Deposit Bank ComboBox
-        $("#depositBankSelect").kendoComboBox({
-            placeholder: "--Select Bank Account--",
-            filter: "contains",
-            suggest: true,
-            minLength: 1,
-            dataTextField: "text",
-            dataValueField: "value",
-            dataSource: {
-                transport: {
-                    read: {
-                        url: "@Url.Action("GetBankNames", "PersonalPayments")",
-                        dataType: "json"
-                    }
-                }
-            },
-            change: function(e) {
-                const bankId = this.value();
-                $("#depositBankIdHidden").val(bankId);
-                if (bankId) {
-                    loadAccountBalance(bankId, 'deposit');
-                } else {
-                    $("#availableBalanceDeposit").val('');
-                    $("#newBalanceDeposit").text('-');
-                }
-            }
-        });
-
-        // Initialize Withdraw Bank ComboBox
-        $("#withdrawBankSelect").kendoComboBox({
-            placeholder: "--Select Bank Account--",
-            filter: "contains",
-            suggest: true,
-            minLength: 1,
-            dataTextField: "text",
-            dataValueField: "value",
-            dataSource: {
-                transport: {
-                    read: {
-                        url: "@Url.Action("GetBankNames", "PersonalPayments")",
-                        dataType: "json"
-                    }
-                }
-            },
-            change: function(e) {
-                const bankId = this.value();
-                $("#withdrawBankIdHidden").val(bankId);
-                if (bankId) {
-                    loadAccountBalance(bankId, 'withdraw');
-                } else {
-                    $("#availableBalanceWithdraw").val('');
-                    $("#newBalanceWithdraw").text('-');
-                }
-            }
-        });
-
-        // Calculate new balance on amount change for deposit
-        $("#depositAmount").on('input', function() {
-            const availableBalance = parseFloat($("#availableBalanceDeposit").val().replace(/[^0-9.-]+/g, '')) || 0;
-            const depositAmount = parseFloat($(this).val()) || 0;
-            const newBalance = availableBalance + depositAmount;
-            $("#newBalanceDeposit").text(formatCurrency(newBalance));
-        });
-
-        // Calculate new balance on amount change for withdraw
-        $("#withdrawAmount").on('input', function() {
-            const availableBalance = parseFloat($("#availableBalanceWithdraw").val().replace(/[^0-9.-]+/g, '')) || 0;
-            const withdrawAmount = parseFloat($(this).val()) || 0;
-            const newBalance = availableBalance - withdrawAmount;
-            $("#newBalanceWithdraw").text(formatCurrency(newBalance));
-            if (newBalance < 0) {
-                $("#newBalanceWithdraw").addClass('text-danger').removeClass('text-warning');
-            } else {
-                $("#newBalanceWithdraw").removeClass('text-danger').addClass('text-warning');
-            }
-        });
-    }
-
-    function loadAccountBalance(bankId, type) {
-        fetch(`@Url.Action("GetAccountBalance", "PersonalPayments")?accountId=${bankId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.balance !== undefined) {
-                    const balance = parseFloat(data.balance);
-                    if (type === 'deposit') {
-                        $("#availableBalanceDeposit").val(formatCurrency(balance));
-                        const depositAmount = parseFloat($("#depositAmount").val()) || 0;
-                        $("#newBalanceDeposit").text(formatCurrency(balance + depositAmount));
+                },
+                change: function(e) {
+                    const bankId = this.value();
+                    $("#withdrawBankIdHidden").val(bankId);
+                    if (bankId) {
+                        loadAccountBalance(bankId, 'withdraw');
                     } else {
-                        $("#availableBalanceWithdraw").val(formatCurrency(balance));
-                        const withdrawAmount = parseFloat($("#withdrawAmount").val()) || 0;
-                        const newBalance = balance - withdrawAmount;
-                        $("#newBalanceWithdraw").text(formatCurrency(newBalance));
-                        if (newBalance < 0) {
-                            $("#newBalanceWithdraw").addClass('text-danger').removeClass('text-warning');
+                        $("#availableBalanceWithdraw").val('');
+                        $("#newBalanceWithdraw").text('-');
+                    }
+                }
+            });
+
+            // Calculate new balance on amount change for deposit
+            $("#depositAmount").on('input', function() {
+                const availableBalance = parseFloat($("#availableBalanceDeposit").val().replace(/[^0-9.-]+/g, '')) || 0;
+                const depositAmount = parseFloat($(this).val()) || 0;
+                const newBalance = availableBalance + depositAmount;
+                $("#newBalanceDeposit").text(formatCurrency(newBalance));
+            });
+
+            // Calculate new balance on amount change for withdraw
+            $("#withdrawAmount").on('input', function() {
+                const availableBalance = parseFloat($("#availableBalanceWithdraw").val().replace(/[^0-9.-]+/g, '')) || 0;
+                const withdrawAmount = parseFloat($(this).val()) || 0;
+                const newBalance = availableBalance - withdrawAmount;
+                $("#newBalanceWithdraw").text(formatCurrency(newBalance));
+                if (newBalance < 0) {
+                    $("#newBalanceWithdraw").addClass('text-danger').removeClass('text-warning');
+                } else {
+                    $("#newBalanceWithdraw").removeClass('text-danger').addClass('text-warning');
+                }
+            });
+        }
+
+        function loadAccountBalance(bankId, type) {
+            fetch(`@Url.Action("GetAccountBalance", "PersonalPayments")?accountId=${bankId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.balance !== undefined) {
+                        const balance = parseFloat(data.balance);
+                        if (type === 'deposit') {
+                            $("#availableBalanceDeposit").val(formatCurrency(balance));
+                            const depositAmount = parseFloat($("#depositAmount").val()) || 0;
+                            $("#newBalanceDeposit").text(formatCurrency(balance + depositAmount));
                         } else {
-                            $("#newBalanceWithdraw").removeClass('text-danger').addClass('text-warning');
+                            $("#availableBalanceWithdraw").val(formatCurrency(balance));
+                            const withdrawAmount = parseFloat($("#withdrawAmount").val()) || 0;
+                            const newBalance = balance - withdrawAmount;
+                            $("#newBalanceWithdraw").text(formatCurrency(newBalance));
+                            if (newBalance < 0) {
+                                $("#newBalanceWithdraw").addClass('text-danger').removeClass('text-warning');
+                            } else {
+                                $("#newBalanceWithdraw").removeClass('text-danger').addClass('text-warning');
+                            }
+                        }
+                    } else {
+                        if (type === 'deposit') {
+                            $("#availableBalanceDeposit").val('Rs 0.00');
+                        } else {
+                            $("#availableBalanceWithdraw").val('Rs 0.00');
                         }
                     }
-                } else {
+                })
+                .catch(error => {
+                    console.error('Error loading account balance:', error);
                     if (type === 'deposit') {
                         $("#availableBalanceDeposit").val('Rs 0.00');
                     } else {
                         $("#availableBalanceWithdraw").val('Rs 0.00');
                     }
+                });
+        }
+
+        function formatCurrency(amount) {
+            return 'Rs ' + parseFloat(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function showBankDepositModal() {
+            // Reset form
+            $("#depositBankSelect").data("kendoComboBox").value("");
+            $("#depositBankIdHidden").val("");
+            $("#availableBalanceDeposit").val('');
+            $("#depositAmount").val('');
+            $("#depositDescription").val('');
+            $("#newBalanceDeposit").text('-');
+            $("#depositBankError").text('');
+            $("#depositAmountError").text('');
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('bankDepositModal'));
+            modal.show();
+        }
+
+        function showBankWithdrawModal() {
+            // Reset form
+            $("#withdrawBankSelect").data("kendoComboBox").value("");
+            $("#withdrawBankIdHidden").val("");
+            $("#availableBalanceWithdraw").val('');
+            $("#withdrawAmount").val('');
+            $("#withdrawDescription").val('');
+            $("#newBalanceWithdraw").text('-');
+            $("#withdrawBankError").text('');
+            $("#withdrawAmountError").text('');
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('bankWithdrawModal'));
+            modal.show();
+        }
+
+        function processBankDeposit() {
+            const bankId = $("#depositBankIdHidden").val();
+            const amount = parseFloat($("#depositAmount").val());
+            const description = $("#depositDescription").val();
+
+            // Validation
+            let isValid = true;
+            $("#depositBankError").text('');
+            $("#depositAmountError").text('');
+
+            if (!bankId) {
+                $("#depositBankError").text('Please select a bank account');
+                isValid = false;
+            }
+
+            if (!amount || amount <= 0) {
+                $("#depositAmountError").text('Please enter a valid deposit amount');
+                isValid = false;
+            }
+
+            if (!isValid) return;
+
+            // Show loading
+            const submitBtn = event.target;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Processing...';
+
+            // Process deposit
+            fetch('@Url.Action("BankDeposit", "PersonalPayments")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personalPaymentId: parseInt(bankId),
+                    amount: amount,
+                    description: description || 'Bank Deposit'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch {
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('bankDepositModal')).hide();
+                    // Show success message
+                    alert('Deposit successful!');
+                    // Reload page to show updated balance
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to process deposit'));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
                 }
             })
             .catch(error => {
-                console.error('Error loading account balance:', error);
-                if (type === 'deposit') {
-                    $("#availableBalanceDeposit").val('Rs 0.00');
-                } else {
-                    $("#availableBalanceWithdraw").val('Rs 0.00');
-                }
+                console.error('Error processing deposit:', error);
+                alert('An error occurred while processing the deposit');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             });
-    }
-
-    function formatCurrency(amount) {
-        return 'Rs ' + parseFloat(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    function showBankDepositModal() {
-        // Reset form
-        $("#depositBankSelect").data("kendoComboBox").value("");
-        $("#depositBankIdHidden").val("");
-        $("#availableBalanceDeposit").val('');
-        $("#depositAmount").val('');
-        $("#depositDescription").val('');
-        $("#newBalanceDeposit").text('-');
-        $("#depositBankError").text('');
-        $("#depositAmountError").text('');
-
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('bankDepositModal'));
-        modal.show();
-    }
-
-    function showBankWithdrawModal() {
-        // Reset form
-        $("#withdrawBankSelect").data("kendoComboBox").value("");
-        $("#withdrawBankIdHidden").val("");
-        $("#availableBalanceWithdraw").val('');
-        $("#withdrawAmount").val('');
-        $("#withdrawDescription").val('');
-        $("#newBalanceWithdraw").text('-');
-        $("#withdrawBankError").text('');
-        $("#withdrawAmountError").text('');
-
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('bankWithdrawModal'));
-        modal.show();
-    }
-
-    function processBankDeposit() {
-        const bankId = $("#depositBankIdHidden").val();
-        const amount = parseFloat($("#depositAmount").val());
-        const description = $("#depositDescription").val();
-
-        // Validation
-        let isValid = true;
-        $("#depositBankError").text('');
-        $("#depositAmountError").text('');
-
-        if (!bankId) {
-            $("#depositBankError").text('Please select a bank account');
-            isValid = false;
         }
 
-        if (!amount || amount <= 0) {
-            $("#depositAmountError").text('Please enter a valid deposit amount');
-            isValid = false;
-        }
+        function processBankWithdraw() {
+            const bankId = $("#withdrawBankIdHidden").val();
+            const amount = parseFloat($("#withdrawAmount").val());
+            const description = $("#withdrawDescription").val();
+            const availableBalance = parseFloat($("#availableBalanceWithdraw").val().replace(/[^0-9.-]+/g, '')) || 0;
 
-        if (!isValid) return;
+            // Validation
+            let isValid = true;
+            $("#withdrawBankError").text('');
+            $("#withdrawAmountError").text('');
 
-        // Show loading
-        const submitBtn = event.target;
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Processing...';
-
-        // Process deposit
-        fetch('@Url.Action("BankDeposit", "PersonalPayments")', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                personalPaymentId: parseInt(bankId),
-                amount: amount,
-                description: description || 'Bank Deposit'
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    try {
-                        return JSON.parse(text);
-                    } catch {
-                        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                    }
-                });
+            if (!bankId) {
+                $("#withdrawBankError").text('Please select a bank account');
+                isValid = false;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('bankDepositModal')).hide();
-                // Show success message
-                alert('Deposit successful!');
-                // Reload page to show updated balance
-                window.location.reload();
-            } else {
-                alert('Error: ' + (data.message || 'Failed to process deposit'));
+
+            if (!amount || amount <= 0) {
+                $("#withdrawAmountError").text('Please enter a valid withdraw amount');
+                isValid = false;
+            } else if (amount > availableBalance) {
+                $("#withdrawAmountError").text('Withdraw amount cannot exceed available balance');
+                isValid = false;
+            }
+
+            if (!isValid) return;
+
+            // Show loading
+            const submitBtn = event.target;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Processing...';
+
+            // Process withdraw
+            fetch('@Url.Action("BankWithdraw", "PersonalPayments")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personalPaymentId: parseInt(bankId),
+                    amount: amount,
+                    description: description || 'Bank Withdraw'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch {
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('bankWithdrawModal')).hide();
+                    // Show success message
+                    alert('Withdraw successful!');
+                    // Reload page to show updated balance
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to process withdraw'));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error processing withdraw:', error);
+                alert('An error occurred while processing the withdraw');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
-            }
-        })
-        .catch(error => {
-            console.error('Error processing deposit:', error);
-            alert('An error occurred while processing the deposit');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        });
-    }
-
-    function processBankWithdraw() {
-        const bankId = $("#withdrawBankIdHidden").val();
-        const amount = parseFloat($("#withdrawAmount").val());
-        const description = $("#withdrawDescription").val();
-        const availableBalance = parseFloat($("#availableBalanceWithdraw").val().replace(/[^0-9.-]+/g, '')) || 0;
-
-        // Validation
-        let isValid = true;
-        $("#withdrawBankError").text('');
-        $("#withdrawAmountError").text('');
-
-        if (!bankId) {
-            $("#withdrawBankError").text('Please select a bank account');
-            isValid = false;
+            });
         }
-
-        if (!amount || amount <= 0) {
-            $("#withdrawAmountError").text('Please enter a valid withdraw amount');
-            isValid = false;
-        } else if (amount > availableBalance) {
-            $("#withdrawAmountError").text('Withdraw amount cannot exceed available balance');
-            isValid = false;
-        }
-
-        if (!isValid) return;
-
-        // Show loading
-        const submitBtn = event.target;
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Processing...';
-
-        // Process withdraw
-        fetch('@Url.Action("BankWithdraw", "PersonalPayments")', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                personalPaymentId: parseInt(bankId),
-                amount: amount,
-                description: description || 'Bank Withdraw'
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    try {
-                        return JSON.parse(text);
-                    } catch {
-                        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                    }
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('bankWithdrawModal')).hide();
-                // Show success message
-                alert('Withdraw successful!');
-                // Reload page to show updated balance
-                window.location.reload();
-            } else {
-                alert('Error: ' + (data.message || 'Failed to process withdraw'));
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
-        })
-        .catch(error => {
-            console.error('Error processing withdraw:', error);
-            alert('An error occurred while processing the withdraw');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        });
-    }
-</script>
+    </script>
 }

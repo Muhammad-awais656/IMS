@@ -35,7 +35,7 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="PaymentAmount" class="form-label">Payment Amount *</label>
-                            <input asp-for="PaymentAmount" class="form-control" type="number" step="0.01" min="0" required />
+                            <input asp-for="PaymentAmount" class="form-control" type="number" step="0.001" min="0" required />
                             <span asp-validation-for="PaymentAmount" class="text-danger"></span>
                         </div>
                     </div>

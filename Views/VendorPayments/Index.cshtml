@@ -99,7 +99,7 @@
                     <table class="table table-striped table-bordered mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Bill id</th>
+                                <th>Payment id</th>
                                 <th>Vendor</th>
                                 <th>Bill #</th>
                                 <th>Bill date</th>
@@ -109,6 +109,7 @@
                                 <th>Total payable amount</th>
                                 <th>Description</th>
                                 <th>Payment Method</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -117,7 +118,7 @@
                                 @foreach (var bill in Model.BillsList)
                                 {
                                     <tr>
-                                        <td>@bill.BillId</td>
+                                        <td>@bill.PaymentId</td>
                                         <td>@bill.VendorName</td>
                                         <td><span class="badge bg-primary">@bill.BillNumber</span></td>
                                         <td>@bill.BillDate.ToString("dd/MM/yyyy")</td>
@@ -148,13 +149,26 @@
                                                 <span class="badge bg-secondary">-</span>
                                             }
                                         </td>
+                                        <td class="table-actions text-nowrap">
+                                            <div class="btn-group" role="group">
+                                                <a asp-action="Details" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-info" title="View Details">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </a>
+                                                <a asp-action="Edit" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
+                                                    <i class="fa-solid fa-edit"></i>
+                                                </a>
+                                                <a asp-action="Delete" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
                                     </tr>
                                 }
                             }
                             else
                             {
                                 <tr>
-                                    <td colspan="10" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
+                                    <td colspan="11" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
                                         <div class="text-muted">No bills found.</div>
                                     </td>
                                 </tr>
@@ -166,7 +180,7 @@
         </div>
 
         <!-- Summary and Action Buttons Section -->
-        <div class="row mt-3">
+       @*  <div class="row mt-3">
             <!-- Summary Totals (Left Side) -->
             <div class="col-md-8">
                 <div class="card bg-light">
@@ -194,7 +208,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> *@
 
         <!-- Pagination -->
         <div class="d-flex justify-content-between align-items-center mt-4">

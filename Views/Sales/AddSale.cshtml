@@ -118,6 +118,12 @@
                         <span asp-validation-for="CustomerId" class="text-danger"></span>
                     </div>
                     <div class="col-md-3">
+                        <label asp-for="VendorId" class="form-label">Vendor:</label>
+                        <input asp-for="VendorId" id="vendorSelect" style="width: 100%;" />
+                        <span asp-validation-for="VendorId" class="text-danger"></span>
+                        <small class="form-text text-muted">Select either customer or vendor</small>
+                    </div>
+                    <div class="col-md-3">
                         <label asp-for="BillNo" class="form-label">Bill #:</label>
                         @if (ViewBag.IsEdit == true)
                         {
@@ -280,10 +286,11 @@
             // Get model values safely
             const saleId = @(Model.SaleId?.ToString() ?? "null");
             const customerId = '@(Model.CustomerId?.ToString() ?? "null")';
+            const vendorId = '@(Model.VendorId?.ToString() ?? "null")';
             const paymentMethod = @(Model.PaymentMethod != null ? Html.Raw($"\"{Model.PaymentMethod}\"") : "null");
             const onlineAccountId = @(Model.OnlineAccountId?.ToString() ?? "null")
             
-            console.log('Model values:', { saleId, customerId, paymentMethod, onlineAccountId });
+            console.log('Model values:', { saleId, customerId, vendorId, paymentMethod, onlineAccountId });
             
             // Set SaleId in hidden field
             if (saleId && saleId !== "null") {
@@ -291,9 +298,18 @@
                 console.log('SaleId set to:', saleId);
             }
             
-            // Set customer dropdown value
+            // Set vendor or customer dropdown value
+            const vendorComboForEdit = $("#vendorSelect").data("kendoComboBox");
             const customerCombo = $("#customerSelect").data("kendoComboBox");
-            if (customerCombo && customerId && customerId !== "null") {
+            if (vendorComboForEdit && vendorId && vendorId !== "null") {
+                vendorComboForEdit.value(vendorId.toString());
+                if (customerCombo) {
+                    customerCombo.value('');
+                    customerCombo.text('');
+                }
+                console.log('Vendor set to:', vendorId);
+                setPreviousDueForVendor();
+            } else if (customerCombo && customerId && customerId !== "null") {
                 customerCombo.value(customerId.toString());
                 console.log('Customer set to:', customerId);
                 
@@ -439,6 +455,8 @@
 
             // Unit dropdown removed - using product size unit directly
 
+            let suppressPartyChange = false;
+
             // Customer Selection Combobox
             $("#customerSelect").kendoComboBox({
                 dataSource: {
@@ -456,7 +474,52 @@
                 suggest: true,
                 minLength: 1,
                 change: function() {
+                    if (suppressPartyChange) return;
+                    const customerValue = this.value();
+                    if (customerValue) {
+                        suppressPartyChange = true;
+                        const vendorComboForCustomer = $("#vendorSelect").data("kendoComboBox");
+                        if (vendorComboForCustomer) {
+                            vendorComboForCustomer.value('');
+                            vendorComboForCustomer.text('');
+                        }
+                        suppressPartyChange = false;
+                    }
                     loadPreviousDueAmount();
+                }
+            });
+
+            // Vendor Selection Combobox
+            $("#vendorSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Vendor --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    if (suppressPartyChange) return;
+                    const vendorValue = this.value();
+                    if (vendorValue) {
+                        suppressPartyChange = true;
+                        const customerCombo = $("#customerSelect").data("kendoComboBox");
+                        if (customerCombo) {
+                            customerCombo.value('');
+                            customerCombo.text('');
+                        }
+                        suppressPartyChange = false;
+                        setPreviousDueForVendor();
+                    } else {
+                        loadPreviousDueAmount();
+                    }
                 }
             });
 
@@ -975,7 +1038,14 @@
         function loadPreviousDueAmount() {
             const customerCombo = $("#customerSelect").data("kendoComboBox");
             const customerId = customerCombo ? customerCombo.value() : null;
+            const vendorComboForDue = $("#vendorSelect").data("kendoComboBox");
+            const vendorId = vendorComboForDue ? vendorComboForDue.value() : null;
             const previousDueInput = document.getElementById('PreviousDue');
+
+            if (vendorId) {
+                setPreviousDueForVendor();
+                return;
+            }
 
             if (customerId) {
                 // Show loading state
@@ -1032,6 +1102,14 @@
                 previousDueInput.style.color = '';
                 updateTotals();
             }
+        }
+
+        function setPreviousDueForVendor() {
+            const previousDueInput = document.getElementById('PreviousDue');
+            previousDueInput.value = '0.00';
+            previousDueInput.style.backgroundColor = '#e2e3e5';
+            previousDueInput.style.color = '#41464b';
+            showSuccessMessage('Vendor selected. Previous due is not tracked.');
         }
 
         function onProductSizeChange() {
@@ -1917,6 +1995,16 @@
                 document.getElementById('customerSelect').value = customerId || '';
                 console.log('Customer ID set in form field:', document.getElementById('customerSelect').value);
             }
+
+            // Sync Vendor ID
+            const vendorComboForSync = $("#vendorSelect").data("kendoComboBox");
+            if (vendorComboForSync) {
+                const vendorId = vendorComboForSync.value();
+                console.log('Vendor ID from Kendo combobox:', vendorId);
+                // Update the input field directly since it has id="vendorSelect"
+                document.getElementById('vendorSelect').value = vendorId || '';
+                console.log('Vendor ID set in form field:', document.getElementById('vendorSelect').value);
+            }
             
             // Sync Product ID (if needed)
             const productCombo = $("#productSelect").data("kendoComboBox");
@@ -1982,10 +2070,13 @@
         }
 
         function validateForm() {
+            debugger;
             console.log('=== VALIDATING FORM ===');
 
             const customerCombo = $("#customerSelect").data("kendoComboBox");
             const customerId = customerCombo ? customerCombo.value() : null;
+            const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+            const vendorId = vendorCombo ? vendorCombo.value() : null;
             const saleDetailsCount = document.querySelectorAll('#saleDetailsBody tr').length;
             const totalAmount = parseFloat(document.getElementById('TotalAmount').value) || 0;
             const receivedAmount = parseFloat(document.getElementById('ReceivedAmount').value) || 0;
@@ -1997,6 +2088,7 @@
 
             console.log('Validation values:', {
                 customerId: customerId,
+                vendorId : vendorId,
                 saleDetailsCount: saleDetailsCount,
                 totalAmount: totalAmount,
                 receivedAmount: receivedAmount,
@@ -2012,8 +2104,13 @@
             let isValid = true;
             let errorMessages = [];
 
-            if (!customerId || customerId === '') {
-                showWarningMessage("Please select a customer.");
+            if ((!customerId || customerId === '') && (!vendorId || vendorId === '')) {
+                showWarningMessage("Please select a customer or vendor.");
+                isValid = false;
+            }
+
+            if (customerId && vendorId) {
+                showWarningMessage("Please select either a customer or a vendor, not both.");
                 isValid = false;
             }
 
@@ -2338,6 +2435,7 @@
 
             // Add main form fields
             formData['CustomerId'] = $('#customerSelect').val();
+            formData['VendorId'] = $('#vendorSelect').val();
             formData['BillNo'] = $('#BillNo').val();
             formData['SaleDate'] = $('#SaleDate').val();
             formData['PayNow'] = $('#PayNow').val();
@@ -2403,6 +2501,7 @@
             
             // Reset main form fields
             $('#customerSelect').val('');
+            $('#vendorSelect').val('');
             $('#BillNo').val('');
             $('#SaleDate').val(new Date().toISOString().split('T')[0]);
             $('#PayNow').val('0');
@@ -2415,6 +2514,7 @@
             
             // Reset form field values directly
             document.getElementById('customerSelect').value = '';
+            document.getElementById('vendorSelect').value = '';
             document.getElementById('BillNo').value = '';
             document.getElementById('SaleDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('PayNow').value = '0';
@@ -2431,6 +2531,13 @@
                 customerCombo.value('');
                 customerCombo.text('');
                 console.log('Customer combobox reset');
+            }
+
+            const vendorComboForReset = $("#vendorSelect").data("kendoComboBox");
+            if (vendorComboForReset) {
+                vendorComboForReset.value('');
+                vendorComboForReset.text('');
+                console.log('Vendor combobox reset');
             }
             
             const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");

@@ -99,6 +99,21 @@ namespace IMS.Controllers
         {
             try
             {
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("SaleId"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+
+
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
+
                 if (ModelState.IsValid)
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
@@ -211,8 +226,44 @@ namespace IMS.Controllers
         {
             try
             {
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("SaleId"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+
+
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = string.IsNullOrEmpty(userIdStr) ? 1 : long.Parse(userIdStr);
+
                 if (ModelState.IsValid)
                 {
+                    var existingPayment = await _customerPaymentService.GetPaymentByIdAsync(model.PaymentId);
+                    if (existingPayment == null)
+                    {
+                        TempData["ErrorMessage"] = "Payment not found.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    var existingOnline = string.Equals(existingPayment.paymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && existingPayment.onlineAccountId.HasValue
+                        && existingPayment.onlineAccountId > 0;
+                    var newOnline = string.Equals(model.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && model.OnlineAccountId.HasValue
+                        && model.OnlineAccountId > 0;
+                    var paymentChangedForOnline = existingPayment.PaymentAmount != model.PaymentAmount
+                        || existingPayment.onlineAccountId != model.OnlineAccountId
+                        || existingPayment.SaleId != model.SaleId;
+                    var requiresReverse = existingOnline && (!newOnline || paymentChangedForOnline);
+                    var requiresNewTransaction = newOnline && (!existingOnline || paymentChangedForOnline);
+
                     var payment = new Payment
                     {
                         PaymentId = model.PaymentId,
@@ -221,8 +272,8 @@ namespace IMS.Controllers
                         CustomerId = model.CustomerId,
                         PaymentDate = model.PaymentDate,
                         paymentMethod = model.PaymentMethod,
-                        onlineAccountId = model.OnlineAccountId,
-                        ModifiedBy = 1, // TODO: Get from current user session
+                        onlineAccountId = newOnline ? model.OnlineAccountId : null,
+                        ModifiedBy = userId, // TODO: Get from current user session
                         ModifiedDate = DateTime.Now,
                         Description = model.Description
                     };
@@ -230,6 +281,50 @@ namespace IMS.Controllers
                     var result = await _customerPaymentService.UpdatePaymentAsync(payment);
                     if (result > 0)
                     {
+                        if (requiresReverse)
+                        {
+                            try
+                            {
+                                await _salesService.ProcessOnlinePaymentTransactionAsync(
+                                    existingPayment.onlineAccountId!.Value,
+                                    existingPayment.SaleId,
+                                    -existingPayment.PaymentAmount,
+                                    $"Reversed payment for Sale #{existingPayment.SaleId}",
+                                    userId,
+                                    DateTime.Now
+                                );
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error reversing online payment transaction for Payment ID: {PaymentId}", model.PaymentId);
+                                TempData["WarningMessage"] = "Payment updated but reversing the old online transaction failed. Please verify account balances.";
+                            }
+                        }
+
+                        if (requiresNewTransaction)
+                        {
+                            try
+                            {
+                                var transactionDescription = $"Updated Payment - Sale Id #{model.SaleId} - {model.Description}";
+                                var transactionId = await _salesService.ProcessOnlinePaymentTransactionAsync(
+                                    model.OnlineAccountId!.Value,
+                                    model.SaleId,
+                                    model.PaymentAmount,
+                                    transactionDescription,
+                                    userId,
+                                    DateTime.Now
+                                );
+
+                                _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}",
+                                    transactionId, model.SaleId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error processing online payment transaction for Payment ID: {PaymentId}", model.PaymentId);
+                                TempData["WarningMessage"] = "Payment updated but online transaction processing failed. Please verify account balances.";
+                            }
+                        }
+
                         TempData["SuccessMessage"] = "Payment updated successfully.";
                         return RedirectToAction(nameof(Index));
                     }
@@ -281,9 +376,42 @@ namespace IMS.Controllers
         {
             try
             {
-                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTime.Now, 1); // TODO: Get from current user session
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = string.IsNullOrEmpty(userIdStr) ? 1 : long.Parse(userIdStr);
+
+                var existingPayment = await _customerPaymentService.GetPaymentByIdAsync(id);
+                if (existingPayment == null)
+                {
+                    TempData["ErrorMessage"] = "Payment not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTime.Now, userId);
                 if (result > 0)
                 {
+                    var isOnline = string.Equals(existingPayment.paymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && existingPayment.onlineAccountId.HasValue
+                        && existingPayment.onlineAccountId > 0;
+                    if (isOnline)
+                    {
+                        try
+                        {
+                            await _salesService.ProcessOnlinePaymentTransactionAsync(
+                                existingPayment.onlineAccountId.Value,
+                                existingPayment.SaleId,
+                                -existingPayment.PaymentAmount,
+                                $"Deleted Payment - Sale Id #{existingPayment.SaleId}",
+                                userId,
+                                DateTime.Now
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error reversing online payment transaction for deleted Payment ID: {PaymentId}", id);
+                            TempData["WarningMessage"] = "Payment deleted but reversing the online transaction failed. Please verify account balances.";
+                        }
+                    }
+
                     TempData["SuccessMessage"] = "Payment deleted successfully.";
                 }
                 else

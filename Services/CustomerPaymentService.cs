@@ -51,8 +51,8 @@ namespace IMS.Services
                                 {
                                     PaymentId = reader.GetInt64("PaymentId"),
                                     PaymentAmount = reader.GetDecimal("PaymentAmount"),
-                                    SaleId = reader.GetInt64("SaleId"),
-                                    BillNumber = reader.GetInt64("BillNumber"),
+                                    SaleId = reader.IsDBNull("SaleId") ? 0 : reader.GetInt64("SaleId") ,
+                                    BillNumber = reader.IsDBNull("BillNumber") ? 0 : reader.GetInt64("BillNumber"),
                                     CustomerId = reader.GetInt64("CustomerId"),
                                     CustomerName = reader.GetString("CustomerName"),
                                     PaymentDate = reader.GetDateTime("PaymentDate"),
@@ -110,7 +110,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
                     
                     var sql = @"SELECT PaymentId, PaymentAmount, SaleId, CustomerId, PaymentDate, 
-                                      CreatedBy, CreatedDate, Description, ModifiedBy, ModifiedDate 
+                                      CreatedBy, CreatedDate, Description, ModifiedBy, ModifiedDate,PaymentMethod,OnlineAccountId
                                FROM Payments WHERE PaymentId = @PaymentId";
                     
                     using (var command = new SqlCommand(sql, connection))
@@ -132,7 +132,9 @@ namespace IMS.Services
                                     CreatedDate = reader.GetDateTime("CreatedDate"),
                                     Description = reader.IsDBNull("Description") ? null : reader.GetString("Description"),
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
-                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate")
+                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
+                                    paymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
+                                    onlineAccountId = reader.IsDBNull("OnlineAccountId") ? null : reader.GetInt64("OnlineAccountId"),
                                 };
                             }
                         }
@@ -205,6 +207,8 @@ namespace IMS.Services
                                CustomerId = @CustomerId,
                                PaymentDate = @PaymentDate,
                                Description = @Description,
+                               PaymentMethod = @PaymentMethod,
+                               OnlineAccountId = @OnlineAccountId,
                                ModifiedBy = @ModifiedBy,
                                ModifiedDate = @ModifiedDate
                                WHERE PaymentId = @PaymentId";
@@ -217,6 +221,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@CustomerId", payment.CustomerId);
                         command.Parameters.AddWithValue("@PaymentDate", payment.PaymentDate);
                         command.Parameters.AddWithValue("@Description", payment.Description ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@PaymentMethod", payment.paymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@OnlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedBy", payment.ModifiedBy);
                         command.Parameters.AddWithValue("@ModifiedDate", payment.ModifiedDate ?? DateTime.Now);
 

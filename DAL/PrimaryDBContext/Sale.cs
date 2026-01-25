@@ -20,6 +20,7 @@ public partial class Sale
     public decimal TotalDueAmount { get; set; }
 
     public long CustomerIdFk { get; set; }
+    public long? SupplierIdFk { get; set; }
 
     public string? SaleDescription { get; set; }
     public string? PaymentMethod { get; set; }

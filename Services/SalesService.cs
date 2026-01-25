@@ -801,12 +801,14 @@ namespace IMS.Services
                         }
                     }
 
-                    // Get sale details with product names
+                    // Get sale details with product names and measuring unit
                     var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
                                              sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
-                                             p.ProductName
+                                             p.ProductName, mu.MeasuringUnitAbbreviation
                                       FROM SaleDetails sd
                                       LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                                      LEFT JOIN ProductRanges pr ON sd.ProductRangeId_FK = pr.ProductRangeId
+                                      LEFT JOIN MeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                       WHERE sd.SaleId_FK = @SaleId";
                     
                     using (var command = new SqlCommand(detailsSql, connection))
@@ -817,6 +819,19 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
+                                var measuringUnitAbbreviation = "";
+                                try
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("MeasuringUnitAbbreviation")))
+                                    {
+                                        measuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation");
+                                    }
+                                }
+                                catch
+                                {
+                                    measuringUnitAbbreviation = "";
+                                }
+                                
                                 salePrint.SaleDetails.Add(new SaleDetailPrintViewModel
                                 {
                                     ProductId = reader.GetInt64("PrductId_FK"),
@@ -826,7 +841,8 @@ namespace IMS.Services
                                     SalePrice = reader.GetDecimal("SalePrice"),
                                     LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
-                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK")
+                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
+                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation
                                 });
                             }
                         }

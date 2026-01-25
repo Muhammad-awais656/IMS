@@ -191,10 +191,15 @@
                     {
 
                         var linelevelTotal = @item.SalePrice * item.Quantity;
+                        var quantityWithUnit = @item.Quantity.ToString("N0");
+                        if (!string.IsNullOrEmpty(@item.MeasuringUnitAbbreviation))
+                        {
+                            quantityWithUnit += " " + @item.MeasuringUnitAbbreviation;
+                        }
                         <tr>
                             <td>@srNo</td>
                             <td>@item.ProductName</td>
-                            <td>@item.Quantity</td>
+                            <td>@quantityWithUnit</td>
                             <td>@item.SalePrice.ToString("N2")</td>
                             <td>@linelevelTotal.ToString("N2")</td>
                         </tr>

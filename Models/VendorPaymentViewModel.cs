@@ -36,6 +36,7 @@ namespace IMS.Models
     public class VendorBillViewModel
     {
         public long BillId { get; set; }
+        public long PaymentId { get; set; }
         public long BillNumber { get; set; }
         public long VendorId { get; set; }
         public string VendorName { get; set; } = string.Empty;
