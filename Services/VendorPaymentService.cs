@@ -230,5 +230,73 @@ namespace IMS.Services
             }
             return response;
         }
+
+        public async Task<bool> DeleteBillPaymentAsync(long paymentId)
+        {
+            bool response = false;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"DELETE FROM BillPayments WHERE PaymentId = @PaymentId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@PaymentId", paymentId);
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        response = rowsAffected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting bill payment with PaymentId: {PaymentId}", paymentId);
+                throw;
+            }
+            return response;
+        }
+
+        public async Task<bool> UpdateBillPaymentAsync(long paymentId, decimal paymentAmount, long supplierId, DateTime paymentDate, string? description, string? paymentMethod = null, long? onlineAccountId = null)
+        {
+            bool response = false;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"UPDATE BillPayments SET 
+                               PaymentAmount = @PaymentAmount,
+                               SupplierId_FK = @SupplierId,
+                               PaymentDate = @PaymentDate,
+                               Description = @Description,
+                               PaymentMethod = @PaymentMethod,
+                               onlineAccountId = @OnlineAccountId
+                               WHERE PaymentId = @PaymentId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@PaymentId", paymentId);
+                        command.Parameters.AddWithValue("@PaymentAmount", paymentAmount);
+                        command.Parameters.AddWithValue("@SupplierId", supplierId);
+                        command.Parameters.AddWithValue("@PaymentDate", paymentDate);
+                        command.Parameters.AddWithValue("@Description", description ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@PaymentMethod", paymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@OnlineAccountId", onlineAccountId ?? (object)DBNull.Value);
+                        
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        response = rowsAffected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating bill payment with PaymentId: {PaymentId}", paymentId);
+                throw;
+            }
+            return response;
+        }
     }
 }

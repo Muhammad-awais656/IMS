@@ -705,6 +705,8 @@ namespace IMS.Services
                                 command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
                                 command.Parameters.AddWithValue("@pBillDescription", model.Description ?? (object)DBNull.Value);
                                 command.Parameters.AddWithValue("@pBillDate", model.BillDate);
+                                command.Parameters.AddWithValue("@PaymentMethod", model.PaymentMethod);
+                                command.Parameters.AddWithValue("@onlineAccountId", model.OnlineAccountId);
 
                                 await command.ExecuteNonQueryAsync();
                             }
@@ -1147,27 +1149,27 @@ namespace IMS.Services
                             }
 
                             // Step 5: Mark the bill as deleted (soft delete)
-                            using (var command = new SqlCommand(@"
+                                using (var command = new SqlCommand(@"
                                 UPDATE PurchaseOrders 
                                 SET IsDeleted = 1, ModifiedDate = GETDATE() 
                                 WHERE PurchaseOrderId = @BillId", connection, transaction))
-                            {
-                                command.Parameters.AddWithValue("@BillId", billId);
-                                var rowsAffected = await command.ExecuteNonQueryAsync();
-                                
-                                if (rowsAffected > 0)
                                 {
-                                    transaction.Commit();
-                                    _logger.LogInformation("Vendor bill soft deleted successfully: {BillId}, Rows affected: {RowsAffected}", billId, rowsAffected);
-                                    return true;
-                                }
-                                else
-                                {
-                                    transaction.Rollback();
-                                    _logger.LogWarning("No rows affected when deleting vendor bill {BillId}", billId);
-                                    return false;
-                                }
-                            }
+                                    command.Parameters.AddWithValue("@BillId", billId);
+                                    var rowsAffected = await command.ExecuteNonQueryAsync();
+
+                                    if (rowsAffected > 0)
+                                    {
+                                        transaction.Commit();
+                                        _logger.LogInformation("Vendor bill soft deleted successfully: {BillId}, Rows affected: {RowsAffected}", billId, rowsAffected);
+                                        return true;
+                                    }
+                                    else
+                                    {
+                                        transaction.Rollback();
+                                        _logger.LogWarning("No rows affected when deleting vendor bill {BillId}", billId);
+                                        return false;
+                                    }
+                                }      
                         }
                         catch (Exception ex)
                         {

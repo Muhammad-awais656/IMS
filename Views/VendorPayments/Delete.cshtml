@@ -29,7 +29,11 @@
                         <dd class="col-sm-8">@Model.BillNumber</dd>
                         
                         <dt class="col-sm-4">Vendor:</dt>
-                        <dd class="col-sm-8">@Model.VendorName</dd>
+                        <dd class="col-sm-8">
+                            @(string.IsNullOrEmpty(Model.VendorName)
+                                                        ? Model.VendorId.ToString()
+                                                        : Model.VendorName)
+                        </dd>
                         
                         <dt class="col-sm-4">Bill Date:</dt>
                         <dd class="col-sm-8">@Model.BillDate.ToString("dd/MM/yyyy")</dd>
@@ -64,7 +68,7 @@
             }
 
             <form asp-action="Delete" method="post">
-                <input type="hidden" asp-for="BillId" />
+                <input type="hidden" name="id" value="@Model.PaymentId" />
                 <div class="d-flex justify-content-center gap-3 mt-4">
                     <button type="submit" class="btn btn-danger btn-lg">
                         <i class="fa-solid fa-trash me-2"></i>

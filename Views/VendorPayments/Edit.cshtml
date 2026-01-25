@@ -10,8 +10,9 @@
     </div>
 
     <div class="card-body">
-        <form asp-action="Edit" asp-route-id="@Model.BillId" method="post">
+        <form asp-action="Edit" asp-route-id="@Model.PaymentId" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="PaymentId" />
             <input type="hidden" asp-for="BillId" />
 
             <div class="row">

@@ -9,5 +9,7 @@ namespace IMS.Common_Interfaces
         Task<List<AdminSupplier>> GetAllVendorsAsync();
         Task<List<SupplierBillNumber>> GetSupplierBillNumbersAsync(long supplierId);
         Task<bool> CreateVendorPaymentAsync(decimal paymentAmount, long billId, long supplierId, DateTime paymentDate, long createdBy, DateTime createdDate, string? description, string? paymentMethod = null, long? onlineAccountId = null);
+        Task<bool> DeleteBillPaymentAsync(long paymentId);
+        Task<bool> UpdateBillPaymentAsync(long paymentId, decimal paymentAmount, long supplierId, DateTime paymentDate, string? description, string? paymentMethod = null, long? onlineAccountId = null);
     }
 }
