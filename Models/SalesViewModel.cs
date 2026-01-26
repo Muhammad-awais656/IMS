@@ -85,6 +85,7 @@ namespace IMS.Models
         public decimal TotalDueAmount { get; set; }
         public long CustomerIdFk { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string SupplierName { get; set; } = string.Empty;
         public string? SaleDescription { get; set; }
         public string? PaymentMethod { get; set; }
         public bool IsDeleted { get; set; }

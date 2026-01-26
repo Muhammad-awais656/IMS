@@ -24,7 +24,6 @@ namespace IMS.Models
     public class VendorPaymentFormViewModel
     {
         public List<AdminSupplier> VendorList { get; set; } = new List<AdminSupplier>();
-        public long PaymentId { get; set; }
         public long SupplierId { get; set; }
         public long BillId { get; set; }
         public decimal PaymentAmount { get; set; }

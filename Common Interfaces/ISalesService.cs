@@ -17,7 +17,7 @@ namespace IMS.Common_Interfaces
         // Add Sale functionality methods
         Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId);
         Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
-            long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
+            long? customerId, long? vendorId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
             string paymentMethod = null, long? onlineAccountId = null);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);

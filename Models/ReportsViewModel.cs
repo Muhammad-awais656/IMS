@@ -196,5 +196,70 @@ namespace IMS.Models
         public DateTime? ToDate { get; set; }
         public long? VendorId { get; set; }
     }
+
+    public class ProductWiseSalesReportViewModel
+    {
+        public List<ProductWiseSalesReportItem> SalesList { get; set; } = new List<ProductWiseSalesReportItem>();
+        public ProductWiseSalesReportFilters Filters { get; set; } = new ProductWiseSalesReportFilters();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public int? PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+        public decimal TotalAmount { get; set; }
+        public decimal TotalWeight { get; set; }
+        public long TotalQty { get; set; }
+    }
+
+    public class ProductWiseSalesReportItem
+    {
+        public DateTime SaleDate { get; set; }
+        public long ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
+        public decimal Weight { get; set; }
+        public long Qty { get; set; }
+        public decimal Rate { get; set; }
+        public decimal Amount { get; set; }
+        public bool IsTotalRow { get; set; } = false; // To identify total rows for each product
+    }
+
+    public class ProductWiseSalesReportFilters
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public long? ProductId { get; set; }
+    }
+
+    public class GeneralExpensesReportViewModel
+    {
+        public List<GeneralExpensesReportItem> ExpensesList { get; set; } = new List<GeneralExpensesReportItem>();
+        public GeneralExpensesReportFilters Filters { get; set; } = new GeneralExpensesReportFilters();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public int? PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class GeneralExpensesReportItem
+    {
+        public DateTime ExpenseDate { get; set; }
+        public long ExpenseTypeId { get; set; }
+        public string ExpenseTypeName { get; set; } = string.Empty;
+        public string ExpenseDetail { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public bool IsTotalRow { get; set; } = false; // To identify total rows for each expense type
+    }
+
+    public class GeneralExpensesReportFilters
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public long? ExpenseTypeId { get; set; }
+    }
     
 }

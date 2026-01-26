@@ -192,12 +192,14 @@
                             <th>Bill #</th>
                             <th>Sales Date</th>
                             <th>Customer</th>
+                            <th>Supplier Name</th>
                             <th class="text-end">Total Amount</th>
                             <th class="text-end">Discount</th>
                             <th class="text-end">Received</th>
                             <th class="text-end">Total Dues</th>
                             <th>Description</th>
                             <th>Payment Method</th>
+                            <th>Is Deleted</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -214,6 +216,16 @@
                                     <td>@sale.SaleDate.ToString("dd-MMM-yyyy")</td>
                                     <td>
                                         <strong>@sale.CustomerName</strong>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(sale.SupplierName))
+                                        {
+                                            <strong class="text-info">@sale.SupplierName</strong>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
                                     </td>
                                     <td class="text-end">
                                     <span class="fw-bold text-success">@sale.TotalAmount.ToString("C", new CultureInfo("ur-PK"))</span>
@@ -272,6 +284,16 @@
                                 }
                                 </td>
                                     <td class="text-center">
+                                        @if (sale.IsDeleted)
+                                        {
+                                            <span class="badge bg-danger">Deleted</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
                                         <div class="btn-group" role="group">
                                             <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="fa-solid fa-eye"></i>
@@ -293,7 +315,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="13" class="text-center py-4">
                                     <div class="text-muted">
                                         <i class="fa-solid fa-inbox fa-3x mb-3"></i>
                                         <p class="mb-0">No sales found.</p>

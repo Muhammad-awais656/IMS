@@ -18,9 +18,10 @@ namespace IMS.Controllers
         private readonly IPersonalPaymentService _personalPaymentService;
         private readonly IAdminMeasuringUnitService _measuringUnitService;
         private readonly IVendor _vendorService;
+        private readonly IVendorBillsService _vendorBillsService;
         private const string VendorCustomerPrefix = "Vendor - ";
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService, IVendorBillsService vendorBillsService)
         {
             _salesService = salesService;
             _logger = logger;
@@ -29,6 +30,7 @@ namespace IMS.Controllers
             _personalPaymentService = personalPaymentService;
             _measuringUnitService = measuringUnitService;
             _vendorService = vendorService;
+            _vendorBillsService = vendorBillsService;
         }
 
         // GET: SalesController
@@ -472,6 +474,21 @@ namespace IMS.Controllers
         }
 
         [HttpGet]
+        public async Task<JsonResult> GetVendorPreviousDueAmount(long vendorId)
+        {
+            try
+            {
+                var previousDueAmount = await _vendorBillsService.GetPreviousDueAmountAsync(vendorId);
+                return Json(new { success = true, previousDueAmount = previousDueAmount });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting previous due amount for vendor {VendorId}", vendorId);
+                return Json(new { success = false, message = "Error retrieving previous due amount", previousDueAmount = 0 });
+            }
+        }
+
+        [HttpGet]
         public async Task<JsonResult> GetNextBillNumber()
         {
             try
@@ -506,6 +523,12 @@ namespace IMS.Controllers
                         if (smallestUnit != null)
                         {
                             baseUnitId = smallestUnit.MeasuringUnitId;
+                        }
+                        else if (measuringUnits.Any())
+                        {
+                            // If no smallest unit is marked, use the first enabled unit as base unit
+                            baseUnitId = measuringUnits.First().MeasuringUnitId;
+                            _logger.LogWarning("No smallest unit marked for product {ProductId}, using first unit {UnitId} as base unit", productId, baseUnitId);
                         }
                     }
                     
@@ -610,7 +633,7 @@ namespace IMS.Controllers
                 if (!hasCustomer && !hasVendor)
                 {
                     _logger.LogWarning("Customer/Vendor validation failed - both are null or 0");
-                    TempData["ErrorMessage"] = "Please select a customer or vendor.";
+                    TempData["ErrorMessage"] = "Please select a customer or vendor. One of them is mandatory.";
                     await ReloadViewDataAsync();
                     return View(model);
                 }
@@ -623,20 +646,20 @@ namespace IMS.Controllers
                     return View(model);
                 }
 
-                    if (hasVendor)
-                    {
-                        var vendorUserIdStr = HttpContext.Session.GetString("UserId");
-                        long vendorUserId = long.Parse(vendorUserIdStr);
-                        var resolvedCustomerId = await ResolveCustomerIdForVendorAsync(model.VendorId!.Value, vendorUserId);
-                        if (!resolvedCustomerId.HasValue)
-                        {
-                            TempData["ErrorMessage"] = "Unable to map vendor to a customer record.";
-                            await ReloadViewDataAsync();
-                            return View(model);
-                        }
+                    //if (hasVendor)
+                    //{
+                    //    var vendorUserIdStr = HttpContext.Session.GetString("UserId");
+                    //    long vendorUserId = long.Parse(vendorUserIdStr);
+                    //    var resolvedCustomerId = await ResolveCustomerIdForVendorAsync(model.VendorId!.Value, vendorUserId);
+                    //    if (!resolvedCustomerId.HasValue)
+                    //    {
+                    //        TempData["ErrorMessage"] = "Unable to map vendor to a customer record.";
+                    //        await ReloadViewDataAsync();
+                    //        return View(model);
+                    //    }
 
-                        model.CustomerId = resolvedCustomerId.Value;
-                    }
+                    //    model.CustomerId = resolvedCustomerId.Value;
+                    //}
 
                     // Validate sale details
                     if (model.SaleDetails == null || !model.SaleDetails.Any())
@@ -670,6 +693,7 @@ namespace IMS.Controllers
                             TotalReceivedAmount = model.ReceivedAmount,
                             TotalDueAmount = model.DueAmount,
                             CustomerIdFk = model.CustomerId.Value,
+                            SupplierIdFk=  model.VendorId.Value,
                             DiscountAmount = model.DiscountAmount,
                             BillNumber = long.Parse(model.BillNo ?? "0"),
                             SaleDescription = model.Description ?? "Update Sales Return",
@@ -699,7 +723,8 @@ namespace IMS.Controllers
                             model.TotalAmount,
                             model.ReceivedAmount,
                             model.DueAmount,
-                            model.CustomerId.Value,
+                            model.CustomerId==null ? 0 : model.CustomerId.Value,
+                            model.VendorId == null ? 0 : model.VendorId.Value,
                             currentDateTime,
                             userId,
                             currentDateTime,
@@ -739,18 +764,72 @@ namespace IMS.Controllers
                             var prodMaster = await _salesService.GetStockByProductIdAsync(detail.ProductId);
                             if (prodMaster!=null)
                             {
-                                // Update stock quantity
+                                // Calculate quantity in base unit (smallest unit) for stock update
+                                decimal quantityToDeduct = (decimal)detail.Quantity;
+                                
+                                // Get ProductRange to find the MeasuringUnitId
+                                var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(detail.ProductId);
+                                var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == detail.ProductRangeId);
+                                
+                                if (selectedProductRange != null)
+                                {
+                                    // Get product to find base unit
+                                    var product = await _productService.GetProductByIdAsync(detail.ProductId);
+                                    if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
+                                    {
+                                        // Get the smallest unit for this measuring unit type as base unit
+                                        var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
+                                        var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                                        long? baseUnitId = null;
+                                        
+                                        if (smallestUnit != null)
+                                        {
+                                            baseUnitId = smallestUnit.MeasuringUnitId;
+                                        }
+                                        else if (measuringUnits.Any())
+                                        {
+                                            // If no smallest unit is marked, use the first enabled unit as base unit
+                                            baseUnitId = measuringUnits.First().MeasuringUnitId;
+                                            _logger.LogWarning("No smallest unit marked for product {ProductId}, using first unit {UnitId} as base unit", detail.ProductId, baseUnitId);
+                                        }
+                                        
+                                        // If selected unit is different from base unit, convert quantity
+                                        if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
+                                        {
+                                            var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                                            var convertedQuantity = await unitConversionService.ConvertUnitAsync(
+                                                selectedProductRange.MeasuringUnitId_FK, 
+                                                baseUnitId.Value, 
+                                                (decimal)detail.Quantity
+                                            );
+                                            
+                                            if (convertedQuantity.HasValue)
+                                            {
+                                                quantityToDeduct = convertedQuantity.Value;
+                                                _logger.LogInformation("Converted {Quantity} {FromUnitId} to {ConvertedQuantity} {ToUnitId} for product {ProductId}", 
+                                                    detail.Quantity, selectedProductRange.MeasuringUnitId_FK, quantityToDeduct, baseUnitId.Value, detail.ProductId);
+                                            }
+                                            else
+                                            {
+                                                _logger.LogWarning("No conversion found from unit {FromUnitId} to base unit {ToUnitId} for product {ProductId}, using original quantity", 
+                                                    selectedProductRange.MeasuringUnitId_FK, baseUnitId.Value, detail.ProductId);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Update stock quantity (deduct converted quantity in base unit)
                                 long updateStockReturn = _salesService.UpdateStock(
                                     prodMaster.StockMasterId,
                                     detail.ProductId,
-                                    prodMaster.AvailableQuantity - (decimal)detail.Quantity, // This should be calculated based on current stock
+                                    prodMaster.AvailableQuantity - quantityToDeduct,
                                     prodMaster.TotalQuantity,
-                                    prodMaster.UsedQuantity + (decimal)detail.Quantity,
+                                    prodMaster.UsedQuantity + quantityToDeduct,
                                     userId,
                                     currentDateTime
                                 );
 
-                                // Create sale transaction
+                                // Create sale transaction (store original quantity, not converted)
                                 long transactionReturn = _salesService.SaleTransactionCreate(
                                     prodMaster.StockMasterId,
                                     (decimal)detail.Quantity,

@@ -27,15 +27,17 @@ namespace IMS.Controllers
         private readonly ICustomer _customerService;
         private readonly IProductService _productService;
         private readonly IVendor _vendorService;
+        private readonly IExpenseType _expenseTypeService;
         private const int DefaultPageSize = 10; // Default page size
         private static readonly int[] AllowedPageSizes = { 10, 20, 30 };
-        public ReportController(IReportService reportService , ILogger<ReportController> logger, ICustomer customerService, IProductService productService, IVendor vendorService)
+        public ReportController(IReportService reportService , ILogger<ReportController> logger, ICustomer customerService, IProductService productService, IVendor vendorService, IExpenseType expenseTypeService)
         {
             _reportService = reportService;
             _logger = logger;
             _customerService = customerService;
             _productService = productService;
             _vendorService = vendorService;
+            _expenseTypeService = expenseTypeService;
         }
         public async Task<IActionResult> SalesReport(int pageNumber = 1, int? pageSize = null)
         {
@@ -876,6 +878,106 @@ namespace IMS.Controllers
                 string filename = $"PurchaseReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
+        }
+
+        public async Task<IActionResult> ProductWiseSalesReport(int pageNumber = 1, int? pageSize = null)
+        {
+            ProductWiseSalesReportFilters filters = new ProductWiseSalesReportFilters();
+            filters.FromDate = DateTime.Now;
+            filters.ToDate = DateTime.Now;
+           
+            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            {
+                currentPageSize = pageSize.Value;
+                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+            }
+          
+            var products = await _productService.GetAllEnabledProductsAsync();
+            var selectedProduct = HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"].ToString();
+
+            long? selectedProductId = null;
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["productId"].ToString()))
+            {
+                selectedProductId = Convert.ToInt64(HttpContext.Request.Query["productId"].ToString());
+            }
+            if (!string.IsNullOrWhiteSpace(selectedProduct))
+            {
+                selectedProductId = Convert.ToInt64(selectedProduct);
+            }
+
+            ViewBag.Products = new SelectList(products, "ProductId", "ProductName", selectedProductId);
+                
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
+            {
+                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            {
+                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"].ToString()))
+            {
+                filters.ProductId = Convert.ToInt64(HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"]);
+            }
+            if (selectedProductId != null && selectedProductId.Value > 0)
+            {
+                filters.ProductId = selectedProductId;
+            }
+            var model = await _reportService.GetProductWiseSalesReport(pageNumber, currentPageSize, filters);
+            model.Filters = filters;
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> GeneralExpensesReport(int pageNumber = 1, int? pageSize = null)
+        {
+            GeneralExpensesReportFilters filters = new GeneralExpensesReportFilters();
+            filters.FromDate = DateTime.Now;
+            filters.ToDate = DateTime.Now;
+           
+            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            {
+                currentPageSize = pageSize.Value;
+                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+            }
+          
+            var expenseTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+            var selectedExpenseType = HttpContext.Request.Query["GeneralExpensesReportFilters.ExpenseTypeId"].ToString();
+
+            long? selectedExpenseTypeId = null;
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["expenseTypeId"].ToString()))
+            {
+                selectedExpenseTypeId = Convert.ToInt64(HttpContext.Request.Query["expenseTypeId"].ToString());
+            }
+            if (!string.IsNullOrWhiteSpace(selectedExpenseType))
+            {
+                selectedExpenseTypeId = Convert.ToInt64(selectedExpenseType);
+            }
+
+            ViewBag.ExpenseTypes = new SelectList(expenseTypes, "ExpenseTypeId", "ExpenseTypeName", selectedExpenseTypeId);
+                
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
+            {
+                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            {
+                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+            }
+            if (!string.IsNullOrEmpty(HttpContext.Request.Query["GeneralExpensesReportFilters.ExpenseTypeId"].ToString()))
+            {
+                filters.ExpenseTypeId = Convert.ToInt64(HttpContext.Request.Query["GeneralExpensesReportFilters.ExpenseTypeId"]);
+            }
+            if (selectedExpenseTypeId != null && selectedExpenseTypeId.Value > 0)
+            {
+                filters.ExpenseTypeId = selectedExpenseTypeId;
+            }
+            var model = await _reportService.GetGeneralExpensesReport(pageNumber, currentPageSize, filters);
+            model.Filters = filters;
+
+            return View(model);
         }
 
         public async Task<IActionResult> BankCreditDebitReport(int pageNumber = 1, int? pageSize = null)

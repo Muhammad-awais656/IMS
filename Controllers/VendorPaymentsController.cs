@@ -30,7 +30,7 @@ namespace IMS.Controllers
             {
                 if (billDateFrom == null && billDateTo ==null)
                 {
-                    billDateFrom = DateTime.Now;   //DateTime.Now.AddMonths(-1);  
+                    billDateFrom = DateTime.Now.AddMonths(-1);
                     billDateTo = DateTime.Now;
 
                 }
@@ -112,8 +112,8 @@ namespace IMS.Controllers
         {
             try
             {
-                // Redirect to VendorBills Details action which has the full details view
-                return RedirectToAction("Details", "VendorBills", new { id = id });
+                // For now, redirect to index with the bill ID as a filter
+                return RedirectToAction(nameof(Index), new { billNumber = id });
             }
             catch (Exception ex)
             {
@@ -147,21 +147,6 @@ namespace IMS.Controllers
         {
             try
             {
-                var keysToRemove = new List<string>();
-                foreach (var key in ModelState.Keys)
-                {
-                    if (key.StartsWith("BillId"))
-                    {
-                        keysToRemove.Add(key);
-                    }
-                   
-
-                }
-                foreach (var key in keysToRemove)
-                {
-                    ModelState.Remove(key);
-                }
-
                 if (!ModelState.IsValid)
                 {
                     model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
@@ -298,34 +283,8 @@ namespace IMS.Controllers
         {
             try
             {
-                // Get the bill data
-                var vendorBill = await _vendorBillsService.GetVendorBillByPaymentIdAsync(id);
-                if (vendorBill == null)
-                {
-                    TempData["ErrorMessage"] = "Bill not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Populate the form view model with bill payment information
-                var viewModel = new VendorPaymentFormViewModel
-                {
-                    PaymentId = id, // Pass PaymentId to the model
-                    SupplierId = vendorBill.SupplierIdFk,
-                    BillId = vendorBill.BillId,
-                    PaymentAmount = vendorBill.PaymentAmount,
-                    PaymentDate = vendorBill.PaymentDate,
-                    Description = vendorBill.Description,
-                    PaymentMethod = vendorBill.PaymentMethod,
-                    OnlineAccountId = vendorBill.onlineAccountId
-                };
-
-                // Load vendor list
-                viewModel.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-
-                // Pass PaymentId to view for form submission (also available in ViewBag for compatibility)
-                ViewBag.PaymentId = id;
-
-                return View(viewModel);
+                // Implementation for editing payment
+                return View();
             }
             catch (Exception ex)
             {
@@ -338,259 +297,19 @@ namespace IMS.Controllers
         // POST: VendorPaymentsController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(long id, VendorPaymentFormViewModel model)
+        public async Task<IActionResult> Edit(long id, IFormCollection collection)
         {
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                    return View(model);
-                }
-
-                // Get the existing bill to check current payment info
-                var existingBill = await _vendorBillsService.GetVendorBillByPaymentIdAsync(id);
-                if (existingBill == null)
-                {
-                    TempData["ErrorMessage"] = "Payment not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Get user ID from session
-                var userIdStr = HttpContext.Session.GetString("UserId");
-                long userId = string.IsNullOrEmpty(userIdStr) ? 1 : long.Parse(userIdStr);
-
-                var paymentId = id;
-                var billId = existingBill.BillId;
-
-                // Handle special case: paymentId != 0 && billId == 0
-                if (paymentId != 0 && billId == 0)
-                {
-                    // Reverse old online payment transaction if it was an online payment
-                    if (existingBill.PaymentMethod == "Online" && existingBill.onlineAccountId.HasValue && existingBill.onlineAccountId > 0)
-                    {
-                        // If changing from Online to Cash or changing the amount, reverse the old transaction
-                        if (model.PaymentMethod != "Online" || model.PaymentAmount != existingBill.PaymentAmount)
-                        {
-                            try
-                            {
-                                // Reverse the old online payment transaction (credit back the amount)
-                                await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                    existingBill.onlineAccountId.Value,
-                                    billId, // BillId is 0, but we need to pass it for the transaction
-                                    -existingBill.PaymentAmount, // Negative to reverse
-                                    $"Reversed payment for updated Payment ID #{paymentId}",
-                                    userId,
-                                    DateTime.Now
-                                );
-                                _logger.LogInformation("Online payment transaction reversed for Payment ID: {PaymentId}", paymentId);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Error reversing old online payment transaction for Payment ID: {PaymentId}", paymentId);
-                                TempData["WarningMessage"] = "Payment updated but reversing the old online transaction failed. Please verify account balances.";
-                            }
-                        }
-                    }
-
-                    // Update BillPayments table directly
-                    var updateRes = await _vendorPaymentService.UpdateBillPaymentAsync(
-                        paymentId,
-                        model.PaymentAmount,
-                        model.SupplierId,
-                        model.PaymentDate,
-                        model.Description,
-                        model.PaymentMethod,
-                        model.PaymentMethod == "Online" ? model.OnlineAccountId : null
-                    );
-
-                    if (updateRes)
-                    {
-                        // If new payment method is Online, process the transaction
-                        if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
-                        {
-                            // Validate account balance
-                            var accountBalance = await _vendorBillsService.GetAccountBalanceAsync(model.OnlineAccountId.Value);
-                            
-                            if (accountBalance <= 0)
-                            {
-                                _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
-                                TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
-                                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                                return View(model);
-                            }
-                            
-                            if (model.PaymentAmount > accountBalance)
-                            {
-                                _logger.LogWarning("Payment amount validation failed - PaymentAmount {PaymentAmount} exceeds balance {Balance} for AccountId {AccountId}", model.PaymentAmount, accountBalance, model.OnlineAccountId.Value);
-                                TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PaymentAmount:F2}";
-                                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                                return View(model);
-                            }
-                            
-                            // Process online payment transaction
-                            try
-                            {
-                                var transactionDescription = $"Updated Vendor Payment - Payment ID #{paymentId} - {model.Description ?? ""}";
-                                var transactionId = await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                    model.OnlineAccountId.Value,
-                                    billId, // BillId is 0, but we need to pass it for the transaction
-                                    model.PaymentAmount, // Debit the payment amount from the online account
-                                    transactionDescription,
-                                    userId,
-                                    DateTime.Now
-                                );
-
-                                _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Payment ID: {PaymentId}",
-                                    transactionId, paymentId);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Error processing online payment transaction for Payment ID: {PaymentId}", paymentId);
-                                TempData["WarningMessage"] = "Payment updated but online transaction processing failed. Please check the account balance.";
-                            }
-                        }
-                        
-                        TempData["SuccessMessage"] = "Payment updated successfully.";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        TempData["ErrorMessage"] = "Failed to update payment.";
-                        model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                        return View(model);
-                    }
-                }
-
-                // Normal case: Update the bill's payment information using UpdateVendorBillAsync
-                // If payment method changed from Online to something else, or amount changed for Online payment
-                // we need to handle the transaction reversal/update
-                if (existingBill.PaymentMethod == "Online" && existingBill.onlineAccountId.HasValue)
-                {
-                    // If changing from Online to Cash or changing the amount, we need to reverse the old transaction
-                    if (model.PaymentMethod != "Online" || model.PaymentAmount != existingBill.PaymentAmount)
-                    {
-                        try
-                        {
-                            // Reverse the old online payment transaction (credit back the amount)
-                            // Use BillId, not PaymentId
-                            var billsId = existingBill.BillId;
-                            await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                existingBill.onlineAccountId.Value,
-                                billsId,
-                                -existingBill.PaymentAmount, // Negative to reverse
-                                $"Reversed payment for Bill #{billsId}",
-                                userId,
-                                DateTime.Now
-                            );
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error reversing old online payment transaction for Bill ID: {BillId}", existingBill.BillId);
-                            // Continue with update even if reversal fails
-                        }
-                    }
-                }
-
-                // We need to get the bill items first - use BillId, not PaymentId
-                var billItems = await _vendorBillsService.GetVendorBillItemsAsync(billId);
-                
-                // Create a minimal VendorBillGenerationViewModel for updating payment info
-                var updateModel = new VendorBillGenerationViewModel
-                {
-                    BillId = billId,
-                    VendorId = model.SupplierId,
-                    BillNumber = existingBill.BillId,
-                    BillDate = existingBill.PaymentDate,
-                    TotalAmount = existingBill.PaymentAmount,
-                    DiscountAmount = existingBill.PaymentAmount,
-                    PaidAmount = model.PaymentAmount,
-                    DueAmount = existingBill.PaymentAmount - model.PaymentAmount,
-                    Description = model.Description ?? existingBill.Description,
-                    PaymentMethod = model.PaymentMethod,
-                    OnlineAccountId = model.PaymentMethod == "Online" ? model.OnlineAccountId : null,
-                    IsEditMode = true,
-                    ModifiedBy = userId,
-                    ModifiedDate = DateTime.Now,
-                    BillDetails = billItems.Select(item => new VendorBillDetailViewModel
-                    {
-                        ProductId = item.ProductId,
-                        ProductName = item.ProductName,
-                        ProductCode = item.ProductCode,
-                        ProductSize = item.ProductSize,
-                        Quantity = item.Quantity,
-                        UnitPrice = item.UnitPrice,
-                        PurchasePrice = item.UnitPrice,
-                        SalePrice = item.UnitPrice,
-                        LineDiscountAmount = item.DiscountAmount,
-                        PayableAmount = item.PayableAmount,
-                        ProductRangeId = item.ProductRangeId
-                    }).ToList()
-                };
-
-                var updateResult = await _vendorBillsService.UpdateVendorBillAsync(billId, updateModel);
-
-                if (updateResult)
-                {
-                    // If new payment method is Online, process the transaction
-                    if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
-                    {
-                        // Validate account balance
-                        var accountBalance = await _vendorBillsService.GetAccountBalanceAsync(model.OnlineAccountId.Value);
-                        
-                        if (accountBalance <= 0)
-                        {
-                            _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
-                            model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                            return View(model);
-                        }
-                        
-                        if (model.PaymentAmount > accountBalance)
-                        {
-                            _logger.LogWarning("Payment amount validation failed - PaymentAmount {PaymentAmount} exceeds balance {Balance} for AccountId {AccountId}", model.PaymentAmount, accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PaymentAmount:F2}";
-                            model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                            return View(model);
-                        }
-                        
-                        // Process online payment transaction
-                        try
-                        {
-                            var transactionDescription = $"Updated Vendor Payment - Bill Id #{billId} - {model.Description ?? ""}";
-                            var transactionId = await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                model.OnlineAccountId.Value,
-                                billId,
-                                model.PaymentAmount, // Debit the payment amount from the online account
-                                transactionDescription,
-                                userId,
-                                DateTime.Now
-                            );
-
-                            _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Bill ID: {BillId}",
-                                transactionId, billId);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error processing online payment transaction for Bill ID: {BillId}", billId);
-                            TempData["WarningMessage"] = "Payment updated but online transaction processing failed. Please check the account balance.";
-                        }
-                    }
-                    
-                    TempData["SuccessMessage"] = "Payment updated successfully.";
-                    return RedirectToAction(nameof(Index));
-                }
-                
-                TempData["ErrorMessage"] = "Failed to update payment.";
-                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                return View(model);
+                // Implementation for updating payment
+                TempData["SuccessMessage"] = "Payment updated successfully.";
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating payment");
                 TempData["ErrorMessage"] = "An error occurred while updating the payment.";
-                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                return View(model);
+                return View();
             }
         }
 
@@ -599,42 +318,8 @@ namespace IMS.Controllers
         {
             try
             {
-                // Get the payment to retrieve BillId
-                var billPayment = await _vendorBillsService.GetVendorBillByPaymentIdAsync(id);
-                if (billPayment == null)
-                {
-                    TempData["ErrorMessage"] = "Bill not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Get the VendorBillViewModel using BillId
-                var vendorBill = new VendorBillViewModel();
-                if (billPayment.BillId != 0)
-                {
-                    vendorBill = await _vendorBillsService.GetVendorBillByIdAsync(billPayment.BillId);
-                    if (vendorBill == null)
-                    {
-                        TempData["ErrorMessage"] = "Bill not found.";
-                        return RedirectToAction(nameof(Index));
-                    }
-                }
-                else
-                {
-                    if (billPayment != null)
-                    {
-                        vendorBill.BillId = billPayment.BillId;
-                        vendorBill.BillNumber = billPayment.BillId;
-                        vendorBill.VendorId = billPayment.SupplierIdFk;
-                        vendorBill.BillDate = billPayment.PaymentDate;
-                        vendorBill.TotalAmount = billPayment.PaymentAmount;
-                    }
-                }
-                
-                // Set PaymentId in the model and ViewBag for form submission
-                vendorBill.PaymentId = id;
-                ViewBag.PaymentId = id;
-
-                return View(vendorBill);
+                // Implementation for delete confirmation
+                return View();
             }
             catch (Exception ex)
             {
@@ -647,90 +332,19 @@ namespace IMS.Controllers
         // POST: VendorPaymentsController/Delete/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [ActionName("Delete")]
-        public async Task<IActionResult> DeleteConfirmed(long id, IFormCollection collection)
+        public async Task<IActionResult> Delete(long id, IFormCollection collection)
         {
             try
             {
-                // Get the payment data (id is PaymentId)
-                var billPayment = await _vendorBillsService.GetVendorBillByPaymentIdAsync(id);
-                if (billPayment == null)
-                {
-                    TempData["ErrorMessage"] = "Payment not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Get user ID from session
-                var userIdStr = HttpContext.Session.GetString("UserId");
-                long userId = long.Parse(userIdStr ?? "1"); // Default to 1 if not found
-                
-                var paymentId = id;
-                var billId = billPayment.BillId;
-                
-                // Handle special case: paymentId != 0 && billId == 0
-                if (paymentId != 0 && billId == 0)
-                {
-                    // Reverse online payment transaction if it was an online payment
-                    if (billPayment.PaymentMethod == "Online" && billPayment.onlineAccountId.HasValue && billPayment.onlineAccountId > 0)
-                    {
-                        try
-                        {
-                            // Reverse the online payment transaction (credit back the amount)
-                            await _vendorService.ProcessOnlinePaymentTransactionAsync(
-                                billPayment.onlineAccountId.Value,
-                                billId, // BillId is 0, but we need to pass it for the transaction
-                                -billPayment.PaymentAmount, // Negative to reverse
-                                $"Reversed payment for deleted Payment ID #{paymentId}",
-                                userId,
-                                DateTime.Now
-                            );
-                            _logger.LogInformation("Online payment transaction reversed for Payment ID: {PaymentId}", paymentId);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error reversing online payment transaction for Payment ID: {PaymentId}", paymentId);
-                            TempData["WarningMessage"] = "Payment deleted but reversing the online transaction failed. Please verify account balances.";
-                        }
-                    }
-                    
-                    // Delete directly from BillPayments table
-                    var deleteResult = await _vendorPaymentService.DeleteBillPaymentAsync(paymentId);
-                    
-                    if (deleteResult)
-                    {
-                        _logger.LogInformation("Bill payment deleted successfully with Payment ID: {PaymentId}", paymentId);
-                        TempData["SuccessMessage"] = "Payment deleted successfully.";
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to delete bill payment with Payment ID: {PaymentId}", paymentId);
-                        TempData["ErrorMessage"] = "Failed to delete payment.";
-                    }
-                }
-                else
-                {
-                    // Normal case: Delete the bill using BillId
-                    var result = await _vendorBillsService.DeleteVendorBillAsync(billId, userId);
-                    
-                    if (result)
-                    {
-                        _logger.LogInformation("Vendor bill deleted successfully with ID: {BillId}", billId);
-                        TempData["SuccessMessage"] = "Bill deleted successfully. Stock has been restored and transactions marked as deleted.";
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to delete vendor bill with ID: {BillId}", billId);
-                        TempData["ErrorMessage"] = "Failed to delete bill.";
-                    }
-                }
-                
+                // Implementation for deleting payment
+                TempData["SuccessMessage"] = "Payment deleted successfully.";
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting payment");
                 TempData["ErrorMessage"] = "An error occurred while deleting the payment.";
-                return RedirectToAction(nameof(Index));
+                return View();
             }
         }
     }

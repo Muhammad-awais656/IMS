@@ -157,7 +157,14 @@
 
         <div class="receipt-info">
             @* <p><strong>Receipt #:</strong> @Model.SaleId</p> *@
-            <p><strong>Customer:</strong> @Model.CustomerName</p>
+            @if (Model.CustomerIdFk > 0)
+            {
+                <p><strong>Customer:</strong> @Model.CustomerName</p>
+            }
+            else
+            {
+                <p><strong>Vendor:</strong> @Model.CustomerName</p>
+            }
             <p><strong>Bill #:</strong> @Model.BillNumber</p>
             <p><strong>Date:</strong> @Model.SaleDate.ToString("dd-MM-yyyy hh:mm tt")</p>
             @* @if (!string.IsNullOrEmpty(Model.SaleDescription))

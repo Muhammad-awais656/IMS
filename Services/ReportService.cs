@@ -1354,5 +1354,382 @@ namespace IMS.Services
             };
         }
 
+        public async Task<ProductWiseSalesReportViewModel> GetProductWiseSalesReport(int pageNumber, int? pageSize, ProductWiseSalesReportFilters? filters)
+        {
+            var salesList = new List<ProductWiseSalesReportItem>();
+            int totalRecords = 0;
+            decimal totalAmount = 0;
+            decimal totalWeight = 0;
+            long totalQty = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        WITH DailySales AS (
+                            SELECT 
+                                CAST(s.SaleDate AS DATE) AS SaleDate,
+                                sd.PrductId_FK AS ProductId,
+                                p.ProductName,
+                                ISNULL(p.ProductCode, '') AS ProductCode,
+                                SUM(CAST(sd.Quantity AS DECIMAL(18, 3))) AS Weight,
+                                SUM(sd.Quantity) AS Qty,
+                                SUM(sd.PayableAmount) AS Amount
+                            FROM SaleDetails sd
+                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                            INNER JOIN Products p ON sd.PrductId_FK = p.ProductId
+                            WHERE s.IsDeleted = 0
+                                AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
+                                AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
+                            GROUP BY CAST(s.SaleDate AS DATE), sd.PrductId_FK, p.ProductName, p.ProductCode
+                        ),
+                        ProductTotals AS (
+                            SELECT 
+                                ProductId,
+                                ProductName,
+                                ProductCode,
+                                SUM(Weight) AS TotalWeight,
+                                SUM(Qty) AS TotalQty,
+                                SUM(Amount) AS TotalAmount,
+                                CASE 
+                                    WHEN SUM(Qty) > 0 THEN SUM(Amount) / SUM(Qty)
+                                    ELSE 0
+                                END AS AvgRate
+                            FROM DailySales
+                            GROUP BY ProductId, ProductName, ProductCode
+                        )
+                        SELECT 
+                            ds.SaleDate,
+                            ds.ProductId,
+                            ds.ProductName,
+                            ds.ProductCode,
+                            ds.Weight,
+                            ds.Qty,
+                            CASE 
+                                WHEN ds.Qty > 0 THEN ds.Amount / ds.Qty
+                                ELSE 0
+                            END AS Rate,
+                            ds.Amount,
+                            0 AS IsTotalRow
+                        FROM DailySales ds
+                        ORDER BY ds.ProductName, ds.SaleDate
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM (
+                            SELECT 
+                                CAST(s.SaleDate AS DATE) AS SaleDate,
+                                sd.PrductId_FK AS ProductId
+                            FROM SaleDetails sd
+                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                            INNER JOIN Products p ON sd.PrductId_FK = p.ProductId
+                            WHERE s.IsDeleted = 0
+                                AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
+                                AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
+                            GROUP BY CAST(s.SaleDate AS DATE), sd.PrductId_FK, p.ProductName, p.ProductCode
+                        ) AS DailySales;
+
+                        SELECT 
+                            SUM(CAST(sd.Quantity AS DECIMAL(18, 3))) AS TotalWeight,
+                            SUM(sd.Quantity) AS TotalQty,
+                            SUM(sd.PayableAmount) AS TotalAmount
+                        FROM SaleDetails sd
+                        INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                        WHERE s.IsDeleted = 0
+                            AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
+                            AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
+                            AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId);
+                    ";
+
+                    var offset = (pageNumber - 1) * (pageSize ?? 10);
+                    var pageSizeValue = pageSize ?? 10;
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", offset);
+                        command.Parameters.AddWithValue("@PageSize", pageSizeValue);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read daily sales data
+                            while (await reader.ReadAsync())
+                            {
+                                salesList.Add(new ProductWiseSalesReportItem
+                                {
+                                    SaleDate = reader.IsDBNull(reader.GetOrdinal("SaleDate"))
+                                        ? DateTime.MinValue
+                                        : reader.GetDateTime(reader.GetOrdinal("SaleDate")),
+                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    Weight = reader.IsDBNull(reader.GetOrdinal("Weight"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Weight")),
+                                    Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                    Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Rate")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    IsTotalRow = false
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalWeight = reader.IsDBNull(reader.GetOrdinal("TotalWeight"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
+                                totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
+                                    ? 0
+                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                            }
+                        }
+                    }
+
+                    // Add product total rows
+                    // Group sales by product and add total rows
+                    var productGroups = salesList.GroupBy(s => s.ProductId).ToList();
+                    var finalList = new List<ProductWiseSalesReportItem>();
+                    
+                    foreach (var group in productGroups)
+                    {
+                        var productSales = group.OrderBy(s => s.SaleDate).ToList();
+                        finalList.AddRange(productSales);
+                        
+                        // Add total row for this product
+                        var productTotal = new ProductWiseSalesReportItem
+                        {
+                            SaleDate = DateTime.MinValue,
+                            ProductId = group.Key,
+                            ProductName = productSales.First().ProductName,
+                            ProductCode = productSales.First().ProductCode,
+                            Weight = productSales.Sum(s => s.Weight),
+                            Qty = productSales.Sum(s => s.Qty),
+                            Amount = productSales.Sum(s => s.Amount),
+                            Rate = productSales.Sum(s => s.Qty) > 0 
+                                ? productSales.Sum(s => s.Amount) / productSales.Sum(s => s.Qty) 
+                                : 0m,
+                            IsTotalRow = true
+                        };
+                        finalList.Add(productTotal);
+                    }
+                    
+                    salesList = finalList;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new ProductWiseSalesReportViewModel
+            {
+                SalesList = salesList,
+                Filters = filters ?? new ProductWiseSalesReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount,
+                TotalWeight = totalWeight,
+                TotalQty = totalQty
+            };
+        }
+
+        public async Task<GeneralExpensesReportViewModel> GetGeneralExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters)
+        {
+            var expensesList = new List<GeneralExpensesReportItem>();
+            int totalRecords = 0;
+            decimal totalAmount = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        WITH DailyExpenses AS (
+                            SELECT 
+                                CAST(e.ExpenseDate AS DATE) AS ExpenseDate,
+                                e.ExpenseTypeId_FK AS ExpenseTypeId,
+                                ISNULL(et.ExpenseTypeName, '') AS ExpenseTypeName,
+                                MAX(e.ExpenseDetail) AS ExpenseDetail,
+                                SUM(e.Amount) AS Amount
+                            FROM Expenses e
+                            LEFT JOIN AdminExpenseTypes et ON e.ExpenseTypeId_FK = et.ExpenseTypeId
+                            WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                                AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
+                            GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
+                        )
+                        SELECT 
+                            de.ExpenseDate,
+                            de.ExpenseTypeId,
+                            de.ExpenseTypeName,
+                            de.ExpenseDetail,
+                            de.Amount,
+                            0 AS IsTotalRow
+                        FROM DailyExpenses de
+                        ORDER BY de.ExpenseTypeName, de.ExpenseDate
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM (
+                            SELECT 
+                                CAST(e.ExpenseDate AS DATE) AS ExpenseDate,
+                                e.ExpenseTypeId_FK AS ExpenseTypeId
+                            FROM Expenses e
+                            LEFT JOIN AdminExpenseTypes et ON e.ExpenseTypeId_FK = et.ExpenseTypeId
+                            WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                                AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
+                            GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
+                        ) AS DailyExpenses;
+
+                        SELECT 
+                            SUM(e.Amount) AS TotalAmount
+                        FROM Expenses e
+                        WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                            AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                            AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId);
+                    ";
+
+                    var offset = (pageNumber - 1) * (pageSize ?? 10);
+                    var pageSizeValue = pageSize ?? 10;
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ExpenseTypeId", (object)filters?.ExpenseTypeId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", offset);
+                        command.Parameters.AddWithValue("@PageSize", pageSizeValue);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read daily expenses data
+                            while (await reader.ReadAsync())
+                            {
+                                expensesList.Add(new GeneralExpensesReportItem
+                                {
+                                    ExpenseDate = reader.IsDBNull(reader.GetOrdinal("ExpenseDate"))
+                                        ? DateTime.MinValue
+                                        : reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
+                                    ExpenseTypeId = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeId"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("ExpenseTypeId")),
+                                    ExpenseTypeName = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
+                                    ExpenseDetail = reader.IsDBNull(reader.GetOrdinal("ExpenseDetail"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ExpenseDetail")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    IsTotalRow = false
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                            }
+                        }
+                    }
+
+                    // Add expense type total rows
+                    // Group expenses by expense type and add total rows
+                    var expenseTypeGroups = expensesList.GroupBy(e => e.ExpenseTypeId).ToList();
+                    var finalList = new List<GeneralExpensesReportItem>();
+                    
+                    foreach (var group in expenseTypeGroups)
+                    {
+                        var typeExpenses = group.OrderBy(e => e.ExpenseDate).ToList();
+                        finalList.AddRange(typeExpenses);
+                        
+                        // Add total row for this expense type
+                        var typeTotal = new GeneralExpensesReportItem
+                        {
+                            ExpenseDate = DateTime.MinValue,
+                            ExpenseTypeId = group.Key,
+                            ExpenseTypeName = typeExpenses.First().ExpenseTypeName,
+                            ExpenseDetail = string.Empty,
+                            Amount = typeExpenses.Sum(e => e.Amount),
+                            IsTotalRow = true
+                        };
+                        finalList.Add(typeTotal);
+                    }
+                    
+                    expensesList = finalList;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new GeneralExpensesReportViewModel
+            {
+                ExpensesList = expensesList,
+                Filters = filters ?? new GeneralExpensesReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount
+            };
+        }
+
     }
 }

@@ -34,7 +34,7 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         
                         // Set default values that won't filter out all records
-                        command.Parameters.AddWithValue("@pIsDeleted", 0); // Only show non-deleted records
+                      
                         command.Parameters.AddWithValue("@pBillNumber", filters.BillNumber == null ? DBNull.Value :filters.BillNumber);
                         command.Parameters.AddWithValue("@pSaleFrom", filters.SaleFrom==null ? DBNull.Value: filters.SaleFrom);
                         command.Parameters.AddWithValue("@pSaleDateTo", filters.SaleDateTo==null ? DBNull.Value:filters.SaleDateTo);
@@ -66,8 +66,9 @@ namespace IMS.Services
                                     DiscountAmount = reader.GetDecimal("DiscountAmount"),
                                     TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount"),
                                     TotalDueAmount = reader.GetDecimal("TotalDueAmount"),
-                                    CustomerIdFk = reader.GetInt64("CustomerId_FK"),
-                                    CustomerName = reader.GetString("CustomerName"),
+                                    CustomerIdFk = reader.IsDBNull("CustomerId_FK") ? 0 : reader.GetInt64("CustomerId_FK"),
+                                    CustomerName = reader.IsDBNull("CustomerName") ? ""  : reader.GetString("CustomerName"),
+                                    SupplierName = reader.IsDBNull("SupplierName") ? ""  : reader.GetString("SupplierName"),
                                     SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription"),
                                     PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     IsDeleted = reader.GetBoolean("IsDeleted"),
@@ -183,6 +184,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalReceivedAmount", sale.TotalReceivedAmount);
                         command.Parameters.AddWithValue("@pTotalDueAmount", sale.TotalDueAmount);
                         command.Parameters.AddWithValue("@pCustomerId_FK", sale.CustomerIdFk);
+                        command.Parameters.AddWithValue("@pSupplierId_FK", sale.SupplierIdFk);
                         command.Parameters.AddWithValue("@pCreatedDate", sale.CreatedDate == default(DateTime) ? DateTime.Now : sale.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", sale.CreatedBy);
                         command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTime.Now : sale.ModifiedDate);
@@ -771,12 +773,13 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    // Get sale information
+                    // Get sale information - handle both customer and vendor sales
                     var saleSql = @"SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
-                                          s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SaleDescription,
-                                          c.CustomerName
+                                          s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SupplierId_FK, s.SaleDescription,
+                                          c.CustomerName, sup.SupplierName
                                    FROM Sales s
                                    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+                                   LEFT JOIN Suppliers sup ON s.SupplierId_FK = sup.SupplierId
                                    WHERE s.SaleId = @SaleId";
                     
                     using (var command = new SqlCommand(saleSql, connection))
@@ -794,8 +797,22 @@ namespace IMS.Services
                                 salePrint.DiscountAmount = reader.GetDecimal("DiscountAmount");
                                 salePrint.TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount");
                                 salePrint.TotalDueAmount = reader.GetDecimal("TotalDueAmount");
-                                salePrint.CustomerIdFk = reader.GetInt64("CustomerId_FK");
-                                salePrint.CustomerName = reader.IsDBNull("CustomerName") ? "Unknown Customer" : reader.GetString("CustomerName");
+                                salePrint.CustomerIdFk = reader.IsDBNull("CustomerId_FK") ? 0 : reader.GetInt64("CustomerId_FK");
+                                
+                                // Get customer or vendor name
+                                string customerOrVendorName = "Unknown";
+                                if (!reader.IsDBNull("SupplierId_FK") && reader.GetInt64("SupplierId_FK") > 0)
+                                {
+                                    // This is a vendor sale
+                                    customerOrVendorName = reader.IsDBNull("SupplierName") ? "Unknown Vendor" : reader.GetString("SupplierName");
+                                }
+                                else if (!reader.IsDBNull("CustomerName"))
+                                {
+                                    // This is a customer sale
+                                    customerOrVendorName = reader.GetString("CustomerName");
+                                }
+                                
+                                salePrint.CustomerName = customerOrVendorName;
                                 salePrint.SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription");
                             }
                         }
@@ -1043,7 +1060,7 @@ namespace IMS.Services
         }
 
         public async Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
-            long customerId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
+            long? customerId,long? vendorId,  DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
             string paymentMethod = null, long? onlineAccountId = null)
         {
@@ -1061,7 +1078,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalAmount", totalAmount);
                         command.Parameters.AddWithValue("@pTotalReceivedAmount", totalReceivedAmount);
                         command.Parameters.AddWithValue("@pTotalDueAmount", totalDueAmount);
-                        command.Parameters.AddWithValue("@pCustomerId_FK", customerId);
+                        command.Parameters.AddWithValue("@pCustomerId_FK", customerId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pSupplierId_FK", vendorId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedDate", createdDate);
                         command.Parameters.AddWithValue("@pCreatedBy", createdBy);
                         command.Parameters.AddWithValue("@pModifiedDate", modifiedDate);
