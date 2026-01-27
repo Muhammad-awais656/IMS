@@ -1,4 +1,5 @@
 ﻿using IMS.Common_Interfaces;
+using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -297,8 +298,27 @@ namespace IMS.Controllers
         {
             try
             {
-                // Implementation for editing payment
-                return View();
+                var payment = await _vendorPaymentService.GetPaymentByIdAsync(id);
+                if (payment == null)
+                {
+                    TempData["ErrorMessage"] = "Payment not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var viewModel = new VendorPaymentFormViewModel
+                {
+                    PaymentId = payment.PaymentId,
+                    SupplierId = payment.SupplierIdFk,
+                    BillId = payment.BillId,
+                    PaymentAmount = payment.PaymentAmount,
+                    PaymentDate = payment.PaymentDate,
+                    Description = payment.Description,
+                    PaymentMethod = payment.PaymentMethod,
+                    OnlineAccountId = payment.onlineAccountId
+                };
+                viewModel.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
+
+                return View(viewModel);
             }
             catch (Exception ex)
             {
@@ -311,20 +331,130 @@ namespace IMS.Controllers
         // POST: VendorPaymentsController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(long id, IFormCollection collection)
+        public async Task<IActionResult> Edit(long id, VendorPaymentFormViewModel model)
         {
             try
             {
-                // Implementation for updating payment
-                TempData["SuccessMessage"] = "Payment updated successfully.";
-                return RedirectToAction(nameof(Index));
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("BillId"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = string.IsNullOrEmpty(userIdStr) ? 1 : long.Parse(userIdStr);
+
+                if (ModelState.IsValid)
+                {
+                    var existingPayment = await _vendorPaymentService.GetPaymentByIdAsync(id);
+                    if (existingPayment == null)
+                    {
+                        TempData["ErrorMessage"] = "Payment not found.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    var existingOnline = string.Equals(existingPayment.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && existingPayment.onlineAccountId.HasValue
+                        && existingPayment.onlineAccountId > 0;
+                    var newOnline = string.Equals(model.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && model.OnlineAccountId.HasValue
+                        && model.OnlineAccountId > 0;
+                    var paymentChangedForOnline = existingPayment.PaymentAmount != model.PaymentAmount
+                        || existingPayment.onlineAccountId != model.OnlineAccountId
+                        || existingPayment.BillId != model.BillId;
+                    var requiresReverse = existingOnline && (!newOnline || paymentChangedForOnline);
+                    var requiresNewTransaction = newOnline && (!existingOnline || paymentChangedForOnline);
+
+                    var payment = new BillPayment
+                    {
+                        PaymentId = id,
+                        PaymentAmount = model.PaymentAmount,
+                        BillId = model.BillId,
+                        SupplierIdFk = model.SupplierId,
+                        PaymentDate = model.PaymentDate,
+                        PaymentMethod = model.PaymentMethod,
+                        onlineAccountId = newOnline ? model.OnlineAccountId : null,
+                        Description = model.Description,
+                        CreatedBy = existingPayment.CreatedBy,
+                        CreatedDate = existingPayment.CreatedDate
+                    };
+
+                    var result = await _vendorPaymentService.UpdatePaymentAsync(payment);
+                    if (result > 0)
+                    {
+                        if (requiresReverse)
+                        {
+                            try
+                            {
+                                await _vendorService.ProcessOnlinePaymentTransactionAsync(
+                                    existingPayment.onlineAccountId!.Value,
+                                    existingPayment.BillId,
+                                    existingPayment.PaymentAmount, // Reverse: add back the amount
+                                    $"Reversed payment for Bill #{existingPayment.BillId}",
+                                    userId,
+                                    DateTime.Now
+                                );
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error reversing online payment transaction for Payment ID: {PaymentId}", id);
+                                TempData["WarningMessage"] = "Payment updated but reversing the old online transaction failed. Please verify account balances.";
+                            }
+                        }
+
+                        if (requiresNewTransaction)
+                        {
+                            try
+                            {
+                                var transactionDescription = $"Updated Payment - Bill Id #{model.BillId} - {model.Description ?? ""}";
+                                var transactionId = await _vendorService.ProcessOnlinePaymentTransactionAsync(
+                                    model.OnlineAccountId!.Value,
+                                    model.BillId,
+                                    -model.PaymentAmount, // Debit: subtract the payment amount
+                                    transactionDescription,
+                                    userId,
+                                    DateTime.Now
+                                );
+
+                                _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Bill ID: {BillId}",
+                                    transactionId, model.BillId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error processing online payment transaction for Payment ID: {PaymentId}", id);
+                                TempData["WarningMessage"] = "Payment updated but online transaction processing failed. Please verify account balances.";
+                            }
+                        }
+
+                        TempData["SuccessMessage"] = "Payment updated successfully.";
+                        return RedirectToAction(nameof(Index));
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "Failed to update payment.";
+                    }
+                }
+                else
+                {
+                    // Reload dropdowns if validation fails
+                    model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating payment");
                 TempData["ErrorMessage"] = "An error occurred while updating the payment.";
-                return View();
+                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
             }
+            ViewBag.PaymentId = id;
+            return View(model);
         }
 
         // GET: VendorPaymentsController/Delete/5
@@ -332,8 +462,13 @@ namespace IMS.Controllers
         {
             try
             {
-                // Implementation for delete confirmation
-                return View();
+                var payment = await _vendorPaymentService.GetPaymentByIdAsync(id);
+                if (payment == null)
+                {
+                    TempData["ErrorMessage"] = "Payment not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+                return View(payment);
             }
             catch (Exception ex)
             {
@@ -344,22 +479,61 @@ namespace IMS.Controllers
         }
 
         // POST: VendorPaymentsController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(long id, IFormCollection collection)
+        public async Task<IActionResult> DeleteConfirmed(long id)
         {
             try
             {
-                // Implementation for deleting payment
-                TempData["SuccessMessage"] = "Payment deleted successfully.";
-                return RedirectToAction(nameof(Index));
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = string.IsNullOrEmpty(userIdStr) ? 1 : long.Parse(userIdStr);
+
+                var existingPayment = await _vendorPaymentService.GetPaymentByIdAsync(id);
+                if (existingPayment == null)
+                {
+                    TempData["ErrorMessage"] = "Payment not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var result = await _vendorPaymentService.DeletePaymentAsync(id, DateTime.Now, userId);
+                if (result > 0)
+                {
+                    var isOnline = string.Equals(existingPayment.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                        && existingPayment.onlineAccountId.HasValue
+                        && existingPayment.onlineAccountId > 0;
+                    if (isOnline)
+                    {
+                        try
+                        {
+                            await _vendorService.ProcessOnlinePaymentTransactionAsync(
+                                existingPayment.onlineAccountId.Value,
+                                existingPayment.BillId,
+                                existingPayment.PaymentAmount, // Reverse: add back the amount
+                                $"Deleted Payment - Bill Id #{existingPayment.BillId}",
+                                userId,
+                                DateTime.Now
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error reversing online payment transaction for deleted Payment ID: {PaymentId}", id);
+                            TempData["WarningMessage"] = "Payment deleted but reversing the online transaction failed. Please verify account balances.";
+                        }
+                    }
+
+                    TempData["SuccessMessage"] = "Payment deleted successfully.";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to delete payment.";
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting payment");
                 TempData["ErrorMessage"] = "An error occurred while deleting the payment.";
-                return View();
             }
+            return RedirectToAction(nameof(Index));
         }
     }
 }

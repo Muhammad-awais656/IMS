@@ -230,5 +230,121 @@ namespace IMS.Services
             }
             return response;
         }
+
+        public async Task<BillPayment> GetPaymentByIdAsync(long id)
+        {
+            BillPayment payment = null;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"SELECT PaymentId, PaymentAmount, BillId, SupplierId_FK, PaymentDate, 
+                                      CreatedBy, CreatedDate, Description, PaymentMethod, onlineAccountId
+                               FROM BillPayments WHERE PaymentId = @PaymentId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@PaymentId", id);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                payment = new BillPayment
+                                {
+                                    PaymentId = reader.GetInt64("PaymentId"),
+                                    PaymentAmount = reader.GetDecimal("PaymentAmount"),
+                                    BillId = reader.GetInt64("BillId"),
+                                    SupplierIdFk = reader.GetInt64("SupplierId_FK"),
+                                    PaymentDate = reader.GetDateTime("PaymentDate"),
+                                    CreatedBy = reader.GetInt64("CreatedBy"),
+                                    CreatedDate = reader.GetDateTime("CreatedDate"),
+                                    Description = reader.IsDBNull("Description") ? null : reader.GetString("Description"),
+                                    PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
+                                    onlineAccountId = reader.IsDBNull("onlineAccountId") ? null : reader.GetInt64("onlineAccountId")
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting payment by ID");
+                throw;
+            }
+            return payment;
+        }
+
+        public async Task<int> UpdatePaymentAsync(BillPayment payment)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"UPDATE BillPayments SET 
+                               PaymentAmount = @PaymentAmount,
+                               BillId = @BillId,
+                               SupplierId_FK = @SupplierIdFk,
+                               PaymentDate = @PaymentDate,
+                               Description = @Description,
+                               PaymentMethod = @PaymentMethod,
+                               onlineAccountId = @OnlineAccountId
+                               WHERE PaymentId = @PaymentId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@PaymentId", payment.PaymentId);
+                        command.Parameters.AddWithValue("@PaymentAmount", payment.PaymentAmount);
+                        command.Parameters.AddWithValue("@BillId", payment.BillId);
+                        command.Parameters.AddWithValue("@SupplierIdFk", payment.SupplierIdFk);
+                        command.Parameters.AddWithValue("@PaymentDate", payment.PaymentDate);
+                        command.Parameters.AddWithValue("@Description", payment.Description ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@PaymentMethod", payment.PaymentMethod ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@OnlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
+
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating payment");
+                throw;
+            }
+            return response;
+        }
+
+        public async Task<int> DeletePaymentAsync(long id, DateTime modifiedDate, long modifiedBy)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    
+                    var sql = @"UPDATE BillPayments SET IsDeleted = 1 WHERE PaymentId = @PaymentId";
+                    
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@PaymentId", id);
+
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting payment");
+                throw;
+            }
+            return response;
+        }
     }
 }
