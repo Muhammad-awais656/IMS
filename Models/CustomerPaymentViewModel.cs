@@ -41,6 +41,7 @@ namespace IMS.Models
         public string? PaymentMethod { get; set; }
         public long? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
+        public bool? IsDeleted { get; set; }
     }
 
     public class CustomerPaymentFilters

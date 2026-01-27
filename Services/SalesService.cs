@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml.Spreadsheet;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -552,133 +553,135 @@ namespace IMS.Services
 
                             // Step 4.5: Handle online payment records if payment method is Online
                             // Get sale information to check payment method
-                            string? paymentMethod = null;
-                            long? personalPaymentId = null;
-                            using (var saleCommand = new SqlCommand("GetSaleBySaleId", connection, transaction))
-                            {
-                                saleCommand.CommandType = CommandType.StoredProcedure;
-                                saleCommand.Parameters.AddWithValue("@pSaleId", id);
-                                using (var reader = await saleCommand.ExecuteReaderAsync())
-                                {
-                                    if (await reader.ReadAsync())
-                                    {
-                                        paymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod");
-                                        personalPaymentId = reader.IsDBNull("PersonalPaymentId") ? null : reader.GetInt64("PersonalPaymentId");
-                                    }
-                                }
-                            }
+                            // Get sale information before deletion to check for online payment reversal
 
-                            if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger.LogInformation("Sale {SaleId} has Online payment method, updating PersonalPaymentSaleDetail and PersonalPayments", id);
+                            //string? paymentMethod = null;
+                            //long? personalPaymentId = null;
+                            //using (var saleCommand = new SqlCommand("GetSaleBySaleId", connection, transaction))
+                            //{
+                            //    saleCommand.CommandType = CommandType.StoredProcedure;
+                            //    saleCommand.Parameters.AddWithValue("@pSaleId", id);
+                            //    using (var reader = await saleCommand.ExecuteReaderAsync())
+                            //    {
+                            //        if (await reader.ReadAsync())
+                            //        {
+                            //            paymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod");
+                            //            personalPaymentId = reader.IsDBNull("PersonalPaymentId") ? null : reader.GetInt64("PersonalPaymentId");
+                            //        }
+                            //    }
+                            //}
 
-                                // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentSaleDetail for this sale
-                                var personalPaymentIds = new List<long>();
-                                using (var command = new SqlCommand(@"
-                                    SELECT DISTINCT PersonalPaymentId 
-                                    FROM PersonalPaymentSaleDetail 
-                                    WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@SaleId", id);
-                                    using (var reader = await command.ExecuteReaderAsync())
-                                    {
-                                        while (await reader.ReadAsync())
-                                        {
-                                            if (!reader.IsDBNull("PersonalPaymentId"))
-                                            {
-                                                personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
-                                            }
-                                        }
-                                    }
-                                }
+                            //if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
+                            //{
+                            //    _logger.LogInformation("Sale {SaleId} has Online payment method, updating PersonalPaymentSaleDetail and PersonalPayments", id);
 
-                                // Also add the PersonalPaymentId from the sale if it exists
-                                if (personalPaymentId.HasValue && personalPaymentId.Value > 0 && !personalPaymentIds.Contains(personalPaymentId.Value))
-                                {
-                                    personalPaymentIds.Add(personalPaymentId.Value);
-                                }
+                            //    // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentSaleDetail for this sale
+                            //    var personalPaymentIds = new List<long>();
+                            //    using (var command = new SqlCommand(@"
+                            //        SELECT DISTINCT PersonalPaymentId 
+                            //        FROM PersonalPaymentSaleDetail 
+                            //        WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@SaleId", id);
+                            //        using (var reader = await command.ExecuteReaderAsync())
+                            //        {
+                            //            while (await reader.ReadAsync())
+                            //            {
+                            //                if (!reader.IsDBNull("PersonalPaymentId"))
+                            //                {
+                            //                    personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
+                            //                }
+                            //            }
+                            //        }
+                            //    }
 
-                                // Step 4.5.2: Update PersonalPaymentSaleDetail - Set IsActive = 0 where SaleId = id
-                                using (var command = new SqlCommand(@"
-                                    UPDATE PersonalPaymentSaleDetail 
-                                    SET IsActive = 0, ModifiedDate = GETDATE() 
-                                    WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@SaleId", id);
-                                    var detailsAffected = await command.ExecuteNonQueryAsync();
-                                    _logger.LogInformation("Updated {Count} PersonalPaymentSaleDetail records (IsActive = 0) for sale {SaleId}", detailsAffected, id);
-                                }
+                            //    // Also add the PersonalPaymentId from the sale if it exists
+                            //    if (personalPaymentId.HasValue && personalPaymentId.Value > 0 && !personalPaymentIds.Contains(personalPaymentId.Value))
+                            //    {
+                            //        personalPaymentIds.Add(personalPaymentId.Value);
+                            //    }
 
-                                // Step 4.5.3: Calculate total amount from PersonalPaymentSaleDetail and update DebitAmount in PersonalPayments
-                                if (personalPaymentIds.Count > 0)
-                                {
-                                    // Calculate total amount per PersonalPaymentId from PersonalPaymentSaleDetail
-                                    var paymentAmounts = new Dictionary<long, decimal>();
-                                    using (var command = new SqlCommand(@"
-                                        SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
-                                        FROM PersonalPaymentSaleDetail 
-                                        WHERE SaleId = @SaleId AND IsActive = 0
-                                        GROUP BY PersonalPaymentId", connection, transaction))
-                                    {
-                                        command.Parameters.AddWithValue("@SaleId", id);
-                                        using (var reader = await command.ExecuteReaderAsync())
-                                        {
-                                            while (await reader.ReadAsync())
-                                            {
-                                                if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
-                                                {
-                                                    var ppId = reader.GetInt64("PersonalPaymentId");
-                                                    var totalAmount = reader.GetDecimal("TotalAmount");
-                                                    paymentAmounts[ppId] = totalAmount;
-                                                }
-                                            }
-                                        }
-                                    }
+                            //    // Step 4.5.2: Update PersonalPaymentSaleDetail - Set IsActive = 0 where SaleId = id
+                            //    using (var command = new SqlCommand(@"
+                            //        UPDATE PersonalPaymentSaleDetail 
+                            //        SET IsActive = 0, ModifiedDate = GETDATE() 
+                            //        WHERE SaleId = @SaleId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@SaleId", id);
+                            //        var detailsAffected = await command.ExecuteNonQueryAsync();
+                            //        _logger.LogInformation("Updated {Count} PersonalPaymentSaleDetail records (IsActive = 0) for sale {SaleId}", detailsAffected, id);
+                            //    }
 
-                                    // Update PersonalPayments - Decrease DebitAmount by the calculated total amount
-                                    foreach (var ppId in personalPaymentIds)
-                                    {
-                                        // Get current DebitAmount for this PersonalPayment
-                                        decimal currentDebitAmount = 0;
-                                        using (var getCommand = new SqlCommand(@"
-                                            SELECT CreditAmount 
-                                            FROM PersonalPayments 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            var result = await getCommand.ExecuteScalarAsync();
-                                            if (result != null && result != DBNull.Value)
-                                            {
-                                                currentDebitAmount = Convert.ToDecimal(result);
-                                            }
-                                        }
+                            //    // Step 4.5.3: Calculate total amount from PersonalPaymentSaleDetail and update DebitAmount in PersonalPayments
+                            //    if (personalPaymentIds.Count > 0)
+                            //    {
+                            //        // Calculate total amount per PersonalPaymentId from PersonalPaymentSaleDetail
+                            //        var paymentAmounts = new Dictionary<long, decimal>();
+                            //        using (var command = new SqlCommand(@"
+                            //            SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
+                            //            FROM PersonalPaymentSaleDetail 
+                            //            WHERE SaleId = @SaleId AND IsActive = 0
+                            //            GROUP BY PersonalPaymentId", connection, transaction))
+                            //        {
+                            //            command.Parameters.AddWithValue("@SaleId", id);
+                            //            using (var reader = await command.ExecuteReaderAsync())
+                            //            {
+                            //                while (await reader.ReadAsync())
+                            //                {
+                            //                    if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
+                            //                    {
+                            //                        var ppId = reader.GetInt64("PersonalPaymentId");
+                            //                        var totalAmount = reader.GetDecimal("TotalAmount");
+                            //                        paymentAmounts[ppId] = totalAmount;
+                            //                    }
+                            //                }
+                            //            }
+                            //        }
 
-                                        // Calculate new DebitAmount (subtract the total amount from PersonalPaymentSaleDetail)
-                                        decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
-                                        decimal newDebitAmount = currentDebitAmount - amountToSubtract;
-                                        
-                                        // Ensure DebitAmount doesn't go negative
-                                        if (newDebitAmount < 0) newDebitAmount = 0;
+                            //        // Update PersonalPayments - Decrease DebitAmount by the calculated total amount
+                            //        foreach (var ppId in personalPaymentIds)
+                            //        {
+                            //            // Get current DebitAmount for this PersonalPayment
+                            //            decimal currentDebitAmount = 0;
+                            //            using (var getCommand = new SqlCommand(@"
+                            //                SELECT CreditAmount 
+                            //                FROM PersonalPayments 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                var result = await getCommand.ExecuteScalarAsync();
+                            //                if (result != null && result != DBNull.Value)
+                            //                {
+                            //                    currentDebitAmount = Convert.ToDecimal(result);
+                            //                }
+                            //            }
 
-                                        // Update PersonalPayments with new DebitAmount
-                                        using (var updateCommand = new SqlCommand(@"
-                                            UPDATE PersonalPayments 
-                                            SET CreditAmount = @NewDebitAmount, ModifiedDate = GETDATE() 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            updateCommand.Parameters.AddWithValue("@NewDebitAmount", newDebitAmount);
-                                            var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
-                                            _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for sale {SaleId}: DebitAmount decreased by {AmountToSubtract} (from {OldDebitAmount} to {NewDebitAmount}), Rows affected: {RowsAffected}", 
-                                                ppId, id, amountToSubtract, currentDebitAmount, newDebitAmount, paymentsAffected);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("No PersonalPaymentIds found for sale {SaleId} with Online payment method", id);
-                                }
-                            }
+                            //            // Calculate new DebitAmount (subtract the total amount from PersonalPaymentSaleDetail)
+                            //            decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
+                            //            decimal newDebitAmount = currentDebitAmount - amountToSubtract;
+
+                            //            // Ensure DebitAmount doesn't go negative
+                            //            if (newDebitAmount < 0) newDebitAmount = 0;
+
+                            //            // Update PersonalPayments with new DebitAmount
+                            //            using (var updateCommand = new SqlCommand(@"
+                            //                UPDATE PersonalPayments 
+                            //                SET CreditAmount = @NewDebitAmount, ModifiedDate = GETDATE() 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                updateCommand.Parameters.AddWithValue("@NewDebitAmount", newDebitAmount);
+                            //                var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
+                            //                _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for sale {SaleId}: DebitAmount decreased by {AmountToSubtract} (from {OldDebitAmount} to {NewDebitAmount}), Rows affected: {RowsAffected}",
+                            //                    ppId, id, amountToSubtract, currentDebitAmount, newDebitAmount, paymentsAffected);
+                            //            }
+                            //        }
+                            //    }
+                            //    else
+                            //    {
+                            //        _logger.LogWarning("No PersonalPaymentIds found for sale {SaleId} with Online payment method", id);
+                            //    }
+                            //}
 
                             // Step 5: Mark the sale as deleted (soft delete) using DeleteSale stored procedure
                             using (var command = new SqlCommand("DeleteSale", connection, transaction))
@@ -898,6 +901,32 @@ namespace IMS.Services
             }
             return response;
         }
+
+        public async Task<int> UpdatePaymentsBySaleIdAsync(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand("UpdatePaymentsBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting sale details by sale ID");
+                throw;
+            }
+            return response;
+        }
+
         public async Task<int> TransactionDeleteAndStockUpdate(long saleId)
         {
             int response = 0;

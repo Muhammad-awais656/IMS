@@ -298,15 +298,18 @@
                                             <a asp-action="Details" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="fa-solid fa-eye"></i>
                                             </a>
-                                            <a asp-action="EditSale" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-warning" title="Edit Sale">
-                                                <i class="fa-solid fa-edit"></i>
-                                            </a>
-                                            <a asp-action="PrintReceipt" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-success" title="Print Receipt" target="_blank">
-                                                <i class="fa-solid fa-receipt"></i>
-                                            </a>
-                                            <a asp-action="Delete" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-danger" title="Delete Sale">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </a>
+                                            @if (!sale.IsDeleted)
+                                            {
+                                                <a asp-action="EditSale" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-warning" title="Edit Sale">
+                                                    <i class="fa-solid fa-edit"></i>
+                                                </a>
+                                                <a asp-action="PrintReceipt" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-success" title="Print Receipt" target="_blank">
+                                                    <i class="fa-solid fa-receipt"></i>
+                                                </a>
+                                                <a asp-action="Delete" asp-route-id="@sale.SaleId" class="btn btn-sm btn-outline-danger" title="Delete Sale">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </a>
+                                            }
                                         </div>
                             </td>
                         </tr>

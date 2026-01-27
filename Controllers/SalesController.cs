@@ -308,20 +308,69 @@ namespace IMS.Controllers
                 long userId = long.Parse(userIdStr);
                 var modifiedDate = DateTime.Now;
                 
-                var res = await _salesService.DeleteSaleAsync(id, modifiedDate, userId);
+                // Get sale information before deletion to check for online payment reversal
+                var sale = await _salesService.GetSaleByIdAsync(id);
+                if (sale == null)
+                {
+                    TempData["ErrorMessage"] = "Sale not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if sale has online payment that needs reversal transaction
+                var isOnline = !string.IsNullOrEmpty(sale.PaymentMethod) 
+                    && string.Equals(sale.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
+                    && sale.TotalReceivedAmount > 0;
+                
+                // Get the online account ID (check both PersonalPaymentId and OnlineAccountId)
+                long? onlineAccountId = sale.PersonalPaymentId.HasValue && sale.PersonalPaymentId > 0 
+                    ? sale.PersonalPaymentId 
+                    : (sale.OnlineAccountId.HasValue && sale.OnlineAccountId > 0 ? sale.OnlineAccountId : null);
+
+                if (isOnline && onlineAccountId.HasValue)
+                {
+                    try
+                    {
+                        // Create reversal transaction with negative amount
+                        var transactionDescription = $"Deleted Sale - Bill # {sale.BillNumber} - {sale.SaleDescription ?? "Sale Deletion"}";
+                        var transactionId = await _salesService.ProcessOnlinePaymentTransactionAsync(
+                            onlineAccountId.Value,
+                            sale.SaleId,
+                            -sale.TotalReceivedAmount, // Negative amount for reversal
+                            transactionDescription,
+                            userId,
+                            DateTime.Now
+                        );
+
+                        _logger.LogInformation("Online payment reversal transaction created successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}, OnlineAccountId: {OnlineAccountId}",
+                            transactionId, sale.SaleId, onlineAccountId.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error creating reversal online payment transaction for deleted Sale ID: {SaleId}", id);
+                        TempData["WarningMessage"] = "Sale deletion initiated but reversing the online transaction failed. Please verify account balances.";
+                    }
+                }
+                else 
+                {
+                    //soft delete Payments 
+                    await _salesService.UpdatePaymentsBySaleIdAsync(id);
+                }
+
+                 var res = await _salesService.DeleteSaleAsync(id, modifiedDate, userId);
                 if (res != 0)
                 {
-                                            TempData["Success"] = "Sale deleted successfully!";
-                        return RedirectToAction(nameof(Index));
+                    TempData["Success"] = "Sale deleted successfully!";
+                    return RedirectToAction(nameof(Index));
                 }
                 else
                 {
-                                            TempData["ErrorMessage"] = "Failed to delete sale.";
-                        return RedirectToAction(nameof(Index));
+                    TempData["ErrorMessage"] = "Failed to delete sale.";
+                    return RedirectToAction(nameof(Index));
                 }
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error deleting sale ID: {SaleId}", id);
                 TempData["ErrorMessage"] = ex.Message;
             }
 

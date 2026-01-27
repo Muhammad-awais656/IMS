@@ -33,7 +33,7 @@ namespace IMS.Services
                     using (var command = new SqlCommand("GetAllPayments", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        
+                 
                         // Set parameters for the stored procedure
                         command.Parameters.AddWithValue("@pSaleId", filters?.SaleId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", filters?.CustomerId ?? (object)DBNull.Value);
@@ -61,7 +61,8 @@ namespace IMS.Services
                                     Description = reader.IsDBNull("Description") ? null : reader.GetString("Description"),
                                     PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
-                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate")
+                                    ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
+                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted")
                                 };
                                 paymentsList.Add(payment);
                             }
@@ -247,7 +248,7 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
                     
-                    var sql = @"DELETE FROM Payments WHERE PaymentId = @PaymentId";
+                    var sql = @"UPDATE Payments SET IsDeleted =1 WHERE PaymentId = @PaymentId";
                     
                     using (var command = new SqlCommand(sql, connection))
                     {
