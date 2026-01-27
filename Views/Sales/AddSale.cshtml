@@ -1712,8 +1712,13 @@
             console.log('=== RESETTING CUSTOMER DROPDOWN ===');
             const customerCombo = $("#customerSelect").data("kendoComboBox");
             if (customerCombo) {
-                customerCombo.value('');
+                customerCombo.value(null);
                 customerCombo.text('');
+                // Force refresh the combobox to clear display
+                customerCombo.trigger('change');
+                // Also clear the underlying input element
+                $('#customerSelect').val('');
+                document.getElementById('customerSelect').value = '';
                 console.log('Customer combobox reset');
             }
             
@@ -2200,14 +2205,25 @@
             // Reset Kendo UI comboboxes
             const customerCombo = $("#customerSelect").data("kendoComboBox");
             if (customerCombo) {
-                customerCombo.value('');
+                customerCombo.value(null);
                 customerCombo.text('');
+                // Force refresh the combobox to clear display
+                customerCombo.trigger('change');
+                // Also clear the underlying input element
+                $('#customerSelect').val('');
+                document.getElementById('customerSelect').value = '';
                 console.log('Customer combobox reset');
             }
-            const VendorCombo = $("#vendorSelect").data("kendoComboBox");
-            if (customerCombo) {
-                customerCombo.value('');
-                customerCombo.text('');
+            
+            const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+            if (vendorCombo) {
+                vendorCombo.value(null);
+                vendorCombo.text('');
+                // Force refresh the combobox to clear display
+                vendorCombo.trigger('change');
+                // Also clear the underlying input element
+                $('#vendorSelect').val('');
+                document.getElementById('vendorSelect').value = '';
                 console.log('Vendor combobox reset');
             }
             

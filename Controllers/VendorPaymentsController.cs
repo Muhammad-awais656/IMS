@@ -147,6 +147,20 @@ namespace IMS.Controllers
         {
             try
             {
+                // Remove problematic SaleDetails validation errors from ModelState since we handle them separately
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    if (key.StartsWith("BillId"))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                 
+                }
+                foreach (var key in keysToRemove)
+                {
+                    ModelState.Remove(key);
+                }
                 if (!ModelState.IsValid)
                 {
                     model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
