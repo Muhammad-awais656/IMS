@@ -31,7 +31,7 @@ namespace IMS.Services
                     using (var command = new SqlCommand("GetAllBillPayments", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        
+                    
                         // Set parameters for the stored procedure
                         command.Parameters.AddWithValue("@pBillId", filters?.BillId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSupplierId", filters?.VendorId ?? (object)DBNull.Value);
@@ -40,7 +40,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@desc", filters?.Description ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@PageNo", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
-
+                        
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             var paymentsList = new List<VendorBillViewModel>();
@@ -63,7 +63,8 @@ namespace IMS.Services
                                     DiscountAmount  = reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? decimal.Zero : reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
                                     DueAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? decimal.Zero : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
                                     PaidAmount = reader.IsDBNull(reader.GetOrdinal("PaymentAmount")) ? decimal.Zero : reader.GetDecimal(reader.GetOrdinal("PaymentAmount")),
-                                    PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod"))
+                                    PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod")),
+                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted")
                                 };
 
                                 paymentsList.Add(payment);
@@ -79,14 +80,14 @@ namespace IMS.Services
                             {
                                 totalRecords = reader.GetInt32("TotalRecords");
                             }
-                            viewModel.BillsList = paymentsList;
-                            viewModel.TotalAmount = totalAmount;
-                            viewModel.TotalDiscountAmount = totalDiscountAmount;
-                            viewModel.TotalPaidAmount = totalPaidAmount;
-                            viewModel.TotalPayableAmount = totalPayableAmount;
-                            viewModel.CurrentPage = pageNumber;
+                    viewModel.BillsList = paymentsList;
+                    viewModel.TotalAmount = totalAmount;
+                    viewModel.TotalDiscountAmount = totalDiscountAmount;
+                    viewModel.TotalPaidAmount = totalPaidAmount;
+                    viewModel.TotalPayableAmount = totalPayableAmount;
+                    viewModel.CurrentPage = pageNumber;
                             viewModel.PageSize = pageSize ?? 10;
-                            viewModel.TotalCount = totalRecords;
+                    viewModel.TotalCount = totalRecords;
                             viewModel.TotalPages = (int)Math.Ceiling((double)totalRecords / (pageSize ?? 10));
                         }
                     }

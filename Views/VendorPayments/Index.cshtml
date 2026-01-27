@@ -109,6 +109,7 @@
                                 <th>Total payable amount</th>
                                 <th>Description</th>
                                 <th>Payment Method</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -149,17 +150,30 @@
                                                 <span class="badge bg-secondary">-</span>
                                             }
                                         </td>
+                                        <td class="text-center">
+                                            @if (bill.IsDeleted == true)
+                                            {
+                                                <span class="badge bg-danger">Deleted</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                        </td>
                                         <td class="table-actions text-nowrap">
                                             <div class="btn-group" role="group">
                                                 <a asp-controller="VendorPayments" asp-action="Details" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-info" title="View Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </a>
-                                                <a asp-controller="VendorPayments" asp-action="Edit" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
-                                                    <i class="fa-solid fa-edit"></i>
-                                                </a>
-                                                <a asp-controller="VendorPayments" asp-action="Delete" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </a>
+                                                @if (bill.IsDeleted != true)
+                                                {
+                                                    <a asp-controller="VendorPayments" asp-action="Edit" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-warning" title="Edit Payment">
+                                                        <i class="fa-solid fa-edit"></i>
+                                                    </a>
+                                                    <a asp-controller="VendorPayments" asp-action="Delete" asp-route-id="@bill.PaymentId" class="btn btn-sm btn-outline-danger" title="Delete Payment">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </a>
+                                                }
                                             </div>
                                         </td>
                                     </tr>
@@ -168,7 +182,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="11" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
+                                    <td colspan="12" class="text-center bg-light" style="height: 200px; vertical-align: middle;">
                                         <div class="text-muted">No bills found.</div>
                                     </td>
                                 </tr>

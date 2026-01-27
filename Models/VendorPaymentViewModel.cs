@@ -51,6 +51,7 @@ namespace IMS.Models
         public string? PaymentMethod { get; set; }
         public long? OnlineAccountId { get; set; }
         public DateTime CreatedDate { get; set; }
+        public bool? IsDeleted { get; set; }
     }
 
     public class VendorPaymentFilters
