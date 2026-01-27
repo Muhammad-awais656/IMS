@@ -69,7 +69,7 @@
                 </div>
 
                 <!-- Invoice Credit Period -->
-                <div class="col-md-6 mb-4">
+                @* <div class="col-md-6 mb-4">
                     <label asp-for="InvoiceCreditPeriod" class="form-label fw-semibold">
                         <i class="fa fa-calendar-alt me-1 text-primary"></i>Invoice Credit Period (Days)
                     </label>
@@ -77,25 +77,25 @@
                            type="number" 
                            placeholder="Enter credit period in days" />
                     <span asp-validation-for="InvoiceCreditPeriod" class="text-danger small"></span>
-                </div>
+                </div> *@
 
                 <!-- Start Working Time -->
-                <div class="col-md-3 mb-4">
+              @*   <div class="col-md-3 mb-4">
                     <label asp-for="StartWorkingTime" class="form-label fw-semibold">
                         <i class="fa fa-clock me-1 text-primary"></i>Start Working Time
                     </label>
                     @Html.TextBox("StartWorkingTime", null, new { @class = "form-control form-control-lg", type = "time" })
                     @Html.ValidationMessageFor(m => m.StartWorkingTime, "", new { @class = "text-danger small" })
                 </div>
-
+ *@
                 <!-- End Working Time -->
-                <div class="col-md-3 mb-4">
+               @*  <div class="col-md-3 mb-4">
                     <label asp-for="EndWorkingTime" class="form-label fw-semibold">
                         <i class="fa fa-clock me-1 text-primary"></i>End Working Time
                     </label>
                     @Html.TextBox("EndWorkingTime", null, new { @class = "form-control form-control-lg", type = "time" })
                     @Html.ValidationMessageFor(m => m.EndWorkingTime, "", new { @class = "text-danger small" })
-                </div>
+                </div> *@
 
                 <!-- Enabled Toggle -->
                 <div class="col-12 mb-4">

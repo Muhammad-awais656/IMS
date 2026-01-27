@@ -30,7 +30,7 @@ namespace IMS.Controllers
             {
                 if (billDateFrom == null && billDateTo ==null)
                 {
-                    billDateFrom = DateTime.Now.AddMonths(-1);
+                    billDateFrom = DateTime.Now;                //DateTime.Now.AddMonths(-1);
                     billDateTo = DateTime.Now;
 
                 }
