@@ -447,6 +447,13 @@
                             <input type="number" id="depositAmount" class="form-control" step="0.01" min="0.01" placeholder="Enter deposit amount" required />
                             <span class="text-danger small" id="depositAmountError"></span>
                         </div>
+                        <div class="col-md-6">
+                            <label for="depositPaymentDate" class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>Payment Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" id="depositPaymentDate" class="form-control" required />
+                            <span class="text-danger small" id="depositPaymentDateError"></span>
+                        </div>
                         <div class="col-md-12">
                             <label for="depositDescription" class="form-label fw-semibold">
                                 <i class="fa fa-comment me-1"></i>Description
@@ -506,6 +513,13 @@
                             </label>
                             <input type="number" id="withdrawAmount" class="form-control" step="0.01" min="0.01" placeholder="Enter withdraw amount" required />
                             <span class="text-danger small" id="withdrawAmountError"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="withdrawPaymentDate" class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>Payment Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" id="withdrawPaymentDate" class="form-control" required />
+                            <span class="text-danger small" id="withdrawPaymentDateError"></span>
                         </div>
                         <div class="col-md-12">
                             <label for="withdrawDescription" class="form-label fw-semibold">
@@ -1027,9 +1041,16 @@
             $("#availableBalanceDeposit").val('');
             $("#depositAmount").val('');
             $("#depositDescription").val('');
+            // Set default payment date to today's date
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            $("#depositPaymentDate").val(`${year}-${month}-${day}`);
             $("#newBalanceDeposit").text('-');
             $("#depositBankError").text('');
             $("#depositAmountError").text('');
+            $("#depositPaymentDateError").text('');
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('bankDepositModal'));
@@ -1043,9 +1064,16 @@
             $("#availableBalanceWithdraw").val('');
             $("#withdrawAmount").val('');
             $("#withdrawDescription").val('');
+            // Set default payment date to today's date
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            $("#withdrawPaymentDate").val(`${year}-${month}-${day}`);
             $("#newBalanceWithdraw").text('-');
             $("#withdrawBankError").text('');
             $("#withdrawAmountError").text('');
+            $("#withdrawPaymentDateError").text('');
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('bankWithdrawModal'));
@@ -1056,11 +1084,13 @@
             const bankId = $("#depositBankIdHidden").val();
             const amount = parseFloat($("#depositAmount").val());
             const description = $("#depositDescription").val();
+            const paymentDate = $("#depositPaymentDate").val();
 
             // Validation
             let isValid = true;
             $("#depositBankError").text('');
             $("#depositAmountError").text('');
+            $("#depositPaymentDateError").text('');
 
             if (!bankId) {
                 $("#depositBankError").text('Please select a bank account');
@@ -1069,6 +1099,11 @@
 
             if (!amount || amount <= 0) {
                 $("#depositAmountError").text('Please enter a valid deposit amount');
+                isValid = false;
+            }
+
+            if (!paymentDate) {
+                $("#depositPaymentDateError").text('Please select a payment date');
                 isValid = false;
             }
 
@@ -1089,7 +1124,8 @@
                 body: JSON.stringify({
                     personalPaymentId: parseInt(bankId),
                     amount: amount,
-                    description: description || 'Bank Deposit'
+                    description: description || 'Bank Deposit',
+                    paymentDate: paymentDate
                 })
             })
             .then(response => {
@@ -1130,12 +1166,14 @@
             const bankId = $("#withdrawBankIdHidden").val();
             const amount = parseFloat($("#withdrawAmount").val());
             const description = $("#withdrawDescription").val();
+            const paymentDate = $("#withdrawPaymentDate").val();
             const availableBalance = parseFloat($("#availableBalanceWithdraw").val().replace(/[^0-9.-]+/g, '')) || 0;
 
             // Validation
             let isValid = true;
             $("#withdrawBankError").text('');
             $("#withdrawAmountError").text('');
+            $("#withdrawPaymentDateError").text('');
 
             if (!bankId) {
                 $("#withdrawBankError").text('Please select a bank account');
@@ -1147,6 +1185,11 @@
                 isValid = false;
             } else if (amount > availableBalance) {
                 $("#withdrawAmountError").text('Withdraw amount cannot exceed available balance');
+                isValid = false;
+            }
+
+            if (!paymentDate) {
+                $("#withdrawPaymentDateError").text('Please select a payment date');
                 isValid = false;
             }
 
@@ -1167,7 +1210,8 @@
                 body: JSON.stringify({
                     personalPaymentId: parseInt(bankId),
                     amount: amount,
-                    description: description || 'Bank Withdraw'
+                    description: description || 'Bank Withdraw',
+                    paymentDate: paymentDate
                 })
             })
             .then(response => {

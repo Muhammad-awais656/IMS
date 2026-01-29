@@ -146,13 +146,23 @@
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-calendar me-1 text-primary"></i>From Date
                                     </label>
-                                    <input type="date" name="saleFrom" id="saleFrom" class="form-control" value="@(Context.Request.Query["saleFrom"].FirstOrDefault() ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
+                                    @{
+                                        var saleFromValue = Context.Request.Query["saleFrom"].FirstOrDefault();
+                                        var saleDateToValue = Context.Request.Query["saleDateTo"].FirstOrDefault();
+                                        // If no date parameters in query string, set to today (first load)
+                                        if (string.IsNullOrEmpty(saleFromValue) && string.IsNullOrEmpty(saleDateToValue) && !Context.Request.Query.ContainsKey("saleFrom") && !Context.Request.Query.ContainsKey("saleDateTo"))
+                                        {
+                                            saleFromValue = DateTime.Now.ToString("yyyy-MM-dd");
+                                            saleDateToValue = DateTime.Now.ToString("yyyy-MM-dd");
+                                        }
+                                    }
+                                    <input type="date" name="saleFrom" id="saleFrom" class="form-control" value="@saleFromValue" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-calendar me-1 text-primary"></i>To Date
                                     </label>
-                                    <input type="date" name="saleDateTo" id="saleDateTo" class="form-control" value="@(Context.Request.Query["saleDateTo"].FirstOrDefault() ?? DateTime.Now.ToString("yyyy-MM-dd"))" />
+                                    <input type="date" name="saleDateTo" id="saleDateTo" class="form-control" value="@saleDateToValue" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
@@ -473,6 +483,15 @@
             }
 
 
+            // Set default dates to today on first load if dates are empty
+            const saleFromValue = document.getElementById('saleFrom').value;
+            const saleDateToValue = document.getElementById('saleDateTo').value;
+            if (!saleFromValue && !saleDateToValue) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('saleFrom').value = today;
+                document.getElementById('saleDateTo').value = today;
+            }
+
             // Add event listeners for date inputs to auto-submit form when dates change
             $('#saleFrom, #saleDateTo').on('change', function() {
                 // Auto-submit form when date changes
@@ -482,10 +501,8 @@
             });
         });
 
-        // Function to clear all filters and reset to today's date
+        // Function to clear all filters (including dates)
         function clearAllFilters() {
-            const today = new Date().toISOString().split('T')[0];
-            
             // Clear customer filter
             const customerCombo = $("#customerFilterSelect").data("kendoComboBox");
             if (customerCombo) {
@@ -496,9 +513,9 @@
             document.querySelector('input[name="billNumber"]').value = '';
             document.querySelector('input[name="description"]').value = '';
             
-            // Set dates to today
-            document.getElementById('saleFrom').value = today;
-            document.getElementById('saleDateTo').value = today;
+            // Clear dates (set to empty)
+            document.getElementById('saleFrom').value = '';
+            document.getElementById('saleDateTo').value = '';
             
             // Submit form to refresh results
             $('form').submit();

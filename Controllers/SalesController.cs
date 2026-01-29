@@ -68,22 +68,38 @@ namespace IMS.Controllers
                 {
                     stockFilters.BillNumber = billNumber;
                 }
-                if (saleFrom.HasValue)
+                
+                // Check if date parameters were explicitly provided in query string
+                var saleFromParam = HttpContext.Request.Query["saleFrom"].FirstOrDefault();
+                var saleDateToParam = HttpContext.Request.Query["saleDateTo"].FirstOrDefault();
+                var hasExplicitDateParams = HttpContext.Request.Query.ContainsKey("saleFrom") || HttpContext.Request.Query.ContainsKey("saleDateTo");
+                
+                if (!hasExplicitDateParams)
                 {
-                    stockFilters.SaleFrom = saleFrom;
+                    // First load - no date parameters in query string, set to today's date
+                    var today = DateTime.Now.Date;
+                    stockFilters.SaleFrom = today;
+                    stockFilters.SaleDateTo = today;
                 }
-                if (saleDateTo.HasValue)
+                else
                 {
-                    stockFilters.SaleDateTo = saleDateTo;
+                    // Date parameters were provided in query string
+                    // Parse and set SaleFrom if provided and valid
+                    if (!string.IsNullOrEmpty(saleFromParam) && DateTime.TryParse(saleFromParam, out var parsedFrom))
+                    {
+                        stockFilters.SaleFrom = parsedFrom.Date;
+                    }
+                    // Parse and set SaleDateTo if provided and valid
+                    if (!string.IsNullOrEmpty(saleDateToParam) && DateTime.TryParse(saleDateToParam, out var parsedTo))
+                    {
+                        stockFilters.SaleDateTo = parsedTo.Date;
+                    }
+                    // If dates were cleared (empty strings or invalid), filters will remain null and show all sales
                 }
+                
                 if (!string.IsNullOrEmpty(description))
                 {
                     stockFilters.Description = description;
-                }
-                if (saleFrom == null && saleDateTo==null)
-                {
-                    stockFilters.SaleFrom = DateTime.Now;
-                    stockFilters.SaleDateTo = DateTime.Now;
                 }
                 var viewModel = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
                 

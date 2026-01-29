@@ -19,7 +19,7 @@ namespace IMS.Services
         Task<object> GetTransactionHistoryAsync(long personalPaymentId, int pageNumber, int pageSize, 
             DateTime? fromDate, DateTime? toDate, string? transactionType);
         Task<decimal> GetAccountBalanceAsync(long personalPaymentId);
-        Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy);
-        Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy);
+        Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate);
+        Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate);
     }
 }

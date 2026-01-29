@@ -417,7 +417,8 @@ namespace IMS.Controllers
                     request.PersonalPaymentId, 
                     request.Amount, 
                     request.Description ?? "Bank Deposit",
-                    userId);
+                    userId,
+                    request.PaymentDate ?? DateTime.Now);
 
                 if (result)
                 {
@@ -460,7 +461,8 @@ namespace IMS.Controllers
                     request.PersonalPaymentId, 
                     request.Amount, 
                     request.Description ?? "Bank Withdraw",
-                    userId);
+                    userId,
+                    request.PaymentDate ?? DateTime.Now);
 
                 if (result)
                 {
@@ -484,5 +486,6 @@ namespace IMS.Controllers
         public long PersonalPaymentId { get; set; }
         public decimal Amount { get; set; }
         public string? Description { get; set; }
+        public DateTime? PaymentDate { get; set; }
     }
 }

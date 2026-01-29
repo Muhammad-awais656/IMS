@@ -738,7 +738,7 @@ namespace IMS.Services
             return 0;
         }
 
-        public async Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy)
+        public async Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate)
         {
             try
             {
@@ -789,12 +789,13 @@ namespace IMS.Services
                                  TransactionDate, IsActive, CreatedDate, CreatedBy, ModifiedDate, ModifiedBy)
                                 VALUES 
                                 (@PersonalPaymentId, 0, 'Credit', @Amount, @Balance, @Description, 
-                                 GETDATE(), 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
+                                 @TransactionDate, 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
                             {
                                 insertCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
                                 insertCommand.Parameters.AddWithValue("@Amount", amount);
                                 insertCommand.Parameters.AddWithValue("@Balance", newBalance);
                                 insertCommand.Parameters.AddWithValue("@Description", description ?? "Bank Deposit");
+                                insertCommand.Parameters.AddWithValue("@TransactionDate", paymentDate);
                                 insertCommand.Parameters.AddWithValue("@CreatedBy", createdBy);
                                 await insertCommand.ExecuteNonQueryAsync();
                             }
@@ -817,7 +818,7 @@ namespace IMS.Services
             }
         }
 
-        public async Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy)
+        public async Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate)
         {
             try
             {
@@ -879,12 +880,13 @@ namespace IMS.Services
                                  TransactionDate, IsActive, CreatedDate, CreatedBy, ModifiedDate, ModifiedBy)
                                 VALUES 
                                 (@PersonalPaymentId, 0, 'Debit', @Amount, @Balance, @Description, 
-                                 GETDATE(), 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
+                                 @TransactionDate, 1, GETDATE(), @CreatedBy, GETDATE(), @CreatedBy)", connection, transaction))
                             {
                                 insertCommand.Parameters.AddWithValue("@PersonalPaymentId", personalPaymentId);
                                 insertCommand.Parameters.AddWithValue("@Amount", amount);
                                 insertCommand.Parameters.AddWithValue("@Balance", newBalance);
                                 insertCommand.Parameters.AddWithValue("@Description", description ?? "Bank Withdraw");
+                                insertCommand.Parameters.AddWithValue("@TransactionDate", paymentDate);
                                 insertCommand.Parameters.AddWithValue("@CreatedBy", createdBy);
                                 await insertCommand.ExecuteNonQueryAsync();
                             }
