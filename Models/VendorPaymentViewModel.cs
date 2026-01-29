@@ -32,6 +32,8 @@ namespace IMS.Models
         public string? Description { get; set; }
         public string? PaymentMethod { get; set; }
         public long? OnlineAccountId { get; set; }
+        public long? CustomerId { get; set; } // For General Payments - customer to credit
+        public string? CustomerName { get; set; } = string.Empty;
     }
 
     public class VendorBillViewModel
@@ -40,7 +42,9 @@ namespace IMS.Models
         public long PaymentId { get; set; }
         public long BillNumber { get; set; }
         public long VendorId { get; set; }
+        public long? CustomerId { get; set; }
         public string VendorName { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
         public DateTime BillDate { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }

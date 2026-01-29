@@ -8,7 +8,7 @@ namespace IMS.Common_Interfaces
         Task<VendorPaymentViewModel> GetAllBillPaymentsAsync(int pageNumber, int? pageSize, VendorPaymentFilters? filters);
         Task<List<AdminSupplier>> GetAllVendorsAsync();
         Task<List<SupplierBillNumber>> GetSupplierBillNumbersAsync(long supplierId);
-        Task<bool> CreateVendorPaymentAsync(decimal paymentAmount, long billId, long supplierId, DateTime paymentDate, long createdBy, DateTime createdDate, string? description, string? paymentMethod = null, long? onlineAccountId = null);
+        Task<bool> CreateVendorPaymentAsync(decimal paymentAmount, long billId, long supplierId, DateTime paymentDate, long createdBy, DateTime createdDate, string? description, string? paymentMethod = null, long? onlineAccountId = null,long? customerId=null);
         Task<BillPayment> GetPaymentByIdAsync(long id);
         Task<int> UpdatePaymentAsync(BillPayment payment);
         Task<int> DeletePaymentAsync(long id, DateTime modifiedDate, long modifiedBy);

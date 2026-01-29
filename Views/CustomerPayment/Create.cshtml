@@ -105,6 +105,16 @@
                             <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                         </div>
                     </div>
+                    <div class="col-md-6" id="vendorDiv" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-building me-1 text-primary"></i>Vendor * (Payment will be credited to this vendor)
+                            </label>
+                            <input id="vendorComboBox" style="width: 100%;" />
+                            <input type="hidden" id="vendorIdHidden" name="VendorId" />
+                            <span class="text-danger" id="vendorError"></span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -245,6 +255,7 @@
                 if (onlineAccountCombo) {
                     $("#onlineAccountSelect").val(onlineAccountCombo.value());
                 }
+                // Vendor ID is already in hidden field from combobox change event
 
                 // Require Payment Method
                 const pm = paymentMethodCombo ? paymentMethodCombo.value() : '';
@@ -267,6 +278,19 @@
                         return false;
                     } else {
                         $("#onlineAccountSelect").removeClass('is-invalid');
+                    }
+                }
+
+                // If General Payments, require Vendor
+                if (pm === 'General Payments') {
+                    const vendorId = $("#vendorIdHidden").val();
+                    if (!vendorId) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Vendor for General Payments method.');
+                        $("#vendorComboBox").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#vendorComboBox").removeClass('is-invalid');
                     }
                 }
             });
@@ -303,7 +327,8 @@
                     dataSource: {
                         data: [
                             { value: "Cash", text: "Cash" },
-                            { value: "Online", text: "Online" }
+                            { value: "Online", text: "Online" },
+                            { value: "General Payments", text: "General Payments" }
                         ]
                     },
                     dataTextField: "text",
@@ -313,6 +338,7 @@
                     suggest: true,
                     change: function () {
                         toggleOnlineAccountDiv();
+                        toggleVendorDiv();
                     }
                 });
 
@@ -347,6 +373,50 @@
                     onlineAccountCombo.value("");
                 }
             }
+
+            function toggleVendorDiv() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const vendorCombo = $("#vendorComboBox").data("kendoComboBox");
+                const vendorDiv = $("#vendorDiv");
+                if (!paymentMethodCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "General Payments") {
+                    vendorDiv.show();
+                    if (vendorCombo) {
+                        vendorCombo.enable(true);
+                    }
+                } else {
+                    vendorDiv.hide();
+                    if (vendorCombo) {
+                        vendorCombo.enable(false);
+                        vendorCombo.value("");
+                        $("#vendorIdHidden").val("");
+                    }
+                }
+            }
+
+            // Initialize Vendor ComboBox
+            $("#vendorComboBox").kendoComboBox({
+                placeholder: "Select Vendor...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                enabled: false,
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Vendor/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                change: function() {
+                    const vendorId = this.value();
+                    $("#vendorIdHidden").val(vendorId || "");
+                }
+            });
 
             function loadOnlineAccounts() {
                 fetch('@Url.Action("GetOnlineAccounts", "Sales")')

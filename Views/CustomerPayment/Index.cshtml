@@ -212,6 +212,7 @@
                         <tr>
                             <th>Payment id</th>
                             <th>Customer name</th>
+                            <th>Vendor name</th>
                             <th>Bill number</th>
                             <th>Amount</th>
                             <th>Payment date</th>
@@ -229,6 +230,7 @@
                                 <tr>
                                     <td>@payment.PaymentId</td>
                                     <td>@payment.CustomerName</td>
+                                <td>@payment.SupplierName</td>
                                 <td><span class="badge bg-primary">@payment.BillNumber</span></td>
                                     <td>@payment.PaymentAmount.ToString("N2")</td>
                                     <td>@payment.PaymentDate.ToString("M/d/yyyy h:mm tt")</td>

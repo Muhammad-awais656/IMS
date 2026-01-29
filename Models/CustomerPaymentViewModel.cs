@@ -23,7 +23,9 @@ namespace IMS.Models
         public DateTime PaymentDate { get; set; } = DateTime.Now;
         public string? Description { get; set; }
         public string? PaymentMethod { get; set; }
+        public string? SupplierName { get; set; }
         public long? OnlineAccountId { get; set; }
+        public long? VendorId { get; set; } // For General Payments - vendor to credit
     }
 
     public class PaymentWithCustomerViewModel
@@ -39,9 +41,11 @@ namespace IMS.Models
         public DateTime CreatedDate { get; set; }
         public string? Description { get; set; }
         public string? PaymentMethod { get; set; }
+        public string? SupplierName { get; set; }
         public long? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public bool? IsDeleted { get; set; }
+        public long? VendorId { get; set; }
     }
 
     public class CustomerPaymentFilters

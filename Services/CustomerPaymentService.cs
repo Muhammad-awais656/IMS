@@ -62,7 +62,9 @@ namespace IMS.Services
                                     PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     ModifiedBy = reader.IsDBNull("ModifiedBy") ? null : reader.GetInt64("ModifiedBy"),
                                     ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
-                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted")
+                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted"),
+                                    VendorId = reader.IsDBNull("SupplierId") ? 0 : reader.GetInt64("SupplierId"),
+                                    SupplierName = reader.IsDBNull("SupplierName") ? null : reader.GetString("SupplierName")
                                 };
                                 paymentsList.Add(payment);
                             }
@@ -109,11 +111,14 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    
-                    var sql = @"SELECT PaymentId, PaymentAmount, SaleId, CustomerId, PaymentDate, 
-                                      CreatedBy, CreatedDate, Description, ModifiedBy, ModifiedDate,PaymentMethod,OnlineAccountId
-                               FROM Payments WHERE PaymentId = @PaymentId";
-                    
+
+                    var sql = @"SELECT p.PaymentId, p.PaymentAmount, p.SaleId, p.CustomerId, p.PaymentDate, 
+                                p.CreatedBy, p.CreatedDate, p.Description, p.ModifiedBy, p.ModifiedDate,p.PaymentMethod,p.OnlineAccountId,p.SupplierId,
+                                adm.SupplierName
+                                   FROM Payments p
+                                   LEFT JOIN AdminSuppliers adm ON adm.SupplierId=p.SupplierId
+                                   WHERE PaymentId = @PaymentId";
+
                     using (var command = new SqlCommand(sql, connection))
                     {
                         command.Parameters.AddWithValue("@PaymentId", id);
@@ -136,10 +141,13 @@ namespace IMS.Services
                                     ModifiedDate = reader.IsDBNull("ModifiedDate") ? null : reader.GetDateTime("ModifiedDate"),
                                     paymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
                                     onlineAccountId = reader.IsDBNull("OnlineAccountId") ? null : reader.GetInt64("OnlineAccountId"),
+                                    SupplierId = reader.IsDBNull("SupplierId") ? null : reader.GetInt64("SupplierId"),
+                                    SupplierName = reader.IsDBNull("SupplierName") ? null : reader.GetString("SupplierName")
                                 };
                             }
                         }
                     }
+
                 }
             }
             catch (Exception ex)
@@ -167,6 +175,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pPaymentAmount", payment.PaymentAmount);
                         command.Parameters.AddWithValue("@pSaleId", payment.SaleId);
                         command.Parameters.AddWithValue("@pCustomerId", payment.CustomerId);
+                        command.Parameters.AddWithValue("@pVendorId", payment.SupplierId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDate", payment.PaymentDate);
                         command.Parameters.AddWithValue("@pCreatedBy", payment.CreatedBy);
                         command.Parameters.AddWithValue("@pCreatedDate", payment.CreatedDate == default(DateTime) ? DateTime.Now : payment.CreatedDate);
@@ -211,7 +220,8 @@ namespace IMS.Services
                                PaymentMethod = @PaymentMethod,
                                OnlineAccountId = @OnlineAccountId,
                                ModifiedBy = @ModifiedBy,
-                               ModifiedDate = @ModifiedDate
+                               ModifiedDate = @ModifiedDate,
+                               SupplierId=@VendorId
                                WHERE PaymentId = @PaymentId";
                     
                     using (var command = new SqlCommand(sql, connection))
@@ -224,6 +234,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@Description", payment.Description ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@PaymentMethod", payment.paymentMethod ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@OnlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@VendorId", payment.SupplierId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedBy", payment.ModifiedBy);
                         command.Parameters.AddWithValue("@ModifiedDate", payment.ModifiedDate ?? DateTime.Now);
 

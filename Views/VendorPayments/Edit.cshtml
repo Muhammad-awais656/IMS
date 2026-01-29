@@ -4,12 +4,12 @@
     ViewData["Title"] = "Edit Vendor Payment";
 }
 
-<div class="card shadow-sm">
+    <div class="card shadow-sm">
     <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
         <h2 class="mb-0" style="text-align:center">Edit Vendor Payment</h2>
     </div>
 
-    <div class="card-body">
+        <div class="card-body">
         <form asp-action="Edit" asp-route-id="@Model.PaymentId" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input asp-for="PaymentId" type="hidden" />
@@ -33,7 +33,7 @@
                         <span asp-validation-for="BillId" class="text-danger"></span>
                     </div>
                 </div>
-            </div>
+                        </div>
 
             <div class="row">
                 <div class="col-md-6">
@@ -41,17 +41,17 @@
                         <label asp-for="PaymentAmount" class="form-label">Payment Amount *</label>
                         <input asp-for="PaymentAmount" class="form-control" type="number" step="0.001" min="0" required />
                         <span asp-validation-for="PaymentAmount" class="text-danger"></span>
-                    </div>
-                </div>
+                        </div>
+                        </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label asp-for="PaymentDate" class="form-label">Payment Date *</label>
                         <input asp-for="PaymentDate" class="form-control" type="date" required />
                         <span asp-validation-for="PaymentDate" class="text-danger"></span>
-                    </div>
-                </div>
-            </div>
-
+                        </div>
+                        </div>
+                        </div>
+                        
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -66,7 +66,17 @@
                         <input asp-for="OnlineAccountId" id="onlineAccountSelect" style="width: 100%;" />
                         <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                     </div>
-                </div>
+                        </div>
+                <div class="col-md-6" id="customerDiv" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fa-solid fa-user me-1 text-primary"></i>Customer * (Payment will be credited to this customer)
+                        </label>
+                        <input id="customerComboBox" style="width: 100%;" />
+                        <input type="hidden" id="customerIdHidden" name="CustomerId" />
+                        <span class="text-danger" id="customerError"></span>
+                    </div>
+                   </div>
             </div>
 
             <div class="row">
@@ -82,8 +92,8 @@
             <div class="d-flex justify-content-between">
                 <a asp-action="Index" class="btn btn-secondary">Back to List</a>
                 <button type="submit" class="btn btn-primary">Update Payment</button>
-            </div>
-        </form>
+                    </div>
+            </form>
     </div>
 </div>
 
@@ -189,6 +199,7 @@
                 if (billCombo) { $("#billComboBox").val(billCombo.value()); }
                 if (paymentMethodCombo) { $("#paymentMethodSelect").val(paymentMethodCombo.value()); }
                 if (onlineAccountCombo) { $("#onlineAccountSelect").val(onlineAccountCombo.value()); }
+                // Customer ID is already in hidden field from combobox change event
 
                 // Require Payment Method
                 const pm = paymentMethodCombo ? paymentMethodCombo.value() : '';
@@ -199,6 +210,19 @@
                     return false;
                 } else {
                     $("#paymentMethodSelect").removeClass('is-invalid');
+                }
+
+                // If General Payments, require Customer
+                if (pm === 'General Payments') {
+                    const customerId = $("#customerIdHidden").val();
+                    if (!customerId) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Customer for General Payments method.');
+                        $("#customerComboBox").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#customerComboBox").removeClass('is-invalid');
+                    }
                 }
 
                 // If Online, require Online Account
@@ -229,12 +253,35 @@
             initializePaymentMethodCombo();
             setInitialPaymentSelections();
 
+            // Initialize Customer ComboBox first
+            $("#customerComboBox").kendoComboBox({
+                placeholder: "Select Customer...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                enabled: false,
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetCustomers",
+                            dataType: "json"
+                        }
+                    }
+                },
+                change: function() {
+                    const customerId = this.value();
+                    $("#customerIdHidden").val(customerId || "");
+                }
+            });
+
             function initializePaymentMethodCombo() {
                 $("#paymentMethodSelect").kendoComboBox({
                     dataSource: {
                         data: [
                             { value: "Cash", text: "Cash" },
-                            { value: "Online", text: "Online" }
+                            { value: "Online", text: "Online" },
+                            { value: "General Payments", text: "General Payments" }
                         ]
                     },
                     dataTextField: "text",
@@ -244,6 +291,7 @@
                     suggest: true,
                     change: function () {
                         toggleOnlineAccountDiv();
+                        toggleCustomerDiv();
                     }
                 });
 
@@ -261,8 +309,10 @@
             function setInitialPaymentSelections() {
                 const paymentMethod = @(Model.PaymentMethod != null ? Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentMethod)) : Html.Raw("null"));
                 const onlineAccountId = @(Model.OnlineAccountId.HasValue ? Html.Raw(Model.OnlineAccountId.Value.ToString()) : Html.Raw("null"));
+                const customerId = @(Model.CustomerId.HasValue ? Html.Raw(Model.CustomerId.Value.ToString()) : Html.Raw("null"));
                 const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
                 const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
                 if (paymentMethodCombo && paymentMethod) {
                     paymentMethodCombo.value(paymentMethod);
                     if (paymentMethod === "Online") {
@@ -274,6 +324,22 @@
                                     onlineAccountCombo.value(onlineAccountId.toString());
                                 }
                             });
+                        }
+                    } else if (paymentMethod === "General Payments") {
+                        $("#customerDiv").show();
+                        if (customerCombo) {
+                            customerCombo.enable(true);
+                            if (customerCombo.dataSource.data().length === 0) {
+                                customerCombo.dataSource.read().then(function() {
+                                    if (customerId) {
+                                        customerCombo.value(customerId.toString());
+                                        $("#customerIdHidden").val(customerId.toString());
+                                    }
+                                });
+                            } else if (customerId) {
+                                customerCombo.value(customerId.toString());
+                                $("#customerIdHidden").val(customerId.toString());
+                            }
                         }
                     }
                 }
@@ -296,6 +362,33 @@
                     onlineAccountDiv.hide();
                     onlineAccountCombo.enable(false);
                     onlineAccountCombo.value("");
+                }
+            }
+
+            function toggleCustomerDiv() {
+                debugger;
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
+                const customerDiv = $("#customerDiv");
+                if (!paymentMethodCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "General Payments") {
+                    customerDiv.show();
+                    if (customerCombo) {
+                        customerCombo.enable(true);
+                        // Load customers if data source is empty
+                        if (customerCombo.dataSource.data().length === 0) {
+                            customerCombo.dataSource.read();
+                        }
+                    }
+                } else {
+                    customerDiv.hide();
+                    if (customerCombo) {
+                        customerCombo.enable(false);
+                        customerCombo.value("");
+                        $("#customerIdHidden").val("");
+                    }
                 }
             }
 

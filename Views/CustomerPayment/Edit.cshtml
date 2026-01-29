@@ -63,6 +63,16 @@
                             <span asp-validation-for="OnlineAccountId" class="text-danger"></span>
                         </div>
                     </div>
+                    <div class="col-md-6" id="vendorDiv" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-building me-1 text-primary"></i>Vendor * (Payment will be credited to this vendor)
+                            </label>
+                            <input id="vendorComboBox" style="width: 100%;" />
+                            <input type="hidden" id="vendorIdHidden" name="VendorId" />
+                            <span class="text-danger" id="vendorError"></span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -201,6 +211,19 @@
                     $("#paymentMethodSelect").removeClass('is-invalid');
                 }
 
+                // If General Payments, require Vendor
+                if (pm === 'General Payments') {
+                    const vendorId = $("#vendorIdHidden").val();
+                    if (!vendorId) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Vendor for General Payments method.');
+                        $("#vendorComboBox").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#vendorComboBox").removeClass('is-invalid');
+                    }
+                }
+
                 // If Online, require Online Account
                 if (pm === 'Online') {
                     const acc = onlineAccountCombo ? onlineAccountCombo.value() : '';
@@ -225,6 +248,28 @@
                 submitBtn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Updating Payment...');
             });
 
+            // Initialize Vendor ComboBox first
+            $("#vendorComboBox").kendoComboBox({
+                placeholder: "Select Vendor...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                enabled: false,
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Vendor/GetVendors",
+                            dataType: "json"
+                        }
+                    }
+                },
+                change: function() {
+                    const vendorId = this.value();
+                    $("#vendorIdHidden").val(vendorId || "");
+                }
+            });
+
             // Initialize payment method and online account
             initializePaymentMethodCombo();
             setInitialPaymentSelections();
@@ -234,7 +279,8 @@
                     dataSource: {
                         data: [
                             { value: "Cash", text: "Cash" },
-                            { value: "Online", text: "Online" }
+                            { value: "Online", text: "Online" },
+                            { value: "General Payments", text: "General Payments" }
                         ]
                     },
                     dataTextField: "text",
@@ -244,6 +290,7 @@
                     suggest: true,
                     change: function () {
                         toggleOnlineAccountDiv();
+                        toggleVendorDiv();
                     }
                 });
 
@@ -261,8 +308,10 @@
             function setInitialPaymentSelections() {
                 const paymentMethod = @(Model.PaymentMethod != null ? Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PaymentMethod)) : Html.Raw("null"));
                 const onlineAccountId = @(Model.OnlineAccountId.HasValue ? Html.Raw(Model.OnlineAccountId.Value.ToString()) : Html.Raw("null"));
+                const vendorId = @(Model.VendorId.HasValue ? Html.Raw(Model.VendorId.Value.ToString()) : Html.Raw("null"));
                 const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
                 const onlineAccountCombo = $("#onlineAccountSelect").data("kendoComboBox");
+                const vendorCombo = $("#vendorComboBox").data("kendoComboBox");
                 if (paymentMethodCombo && paymentMethod) {
                     paymentMethodCombo.value(paymentMethod);
                     if (paymentMethod === "Online") {
@@ -275,6 +324,48 @@
                                 }
                             });
                         }
+                    } else if (paymentMethod === "General Payments") {
+                        $("#vendorDiv").show();
+                        if (vendorCombo) {
+                            vendorCombo.enable(true);
+                            if (vendorCombo.dataSource.data().length === 0) {
+                                vendorCombo.dataSource.read().then(function() {
+                                    if (vendorId) {
+                                        vendorCombo.value(vendorId.toString());
+                                        $("#vendorIdHidden").val(vendorId.toString());
+                                    }
+                                });
+                            } else if (vendorId) {
+                                vendorCombo.value(vendorId.toString());
+                                $("#vendorIdHidden").val(vendorId.toString());
+                            }
+                        }
+                    }
+                }
+            }
+
+            function toggleVendorDiv() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const vendorCombo = $("#vendorComboBox").data("kendoComboBox");
+                const vendorDiv = $("#vendorDiv");
+                if (!paymentMethodCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "General Payments") {
+                    vendorDiv.show();
+                    if (vendorCombo) {
+                        vendorCombo.enable(true);
+                        // Load vendors if data source is empty
+                        if (vendorCombo.dataSource.data().length === 0) {
+                            vendorCombo.dataSource.read();
+                        }
+                    }
+                } else {
+                    vendorDiv.hide();
+                    if (vendorCombo) {
+                        vendorCombo.enable(false);
+                        vendorCombo.value("");
+                        $("#vendorIdHidden").val("");
                     }
                 }
             }

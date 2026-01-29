@@ -64,7 +64,10 @@ namespace IMS.Services
                                     DueAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? decimal.Zero : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
                                     PaidAmount = reader.IsDBNull(reader.GetOrdinal("PaymentAmount")) ? decimal.Zero : reader.GetDecimal(reader.GetOrdinal("PaymentAmount")),
                                     PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod")),
-                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted")
+                                    IsDeleted = reader.IsDBNull("IsDeleted") ? false : reader.GetBoolean("IsDeleted"),
+                                    CustomerId = reader.IsDBNull("CustomerId_FK") ? 0 : reader.GetInt64("CustomerId_FK"),
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerName")),
+
                                 };
 
                                 paymentsList.Add(payment);
@@ -190,7 +193,7 @@ namespace IMS.Services
             return billNumbers;
         }
 
-        public async Task<bool> CreateVendorPaymentAsync(decimal paymentAmount, long billId, long supplierId, DateTime paymentDate, long createdBy, DateTime createdDate, string? description, string? paymentMethod = null, long? onlineAccountId = null)
+        public async Task<bool> CreateVendorPaymentAsync(decimal paymentAmount, long billId, long supplierId, DateTime paymentDate, long createdBy, DateTime createdDate, string? description, string? paymentMethod = null, long? onlineAccountId = null,long? CustomerId=null)
         {
             bool response = false;
             try
@@ -205,6 +208,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pPaymentAmount", paymentAmount);
                         command.Parameters.AddWithValue("@pBillId", billId);
                         command.Parameters.AddWithValue("@pSupplierId", supplierId);
+                        command.Parameters.AddWithValue("@pCustomerId", CustomerId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDate", paymentDate);
                         command.Parameters.AddWithValue("@pCreatedBy", createdBy);
                         command.Parameters.AddWithValue("@pCreatedDate", createdDate == default(DateTime) ? DateTime.Now : createdDate);
@@ -242,8 +246,10 @@ namespace IMS.Services
                     await connection.OpenAsync();
                     
                     var sql = @"SELECT PaymentId, PaymentAmount, BillId, SupplierId_FK, PaymentDate, 
-                                      CreatedBy, CreatedDate, Description, PaymentMethod, onlineAccountId
-                               FROM BillPayments WHERE PaymentId = @PaymentId";
+                                      p.CreatedBy, p.CreatedDate, p.Description, PaymentMethod, onlineAccountId,CustomerId_FK,c.CustomerName
+                               FROM BillPayments p
+                               LEFT JOIN Customers c ON c.CustomerId=p.CustomerId_FK
+                               WHERE PaymentId = @PaymentId";
                     
                     using (var command = new SqlCommand(sql, connection))
                     {
@@ -264,7 +270,9 @@ namespace IMS.Services
                                     CreatedDate = reader.GetDateTime("CreatedDate"),
                                     Description = reader.IsDBNull("Description") ? null : reader.GetString("Description"),
                                     PaymentMethod = reader.IsDBNull("PaymentMethod") ? null : reader.GetString("PaymentMethod"),
-                                    onlineAccountId = reader.IsDBNull("onlineAccountId") ? null : reader.GetInt64("onlineAccountId")
+                                    onlineAccountId = reader.IsDBNull("onlineAccountId") ? null : reader.GetInt64("onlineAccountId"),
+                                    CustomerId = reader.IsDBNull("CustomerId_FK") ? null : reader.GetInt64("CustomerId_FK"),
+                                    CustomerName = reader.IsDBNull("CustomerName") ? null : reader.GetString("CustomerName")
                                 };
                             }
                         }

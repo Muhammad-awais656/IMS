@@ -11,13 +11,15 @@ namespace IMS.Controllers
     {
         private readonly ICustomerPaymentService _customerPaymentService;
         private readonly ISalesService _salesService;
+        private readonly IVendorPaymentService _vendorPaymentService;
         private readonly ILogger<CustomerPaymentController> _logger;
 
-        public CustomerPaymentController(ICustomerPaymentService customerPaymentService, ILogger<CustomerPaymentController> logger, ISalesService salesService)
+        public CustomerPaymentController(ICustomerPaymentService customerPaymentService, ILogger<CustomerPaymentController> logger, ISalesService salesService, IVendorPaymentService vendorPaymentService)
         {
             _customerPaymentService = customerPaymentService;
             _logger = logger;
             _salesService = salesService;
+            _vendorPaymentService = vendorPaymentService;
         }
 
         public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
@@ -128,7 +130,8 @@ namespace IMS.Controllers
                         onlineAccountId = model.OnlineAccountId,
                         CreatedBy = userId, // TODO: Get from current user session
                         CreatedDate = DateTime.Now,
-                        Description = model.Description
+                        Description = model.Description,
+                        SupplierId = model.VendorId
                     };
 
                     var result = await _customerPaymentService.CreatePaymentAsync(payment);
@@ -160,6 +163,54 @@ namespace IMS.Controllers
                                 // Just log the error and continue
                             }
                         }
+
+                        // Process General Payments - deduct from customer, credit to vendor
+                        if (model.PaymentMethod == "General Payments" && model.VendorId.HasValue && model.VendorId > 0)
+                        {
+                            try
+                            {
+                                // Find the first bill with due amount for the vendor, or use 0 if no bill found
+                                var vendorBills = await _vendorPaymentService.GetSupplierBillNumbersAsync(model.VendorId.Value);
+                                long billId = 0;
+                                if (vendorBills != null && vendorBills.Any(b => b.TotalDueAmount > 0))
+                                {
+                                    billId = vendorBills.First(b => b.TotalDueAmount > 0).PurchaseOrderId;
+                                }
+
+                                var vendorPaymentDescription = $"General Payment from Customer - {model.Description ?? "Direct payment"}";
+                                var vendorPaymentResult = await _vendorPaymentService.CreateVendorPaymentAsync(
+                                    paymentAmount: model.PaymentAmount,
+                                    billId: billId,
+                                    supplierId: model.VendorId.Value,
+                                    paymentDate: model.PaymentDate,
+                                    createdBy: userId,
+                                    createdDate: DateTime.Now,
+                                    description: vendorPaymentDescription,
+                                    paymentMethod: "General Payments",
+                                    onlineAccountId: null,
+                                    customerId: model.CustomerId
+                                );
+
+                                if (vendorPaymentResult)
+                                {
+                                    _logger.LogInformation("General Payment processed successfully. Customer Payment ID: {PaymentId}, Vendor ID: {VendorId}, Amount: {Amount}",
+                                        payment.PaymentId, model.VendorId.Value, model.PaymentAmount);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Customer payment created but vendor payment failed for General Payment. Customer Payment ID: {PaymentId}, Vendor ID: {VendorId}",
+                                        payment.PaymentId, model.VendorId.Value);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error processing General Payment vendor credit. Customer Payment ID: {PaymentId}, Vendor ID: {VendorId}",
+                                    payment.PaymentId, model.VendorId.Value);
+                                // Don't fail the entire payment if vendor payment processing fails
+                                // Just log the error and continue
+                            }
+                        }
+
                         TempData["SuccessMessage"] = "Payment created successfully.";
                         return RedirectToAction(nameof(Index));
                     }
@@ -205,7 +256,10 @@ namespace IMS.Controllers
                     PaymentDate = payment.PaymentDate,
                     Description = payment.Description,
                     PaymentMethod = payment.paymentMethod,
-                    OnlineAccountId = payment.onlineAccountId
+                    OnlineAccountId = payment.onlineAccountId,
+                    SupplierName = payment.SupplierName,
+                    VendorId = payment.SupplierId
+                    
                 };
                 viewModel.CustomerList = await _customerPaymentService.GetAllCustomersAsync();
                 viewModel.SalesList = await _customerPaymentService.GetAllSalesAsync();
@@ -275,7 +329,8 @@ namespace IMS.Controllers
                         onlineAccountId = newOnline ? model.OnlineAccountId : null,
                         ModifiedBy = userId, // TODO: Get from current user session
                         ModifiedDate = DateTime.Now,
-                        Description = model.Description
+                        Description = model.Description,
+                        SupplierId = model.VendorId
                     };
 
                     var result = await _customerPaymentService.UpdatePaymentAsync(payment);

@@ -76,6 +76,16 @@
                         <small class="text-muted" id="balanceWarning" style="display: none; color: #dc3545 !important;"></small>
                     </div>
                 </div>
+                <div class="col-md-6" id="customerDiv" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fa-solid fa-user me-1 text-primary"></i>Customer * (Payment will be credited to this customer)
+                        </label>
+                        <input id="customerComboBox" style="width: 100%;" />
+                        <input type="hidden" id="customerIdHidden" name="CustomerId" />
+                        <span class="text-danger" id="customerError"></span>
+                    </div>
+                </div>
             </div>
 
             <div class="row">
@@ -193,6 +203,28 @@
                 }
             });
 
+            // Initialize Customer ComboBox first (before payment method)
+            $("#customerComboBox").kendoComboBox({
+                placeholder: "Select Customer...",
+                dataTextField: "text",
+                dataValueField: "value",
+                filter: "contains",
+                suggest: true,
+                enabled: false,
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetCustomers",
+                            dataType: "json"
+                        }
+                    }
+                },
+                change: function() {
+                    const customerId = this.value();
+                    $("#customerIdHidden").val(customerId || "");
+                }
+            });
+
             // Payment Method & Online Account
             initializePaymentMethodCombo();
 
@@ -223,6 +255,7 @@
                 if (billCombo) { $("#billComboBox").val(billCombo.value()); }
                 if (paymentMethodCombo) { $("#paymentMethodSelect").val(paymentMethodCombo.value()); }
                 if (onlineAccountCombo) { $("#onlineAccountSelect").val(onlineAccountCombo.value()); }
+                // Customer ID is already in hidden field from combobox change event
 
                 // Require Payment Method
                 const pm = paymentMethodCombo ? paymentMethodCombo.value() : '';
@@ -233,6 +266,19 @@
                     return false;
                 } else {
                     $("#paymentMethodSelect").removeClass('is-invalid');
+                }
+
+                // If General Payments, require Customer
+                if (pm === 'General Payments') {
+                    const customerId = $("#customerIdHidden").val();
+                    if (!customerId) {
+                        event.preventDefault();
+                        showWarningMessage('Please select Customer for General Payments method.');
+                        $("#customerComboBox").addClass('is-invalid');
+                        return false;
+                    } else {
+                        $("#customerComboBox").removeClass('is-invalid');
+                    }
                 }
 
                 // If Online, require Online Account
@@ -296,13 +342,22 @@
 
             function initializePaymentMethodCombo() {
                 $("#paymentMethodSelect").kendoComboBox({
-                    dataSource: { data: [ { value: "Cash", text: "Cash" }, { value: "Online", text: "Online" } ] },
+                    dataSource: { 
+                        data: [ 
+                            { value: "Cash", text: "Cash" }, 
+                            { value: "Online", text: "Online" },
+                            { value: "General Payments", text: "General Payments" }
+                        ] 
+                    },
                     dataTextField: "text",
                     dataValueField: "value",
                     placeholder: "-- Select Payment Method --",
                     filter: "contains",
                     suggest: true,
-                    change: function () { toggleOnlineAccountDiv(); }
+                    change: function () { 
+                        toggleOnlineAccountDiv();
+                        toggleCustomerDiv();
+                    }
                 });
 
                 $("#onlineAccountSelect").kendoComboBox({
@@ -352,6 +407,33 @@
                     $("#balanceWarning").hide();
                 }
             }
+
+            function toggleCustomerDiv() {
+                const paymentMethodCombo = $("#paymentMethodSelect").data("kendoComboBox");
+                const customerCombo = $("#customerComboBox").data("kendoComboBox");
+                const customerDiv = $("#customerDiv");
+                if (!paymentMethodCombo) return;
+
+                const selectedPaymentMethod = paymentMethodCombo.value();
+                if (selectedPaymentMethod === "General Payments") {
+                    customerDiv.show();
+                    if (customerCombo) {
+                        customerCombo.enable(true);
+                        // Load customers if data source is empty
+                        if (customerCombo.dataSource.data().length === 0) {
+                            customerCombo.dataSource.read();
+                        }
+                    }
+                } else {
+                    customerDiv.hide();
+                    if (customerCombo) {
+                        customerCombo.enable(false);
+                        customerCombo.value("");
+                        $("#customerIdHidden").val("");
+                    }
+                }
+            }
+
 
             function loadAccountBalance(accountId) {
                 if (!accountId) {
