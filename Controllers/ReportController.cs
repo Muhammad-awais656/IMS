@@ -1238,5 +1238,193 @@ namespace IMS.Controllers
             }
         }
 
-}
+
+        public async Task<IActionResult> ExportProductWiseSalesExcel(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new ProductWiseSalesReportFilters
+            {
+                ProductId = productId,
+                FromDate = fromDate ?? DateTime.Now,
+                ToDate = toDate ?? DateTime.Now
+            };
+
+            // Get all data for export (use large page size to get all records)
+            var model = await _reportService.GetProductWiseSalesReport(1, 10000, filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Product Wise Sales Report");
+
+            // Add header
+            worksheet.Cell(1, 1).Value = "Date";
+            worksheet.Cell(1, 2).Value = "Description";
+            worksheet.Cell(1, 3).Value = "Weight";
+            worksheet.Cell(1, 4).Value = "Qty";
+            worksheet.Cell(1, 5).Value = "Rate";
+            worksheet.Cell(1, 6).Value = "Amount";
+
+            // Style header
+            var headerRange = worksheet.Range(1, 1, 1, 6);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            // Add data
+            int row = 2;
+            foreach (var item in model.SalesList)
+            {
+                if (item.IsTotalRow)
+                {
+                    // Total row - bold and different background
+                    worksheet.Cell(row, 1).Value = "";
+                    worksheet.Cell(row, 2).Value = $"Total Sales {item.ProductName}";
+                    worksheet.Cell(row, 2).Style.Font.Bold = true;
+                    worksheet.Cell(row, 3).Value = item.Weight;
+                    worksheet.Cell(row, 4).Value = item.Qty;
+                    worksheet.Cell(row, 5).Value = item.Rate;
+                    worksheet.Cell(row, 6).Value = item.Amount;
+
+                    var totalRange = worksheet.Range(row, 1, row, 6);
+                    totalRange.Style.Font.Bold = true;
+                    totalRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
+                }
+                else
+                {
+                    // Regular row
+                    worksheet.Cell(row, 1).Value = item.SaleDate != DateTime.MinValue ? item.SaleDate.ToString("dd-MMM-yyyy") : "";
+                    worksheet.Cell(row, 2).Value = item.ProductName;
+                    worksheet.Cell(row, 3).Value = item.Weight > 0 ? item.Weight : (double?)null;
+                    worksheet.Cell(row, 4).Value = item.Qty > 0 ? item.Qty : (long?)null;
+                    worksheet.Cell(row, 5).Value = item.Rate > 0 ? item.Rate : (double?)null;
+                    worksheet.Cell(row, 6).Value = item.Amount;
+                }
+                row++;
+            }
+
+            // Add summary row
+            row++;
+            worksheet.Cell(row, 1).Value = "TOTAL:";
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            worksheet.Cell(row, 2).Value = "";
+            worksheet.Cell(row, 3).Value = model.TotalWeight;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalQty;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = "";
+            worksheet.Cell(row, 6).Value = model.TotalAmount;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
+
+            var summaryRange = worksheet.Range(row, 1, row, 6);
+            summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"ProductWiseSalesReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportProductWiseSalesPdf(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new ProductWiseSalesReportFilters
+            {
+                ProductId = productId,
+                FromDate = fromDate ?? DateTime.Now,
+                ToDate = toDate ?? DateTime.Now
+            };
+
+            // Get all data for export (use large page size to get all records)
+            var model = await _reportService.GetProductWiseSalesReport(1, 10000, filters);
+
+            using (var stream = new MemoryStream())
+            {
+                var document = new Document(PageSize.A4, 20f, 20f, 20f, 20f);
+                PdfWriter.GetInstance(document, stream);
+
+                document.Open();
+
+                // Title
+                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                document.Add(new Paragraph("Product Wise Sales Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n")); // Add space
+
+                // Table with 6 columns
+                PdfPTable table = new PdfPTable(6);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 2f, 3f, 1.5f, 1.5f, 1.5f, 2f });
+
+                // Header row
+                string[] headers = { "Date", "Description", "Weight", "Qty", "Rate", "Amount" };
+
+                foreach (var header in headers)
+                {
+                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(cell);
+                }
+
+                // Data rows
+                foreach (var item in model.SalesList)
+                {
+                    if (item.IsTotalRow)
+                    {
+                        // Total row - bold and different background
+                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                        {
+                            BackgroundColor = BaseColor.BLUE
+                        };
+                        table.AddCell(totalCell1);
+
+                        var totalCell2 = new PdfPCell(new Phrase($"Total Sales {item.ProductName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                        {
+                            BackgroundColor = BaseColor.BLUE
+                        };
+                        table.AddCell(totalCell2);
+
+                        table.AddCell(new PdfPCell(new Phrase(item.Weight.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(item.Qty.ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(item.Rate.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(item.Amount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                    }
+                    else
+                    {
+                        // Regular row
+                        table.AddCell(item.SaleDate != DateTime.MinValue ? item.SaleDate.ToString("dd-MMM-yyyy") : "");
+                        table.AddCell(item.ProductName ?? "");
+                        table.AddCell(item.Weight > 0 ? item.Weight.ToString("N2") : "");
+                        table.AddCell(item.Qty > 0 ? item.Qty.ToString() : "");
+                        table.AddCell(item.Rate > 0 ? item.Rate.ToString("N2") : "");
+                        table.AddCell(item.Amount.ToString("N2"));
+                    }
+                }
+
+                // Summary row
+                var summaryCell1 = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                {
+                    Colspan = 2,
+                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(summaryCell1);
+
+                table.AddCell(new PdfPCell(new Phrase(model.TotalWeight.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase(model.TotalQty.ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase(model.TotalAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+                document.Add(table);
+                document.Close();
+
+                byte[] bytes = stream.ToArray();
+                string filename = $"ProductWiseSalesReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                return File(bytes, "application/pdf", filename);
+            }
+        }
+
+    }
 }
