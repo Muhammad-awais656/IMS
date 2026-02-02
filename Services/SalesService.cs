@@ -782,7 +782,7 @@ namespace IMS.Services
                                           c.CustomerName, sup.SupplierName
                                    FROM Sales s
                                    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
-                                   LEFT JOIN Suppliers sup ON s.SupplierId_FK = sup.SupplierId
+                                   LEFT JOIN AdminSuppliers sup ON s.SupplierId_FK = sup.SupplierId
                                    WHERE s.SaleId = @SaleId";
                     
                     using (var command = new SqlCommand(saleSql, connection))
@@ -824,11 +824,11 @@ namespace IMS.Services
                     // Get sale details with product names and measuring unit
                     var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
                                              sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
-                                             p.ProductName, mu.MeasuringUnitAbbreviation
+                                             p.ProductName, mu.MeasuringUnitAbbreviation,mu.MeasuringUnitId,mu.IsSmallestUnit
                                       FROM SaleDetails sd
                                       LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
-                                      LEFT JOIN ProductRanges pr ON sd.ProductRangeId_FK = pr.ProductRangeId
-                                      LEFT JOIN MeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                                      LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
+                                      LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
                                       WHERE sd.SaleId_FK = @SaleId";
                     
                     using (var command = new SqlCommand(detailsSql, connection))
@@ -862,7 +862,10 @@ namespace IMS.Services
                                     LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
                                     ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
-                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation
+                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation,
+                                    IsSmallestUnit = reader.IsDBNull("IsSmallestUnit") ? false : reader.GetBoolean("IsSmallestUnit"),
+                                    MeasuringUnitId = reader.GetInt64("MeasuringUnitId")
+
                                 });
                             }
                         }

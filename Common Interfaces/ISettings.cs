@@ -77,8 +77,10 @@ namespace IMS.Common_Interfaces
         Task<int> UpdateUnitConversionAsync(UnitConversion unitConversion);
         Task<int> DeleteUnitConversionAsync(long id);
         Task<decimal?> ConvertUnitAsync(long fromUnitId, long toUnitId, decimal quantity);
+        Task<decimal?> ConvertUnitToSmallestAsync(long fromUnitId, long toUnitId, decimal quantity);
         Task<List<UnitConversion>> GetConversionsByFromUnitAsync(long fromUnitId);
         Task<List<UnitConversion>> GetEnabledConversionsAsync();
+        Task<AdminMeasuringUnit> GetSmallestMeasuringUnitAsync();
     }
 
 

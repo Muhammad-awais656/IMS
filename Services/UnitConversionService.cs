@@ -385,6 +385,67 @@ namespace IMS.Services
             return null; // Conversion not found
         }
 
+        public async Task<decimal?> ConvertUnitToSmallestAsync(long fromUnitId, long toUnitId, decimal quantity)
+        {
+            // If same unit, return as is
+            if (fromUnitId == toUnitId)
+            {
+                return quantity;
+            }
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    // Try direct conversion
+                    //using (var command = new SqlCommand(@"
+                    //    SELECT ConversionFactor 
+                    //    FROM UnitConversions 
+                    //    WHERE FromUnitId = @FromUnitId 
+                    //      AND ToUnitId = @ToUnitId 
+                    //      AND IsEnabled = 1", connection))
+                    //{
+                    //    command.Parameters.AddWithValue("@FromUnitId", fromUnitId);
+                    //    command.Parameters.AddWithValue("@ToUnitId", toUnitId);
+
+                    //    var factor = await command.ExecuteScalarAsync();
+                    //    if (factor != null)
+                    //    {
+                    //        return quantity * Convert.ToDecimal(factor);
+                    //    }
+                    //}
+
+                    // Try reverse conversion
+                    using (var command = new SqlCommand(@"
+                        SELECT ConversionFactor 
+                        FROM UnitConversions 
+                        WHERE FromUnitId = @FromUnitId 
+                          AND ToUnitId = @ToUnitId  
+                          AND IsEnabled = 1", connection))
+                    {
+                        command.Parameters.AddWithValue("@FromUnitId", fromUnitId);
+                        command.Parameters.AddWithValue("@ToUnitId", toUnitId);
+
+                        var factor = await command.ExecuteScalarAsync();
+                        if (factor != null)
+                        {
+                            return quantity / Convert.ToDecimal(factor);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting unit from {FromUnitId} to {ToUnitId}", fromUnitId, toUnitId);
+            }
+
+            return null; // Conversion not found
+        }
+
+
+
         public async Task<List<UnitConversion>> GetConversionsByFromUnitAsync(long fromUnitId)
         {
             var conversions = new List<UnitConversion>();
@@ -477,6 +538,45 @@ namespace IMS.Services
             }
             return conversions;
         }
+
+        public async Task<AdminMeasuringUnit?> GetSmallestMeasuringUnitAsync()
+        {
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+
+                using var command = new SqlCommand(@"
+            SELECT TOP (1)
+                MeasuringUnitId,
+                MeasuringUnitName,
+                MeasuringUnitAbbreviation,
+                IsEnabled
+            FROM AdminMeasuringUnits
+            WHERE IsSmallestUnit = 1", connection);
+
+                using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow);
+
+                if (await reader.ReadAsync())
+                {
+                    return new AdminMeasuringUnit
+                    {
+                        MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
+                        MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                        MeasuringUnitAbbreviation = reader.GetString(reader.GetOrdinal("MeasuringUnitAbbreviation")),
+                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                    };
+                }
+
+                return null; // No smallest unit found
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting smallest measuring unit");
+                throw;
+            }
+        }
+
     }
 }
 

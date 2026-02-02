@@ -123,14 +123,17 @@ namespace IMS.Models
     public class SaleDetailPrintViewModel
     {
         public long ProductId { get; set; }
+        public long MeasuringUnitId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public long Quantity { get; set; }
+        public decimal PrintQuantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
         public long ProductRangeId { get; set; }
         public string? MeasuringUnitAbbreviation { get; set; }
+        public bool IsSmallestUnit { get; set; }
     }
 }
 

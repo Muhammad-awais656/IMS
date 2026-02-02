@@ -5,6 +5,7 @@ using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.CodeAnalysis;
 using System.Linq;
 
 namespace IMS.Controllers
@@ -1143,6 +1144,36 @@ namespace IMS.Controllers
             try
             {
                 var salePrint = await _salesService.GetSaleForPrintAsync(id);
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                var res = await unitConversionService.GetSmallestMeasuringUnitAsync();
+                if (salePrint != null)
+                {
+                    foreach (var item in salePrint.SaleDetails)
+                    {
+                        if (!item.IsSmallestUnit)
+                        {
+                            //var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+
+                           
+                            var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
+
+                            if (conversionResult.HasValue)
+                            {
+                                // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                                // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
+                                // Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
+                                
+                                item.PrintQuantity = conversionResult.Value;
+                            }
+
+                        }
+
+
+
+                    }
+
+                }
+
                 if (salePrint == null)
                 {
                     return NotFound();
@@ -1158,6 +1189,9 @@ namespace IMS.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+        
+
+
 
         // AJAX endpoint to get product sizes for Kendo combobox
         [HttpGet]

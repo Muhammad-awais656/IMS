@@ -187,7 +187,7 @@
                     <th>Sr#</th>
                     <th>Item</th>
                     <th>Qty</th>
-                    <th>Price</th>
+                    <th>Sale Price</th>
                     <th>Total</th>
                 </tr>
             </thead>
@@ -197,8 +197,8 @@
                     @foreach (var item in Model.SaleDetails)
                     {
 
-                        var linelevelTotal = @item.SalePrice * item.Quantity;
-                        var quantityWithUnit = @item.Quantity.ToString("N0");
+                        var linelevelTotal = @item.SalePrice * item.PrintQuantity;
+                        var quantityWithUnit = @item.PrintQuantity.ToString("N2");
                         if (!string.IsNullOrEmpty(@item.MeasuringUnitAbbreviation))
                         {
                             quantityWithUnit += " " + @item.MeasuringUnitAbbreviation;
