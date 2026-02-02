@@ -131,7 +131,7 @@ namespace IMS.Controllers
                         CreatedBy = userId, // TODO: Get from current user session
                         CreatedDate = DateTime.Now,
                         Description = model.Description,
-                        SupplierId = model.VendorId
+                        SupplierId = null,
                     };
 
                     var result = await _customerPaymentService.CreatePaymentAsync(payment);
@@ -170,12 +170,12 @@ namespace IMS.Controllers
                             try
                             {
                                 // Find the first bill with due amount for the vendor, or use 0 if no bill found
-                                var vendorBills = await _vendorPaymentService.GetSupplierBillNumbersAsync(model.VendorId.Value);
+                               // var vendorBills = await _vendorPaymentService.GetSupplierBillNumbersAsync(model.VendorId.Value);
                                 long billId = 0;
-                                if (vendorBills != null && vendorBills.Any(b => b.TotalDueAmount > 0))
-                                {
-                                    billId = vendorBills.First(b => b.TotalDueAmount > 0).PurchaseOrderId;
-                                }
+                                //if (vendorBills != null && vendorBills.Any(b => b.TotalDueAmount > 0))
+                                //{
+                                //    billId = vendorBills.First(b => b.TotalDueAmount > 0).PurchaseOrderId;
+                                //}
 
                                 var vendorPaymentDescription = $"General Payment from Customer - {model.Description ?? "Direct payment"}";
                                 var vendorPaymentResult = await _vendorPaymentService.CreateVendorPaymentAsync(
@@ -188,7 +188,7 @@ namespace IMS.Controllers
                                     description: vendorPaymentDescription,
                                     paymentMethod: "General Payments",
                                     onlineAccountId: null,
-                                    customerId: model.CustomerId
+                                    customerId: null
                                 );
 
                                 if (vendorPaymentResult)

@@ -183,7 +183,7 @@ namespace IMS.Controllers
                     description: model.Description,
                     paymentMethod: model.PaymentMethod,
                     onlineAccountId: model.OnlineAccountId,
-                    customerId: model.CustomerId
+                    customerId: null
                 );
 
                 if (result)
@@ -239,12 +239,12 @@ namespace IMS.Controllers
                         try
                         {
                             // Find the first sale with due amount for the customer, or use 0 if no sale found
-                            var customerSales = await _customerPaymentService.GetAllSalesAsync();
+                            //var customerSales = await _customerPaymentService.GetAllSalesAsync();
                             long saleId = 0;
-                            if (customerSales != null && customerSales.Any(s => s.CustomerIdFk == model.CustomerId.Value && s.TotalDueAmount > 0))
-                            {
-                                saleId = customerSales.First(s => s.CustomerIdFk == model.CustomerId.Value && s.TotalDueAmount > 0).SaleId;
-                            }
+                            //if (customerSales != null && customerSales.Any(s => s.CustomerIdFk == model.CustomerId.Value && s.TotalDueAmount > 0))
+                            //{
+                            //    saleId = customerSales.First(s => s.CustomerIdFk == model.CustomerId.Value && s.TotalDueAmount > 0).SaleId;
+                            //}
 
                             var customerPaymentDescription = $"General Payment from Vendor - {model.Description ?? "Direct payment"}";
                             var customerPayment = new Payment
@@ -258,7 +258,7 @@ namespace IMS.Controllers
                                 CreatedBy = createdBy,
                                 CreatedDate = DateTime.Now,
                                 Description = customerPaymentDescription,
-                                SupplierId = model.SupplierId
+                                SupplierId = null
                             };
 
                             var customerPaymentResult = await _customerPaymentService.CreatePaymentAsync(customerPayment);
