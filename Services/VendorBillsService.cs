@@ -36,7 +36,7 @@ namespace IMS.Services
                         // Set parameters for the stored procedure
                         command.Parameters.AddWithValue("@PageNo", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
-                        command.Parameters.AddWithValue("@pIsDeleted", false);
+                        command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pSupplierId", filters?.VendorId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pBillNumber", filters?.BillNumber ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pBillFrom", filters?.BillDateFrom ?? (object)DBNull.Value);
@@ -66,7 +66,8 @@ namespace IMS.Services
                                     PaidAmount = reader.IsDBNull(reader.GetOrdinal("TotalReceivedAmount")) ? 0 : reader.GetDecimal(reader.GetOrdinal("TotalReceivedAmount")),
                                     TotalPayableAmount = reader.IsDBNull(reader.GetOrdinal("TotalDueAmount")) ? 0 : reader.GetDecimal(reader.GetOrdinal("TotalDueAmount")),
                                     Description = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderDescription")) ? string.Empty : reader.GetString(reader.GetOrdinal("PurchaseOrderDescription")),
-                                    PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod"))
+                                    PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("PaymentMethod")),
+                                    IsDeleted = reader.IsDBNull(reader.GetOrdinal("IsDeleted")) ? false : reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
                                 };
 
                                 billsList.Add(bill);

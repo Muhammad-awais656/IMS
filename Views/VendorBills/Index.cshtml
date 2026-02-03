@@ -139,6 +139,7 @@
                         <th>Total payable amount</th>
                         <th>Description</th>
                         <th>Payment Method</th>
+                        <th>Is Deleted</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -175,6 +176,16 @@
                                         <span class="badge bg-secondary">@bill.PaymentMethod</span>
                                     }
                                 </td>
+                                <td class="text-center">
+                                    @if (bill.IsDeleted==true)
+                                    {
+                                        <span class="badge bg-danger">Deleted</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                </td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="@Url.Action("Details", "VendorBills", new { id = bill.BillId })" 
@@ -182,6 +193,8 @@
                                            title="View Details">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
+                                     @if (bill.IsDeleted == false)
+                                        {
                                         <a href="@Url.Action("Edit", "VendorBills", new { id = bill.BillId })" 
                                            class="btn btn-sm btn-outline-warning" 
                                            title="Edit Bill">
@@ -199,6 +212,7 @@
                                            onclick="return confirm('Are you sure you want to delete this bill?');">
                                             <i class="fa-solid fa-trash"></i>
                                         </a>
+                                        }
                                     </div>
                                 </td>
                             </tr>
