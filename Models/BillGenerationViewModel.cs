@@ -56,9 +56,12 @@ namespace IMS.Models
         public decimal Quantity { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
+        public decimal PrintQuantity { get; set; }
         public long ProductRangeId { get; set; }
+        public long MeasuringUnitId { get; set; }
         public string ProductSize { get; set; } = string.Empty;
         public string? MeasuringUnitAbbreviation { get; set; }
+        public bool IsSmallestUnit { get; set; }
     }
 }
 

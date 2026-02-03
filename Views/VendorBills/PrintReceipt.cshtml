@@ -188,8 +188,8 @@
                     @foreach (var item in Model.BillItems)
                     {
 
-                        var lineLevelTotal = @item.UnitPrice * @item.Quantity;
-                        var quantityWithUnit = @item.Quantity.ToString("N0");
+                        var lineLevelTotal = @item.UnitPrice * @item.PrintQuantity;
+                        var quantityWithUnit = @item.PrintQuantity.ToString("N2");
                         if (!string.IsNullOrEmpty(@item.MeasuringUnitAbbreviation))
                         {
                             quantityWithUnit += " " + @item.MeasuringUnitAbbreviation;

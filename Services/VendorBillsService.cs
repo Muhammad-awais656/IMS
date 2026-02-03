@@ -664,7 +664,10 @@ namespace IMS.Services
                                     ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
                                     ProductCode = productCode,
                                     ProductSize = productSize,
-                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation
+                                    MeasuringUnitAbbreviation = measuringUnitAbbreviation,
+                                    MeasuringUnitId = reader.IsDBNull("MeasuringUnitId") ? 0 : reader.GetInt64("MeasuringUnitId"),
+                                    IsSmallestUnit = reader.IsDBNull("IsSmallestUnit") ? false : reader.GetBoolean("IsSmallestUnit")
+
                                 });
                             }
                         }

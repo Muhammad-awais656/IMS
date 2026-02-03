@@ -1154,6 +1154,43 @@ namespace IMS.Controllers
                 }
                 
                 var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
+
+                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                var res = await unitConversionService.GetSmallestMeasuringUnitAsync();
+                if (billItems != null)
+                {
+                    foreach (var item in billItems)
+                    {
+                        if (!item.IsSmallestUnit)
+                        {
+                            //var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+
+
+                            var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
+
+                            if (conversionResult.HasValue)
+                            {
+                                // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                                // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
+                                // Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
+
+                                item.PrintQuantity = conversionResult.Value;
+                            }
+                            else
+                            {
+                                item.PrintQuantity = (decimal)item.Quantity;
+                            }
+
+
+                        }
+
+
+
+                    }
+
+                }
+
+
                 _logger.LogInformation("Found {ItemCount} bill items for BillId: {BillId}", billItems?.Count ?? 0, id);
                 
                 var printModel = new

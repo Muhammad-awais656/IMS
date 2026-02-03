@@ -1165,6 +1165,11 @@ namespace IMS.Controllers
                                 
                                 item.PrintQuantity = conversionResult.Value;
                             }
+                            else
+                            {
+                                item.PrintQuantity = (decimal)item.Quantity;
+                            }
+                            
 
                         }
 
