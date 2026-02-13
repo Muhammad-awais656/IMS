@@ -131,6 +131,7 @@
                     <tr>
                         <th>Bill id</th>
                         <th>Vendor</th>
+                        <th>Customer</th>
                         <th>Bill #</th>
                         <th>Bill date</th>
                         <th>Total amount</th>
@@ -151,6 +152,7 @@
                             <tr>
                                 <td>@bill.BillId</td>
                                 <td>@bill.VendorName</td>
+                                <td>@bill.CustomerName</td>
                                 <td><span class="badge bg-primary">@bill.BillNumber</span></td>
                                 <td>@bill.BillDate.ToString("dd/MM/yyyy")</td>
                                 <td>@bill.TotalAmount.ToString("N3")</td>

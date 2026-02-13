@@ -9,51 +9,80 @@
                     <h2 class="mb-0">Edit</h2>
                 </div>
                 <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2">
+                    <div class="row">
                         <input type="hidden" asp-for="SupplierId" />
-                        <div class="col">
-                            <label asp-for="SupplierName" class="form-label"> Vendor Name:</label>
-                            <input asp-for="SupplierName" class="form-control" />
-                            <span asp-validation-for="SupplierName" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierPhoneNumber" class="form-label"> Contact Number:</label>
-                            <input asp-for="SupplierPhoneNumber" class="form-control" />
-                            <span asp-validation-for="SupplierPhoneNumber" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierNtn" class="form-label"> NTN:</label>
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="SupplierName" class="form-label fw-semibold fw-semibold">
+                            <i class="fa fa-user me-1 text-primary"></i>Vendor Name:
+                        </label>
+                        <input asp-for="SupplierName" class="form-control" />
+                        <span asp-validation-for="SupplierName" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="SupplierPhoneNumber" class="form-label fw-semibold fw-semibold">
+                            <i class="fa fa-phone me-1 text-primary"></i>Contact Number:
+                        </label>
+                        <input asp-for="SupplierPhoneNumber" class="form-control" />
+                        <span asp-validation-for="SupplierPhoneNumber" class="text-danger"></span>
+                    </div>
+                    @*     <div class="col-md-6 mb-4">
+                            <label asp-for="SupplierNtn" class="form-label fw-semibold"> NTN:</label>
                             <input asp-for="SupplierNtn" class="form-control" />
                             <span asp-validation-for="SupplierNtn" class="text-danger"></span>
+                        </div> *@
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="SupplierEmail" class="form-label fw-semibold">
+                            <i class="fa fa-envelope me-1 text-primary"></i>Vendor Email:
+                        </label>
+                        <input asp-for="SupplierEmail" class="form-control" />
+                        <span asp-validation-for="SupplierEmail" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="SupplierAddress" class="form-label fw-semibold">
+                            <i class="fa fa-map-marker-alt me-1 text-primary"></i>Address :
+                        </label>
+                        <input asp-for="SupplierAddress" class="form-control" />
+                        <span asp-validation-for="SupplierAddress" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="SupplierDescription" class="form-label fw-semibold"> Description :</label>
+                        <textarea asp-for="SupplierDescription" class="form-control"></textarea>
+                        <span asp-validation-for="SupplierDescription" class="text-danger"></span>
+                    </div>
+
+
+                    <div class="col-12 mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body py-3">
+                                <div class="form-check form-switch d-flex align-items-center">
+                                    <input type="checkbox" asp-for="IsDeleted" class="form-check-input me-3" id="isEnabledSwitch" style="transform: scale(1.2);" />
+                                    <label asp-for="IsDeleted" class="form-check-label fw-semibold mb-0" for="isEnabledSwitch">
+                                        <i class="fa fa-toggle-on me-1 text-success"></i>Is Deleted
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col">
-                            <label asp-for="SupplierEmail" class="form-label">Vendor Email:</label>
-                            <input asp-for="SupplierEmail" class="form-control" />
-                            <span asp-validation-for="SupplierEmail" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierAddress" class="form-label"> Address :</label>
-                            <input asp-for="SupplierAddress" class="form-control" />
-                            <span asp-validation-for="SupplierAddress" class="text-danger"></span>
-                        </div>
-                        <div class="col">
-                            <label asp-for="SupplierDescription" class="form-label"> Description :</label>
-                            <input asp-for="SupplierDescription" class="form-control" />
-                            <span asp-validation-for="SupplierDescription" class="text-danger"></span>
-                        </div>
-                        
-                        <div class="col form-check form-switch">
+                        <span asp-validation-for="IsDeleted" class="text-danger small"></span>
+                    </div>
+
+              @*       <div class="col-md-6 mb-4 form-check form-switch">
                             <label asp-for="IsDeleted" class="form-check-label" class="form-control"> Is Deleted</label>
                             <input type="checkbox" asp-for="IsDeleted" class="form-check-input" />
                             <span asp-validation-for="IsDeleted" class="text-danger"></span>
-                        </div>
+                        </div> *@
 
                     </div>
                    </div>
-                    <div class="mb-3" style="padding:inherit">
-                        <button type="submit" class="btn btn-success">Save</button>
-                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-                    </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Update Vendor
+                </button>
+            </div>
+                  
             </form>
         </div>
     </div>

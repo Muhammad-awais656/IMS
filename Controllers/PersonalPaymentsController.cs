@@ -422,6 +422,7 @@ namespace IMS.Controllers
 
                 if (result)
                 {
+                   TempData["Success"] = "Deposit processed successfully";
                     return Json(new { success = true, message = "Deposit processed successfully" });
                 }
                 else
@@ -466,6 +467,7 @@ namespace IMS.Controllers
 
                 if (result)
                 {
+                    TempData["Success"] = "Withdraw processed successfully";
                     return Json(new { success = true, message = "Withdraw processed successfully" });
                 }
                 else

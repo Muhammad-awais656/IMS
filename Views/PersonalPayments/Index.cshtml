@@ -1145,7 +1145,8 @@
                     // Close modal
                     bootstrap.Modal.getInstance(document.getElementById('bankDepositModal')).hide();
                     // Show success message
-                    alert('Deposit successful!');
+                     toastr.success("Deposit successful!", { timeOut: 5000 });
+                   // alert('Deposit successful!');
                     // Reload page to show updated balance
                     window.location.reload();
                 } else {
@@ -1156,7 +1157,8 @@
             })
             .catch(error => {
                 console.error('Error processing deposit:', error);
-                alert('An error occurred while processing the deposit');
+               // alert('An error occurred while processing the deposit');
+                 toastr.error("Error processing deposit:", { timeOut: 2000 });
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
             });
@@ -1232,7 +1234,7 @@
                     // Close modal
                     bootstrap.Modal.getInstance(document.getElementById('bankWithdrawModal')).hide();
                     // Show success message
-                    alert('Withdraw successful!');
+                    //alert('Withdraw successful!');
                     // Reload page to show updated balance
                     window.location.reload();
                 } else {

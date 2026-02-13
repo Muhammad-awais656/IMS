@@ -36,7 +36,7 @@
                                 <i class="fa fa-gift me-1 text-primary"></i>Product
                             </label>
                             <br />
-                           <div>
+                           <div class="col-md-3">
                                 @Html.DropDownList("ProductWiseSalesReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
                                 "-- Select Product --",
                                                                 new { @class = "form-control", @id = "productComboBox" })

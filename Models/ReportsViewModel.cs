@@ -22,6 +22,7 @@ namespace IMS.Models
     {
         public long SaleId { get; set; }
         public string CustomerName { get; set; }
+        public string SupplierName { get; set; }
 
         public long BillNumber { get; set; }
         public long CustomerIdFk { get; set; }
@@ -180,6 +181,7 @@ namespace IMS.Models
     {
         public long PurchaseOrderId { get; set; }
         public string VendorName { get; set; }
+        public string CustomerName { get; set; }
         public long BillNumber { get; set; }
         public long VendorIdFk { get; set; }
         public DateTime PurchaseDate { get; set; }

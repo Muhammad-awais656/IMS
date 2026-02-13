@@ -122,6 +122,7 @@
                             <tr>
                                 <th><i class="fa fa-hashtag me-1"></i>Sale ID</th>
                                 <th><i class="fa fa-user me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-user me-1"></i>Supplier Name</th>
                                 <th><i class="fa fa-file-text me-1"></i>Bill #</th>
                                 <th><i class="fa fa-calendar me-1"></i>Sale Date</th>
                                 <th><i class="fa fa-dollar-sign me-1"></i>Total Amount</th>
@@ -139,6 +140,7 @@
                                     <tr>
                                         <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.SaleId)</span></td>
                                         <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
+                                        <td>@Html.DisplayFor(modelitem => item.SupplierName)</td>
                                         <td><code>@Html.DisplayFor(modelitem => item.BillNumber)</code></td>
                                         <td>@item.SaleDate.ToString("dd/MM/yyyy")</td>
                                         <td><strong class="text-success">@item.TotalAmount.ToString("N2")</strong></td>

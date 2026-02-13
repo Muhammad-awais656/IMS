@@ -34,9 +34,9 @@ namespace IMS.Services
                          
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pSupplierName", vendor.SupplierName);
-                        command.Parameters.AddWithValue("@pSupplierDescription", vendor.SupplierDescription);
+                        command.Parameters.AddWithValue("@pSupplierDescription", string.IsNullOrEmpty(vendor.SupplierDescription) ? DBNull.Value : vendor.SupplierDescription);
                         command.Parameters.AddWithValue("@pSupplierPhoneNumber", vendor.SupplierPhoneNumber);
-                        command.Parameters.AddWithValue("@pSupplierNTN", vendor.SupplierNtn);
+                        command.Parameters.AddWithValue("@pSupplierNTN", string.IsNullOrEmpty(vendor.SupplierNtn) ? string.Empty : vendor.SupplierNtn);
                         command.Parameters.AddWithValue("@pSupplierEmail", vendor?.SupplierEmail != null ? vendor?.SupplierEmail : DBNull.Value);
                         command.Parameters.AddWithValue("@pSupplierAddress", vendor?.SupplierAddress != null ? vendor?.SupplierAddress : DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedDate", vendor?.CreatedDate == default(DateTime) ? DBNull.Value : vendor?.CreatedDate);
@@ -60,9 +60,9 @@ namespace IMS.Services
                     }
                 }
             }
-            catch
+            catch(Exception)
             {
-
+                throw;
             }
             return response;
         }
@@ -125,7 +125,7 @@ namespace IMS.Services
                                         SupplierName=reader.GetString(reader.GetOrdinal("SupplierName")),
                                         SupplierDescription =reader.GetString(reader.GetOrdinal("SupplierDescription")),
                                         SupplierPhoneNumber=reader.GetString(reader.GetOrdinal("SupplierPhoneNumber")),
-                                        SupplierNtn = reader.GetString(reader.GetOrdinal("SupplierNTN")),
+                                        //SupplierNtn = reader.GetString(reader.GetOrdinal("SupplierNTN")),
                                         SupplierEmail=reader.GetString(reader.GetOrdinal("SupplierEmail")),
                                         SupplierAddress=reader.GetString(reader.GetOrdinal("SupplierAddress")),
                                         IsDeleted=reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
@@ -182,7 +182,7 @@ namespace IMS.Services
                                     SupplierId = reader.GetInt64(reader.GetOrdinal("SupplierId")),
                                     SupplierName = reader.GetString(reader.GetOrdinal("SupplierName")),
                                     SupplierPhoneNumber = reader.IsDBNull(reader.GetOrdinal("SupplierPhoneNumber")) ? null : reader.GetString(reader.GetOrdinal("SupplierPhoneNumber")),
-                                    SupplierNtn = reader.IsDBNull(reader.GetOrdinal("SupplierNTN")) ? null : reader.GetString(reader.GetOrdinal("SupplierNtn")),
+                                    SupplierNtn = reader.IsDBNull(reader.GetOrdinal("SupplierNTN")) ? string.Empty : reader.GetString(reader.GetOrdinal("SupplierNtn")),
                                     SupplierEmail = reader.IsDBNull(reader.GetOrdinal("SupplierEmail")) ? null : reader.GetString(reader.GetOrdinal("SupplierEmail")),
                                     SupplierAddress = reader.GetString(reader.GetOrdinal("SupplierAddress")),
                                     IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted"))
@@ -295,7 +295,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSupplierName", customer.SupplierName);
                         command.Parameters.AddWithValue("@pSupplierDescription", customer.SupplierDescription);
                         command.Parameters.AddWithValue("@pSupplierPhoneNumber", customer.SupplierPhoneNumber);
-                        command.Parameters.AddWithValue("@pSupplierNTN", customer.SupplierNtn);
+                        command.Parameters.AddWithValue("@pSupplierNTN", string.Empty);
                         command.Parameters.AddWithValue("@pSupplierEmail", customer.SupplierEmail);
                         command.Parameters.AddWithValue("@pSupplierAddress", customer.SupplierAddress);
                         command.Parameters.AddWithValue("@pIsDeleted", customer.IsDeleted);

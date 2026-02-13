@@ -36,11 +36,11 @@ namespace IMS.Services
                 {
 
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetAllSales", connection))
+                    using (var command = new SqlCommand("GetAllSalesReport", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@PageNo", pageNumber);
-                        command.Parameters.AddWithValue("@PageSize", pageSize);
+                        //command.Parameters.AddWithValue("@PageNo", pageNumber);
+                        //command.Parameters.AddWithValue("@PageSize", pageSize);
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", (object)salesReportsFilters.CustomerId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@pBillNumber",  DBNull.Value);
@@ -61,6 +61,9 @@ namespace IMS.Services
                                     CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName"))
             ? string.Empty
             : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    SupplierName = reader.IsDBNull(reader.GetOrdinal("SupplierName"))
+            ? string.Empty
+            : reader.GetString(reader.GetOrdinal("SupplierName")),
 
                                     BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber"))
             ? 0
@@ -1144,6 +1147,8 @@ namespace IMS.Services
                         SELECT 
                             po.PurchaseOrderId,
                             ISNULL(s.SupplierName, '') AS VendorName,
+                            ISNULL(c.CustomerName, '') AS CustomerName,
+
                             po.BillNumber,
                             po.SupplierId_FK AS VendorIdFk,
                             po.PurchaseOrderDate AS PurchaseDate,
@@ -1153,7 +1158,8 @@ namespace IMS.Services
                             po.TotalDueAmount AS DueAmount,
                             ISNULL(po.PurchaseOrderDescription, '') AS PurchaseDescription
                         FROM PurchaseOrders po
-                        LEFT JOIN Suppliers s ON po.SupplierId_FK = s.SupplierId
+                        LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
+                        left join Customers c ON c.CustomerId = po.CustomerId_FK
                         WHERE po.IsDeleted = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
@@ -1197,6 +1203,7 @@ namespace IMS.Services
                                 {
                                     PurchaseOrderId = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PurchaseOrderId")),
                                     VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerName")),
                                     BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
                                     VendorIdFk = reader.IsDBNull(reader.GetOrdinal("VendorIdFk")) ? 0 : reader.GetInt64(reader.GetOrdinal("VendorIdFk")),
                                     PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),

@@ -35,7 +35,7 @@ namespace IMS.Controllers
                 // Set today's date as default if no dates are provided
                 var today = DateTime.Today;
                 if (!billDateFrom.HasValue)
-                    billDateFrom = DateTime.Now.AddMonths(-1);
+                    billDateFrom = DateTime.Now;                 //.AddMonths(-1);
                 if (!billDateTo.HasValue)
                     billDateTo = today;
 

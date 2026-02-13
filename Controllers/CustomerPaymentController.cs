@@ -177,7 +177,7 @@ namespace IMS.Controllers
                                 //    billId = vendorBills.First(b => b.TotalDueAmount > 0).PurchaseOrderId;
                                 //}
 
-                                var vendorPaymentDescription = $"General Payment from Customer - {model.Description ?? "Direct payment"}";
+                                var vendorPaymentDescription = $"General Payment from Customer({model.CustomerId}) - {model.Description ?? "Direct payment"}";
                                 var vendorPaymentResult = await _vendorPaymentService.CreateVendorPaymentAsync(
                                     paymentAmount: model.PaymentAmount,
                                     billId: billId,

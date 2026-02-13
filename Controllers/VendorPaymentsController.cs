@@ -246,7 +246,7 @@ namespace IMS.Controllers
                             //    saleId = customerSales.First(s => s.CustomerIdFk == model.CustomerId.Value && s.TotalDueAmount > 0).SaleId;
                             //}
 
-                            var customerPaymentDescription = $"General Payment from Vendor - {model.Description ?? "Direct payment"}";
+                            var customerPaymentDescription = $"General Payment from Vendor({model.SupplierId}) - {model.Description ?? "Direct payment"}";
                             var customerPayment = new Payment
                             {
                                 PaymentAmount = model.PaymentAmount,
