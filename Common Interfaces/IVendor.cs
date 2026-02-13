@@ -19,7 +19,7 @@ namespace IMS.Common_Interfaces
         Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId);
         Task<StockMaster?> GetStockByProductIdAsync(long productId);
         Task<decimal> GetPreviousDueAmountByVendorIdAsync(long vendorId);
-        Task<long> CreateVendorBillAsync(decimal totalAmount, decimal paidAmount, decimal dueAmount, long vendorId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, decimal discountAmount, long billNumber, string description, DateTime billDate, string? paymentMethod, long? onlineAccountId);
+        Task<long> CreateVendorBillAsync(decimal totalAmount, decimal paidAmount, decimal dueAmount, long? vendorId, long? customerId , DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, decimal discountAmount, long billNumber, string description, DateTime billDate, string? paymentMethod, long? onlineAccountId);
         Task<long> AddVendorBillDetails(long billId, long productId, decimal unitPrice, decimal purchasePrice, decimal quantity, decimal salePrice, decimal lineDiscountAmount, decimal payableAmount, long productRangeId);
         long UpdateStock(long stockMasterId, long productId, decimal availableQuantity, decimal totalQuantity, decimal usedQuantity, long modifiedBy, DateTime modifiedDate);
         long VendorBillTransactionCreate(long stockMasterId, decimal quantity, string description, DateTime transactionDate, long createdBy, int transactionType, long billId);

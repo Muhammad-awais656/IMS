@@ -1,4 +1,4 @@
-@using System.Globalization
+    @using System.Globalization
 @model IMS.Models.PersonalPaymentViewModel
 @{
     ViewData["Title"] = "Personal Payment Accounts";
@@ -1183,10 +1183,11 @@
             if (!amount || amount <= 0) {
                 $("#withdrawAmountError").text('Please enter a valid withdraw amount');
                 isValid = false;
-            } else if (amount > availableBalance) {
-                $("#withdrawAmountError").text('Withdraw amount cannot exceed available balance');
-                isValid = false;
             }
+            // else if (amount > availableBalance) {
+            //     $("#withdrawAmountError").text('Withdraw amount cannot exceed available balance');
+            //     isValid = false;
+            // }
 
             if (!paymentDate) {
                 $("#withdrawPaymentDateError").text('Please select a payment date');

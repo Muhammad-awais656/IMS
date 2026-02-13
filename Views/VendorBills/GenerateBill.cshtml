@@ -40,20 +40,30 @@
                         <label for="vendorSelect" class="form-label">Vendor:</label>
                         <input id="vendorSelect" name="VendorId" asp-for="VendorId" style="width: 100%;" />
                     </div>
+                <div class="col-md-3">
+                    <label for="CustomerId" class="form-label">Customer:</label>
+                    <input id="customerSelect" name="CustomerId" asp-for="CustomerId" style="width: 100%;" />
+                    
+                </div>
+
                     <div class="col-md-2">
                         <label for="billNumber" class="form-label">Bill Number:</label>
                         <input type="number" id="billNumber" asp-for="BillNumber" class="form-control" readonly />
                     </div>
-                    <div class="col-md-3">
-                        <label for="billDate" class="form-label">Bill Date:</label>
-                        <input type="date" id="billDate" asp-for="BillDate" class="form-control" />
-                    </div>
-                    <div class="col-md-3">
-                        <label for="description" class="form-label">Description:</label>
-                        <input type="text" id="description" asp-for="Description" class="form-control" placeholder="Bill description" />
-                    </div>
-                </div>
 
+                
+                </div>
+                <div class="row mb-4">
+
+                <div class="col-md-3">
+                    <label for="billDate" class="form-label">Bill Date:</label>
+                    <input type="date" id="billDate" asp-for="BillDate" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label for="description" class="form-label">Description:</label>
+                    <input type="text" id="description" asp-for="Description" class="form-control" placeholder="Bill description" />
+                </div>
+            </div>
                 <!-- Product Selection Section -->
                 <div class="row mb-4">
                     <div class="col-12">
@@ -317,7 +327,9 @@
                 },
                 change: function(e) {
                     if (this.value()) {
-                        loadVendorData(this.value());
+                        // loadVendorData(this.value());
+
+                        loadVendorPreviousDueAmount();
                         // Clear validation styling when vendor is selected
                         $("#vendorSelect").removeClass('is-invalid');
                     }
@@ -327,10 +339,100 @@
             // If we have an initial value, load vendor data
             if (initialValue) {
                 setTimeout(function() {
-                    loadVendorData(initialValue);
+                       loadVendorPreviousDueAmount();
                 }, 500);
             }
         }
+
+            // Customer Selection Combobox
+            $("#customerSelect").kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Sales/GetCustomers",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- Select Customer --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                change: function() {
+                    // Clear vendor when customer is selected
+                    const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+                    if (vendorCombo && this.value()) {
+                        vendorCombo.value("");
+                    }
+                    loadPreviousDueAmount();
+                }
+            });
+        function loadPreviousDueAmount() {
+                   const customerCombo = $("#customerSelect").data("kendoComboBox");
+                   const customerId = customerCombo ? customerCombo.value() : null;
+                   const previousDueInput = document.getElementById('previousDue');
+
+                   if (customerId) {
+                       // Show loading state
+                       previousDueInput.value = 'Loading...';
+                       previousDueInput.style.backgroundColor = '#f8f9fa';
+                       previousDueInput.style.color = '#6c757d';
+
+                       // AJAX call to fetch previous due amount
+                       fetch(`/Sales/GetPreviousDueAmount?customerId=${customerId}`)
+                           .then(response => response.json())
+                           .then(data => {
+                               if (data.success) {
+                                   const amount = parseFloat(data.previousDueAmount);
+                                   previousDueInput.value = amount.toFixed(2);
+                                
+                                   // Visual feedback based on amount
+                                   if (amount > 0) {
+                                       previousDueInput.style.backgroundColor = '#fff3cd';
+                                       previousDueInput.style.color = '#856404';
+                                       showSuccessMessage(`Previous due amount loaded: $${amount.toFixed(2)}`);
+                                   } else {
+                                       previousDueInput.style.backgroundColor = '#d1edff';
+                                       previousDueInput.style.color = '#0c5460';
+                                       showSuccessMessage('No previous due amount for this customer');
+                                   }
+                               } else {
+                                   previousDueInput.value = '0.00';
+                                   previousDueInput.style.backgroundColor = '#f8d7da';
+                                   previousDueInput.style.color = '#721c24';
+                                   showErrorMessage(data.message || 'Error loading previous due amount');
+                               }
+                           })
+                           .catch(error => {
+                               console.error('Error loading previous due amount:', error);
+                               previousDueInput.value = '0.00';
+                               previousDueInput.style.backgroundColor = '#f8d7da';
+                               previousDueInput.style.color = '#721c24';
+                               showErrorMessage('Error loading previous due amount');
+                           })
+                           .finally(() => {
+                               // Reset to normal state after a delay
+                               setTimeout(() => {
+                                   previousDueInput.style.backgroundColor = '';
+                                   previousDueInput.style.color = '';
+                               }, 2000);
+
+                               // Update totals after loading previous due
+                               updateTotals();
+                           });
+                   } else {
+                       // Clear previous due when no customer selected
+                       previousDueInput.value = '0.00';
+                       previousDueInput.style.backgroundColor = '';
+                       previousDueInput.style.color = '';
+                       updateTotals();
+                   }
+               }
+
+        
+
 
         function initializeProductComboBox() {
             $("#productSelect").kendoComboBox({
@@ -694,6 +796,70 @@
             // Load next bill number for the selected vendor
             loadNextBillNumber(vendorId);
         }
+
+        function loadVendorPreviousDueAmount() {
+                    const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+                    const vendorId = vendorCombo ? vendorCombo.value() : null;
+                    const previousDueInput = document.getElementById('previousDue');
+
+                    if (vendorId) {
+                        // Show loading state
+                        previousDueInput.value = 'Loading...';
+                        previousDueInput.style.backgroundColor = '#f8f9fa';
+                        previousDueInput.style.color = '#6c757d';
+
+                        // AJAX call to fetch previous due amount for vendor
+                        fetch(`/Sales/GetVendorPreviousDueAmount?vendorId=${vendorId}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const amount = parseFloat(data.previousDueAmount);
+                                    previousDueInput.value = amount.toFixed(2);
+
+                                    // Visual feedback based on amount
+                                    if (amount > 0) {
+                                        previousDueInput.style.backgroundColor = '#fff3cd';
+                                        previousDueInput.style.color = '#856404';
+                                        showSuccessMessage(`Previous due amount loaded: $${amount.toFixed(2)}`);
+                                    } else {
+                                        previousDueInput.style.backgroundColor = '#d1edff';
+                                        previousDueInput.style.color = '#0c5460';
+                                        showSuccessMessage('No previous due amount for this vendor');
+                                    }
+                                } else {
+                                    previousDueInput.value = '0.00';
+                                    previousDueInput.style.backgroundColor = '#f8d7da';
+                                    previousDueInput.style.color = '#721c24';
+                                    showErrorMessage(data.message || 'Error loading previous due amount');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error loading vendor previous due amount:', error);
+                                previousDueInput.value = '0.00';
+                                previousDueInput.style.backgroundColor = '#f8d7da';
+                                previousDueInput.style.color = '#721c24';
+                                showErrorMessage('Error loading previous due amount');
+                            })
+                            .finally(() => {
+                                // Reset to normal state after a delay
+                                setTimeout(() => {
+                                    previousDueInput.style.backgroundColor = '';
+                                    previousDueInput.style.color = '';
+                                }, 2000);
+
+                                // Update totals after loading previous due
+                                updateTotals();
+                            });
+                    } else {
+                        // Clear previous due when no vendor selected
+                        previousDueInput.value = '0.00';
+                        previousDueInput.style.backgroundColor = '';
+                        previousDueInput.style.color = '';
+                        updateTotals();
+                    }
+                         // Load next bill number for the selected vendor
+            loadNextBillNumber(vendorId);
+                }
 
         function loadProductSizes(productId) {
             // Use VendorBills endpoint for product sizes
@@ -1309,6 +1475,8 @@
 
         function resetProductFields() {
             $("#productSelect").data("kendoComboBox").value("");
+            // $("#customerSelect").data("kendoComboBox").value("");
+            // $("#vendorSelect").data("kendoComboBox").value("");
             $("#productSizeSelect").data("kendoComboBox").value("");
             $("#quantity").val("1");
             $("#unitPrice").val("0");
@@ -1398,6 +1566,7 @@
 
         // Save Bill function
         function saveBill() {
+            debugger;
             if (!validateBillForm()) {
                 return;
             }
@@ -1468,6 +1637,7 @@
 
         // Save and Print Bill function
         function saveAndPrintBill() {
+            debugger;
             if (!validateBillForm()) {
                 return;
             }
@@ -1633,17 +1803,17 @@
                 $("#payNow").removeClass('is-invalid');
                 $("#accountBalance").removeClass('is-invalid');
 
-                if (accountBalance <= 0) {
-                    $("#accountBalance").addClass('is-invalid');
-                    showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
-                    return false;
-                }
+                // if (accountBalance <= 0) {
+                //     $("#accountBalance").addClass('is-invalid');
+                //     showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+                //     return false;
+                // }
 
-                if (payNow > accountBalance) {
-                    $("#payNow").addClass('is-invalid');
-                    showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
-                    return false;
-                }
+                // if (payNow > accountBalance) {
+                //     $("#payNow").addClass('is-invalid');
+                //     showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+                //     return false;
+                // }
 
                 // Clear validation styling if balance is sufficient
                 $("#payNow").removeClass('is-invalid');
@@ -1675,12 +1845,16 @@
 
         // Function to validate bill form
         function validateBillForm() {
+            debugger;
             // Validate vendor selection
             var vendorCombo = $("#vendorSelect").data("kendoComboBox");
             var vendorId = vendorCombo ? vendorCombo.value() : null;
 
-            if (!vendorId || vendorId === '') {
-                showWarningMessage("Please select a vendor from the dropdown.");
+            var customerCombo = $("#customerSelect").data("kendoComboBox");
+            var CustomerId = customerCombo ? customerCombo.value() : null;
+
+            if ((!vendorId || vendorId === '') &&  (!CustomerId || CustomerId==='') ) {
+                showWarningMessage("Please select a vendor or Customer from the dropdown.");
                 $("#vendorSelect").addClass('is-invalid');
                 return false;
             }
@@ -1716,15 +1890,15 @@
                 var accountBalance = parseFloat($("#accountBalance").val()) || 0;
                 var payNow = parseFloat($("#payNow").val()) || 0;
 
-                if (accountBalance <= 0) {
-                    showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
-                    return false;
-                }
+                // if (accountBalance <= 0) {
+                //     showWarningMessage("Account balance is insufficient. Available balance: $" + accountBalance.toFixed(2));
+                //     return false;
+                // }
 
-                if (payNow > accountBalance) {
-                    showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
-                    return false;
-                }
+                // if (payNow > accountBalance) {
+                //     showWarningMessage("Payment amount exceeds available account balance. Available balance: $" + accountBalance.toFixed(2) + ", Payment amount: $" + payNow.toFixed(2));
+                //     return false;
+                // }
             }
 
             return true;
@@ -1732,12 +1906,14 @@
 
         // Function to collect form data for AJAX submission
         function collectBillFormData(actionType) {
+            debugger;
             // Get anti-forgery token
             var token = $('input[name="__RequestVerificationToken"]').val();
 
             var formData = {
                 __RequestVerificationToken: token,
                 VendorId: parseInt($("#vendorSelect").val()) || 0,
+                CustomerId: parseInt($("#customerSelect").val()) || 0,
                 BillNumber: parseInt($("#billNumber").val()) || 0,
                 BillDate: $("#billDate").val(),
                 TotalAmount: parseFloat($("#totalAmount").val()) || 0,
@@ -1786,6 +1962,7 @@
 
             // Reset form fields
             $("#vendorSelect").data("kendoComboBox").value("");
+            $("#customerSelect").data("kendoComboBox").value("");
             $("#billDate").val(new Date().toISOString().split('T')[0]);
             $("#totalAmount").val("0");
             $("#discountAmountTotal").val("0");
@@ -1920,7 +2097,8 @@
                     vendorCombo.value($("#vendorSelect").val());
                     // Load vendor data after setting value
                     setTimeout(function() {
-                        loadVendorData($("#vendorSelect").val());
+                        // loadVendorData($("#vendorSelect").val());
+                        loadVendorPreviousDueAmount();
                     }, 500);
                 }
             }

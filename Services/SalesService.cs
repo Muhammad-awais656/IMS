@@ -1164,7 +1164,8 @@ namespace IMS.Services
                        
 
                         var res = await command.ExecuteScalarAsync();
-                        response= (decimal)res;
+                       
+                        response = res != null ? Convert.ToDecimal(res) : 0;
                     }
                 }
             }

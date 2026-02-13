@@ -297,19 +297,19 @@
                     const balance = parseFloat($("#accountBalance").val()) || 0;
                     const paymentAmount = parseFloat($("#PaymentAmount").val()) || 0;
                     
-                    if (balance <= 0) {
-                        event.preventDefault();
-                        showWarningMessage('Account balance is insufficient. Available balance: $' + balance.toFixed(2));
-                        $("#accountBalance").addClass('is-invalid');
-                        return false;
-                    }
+                    // if (balance <= 0) {
+                    //     event.preventDefault();
+                    //     showWarningMessage('Account balance is insufficient. Available balance: $' + balance.toFixed(2));
+                    //     $("#accountBalance").addClass('is-invalid');
+                    //     return false;
+                    // }
                     
-                    if (paymentAmount > balance) {
-                        event.preventDefault();
-                        showWarningMessage(`Payment amount ($${paymentAmount.toFixed(2)}) exceeds available account balance ($${balance.toFixed(2)}).`);
-                        $("#PaymentAmount").addClass('is-invalid');
-                        return false;
-                    }
+                    // if (paymentAmount > balance) {
+                    //     event.preventDefault();
+                    //     showWarningMessage(`Payment amount ($${paymentAmount.toFixed(2)}) exceeds available account balance ($${balance.toFixed(2)}).`);
+                    //     $("#PaymentAmount").addClass('is-invalid');
+                    //     return false;
+                    // }
                 }
                 
                 // Validate payment amount against bill due amount
@@ -474,19 +474,22 @@
                 const balanceWarning = $("#balanceWarning");
                 const paymentAmount = parseFloat($("#PaymentAmount").val()) || 0;
                 
-                if (balance <= 0) {
-                    balanceInput.css('background-color', '#fee');
-                    balanceInput.css('color', '#dc3545');
-                    balanceWarning.text('Insufficient balance').show();
-                } else if (paymentAmount > balance) {
-                    balanceInput.css('background-color', '#fff3cd');
-                    balanceInput.css('color', '#856404');
-                    balanceWarning.text(`Payment amount exceeds available balance by $${(paymentAmount - balance).toFixed(2)}`).show();
-                } else {
-                    balanceInput.css('background-color', '#d4edda');
-                    balanceInput.css('color', '#155724');
-                    balanceWarning.hide();
-                }
+                // if (balance <= 0) {
+                //     balanceInput.css('background-color', '#fee');
+                //     balanceInput.css('color', '#dc3545');
+                //     balanceWarning.text('Insufficient balance').show();
+                // } 
+                
+                // else if (paymentAmount > balance) {
+                //     balanceInput.css('background-color', '#fff3cd');
+                //     balanceInput.css('color', '#856404');
+                //     balanceWarning.text(`Payment amount exceeds available balance by $${(paymentAmount - balance).toFixed(2)}`).show();
+                // } 
+                // else {
+                //     balanceInput.css('background-color', '#d4edda');
+                //     balanceInput.css('color', '#155724');
+                //     balanceWarning.hide();
+                // }
             }
 
             function validatePaymentAmount() {
@@ -514,21 +517,21 @@
                     const balance = parseFloat($("#accountBalance").val()) || 0;
                     
                     // Update balance display to show warnings
-                    if (balance > 0) {
-                        updateBalanceDisplay(balance);
-                    }
+                    // if (balance > 0) {
+                    //     updateBalanceDisplay(balance);
+                    // }
                     
-                    if (balance <= 0) {
-                        $amountInput.addClass('is-invalid');
-                        showWarningMessage('Account balance is insufficient. Available balance: $' + balance.toFixed(2));
-                        return false;
-                    }
+                    // if (balance <= 0) {
+                    //     $amountInput.addClass('is-invalid');
+                    //     showWarningMessage('Account balance is insufficient. Available balance: $' + balance.toFixed(2));
+                    //     return false;
+                    // }
                     
-                    if (paymentAmount > balance) {
-                        $amountInput.addClass('is-invalid');
-                        showWarningMessage(`Payment amount ($${paymentAmount.toFixed(2)}) exceeds available account balance ($${balance.toFixed(2)}).`);
-                        return false;
-                    }
+                    // if (paymentAmount > balance) {
+                    //     $amountInput.addClass('is-invalid');
+                    //     showWarningMessage(`Payment amount ($${paymentAmount.toFixed(2)}) exceeds available account balance ($${balance.toFixed(2)}).`);
+                    //     return false;
+                    // }
                 }
                 
                 return true;

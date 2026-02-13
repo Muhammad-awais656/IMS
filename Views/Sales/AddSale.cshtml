@@ -727,7 +727,7 @@
             // Quantity, sale price, discount change
             document.getElementById('quantity').addEventListener('input', function() {
                 calculatePayableAmount();
-                validateQuantityInput();
+               // validateQuantityInput();
             });
             document.getElementById('salePrice').addEventListener('input', calculatePayableAmount);
             document.getElementById('discountAmount').addEventListener('input', calculatePayableAmount);
@@ -1011,6 +1011,7 @@
         }
 
         function updateStockDisplay() {
+            debugger;
             console.log("=== updateStockDisplay called ===", {
                 currentAvailableStock: currentAvailableStock,
                 selectedProductSize: selectedProductSize
@@ -1029,7 +1030,10 @@
             quantityInput.setAttribute('max', maxQuantity);
 
             // Update placeholder to show available stock with full precision
-            const stockDisplay = currentAvailableStock > 0 ? currentAvailableStock.toFixed(2) : '0';
+            // const stockDisplay = currentAvailableStock > 0 ? currentAvailableStock.toFixed(2) : '0';
+            const stockDisplay =  currentAvailableStock.toFixed(2);
+
+
             quantityInput.setAttribute('placeholder', `Max: ${stockDisplay}`);
 
             // Add visual indicator with unit abbreviation if available
@@ -1043,6 +1047,7 @@
         }
 
         function validateQuantityInput() {
+            debugger;
             const quantityInput = document.getElementById('quantity');
             const quantity = parseFloat(quantityInput.value) || 0;
             const maxQuantity = Math.floor(currentAvailableStock);
@@ -1050,7 +1055,10 @@
             // Remove previous validation styling
             quantityInput.classList.remove('is-invalid', 'is-valid');
 
-            if (quantity > 0 && currentAvailableStock > 0) {
+
+
+            if (quantity > 0 && currentAvailableStock > 0) 
+            {
                 if (quantity > maxQuantity) {
                     // Show error styling
                     quantityInput.classList.add('is-invalid');
@@ -1298,10 +1306,10 @@
             }
 
             // Check stock availability
-            if (quantity > currentAvailableStock) {
-                showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
-                return;
-            }
+            // if (quantity > currentAvailableStock) {
+            //     showWarningMessage(`Insufficient stock! Available quantity: ${currentAvailableStock}. You cannot add more than the available stock.`);
+            //     return;
+            // }
 
             if (salePrice <= 0) {
                 showWarningMessage('Please enter a valid sale price.');

@@ -449,10 +449,10 @@ namespace IMS.Controllers
 
                 // Check if sufficient balance exists
                 var currentBalance = await _personalPaymentService.GetAccountBalanceAsync(request.PersonalPaymentId);
-                if (request.Amount > currentBalance)
-                {
-                    return Json(new { success = false, message = "Insufficient balance. Available balance: " + currentBalance.ToString("N2") });
-                }
+                //if (request.Amount > currentBalance)
+                //{
+                //    return Json(new { success = false, message = "Insufficient balance. Available balance: " + currentBalance.ToString("N2") });
+                //}
 
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr ?? "1");

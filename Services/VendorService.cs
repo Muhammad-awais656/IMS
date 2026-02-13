@@ -487,7 +487,7 @@ namespace IMS.Services
             }
         }
 
-        public async Task<long> CreateVendorBillAsync(decimal totalAmount, decimal paidAmount, decimal dueAmount, long vendorId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, decimal discountAmount, long billNumber, string description, DateTime billDate, string? paymentMethod, long? onlineAccountId)
+        public async Task<long> CreateVendorBillAsync(decimal totalAmount, decimal paidAmount, decimal dueAmount, long? vendorId, long? customerId ,DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, decimal discountAmount, long billNumber, string description, DateTime billDate, string? paymentMethod, long? onlineAccountId)
         {
             try
             {
@@ -528,7 +528,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalAmount", totalAmount);
                         command.Parameters.AddWithValue("@pTotalReceivedAmount", paidAmount);
                         command.Parameters.AddWithValue("@pTotalDueAmount", dueAmount);
-                        command.Parameters.AddWithValue("@pSupplierId_FK", vendorId);
+                        command.Parameters.AddWithValue("@pSupplierId_FK", vendorId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pCustomerId_FK", customerId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedDate", createdDate);
                         command.Parameters.AddWithValue("@pCreatedBy", createdBy == null ? DBNull.Value : createdBy);
                         command.Parameters.AddWithValue("@pModifiedDate", createdDate);

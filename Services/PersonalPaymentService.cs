@@ -850,10 +850,10 @@ namespace IMS.Services
 
                             // Check if sufficient balance
                             decimal currentBalance = currentCreditAmount - currentDebitAmount;
-                            if (amount > currentBalance)
-                            {
-                                throw new Exception("Insufficient balance");
-                            }
+                            //if (amount > currentBalance)
+                            //{
+                            //    throw new Exception("Insufficient balance");
+                            //}
 
                             // Update DebitAmount in PersonalPayments
                             using (var updateCommand = new SqlCommand(@"

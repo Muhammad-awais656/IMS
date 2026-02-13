@@ -630,14 +630,14 @@ namespace IMS.Controllers
                     _logger.LogInformation("ModelState is valid - proceeding with bill creation");
                     
                     // Validate vendor selection
-                    if (!model.VendorId.HasValue || model.VendorId == 0)
+                    if ((!model.VendorId.HasValue || model.VendorId == 0) && (!model.CustomerId.HasValue || model.CustomerId == 0))
                     {
                         _logger.LogWarning("Vendor validation failed - VendorId is null or 0");
                         
                         // Return JSON response for AJAX calls
                         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
                         {
-                            return Json(new { success = false, message = "Please select a vendor." });
+                            return Json(new { success = false, message = "Please select a vendor OR Customer." });
                         }
                         else
                         {
@@ -681,21 +681,21 @@ namespace IMS.Controllers
                     {
                         var accountBalance = await _vendorBillsService.GetAccountBalanceAsync(model.OnlineAccountId.Value);
                         
-                        if (accountBalance <= 0)
-                        {
-                            _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
-                            await ReloadViewDataAsync();
-                            return View(model);
-                        }
+                        //if (accountBalance <= 0)
+                        //{
+                        //    _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
+                        //    TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
+                        //    await ReloadViewDataAsync();
+                        //    return View(model);
+                        //}
                         
-                        if (model.PayNow > accountBalance)
-                        {
-                            _logger.LogWarning("Payment amount validation failed - PayNow {PayNow} exceeds balance {Balance} for AccountId {AccountId}", model.PayNow, accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PayNow:F2}";
-                            await ReloadViewDataAsync();
-                            return View(model);
-                        }
+                        //if (model.PayNow > accountBalance)
+                        //{
+                        //    _logger.LogWarning("Payment amount validation failed - PayNow {PayNow} exceeds balance {Balance} for AccountId {AccountId}", model.PayNow, accountBalance, model.OnlineAccountId.Value);
+                        //    TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PayNow:F2}";
+                        //    await ReloadViewDataAsync();
+                        //    return View(model);
+                        //}
                     }
                     
                     var userIdStr = HttpContext.Session.GetString("UserId");
@@ -712,6 +712,7 @@ namespace IMS.Controllers
                         model.PaidAmount,
                         model.DueAmount,
                         model.VendorId.Value,
+                        model.CustomerId.Value,
                         currentDateTime,
                         userId,
                         currentDateTime,

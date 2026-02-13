@@ -193,21 +193,21 @@ namespace IMS.Controllers
                     {
                         var accountBalance = await _vendorBillsService.GetAccountBalanceAsync(model.OnlineAccountId.Value);
                         
-                        if (accountBalance <= 0)
-                        {
-                            _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
-                            model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                            return View(viewName: "CreatePayment", model: model);
-                        }
+                        //if (accountBalance <= 0)
+                        //{
+                        //    _logger.LogWarning("Account balance validation failed - Balance is {Balance} for AccountId {AccountId}", accountBalance, model.OnlineAccountId.Value);
+                        //    TempData["ErrorMessage"] = $"Account balance is insufficient. Available balance: ${accountBalance:F2}";
+                        //    model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
+                        //    return View(viewName: "CreatePayment", model: model);
+                        //}
                         
-                        if (model.PaymentAmount > accountBalance)
-                        {
-                            _logger.LogWarning("Payment amount validation failed - PaymentAmount {PaymentAmount} exceeds balance {Balance} for AccountId {AccountId}", model.PaymentAmount, accountBalance, model.OnlineAccountId.Value);
-                            TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PaymentAmount:F2}";
-                            model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
-                            return View(viewName: "CreatePayment", model: model);
-                        }
+                        //if (model.PaymentAmount > accountBalance)
+                        //{
+                        //    _logger.LogWarning("Payment amount validation failed - PaymentAmount {PaymentAmount} exceeds balance {Balance} for AccountId {AccountId}", model.PaymentAmount, accountBalance, model.OnlineAccountId.Value);
+                        //    TempData["ErrorMessage"] = $"Payment amount exceeds available account balance. Available balance: ${accountBalance:F2}, Payment amount: ${model.PaymentAmount:F2}";
+                        //    model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
+                        //    return View(viewName: "CreatePayment", model: model);
+                        //}
                         
                         // Process online payment transaction
                         try
