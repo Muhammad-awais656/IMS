@@ -525,7 +525,7 @@ namespace IMS.Services
                             }
                         }
                     }
-
+                   
                     // Get sale details with product names
                     var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
                                              sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
@@ -555,7 +555,10 @@ namespace IMS.Services
                                 });
                             }
                         }
+                        
                     }
+                    var totalpreviousbalance = GetPreviousDueAmountByCustomerIdAsync(salePrint.CustomerIdFk);
+                    salePrint.TotalDueAmount = totalpreviousbalance.Result;
                 }
             }
             catch (Exception ex)
