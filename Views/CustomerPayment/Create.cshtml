@@ -163,78 +163,96 @@
                 ],
                 value: "@(Model.CustomerId > 0 ? Model.CustomerId.ToString() : "")",
                 change: function() {
-                    const customerId = this.value();
-                    const billCombo = $("#billComboBox").data("kendoComboBox");
+            const customerId = this.value();
+            const billCombo = $("#billComboBox").data("kendoComboBox");
+
+            billCombo.value("");
+            $("#PaymentAmount").val("");
+            billCombo.dataSource.data([]);
+
+            if (customerId) {
+                billCombo.enable(false);
+
+                billCombo.dataSource.read().then(function () {
+                    billCombo.enable(true);
+                });
+            }
+        }
+
+                // change: function() {
+                //     const customerId = this.value();
+                //     const billCombo = $("#billComboBox").data("kendoComboBox");
                     
-                    if (billCombo) {
-                        // Clear bills when customer changes
-                        billCombo.dataSource.data([]);
-                        billCombo.value("");
+                //     if (billCombo) {
+                //         // Clear bills when customer changes
+                //         billCombo.dataSource.data([]);
+                //         billCombo.value("");
                         
-                        if (customerId) {
-                            // Show loading state
-                            billCombo.dataSource.add({ value: "", text: "Loading bills..." });
-                            billCombo.enable(false);
+                //         if (customerId) {
+                //             // Show loading state
+                //             billCombo.dataSource.add({ value: "", text: "Loading bills..." });
+                //             billCombo.enable(false);
                             
-                            // Fetch customer bills
-                            fetch('@Url.Action("GetCustomerBills", "CustomerPayment")' + '?customerId=' + customerId)
-                                .then(response => response.json())
-                                .then(data => {
-                                    billCombo.dataSource.data([]);
+                //             // Fetch customer bills
+                //             fetch('@Url.Action("GetCustomerBills", "CustomerPayment")' + '?customerId=' + customerId)
+                //                 .then(response => response.json())
+                //                 .then(data => {
+                //                     billCombo.dataSource.data([]);
                                     
-                                    if (data.success && data.bills && data.bills.length > 0) {
-                                        billCombo.dataSource.add({ value: "", text: "--Select Bill--" });
-                                        data.bills.forEach(function(bill) {
-                                            billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber, amount: bill.totalDueAmount });
-                                        });
-                                    } else {
-                                        billCombo.dataSource.add({ value: "", text: "No bills found for this customer" });
-                                    }
+                //                     if (data.success && data.bills && data.bills.length > 0) {
+                //                         billCombo.dataSource.add({ value: "", text: "--Select Bill--" });
+                //                         data.bills.forEach(function(bill) {
+                //                             billCombo.dataSource.add({ value: bill.saleId, text: bill.billNumber, amount: bill.totalDueAmount });
+                //                         });
+                //                     } else {
+                //                         billCombo.dataSource.add({ value: "", text: "No bills found for this customer" });
+                //                     }
                                     
-                                    billCombo.enable(true);
-                                })
-                                .catch(error => {
-                                    console.error('Error fetching customer bills:', error);
-                                    billCombo.dataSource.data([]);
-                                    billCombo.dataSource.add({ value: "", text: "Error loading bills" });
-                                    billCombo.enable(true);
-                                });
-                        }
-                    }
-                }
+                //                     billCombo.enable(true);
+                //                 })
+                //                 .catch(error => {
+                //                     console.error('Error fetching customer bills:', error);
+                //                     billCombo.dataSource.data([]);
+                //                     billCombo.dataSource.add({ value: "", text: "Error loading bills" });
+                //                     billCombo.enable(true);
+                //                 });
+                //         }
+                //     }
+                // }
             });
 
             // Initialize Bill ComboBox
             $("#billComboBox").kendoComboBox({
                 placeholder: "Select Bill...",
-                dataTextField: "text",
-                dataValueField: "value",
+                dataTextField: "billNumber",
+                dataValueField: "saleId",
                 filter: "contains",
                 suggest: true,
-                dataSource: [
-                    { value: "", text: "--Select Bill--" }
-                    @if (Model.SalesList != null)
-                    {
-                        @foreach (var sale in Model.SalesList)
-                        {
-                            <text>,</text>
-                            <text>{ value: "@sale.SaleId", text: "@sale.BillNumber", amount: @sale.TotalDueAmount }</text>
+                autoBind: true,
+                minLength: 0,
+                dataSource: {
+                serverFiltering: true,
+                transport: {
+                    read: {
+                        url: '@Url.Action("GetCustomerBills", "CustomerPayment")',
+                        dataType: "json",
+                        data: function () {
+                            return {
+                                customerId: $("#customerComboBox").val()
+                            };
                         }
                     }
-                ],
-                value: "@(Model.SaleId > 0 ? Model.SaleId.ToString() : "")",
-                change: function() {
-                    const item = this.dataItem(this.selectedIndex);
-                    const $amount = $("#PaymentAmount");
-                    if (item && item.value) {
-                        if (typeof item.amount !== 'undefined' && item.amount !== null) {
-                            $amount.val(item.amount);
-                        }
-                    } else {
-                        $amount.val("");
-                    }
+                },
+                schema: {
+                    data: "bills"   // THIS IS CRITICAL
                 }
-            });
+            },
+            change: function () {
+                // const item = this.dataItem(this.selectedIndex);
+                const item = this.dataItem();
+                $("#PaymentAmount").val(item?.totalDueAmount || "");
+            }
+        });
 
             // Handle form submission to ensure Kendo ComboBox values are properly submitted
             $('form').on('submit', function(event) {
