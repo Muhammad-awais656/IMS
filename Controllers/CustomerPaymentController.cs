@@ -301,7 +301,7 @@ namespace IMS.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCustomerBills(long customerId)
+        public async Task<JsonResult> GetCustomerBills(long customerId)
         {
             try
             {
