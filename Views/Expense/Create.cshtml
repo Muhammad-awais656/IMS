@@ -11,12 +11,21 @@
                 <div class="card-body">
                     @* <div class="row row-cols-1 row-cols-md-2 row-cols-md-4 g-4 mt-2"> *@
                     <div class="row row-cols-1">
-                    <div class="col">
+               @*      <div class="col">
                         <label asp-for="ExpenseTypeIdFk" class="form-label"> Expense Type :</label>
                         @Html.DropDownList("ExpenseTypeIdFk", ViewBag.EnabledExpenses as IEnumerable<SelectListItem>, "<-- Select ExpenseType -->", new { @class = "form-control scrollable-dropdown" })
                         @Html.ValidationMessageFor(m => m.ExpenseTypeIdFk, "", new { @class = "text-danger" })
+                    </div> *@
+
+                    <div class="col">
+                        <label for="expenseType" class="form-label">Expense Type:</label>
+                        <input id="expenseType" name="ExpenseTypeIdFk" style="width: 100%;" />
                     </div>
-                  
+
+                    <div class="col" id="productDiv" style="display:none;">
+                        <label for="productSelect" class="form-label">Product:</label>
+                        <input id="productSelect" name="ProductId_FK" asp-for="ProductId_FK" style="width: 100%;" />
+                    </div>
                         <div class="col">
                             <label asp-for="ExpenseDetail" class="form-label"> Expense Detail:</label>
                             <input asp-for="ExpenseDetail" class="form-control" />
@@ -55,5 +64,77 @@
             var today = new Date().toISOString().split('T')[0];
             $('#fromDate').attr('max', today);
                 });
+                 // expenseType Selection Combobox
+                   $("#expenseType").kendoComboBox({
+                       dataSource: {
+                           transport: {
+                               read: {
+                                   url: "/Expense/GetAllEnabledExpenseTypes",
+                                   dataType: "json"
+                               }
+                           }
+                       },
+                       dataTextField: "text",
+                       dataValueField: "value",
+                       placeholder: "-- Select Expense Type --",
+                       filter: "contains",
+                       suggest: false,
+                       minLength: 1,
+                              change: function (e) {
+
+            var combo = this; // current kendo combobox
+            var selectedText = combo.text();   // get selected TEXT
+
+            if (selectedText === "Direct Product Expense") {
+
+                $("#productDiv").show();
+
+                var productCombo = $("#productSelect").data("kendoComboBox");
+                productCombo.dataSource.read(); // load products
+
+            } else {
+
+                $("#productDiv").hide();
+
+                var productCombo = $("#productSelect").data("kendoComboBox");
+                productCombo.value(""); // clear selection
+            }
+        }
+                   });
+
+
+                   
+
+        // Product Selection Combobox
+                   $("#productSelect").kendoComboBox({
+                       dataSource: {
+                           transport: {
+                               read: {
+                                   url: "/Sales/GetProducts",
+                                   dataType: "json"
+                               }
+                           }
+                       },
+                       dataTextField: "text",
+                       dataValueField: "value",
+                       placeholder: "-- Select Product --",
+                       filter: "contains",
+                       suggest: false,
+                       minLength: 1,
+                       change: function(e) {
+                           console.log("=== PRODUCT CHANGE EVENT TRIGGERED ===");
+                           console.log("Product selection changed:", e.sender.value());
+                           console.log("Product change event - calling loadProductSizes");
+                           console.log("Event object:", e);
+                           
+                       },
+                       select: function(e) {
+                           console.log("Product selected:", e.item);
+                           console.log("Product select event - calling loadProductSizes");
+                           
+                       }
+                   });
+
+
     </script>
 }

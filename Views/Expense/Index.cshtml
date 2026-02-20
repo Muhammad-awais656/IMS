@@ -26,12 +26,18 @@
                         
                         <!-- Filter Inputs Row -->
                         <div class="row g-3 mb-4">
-                            <div class="col-md-3">
+                @*   <div class="col-md-3">
                                 <div class="form-floating">
                                     @Html.DropDownList("expenseFilters.ExpenseTypeId", ViewBag.EnabledExpenses as IEnumerable<SelectListItem>, "<-- Select Expense Type -->", new { @class = "form-control border-0 shadow-sm", @id = "expenseFilters.ExpenseTypeId" })
                                     <label for="expenseFilters.ExpenseTypeId" class="text-muted">
                                         <i class="fa-solid fa-tags me-1"></i>Expense Type
                                     </label>
+                                </div>
+                            </div>  *@
+                            <div class="col-md-3">
+                                <div >
+                                    <label for="expenseType" class="form-label">Expense Type:</label>
+                                    <input id="expenseType"  asp-for="expenseFilters.ExpenseTypeId" class="form-control" style="width: 100%;" />
                                 </div>
                             </div>
                             
@@ -39,8 +45,8 @@
                                 <div class="form-floating">
                                     <input type="text"
                                            id="expenseDetail"
-                                           name="expenseDetail"
-                                           value="@Context.Request.Query["expenseDetail"]"
+                                          
+                                           asp-for="ExpenseFilters.Details"
                                            class="form-control border-0 shadow-sm"
                                            placeholder="Enter Expense Detail" />
                                     <label for="expenseDetail" class="text-muted">
@@ -52,8 +58,7 @@
                             <div class="col-md-3">
                                 <div class="form-floating">
                                     <input type="number"
-                                           name="searchpFrom"
-                                           value="@Context.Request.Query["searchpFrom"]"
+                                           asp-for="ExpenseFilters.AmountFrom"
                                            class="form-control border-0 shadow-sm"
                                            placeholder="Enter Amount From" />
                                     <label class="text-muted">
@@ -66,8 +71,7 @@
                                 <div class="form-floating">
                                     <input type="number"
                                            id="searchpTo"
-                                           name="searchpTo"
-                                           value="@Context.Request.Query["searchpTo"]"
+                                           asp-for="ExpenseFilters.AmountTo"
                                            class="form-control border-0 shadow-sm"
                                            placeholder="Enter Amount To" />
                                     <label for="searchpTo" class="text-muted">
@@ -81,10 +85,12 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-3">
                                 <div class="form-floating">
-                                    <input type="date" 
-                                           name="FromDate"
+                                    <input  
+                                           id="FromDate"
+                                          
+                                           type="date"
                                            class="form-control border-0 shadow-sm"
-                                           value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? "" : Context.Request.Query["FromDate"].ToString())" />
+                                           asp-for="expenseFilters.DateFrom" />
                                     <label class="text-muted">
                                         <i class="fa-solid fa-calendar-day me-1"></i>Date From
                                     </label>
@@ -94,9 +100,9 @@
                             <div class="col-md-3">
                                 <div class="form-floating">
                                     <input type="date" 
-                                           name="ToDate"
+                                          
                                            class="form-control border-0 shadow-sm"
-                                           value="@(string.IsNullOrEmpty(Context.Request.Query["ToDate"]) ? "" : Context.Request.Query["ToDate"].ToString())" />
+                                           asp-for="expenseFilters.DateTo" />
                                     <label class="text-muted">
                                         <i class="fa-solid fa-calendar-day me-1"></i>Date To
                                     </label>
@@ -240,7 +246,13 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             initializeExpenseManagement();
+            LoadExpenseTypesKendoDropDown('expenseType','-- Please Expense Type--','../Expense/GetAllEnabledExpenseTypes');
+
+              
+             // LoadKendoDropDown('societies', '-- Please Select Scheme --', '../api/Socities/GetActiveSocities'); // 18 Sep 24
         });
+
+             
 
         function initializeExpenseManagement() {
             // Add loading states to buttons
@@ -255,7 +267,7 @@
             // Initialize collapse functionality
             initializeCollapse();
         }
-
+        
         function addLoadingStates() {
             const searchBtns = document.querySelectorAll('.btn-search');
             const resetBtns = document.querySelectorAll('.btn-reset');
@@ -371,6 +383,7 @@
                 const resetBtn = document.querySelector('.btn-reset');
                 if (resetBtn) {
                     resetBtn.click();
+                        UnselectKendoDropDown("expenseType");
                 }
             }
         });

@@ -434,7 +434,7 @@
             <div class="row g-4">
                 <!-- Product Selector -->
                 <div class="col-lg-6">
-                    <div class="product-selector">
+                    @* <div class="product-selector">
                         <label for="productDropdown">
                             <i class="fa fa-search me-2"></i>Select Product for Analysis
                         </label>
@@ -445,6 +445,11 @@
                                 <option value="@product.Value">@product.Text</option>
                             }
                         </select>
+                    </div> *@
+                    <div class="product-selector">
+                        <label for="productDropdown" class="form-label">Product:</label>
+                        <input id="productDropdown" name="ProductId" style="width: 100%;" />
+                        
                     </div>
                 </div>
 
@@ -503,6 +508,7 @@ else
     const monthlyLabels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyLabels));
     const monthlyData = @Html.Raw(JsonSerializer.Serialize(Model.MonthlySales));
     const productList = @Html.Raw(JsonSerializer.Serialize(Model.ProductList));
+       // LoadExpenseTypesKendoDropDown('productDropdown','-- Please Select Product--','../Sales/GetProducts');
     
     // Make product data available globally for dashboard service
     window.dashboardProductData = productList;

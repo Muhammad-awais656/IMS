@@ -22,10 +22,10 @@ namespace IMS.Controllers
             _expenseTypeService = expenseTypeService;
         }
         // GET: ExpenseController
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> Index(ExpenseViewModel model,
+    int pageNumber = 1,
+    int? pageSize = null)
         {
-            ExpenseFilters expenseFilters = new ExpenseFilters();
-            var viewModel = new ExpenseViewModel();
             try
             {
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -34,61 +34,44 @@ namespace IMS.Controllers
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
-                var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
-                var expensetypeid = HttpContext.Request.Query["expenseFilters.ExpenseTypeId"].ToString();
 
-                long? selectedExpTypeId = null;
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["expenseFilters.ExpenseTypeId"].ToString()))
-                {
-                    selectedExpTypeId = Convert.ToInt64(HttpContext.Request.Query["expenseFilters.ExpenseTypeId"].ToString());
-                }
-                if (!string.IsNullOrWhiteSpace(expensetypeid))
-                {
+                // Load dropdown data
+                var expenseTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
 
-                    selectedExpTypeId = Convert.ToInt64(expensetypeid);
+                model.EnabledExpenses = expenseTypes
+                    .Select(x => new SelectListItem
+                    {
+                        Value = x.ExpenseTypeId.ToString(),
+                        Text = x.ExpenseTypeName
+                    });
 
-                }
-                if (selectedExpTypeId!=null && selectedExpTypeId!=0)
-                {
-                    expenseFilters.ExpenseTypeId = selectedExpTypeId;
-                }
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["expenseDetail"].ToString()))
-                {
-                    expenseFilters.Details = HttpContext.Request.Query["expenseDetail"].ToString();
-                }
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpFrom"].ToString()))
-                {
-                    expenseFilters.AmountFrom = Convert.ToDecimal(HttpContext.Request.Query["searchpFrom"]);
-                }
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["searchpTo"].ToString()))
-                {
-                    expenseFilters.AmountTo = Convert.ToDecimal(HttpContext.Request.Query["searchpTo"]);
-                }
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-                {
-                    expenseFilters.DateFrom = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
-                }
-                if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
-                {
-                    expenseFilters.DateTo = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
-                }
-                if (expenseFilters.DateFrom > expenseFilters.DateTo)
+                // Date validation
+                if (model.ExpenseFilters.DateFrom > model.ExpenseFilters.DateTo)
                 {
                     TempData["WarningMessage"] = AlertMessages.FromDateGreater;
                 }
 
-                ViewBag.EnabledExpenses = new SelectList(expeneTypes, "ExpenseTypeId", "ExpenseTypeName", selectedExpTypeId);
-                
+                // Get filtered data
+                model = await _expenseService.GetAllExpenseAsync(
+                    pageNumber,
+                    currentPageSize,
+                    model.ExpenseFilters);
 
-                viewModel = await _expenseService.GetAllExpenseAsync(pageNumber, currentPageSize, expenseFilters);
+                // Reassign dropdown again (important after service call)
+                model.EnabledExpenses = expenseTypes
+                    .Select(x => new SelectListItem
+                    {
+                        Value = x.ExpenseTypeId.ToString(),
+                        Text = x.ExpenseTypeName
+                    });
 
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-
             }
-            return View(viewModel);
+
+            return View(model);
         }
 
         // GET: ExpenseController/Details/5
@@ -98,19 +81,41 @@ namespace IMS.Controllers
         }
 
         // GET: ExpenseController/Create
-        public async Task<ActionResult> Create()
+        public ActionResult Create()
         {
             
             try
             {
-                var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
-                ViewBag.EnabledExpenses = new SelectList(expeneTypes, "ExpenseTypeId", "ExpenseTypeName");
+                //var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+                //ViewBag.EnabledExpenses = new SelectList(expeneTypes, "ExpenseTypeId", "ExpenseTypeName");
                 return View();
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
                 return View();
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllEnabledExpenseTypes()
+        {
+            try
+            {
+                var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+                var result = expeneTypes.Select(p => new
+                {
+                    value = p.ExpenseTypeId.ToString(),
+                    text = p.ExpenseTypeName,
+                
+                }).ToList();
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                //_logger.LogError(ex, "Error getting products for Kendo combobox");
+                return Json(new List<object>());
             }
         }
 

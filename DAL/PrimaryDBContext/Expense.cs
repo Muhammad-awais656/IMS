@@ -22,4 +22,6 @@ public partial class Expense
     public DateTime ModifiedDate { get; set; }
 
     public long ModifiedBy { get; set; }
+
+    public long? ProductId_FK { get; set; }
 }

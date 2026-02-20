@@ -1,11 +1,18 @@
 ﻿using IMS.DAL.PrimaryDBContext;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.VisualStudio.Services.WebApi;
 
 namespace IMS.Models
 {
     public class ExpenseViewModel
     {
-        public List<ExpenseModel> ExpenseList { get; set; }
+        public List<ExpenseModel> ExpenseList { get; set; } 
         public ExpenseFilters expenseFilters { get; set; }
+        public ExpenseFilters ExpenseFilters { get; set; } = new ExpenseFilters();
+
+        public IPagedList<Expense> Expenses { get; set; }
+
+        public IEnumerable<SelectListItem> EnabledExpenses { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int? PageSize { get; set; }
@@ -31,7 +38,7 @@ namespace IMS.Models
         public decimal? AmountFrom { get; set; }
         public decimal? AmountTo { get; set; }
         
-        public DateTime DateFrom { get; set; }
-        public DateTime DateTo { get; set; }
+        public DateTime? DateFrom { get; set; }
+        public DateTime? DateTo { get; set; }
     }
 }

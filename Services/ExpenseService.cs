@@ -39,6 +39,7 @@ namespace IMS.Services
                         
                         command.Parameters.AddWithValue("@pCreatedBy", expense?.CreatedBy != null ? expense.CreatedBy : DBNull.Value);
                         command.Parameters.AddWithValue("@pModifiedBy", expense?.ModifiedBy != null ? expense.ModifiedBy : DBNull.Value);
+                        command.Parameters.AddWithValue("@pProductId", expense?.ProductId_FK == 0 || expense?.ProductId_FK==null ? DBNull.Value : expense?.ProductId_FK);
 
 
                         var ExpenseIdParam = new SqlParameter("@pExpenseId", SqlDbType.BigInt)
