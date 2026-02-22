@@ -120,6 +120,32 @@ namespace IMS.Models
         public long? ProductId { get; set; }
     }
 
+    public class DailyStockPositionReportViewModel
+    {
+        public List<DailyStockPositionReportItem> StockPositionList { get; set; } = new List<DailyStockPositionReportItem>();
+        public DailyStockPositionReportFilters Filters { get; set; } = new DailyStockPositionReportFilters();
+        public decimal TotalPurchase { get; set; }
+        public decimal TotalSales { get; set; }
+        public decimal TotalClosing { get; set; }
+        public decimal TotalBags { get; set; }
+    }
+
+    public class DailyStockPositionReportItem
+    {
+        public long ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
+        public decimal PurchaseQuantity { get; set; }
+        public decimal SalesQuantity { get; set; }
+        public decimal ClosingStock { get; set; }
+        public decimal Bags { get; set; }
+    }
+
+    public class DailyStockPositionReportFilters
+    {
+        public DateTime? ReportDate { get; set; }
+    }
+
     public class BankCreditDebitReportViewModel
     {
         public List<BankCreditDebitReportItem> TransactionList { get; set; }
@@ -234,6 +260,41 @@ namespace IMS.Models
         public long? ProductId { get; set; }
     }
 
+    public class ProductWisePurchaseReportViewModel
+    {
+        public List<ProductWisePurchaseReportItem> PurchaseList { get; set; } = new List<ProductWisePurchaseReportItem>();
+        public ProductWisePurchaseReportFilters Filters { get; set; } = new ProductWisePurchaseReportFilters();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public int? PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+        public decimal TotalAmount { get; set; }
+        public decimal TotalWeight { get; set; }
+        public long TotalQty { get; set; }
+    }
+
+    public class ProductWisePurchaseReportItem
+    {
+        public DateTime PurchaseDate { get; set; }
+        public long ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
+        public decimal Weight { get; set; }
+        public long Qty { get; set; }
+        public decimal Rate { get; set; }
+        public decimal Amount { get; set; }
+        public bool IsTotalRow { get; set; } = false; // To identify total rows for each product
+    }
+
+    public class ProductWisePurchaseReportFilters
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public long? ProductId { get; set; }
+    }
+
     public class GeneralExpensesReportViewModel
     {
         public List<GeneralExpensesReportItem> ExpensesList { get; set; } = new List<GeneralExpensesReportItem>();
@@ -262,6 +323,7 @@ namespace IMS.Models
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public long? ExpenseTypeId { get; set; }
+        public long? ProductId { get; set; }
     }
     
 }

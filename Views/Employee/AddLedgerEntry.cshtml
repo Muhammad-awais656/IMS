@@ -1,0 +1,156 @@
+﻿@using IMS.DAL.PrimaryDBContext
+@model EmployeeLedgerEntryVM
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-book me-2"></i>
+            <h4 class="mb-0">Create Employee Ledger Entry</h4>
+        </div>
+    </div>
+
+    <div class="card-body p-4">
+        <form asp-action="AddLedgerEntry" method="post" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div class="row">
+
+                <!-- Employee -->
+             @*    <div class="col-md-6 mb-4">
+                    <label asp-for="EmployeeId" class="form-label fw-semibold">
+                        <i class="fa fa-user me-1 text-primary"></i>Employee
+                        <span class="text-danger">*</span>
+                    </label>
+                    @Html.DropDownListFor(
+                                        x => x.EmployeeId,
+                                        ViewBag.Employees as SelectList,
+                                        "-- Select Employee --",
+                                        new { @class = "form-control form-control-lg" })
+                    <span asp-validation-for="EmployeeId" class="text-danger small"></span>
+                </div> *@
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <label class="form-label fw-semibold text-dark">
+                        <i class="fa-solid fa-user me-1 text-primary"></i>Employee
+                    </label>
+                    <input name="EmployeeId_FK" id="employeeFilterSelect" style="width: 100%;" />
+                </div>
+
+                <!-- Voucher Type -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="VoucherTypeId" class="form-label fw-semibold">
+                        <i class="fa fa-file-invoice me-1 text-primary"></i>Voucher Type
+                        <span class="text-danger">*</span>
+                    </label>
+                    @Html.DropDownListFor(
+                                        x => x.VoucherTypeId,
+                                        ViewBag.VoucherTypes as SelectList,
+                                        "-- Select Voucher Type --",
+                                        new { @class = "form-control form-control-lg" })
+                    <span asp-validation-for="VoucherTypeId" class="text-danger small"></span>
+                </div>
+
+                <!-- Voucher Date -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="VoucherDate" class="form-label fw-semibold">
+                        <i class="fa fa-calendar me-1 text-primary"></i>Voucher Date
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="VoucherDate"
+                           type="date"
+                           class="form-control form-control-lg" />
+                    <span asp-validation-for="VoucherDate" class="text-danger small"></span>
+                </div>
+
+                <!-- Amount -->
+                <div class="col-md-6 mb-4">
+                    <div class="form-floating">
+                        <input asp-for="Amount"
+                               class="form-control form-control-lg"
+                               type="number"
+                               step="0.01"
+                               placeholder="Enter amount" />
+                        <label asp-for="Amount" class="fw-semibold">
+                            <i class="fa fa-money-bill-wave me-1 text-primary"></i>Amount
+                            <span class="text-danger">*</span>
+                        </label>
+                    </div>
+                    <span asp-validation-for="Amount" class="text-danger small"></span>
+                </div>
+
+                <!-- Reference No -->
+                <div class="col-md-6 mb-4">
+                    <div class="form-floating">
+                        <input asp-for="ReferenceNo"
+                               class="form-control form-control-lg"
+                               placeholder="Enter reference number" />
+                        <label asp-for="ReferenceNo" class="fw-semibold">
+                            <i class="fa fa-hashtag me-1 text-primary"></i>Reference No
+                        </label>
+                    </div>
+                    <span asp-validation-for="ReferenceNo" class="text-danger small"></span>
+                </div>
+
+                <!-- Remarks -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="Remarks" class="form-label fw-semibold">
+                        <i class="fa fa-comment me-1 text-primary"></i>Remarks
+                    </label>
+                    <textarea asp-for="Remarks"
+                              class="form-control"
+                              rows="3"
+                              placeholder="Optional remarks"></textarea>
+                    <span asp-validation-for="Remarks" class="text-danger small"></span>
+                </div>
+
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="EmployeeLedger"
+                   asp-controller="Employee"
+                   class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Save Ledger Entry
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+
+        // Prepare customer data for Kendo combobox
+        const customerData = [
+            { value: "", text: "Please Select Employee" }
+            @if (ViewBag.Employees != null)
+            {
+                        @foreach (var customer in ViewBag.Employees)
+                    {
+                            <text>,</text>
+                                                            <text>{ value: "@customer.EmployeeId", text: "@customer.EmployeeName" }</text>
+                    }
+            }
+        ];
+
+        // Initialize customer filter combobox
+        $("#employeeFilterSelect").kendoComboBox({
+            dataSource: {
+                data: customerData
+            },
+            dataTextField: "text",
+            dataValueField: "value",
+            placeholder: "Select Employee...",
+            filter: "contains",
+            suggest: true,
+            minLength: 1,
+            change: function() {
+                console.log("Customer filter changed:", this.value());
+            }
+        });
+    </script>
+}

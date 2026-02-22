@@ -37,7 +37,7 @@
                             </label>
                             <br />
                            <div>
-                                @Html.DropDownList("DailyStockReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
+                                @Html.DropDownList("Filters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
                                 "-- Select Product --",
                                                                 new { @class = "form-control", @id = "productComboBox" })
 
@@ -47,8 +47,8 @@
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>Report Date
                             </label>
-                            <input type="date" name="ReportDate"
-                                   value="@(string.IsNullOrEmpty(Context.Request.Query["ReportDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["ReportDate"].ToString())"
+                            <input type="date" asp-for="Filters.ReportDate"
+                                   value="@(Model.Filters?.ReportDate.HasValue == true ? Model.Filters.ReportDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))"
                                    class="form-control" />
                         </div>
                         <div class="col-md-3 d-flex align-items-end">
@@ -188,16 +188,16 @@
                     var productId = Model.Filters?.ProductId?.ToString() ?? "";
                     var reportDate = Model.Filters?.ReportDate?.ToString("yyyy-MM-dd") ?? "";
                     
-                    // Build query string parameters
+                    // Build query string parameters using ViewModel Filters
                     var queryParams = new List<string>
                     {
                         $"pageSize={Model.PageSize}"
                     };
                     
                     if (!string.IsNullOrEmpty(productId))
-                        queryParams.Add($"productId={productId}");
+                        queryParams.Add($"Filters.ProductId={productId}");
                     if (!string.IsNullOrEmpty(reportDate))
-                        queryParams.Add($"ReportDate={reportDate}");
+                        queryParams.Add($"Filters.ReportDate={reportDate}");
                     
                     var queryString = string.Join("&", queryParams);
                     
@@ -268,26 +268,26 @@
 
         function changePageSize(select) {
             var productId = document.getElementById("productComboBox").value;
-            var reportDate = document.querySelector("input[name='ReportDate']").value;
+            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
 
-            var url = `/Report/DailyStockReport?pageNumber=1&productId=${productId}&pageSize=${select.value}&ReportDate=${reportDate}`;
+            var url = `/Report/DailyStockReport?pageNumber=1&Filters.ProductId=${productId}&pageSize=${select.value}&Filters.ReportDate=${reportDate}`;
             window.location.href = url;
         }
     </script>
     <script>
         document.getElementById("exportExcelBtn").addEventListener("click", function () {
             var productId = document.getElementById("productComboBox").value;
-            var reportDate = document.querySelector("input[name='ReportDate']").value;
+            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
 
-            var url = `/Report/ExportDailyStockExcel?productId=${productId}&ReportDate=${reportDate}`;
+            var url = `/Report/ExportDailyStockExcel?productId=${productId}&reportDate=${reportDate}`;
             window.location.href = url;
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
             var productId = document.getElementById("productComboBox").value;
-            var reportDate = document.querySelector("input[name='ReportDate']").value;
+            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
 
-            var url = `/Report/ExportDailyStockPdf?productId=${productId}&ReportDate=${reportDate}`;
+            var url = `/Report/ExportDailyStockPdf?productId=${productId}&reportDate=${reportDate}`;
             window.location.href = url;
         });
     </script>

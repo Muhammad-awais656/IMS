@@ -1577,6 +1577,347 @@ namespace IMS.Services
             };
         }
 
+        public async Task<ProductWisePurchaseReportViewModel> GetProductWisePurchaseReport(int pageNumber, int? pageSize, ProductWisePurchaseReportFilters? filters)
+        {
+            var purchaseList = new List<ProductWisePurchaseReportItem>();
+            int totalRecords = 0;
+            decimal totalAmount = 0;
+            decimal totalWeight = 0;
+            long totalQty = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        WITH DailyPurchases AS (
+                            SELECT 
+                                CAST(po.PurchaseOrderDate AS DATE) AS PurchaseDate,
+                                poi.PrductId_FK AS ProductId,
+                                p.ProductName,
+                                ISNULL(p.ProductCode, '') AS ProductCode,
+                                SUM(CAST(poi.Quantity AS DECIMAL(18, 3))) AS Weight,
+                                SUM(poi.Quantity) AS Qty,
+                                SUM(poi.PayableAmount) AS Amount
+                            FROM PurchaseOrderItems poi
+                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                            INNER JOIN Products p ON poi.PrductId_FK = p.ProductId
+                            WHERE po.IsDeleted = 0
+                                AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
+                                AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
+                            GROUP BY CAST(po.PurchaseOrderDate AS DATE), poi.PrductId_FK, p.ProductName, p.ProductCode
+                        ),
+                        ProductTotals AS (
+                            SELECT 
+                                ProductId,
+                                ProductName,
+                                ProductCode,
+                                SUM(Weight) AS TotalWeight,
+                                SUM(Qty) AS TotalQty,
+                                SUM(Amount) AS TotalAmount,
+                                CASE 
+                                    WHEN SUM(Qty) > 0 THEN SUM(Amount) / SUM(Qty)
+                                    ELSE 0
+                                END AS AvgRate
+                            FROM DailyPurchases
+                            GROUP BY ProductId, ProductName, ProductCode
+                        )
+                        SELECT 
+                            dp.PurchaseDate,
+                            dp.ProductId,
+                            dp.ProductName,
+                            dp.ProductCode,
+                            dp.Weight,
+                            dp.Qty,
+                            CASE 
+                                WHEN dp.Qty > 0 THEN dp.Amount / dp.Qty
+                                ELSE 0
+                            END AS Rate,
+                            dp.Amount,
+                            0 AS IsTotalRow
+                        FROM DailyPurchases dp
+                        ORDER BY dp.ProductName, dp.PurchaseDate
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM (
+                            SELECT 
+                                CAST(po.PurchaseOrderDate AS DATE) AS PurchaseDate,
+                                poi.PrductId_FK AS ProductId
+                            FROM PurchaseOrderItems poi
+                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                            INNER JOIN Products p ON poi.PrductId_FK = p.ProductId
+                            WHERE po.IsDeleted = 0
+                                AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
+                                AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
+                            GROUP BY CAST(po.PurchaseOrderDate AS DATE), poi.PrductId_FK, p.ProductName, p.ProductCode
+                        ) AS DailyPurchases;
+
+                        SELECT 
+                            SUM(CAST(poi.Quantity AS DECIMAL(18, 3))) AS TotalWeight,
+                            SUM(poi.Quantity) AS TotalQty,
+                            SUM(poi.PayableAmount) AS TotalAmount
+                        FROM PurchaseOrderItems poi
+                        INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                        WHERE po.IsDeleted = 0
+                            AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
+                            AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
+                            AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId);
+                    ";
+
+                    var offset = (pageNumber - 1) * (pageSize ?? 10);
+                    var pageSizeValue = pageSize ?? 10;
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", offset);
+                        command.Parameters.AddWithValue("@PageSize", pageSizeValue);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read daily purchase data
+                            while (await reader.ReadAsync())
+                            {
+                                purchaseList.Add(new ProductWisePurchaseReportItem
+                                {
+                                    PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate"))
+                                        ? DateTime.MinValue
+                                        : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),
+                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    Weight = reader.IsDBNull(reader.GetOrdinal("Weight"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Weight")),
+                                    Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                    Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Rate")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    IsTotalRow = false
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalWeight = reader.IsDBNull(reader.GetOrdinal("TotalWeight"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
+                                totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
+                                    ? 0
+                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                            }
+                        }
+                    }
+
+                    // Add product total rows
+                    // Group purchases by product and add total rows
+                    var productGroups = purchaseList.GroupBy(p => p.ProductId).ToList();
+                    var finalList = new List<ProductWisePurchaseReportItem>();
+                    
+                    foreach (var group in productGroups)
+                    {
+                        var productPurchases = group.OrderBy(p => p.PurchaseDate).ToList();
+                        finalList.AddRange(productPurchases);
+                        
+                        // Add total row for this product
+                        var productTotal = new ProductWisePurchaseReportItem
+                        {
+                            PurchaseDate = DateTime.MinValue,
+                            ProductId = group.Key,
+                            ProductName = productPurchases.First().ProductName,
+                            ProductCode = productPurchases.First().ProductCode,
+                            Weight = productPurchases.Sum(p => p.Weight),
+                            Qty = productPurchases.Sum(p => p.Qty),
+                            Amount = productPurchases.Sum(p => p.Amount),
+                            Rate = productPurchases.Sum(p => p.Qty) > 0 
+                                ? productPurchases.Sum(p => p.Amount) / productPurchases.Sum(p => p.Qty) 
+                                : 0m,
+                            IsTotalRow = true
+                        };
+                        finalList.Add(productTotal);
+                    }
+                    
+                    purchaseList = finalList;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new ProductWisePurchaseReportViewModel
+            {
+                PurchaseList = purchaseList,
+                Filters = filters ?? new ProductWisePurchaseReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount,
+                TotalWeight = totalWeight,
+                TotalQty = totalQty
+            };
+        }
+
+        public async Task<DailyStockPositionReportViewModel> GetDailyStockPositionReport(DailyStockPositionReportFilters? filters)
+        {
+            var stockPositionList = new List<DailyStockPositionReportItem>();
+            decimal totalPurchase = 0;
+            decimal totalSales = 0;
+            decimal totalClosing = 0;
+            decimal totalBags = decimal.Zero;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var reportDate = filters?.ReportDate ?? DateTime.Now;
+                    var reportDateOnly = reportDate.Date;
+
+                    var sql = @"
+                        WITH ProductPurchase AS (
+                            SELECT 
+                                poi.PrductId_FK AS ProductId,
+                                SUM(poi.Quantity) AS PurchaseQuantity
+                            FROM PurchaseOrderItems poi
+                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                            WHERE po.IsDeleted = 0
+                                AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
+                            GROUP BY poi.PrductId_FK
+                        ),
+                        ProductSales AS (
+                            SELECT 
+                                sd.PrductId_FK AS ProductId,
+                                SUM(sd.Quantity) AS SalesQuantity
+                            FROM SaleDetails sd
+                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                            WHERE s.IsDeleted = 0
+                                AND CAST(s.SaleDate AS DATE) = @ReportDate
+                            GROUP BY sd.PrductId_FK
+                        ),
+                        ProductStock AS (
+                            SELECT 
+                                sm.ProductId_FK AS ProductId,
+                                sm.AvailableQuantity AS ClosingStock
+                            FROM StockMaster sm
+                            WHERE sm.AvailableQuantity >= 0
+                        )
+                        SELECT 
+                            p.ProductId,
+                            p.ProductName,
+                            ISNULL(p.ProductCode, '') AS ProductCode,
+                            ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
+                            ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
+                            ISNULL(pst.ClosingStock, 0) AS ClosingStock,
+                            CASE 
+                                WHEN ISNULL(pst.ClosingStock, 0) > 0 THEN CAST(ISNULL(pst.ClosingStock, 0) / 34.0 AS BIGINT)
+                                ELSE 0
+                            END AS Bags
+                        FROM Products p
+                        LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
+                        LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        WHERE p.IsEnabled = 1
+                        ORDER BY p.ProductName;
+                    ";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@ReportDate", reportDateOnly);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var purchaseQty = reader.IsDBNull(reader.GetOrdinal("PurchaseQuantity"))
+                                    ? 0m
+                                    : reader.GetInt64(reader.GetOrdinal("PurchaseQuantity"));
+                                var salesQty = reader.IsDBNull(reader.GetOrdinal("SalesQuantity"))
+                                    ? 0m
+                                    : reader.GetInt64(reader.GetOrdinal("SalesQuantity"));
+                                var closingStock = reader.IsDBNull(reader.GetOrdinal("ClosingStock"))
+                                    ? 0
+                                    : reader.GetDecimal(reader.GetOrdinal("ClosingStock"));
+                                var bags = reader.IsDBNull(reader.GetOrdinal("Bags"))
+                                    ? 0
+                                    : reader.GetInt64(reader.GetOrdinal("Bags"));
+
+                                stockPositionList.Add(new DailyStockPositionReportItem
+                                {
+                                    ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductCode")),
+                                    PurchaseQuantity = purchaseQty,
+                                    SalesQuantity = salesQty,
+                                    ClosingStock = closingStock,
+                                    Bags = bags
+                                });
+
+                                totalPurchase += purchaseQty;
+                                totalSales += salesQty;
+                                totalClosing += closingStock;
+                                totalBags += bags;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new DailyStockPositionReportViewModel
+            {
+                StockPositionList = stockPositionList,
+                Filters = filters ?? new DailyStockPositionReportFilters { ReportDate = DateTime.Now },
+                TotalPurchase = totalPurchase,
+                TotalSales = totalSales,
+                TotalClosing = totalClosing,
+                TotalBags = totalBags
+            };
+        }
+
         public async Task<GeneralExpensesReportViewModel> GetGeneralExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters)
         {
             var expensesList = new List<GeneralExpensesReportItem>();
@@ -1602,6 +1943,8 @@ namespace IMS.Services
                             WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
                                 AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
+                                AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId)
+                               
                             GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
                         )
                         SELECT 
@@ -1625,6 +1968,8 @@ namespace IMS.Services
                             WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
                                 AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
+                                AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId)
+                               
                             GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
                         ) AS DailyExpenses;
 
@@ -1633,7 +1978,8 @@ namespace IMS.Services
                         FROM Expenses e
                         WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
                             AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
-                            AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId);
+                            AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
+                            AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId);
                     ";
 
                     var offset = (pageNumber - 1) * (pageSize ?? 10);
@@ -1644,6 +1990,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
                         command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
                         command.Parameters.AddWithValue("@ExpenseTypeId", (object)filters?.ExpenseTypeId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@Offset", offset);
                         command.Parameters.AddWithValue("@PageSize", pageSizeValue);
 

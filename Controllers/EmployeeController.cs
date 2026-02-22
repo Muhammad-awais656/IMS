@@ -320,5 +320,157 @@ emp.MaritalStatus
 
             return RedirectToAction(nameof(Index));
         }
+
+     
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> AddLedgerEntry(EmployeeLedgerEntryVM model)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    // Get logged-in user
+                    var userIdStr = HttpContext.Session.GetString("UserId");
+                    if (string.IsNullOrEmpty(userIdStr))
+                    {
+                        TempData["ErrorMessage"] = "Session expired. Please login again.";
+                        return RedirectToAction("Login", "Account");
+                    }
+
+                    long userId = long.Parse(userIdStr);
+
+                    // Get voucher type
+                    //var voucherType = await _context.EmployeeVoucherTypes
+                    //    .FirstOrDefaultAsync(x => x.VoucherTypeId == model.VoucherTypeId);
+
+                    var voucherType = await _employeeService.GetVoucherTypeByIdAsync(model.VoucherTypeId);
+
+                    if (voucherType == null)
+                    {
+                        TempData["ErrorMessage"] = "Invalid voucher type selected.";
+                        return View(model);
+                    }
+
+                    // Amount validation
+                    if (model.Amount <= 0)
+                    {
+                        TempData["ErrorMessage"] = "Amount must be greater than zero.";
+                        return View(model);
+                    }
+
+                    // Opening balance validation (only once per employee)
+                    if (voucherType.VoucherTypeName == "Opening Balance")
+                    {
+                        bool openingExists = await _employeeService
+                  .IsOpeningBalanceExistsAsync(model.EmployeeId, model.VoucherTypeId);
+
+                        if (openingExists)
+                        {
+                            TempData["ErrorMessage"] = "Opening balance already exists for this employee.";
+                            return View(model);
+                        }
+                    }
+
+                    // Prepare ledger entity
+                    var ledger = new EmployeeLedger
+                    {
+                        EmployeeId = model.EmployeeId,
+                        VoucherTypeId = model.VoucherTypeId,
+                        VoucherDate = model.VoucherDate,
+                        ReferenceNo = string.IsNullOrWhiteSpace(model.ReferenceNo) ? null : model.ReferenceNo,
+                        DebitAmount = voucherType.Nature == "D" ? model.Amount : 0,
+                        CreditAmount = voucherType.Nature == "C" ? model.Amount : 0,
+                        Remarks = string.IsNullOrWhiteSpace(model.Remarks) ? null : model.Remarks,
+                        CreatedBy = userId
+                    };
+
+                    var result = await _employeeService.AddEmployeeLedgerAsync(ledger);
+
+                    TempData["Success"] = "Ledger entry saved successfully.";
+                    return RedirectToAction("EmployeeLedger", new { employeeId = model.EmployeeId });
+                }
+                else
+                {
+                    // Log validation errors (same pattern as your Create method)
+                    foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        Console.WriteLine($"Validation Error: {error.ErrorMessage}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                return View(model);
+            }
+
+            return View(model);
+        }
+
+
+   
+
+        [HttpGet]
+        public async Task<ActionResult> EmployeeLedger()
+        {
+            var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync();
+            EmployeeViewModel viewModel = new EmployeeViewModel
+            {
+                EmployeeLedgerList = ledger
+            };
+            //ViewBag.EmployeeId = employeeId;
+            //ViewBag.CurrentBalance = await _employeeService.GetEmployeeBalanceAsync(employeeId);
+            return View(viewModel);
+        }
+        [HttpGet]
+        public async Task<ActionResult> AddLedgerEntry(long employeeId)
+        {
+            try
+            {
+                
+                ViewBag.Employees = new SelectList(
+                    await _employeeService.GetAllEmployeesAsync(),
+                    "EmployeeId",
+                    "EmployeeName",
+                    employeeId);
+
+                ViewBag.VoucherTypes = new SelectList(
+                    await _employeeService.GetAllVoucherTypesAsync(),
+                    "VoucherTypeId",
+                    "VoucherTypeName");
+
+                return View(new EmployeeLedgerEntryVM
+                {
+                    EmployeeId = employeeId,
+                    VoucherDate = DateTime.Today
+                });
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error: {ex.Message}";
+                return RedirectToAction("Index", "Employee");
+            }
+        }
+    
+
+        private async Task LoadDropdownsAsync(long? employeeId = null)
+        {
+            ViewBag.Employees = new SelectList(
+                await _employeeService.GetAllEmployeesAsync(),
+                "EmployeeId",
+                "FirstName",
+                employeeId);
+
+            ViewBag.VoucherTypes = new SelectList(
+                await _employeeService.GetAllVoucherTypesAsync(),
+                "VoucherTypeId",
+                "VoucherTypeName");
+        }
+
+
+
+
     }
 }

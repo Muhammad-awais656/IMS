@@ -24,7 +24,9 @@ namespace IMS.Models
     public class ExpenseModel
     {
         public long ExpenseId { get; set; }
+        public long? ProductId_FK { get; set; }
         public string ExpenseDetail { get; set; } = null!;
+        public string? ProductName { get; set; }
         public string ExpenseType { get; set; } = null!;
         public decimal Amount { get; set; }
         public DateTime ExpenseDate { get; set; }
@@ -34,6 +36,7 @@ namespace IMS.Models
     {
         public string? ExpenseType { get; set; }
         public long? ExpenseTypeId { get; set; }
+        public long? ProductId { get; set; }
         public string? Details { get; set; }
         public decimal? AmountFrom { get; set; }
         public decimal? AmountTo { get; set; }

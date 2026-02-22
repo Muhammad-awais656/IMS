@@ -161,8 +161,8 @@ namespace IMS.Controllers
         {
            
             var user = await _expenseService.GetExpenseByIdAsync(id);
-            var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
-            ViewBag.EnabledExpenses = new SelectList(expeneTypes, "ExpenseTypeId", "ExpenseTypeName", user.ExpenseTypeIdFk);
+            //var expeneTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+            //ViewBag.EnabledExpenses = new SelectList(expeneTypes, "ExpenseTypeId", "ExpenseTypeName", user.ExpenseTypeIdFk);
             if (user == null)
             {
                 return NotFound();

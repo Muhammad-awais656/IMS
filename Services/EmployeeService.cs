@@ -3,6 +3,7 @@ using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
+using System.Collections;
 using System.Data;
 
 namespace IMS.Services
@@ -157,7 +158,7 @@ namespace IMS.Services
                                     
                                     CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                     JoiningDate = reader.GetDateTime(reader.GetOrdinal("JoiningDate")),
-                                    Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetInt64(reader.GetOrdinal("Salary")),
+                                    Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Salary")),
                                     ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
                                     HusbandFatherName = reader.IsDBNull(reader.GetOrdinal("HusbandFatherName")) ? null : reader.GetString(reader.GetOrdinal("HusbandFatherName")),
                                     IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
@@ -228,7 +229,7 @@ namespace IMS.Services
 
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         JoiningDate = reader.GetDateTime(reader.GetOrdinal("JoiningDate")),
-                                        Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetInt64(reader.GetOrdinal("Salary")),
+                                        Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Salary")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
                                         HusbandFatherName = reader.IsDBNull(reader.GetOrdinal("HusbandFatherName")) ? null : reader.GetString(reader.GetOrdinal("HusbandFatherName")),
                                         IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
@@ -301,5 +302,381 @@ namespace IMS.Services
             }
             return RowsAffectedResponse;
         }
+
+        public async Task<EmployeeVoucherType> GetVoucherTypeByIdAsync(int voucherTypeId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(
+                        @"SELECT VoucherTypeId, VoucherTypeName, Nature 
+                  FROM EmployeeVoucherTypes 
+                  WHERE VoucherTypeId = @VoucherTypeId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@VoucherTypeId", voucherTypeId);
+
+                        try
+                        {
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+                                if (await reader.ReadAsync())
+                                {
+                                    return new EmployeeVoucherType
+                                    {
+                                        VoucherTypeId = reader.GetInt32(reader.GetOrdinal("VoucherTypeId")),
+                                        VoucherTypeName = reader.GetString(reader.GetOrdinal("VoucherTypeName")),
+                                        Nature = reader.GetString(reader.GetOrdinal("Nature"))
+                                    };
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // optional: log reader exception
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // optional: log connection exception
+            }
+
+            return null;
+        }
+
+        public async Task<bool> AddEmployeeLedgerAsync(EmployeeLedger ledger)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+                INSERT INTO EmployeeLedger
+                (
+                    EmployeeId_FK,
+                    VoucherTypeId,
+                    VoucherDate,
+                    ReferenceNo,
+                    DebitAmount,
+                    CreditAmount,
+                    Remarks,
+                    CreatedBy,
+                    CreatedOn
+                )
+                VALUES
+                (
+                    @EmployeeId,
+                    @VoucherTypeId,
+                    @VoucherDate,
+                    @ReferenceNo,
+                    @DebitAmount,
+                    @CreditAmount,
+                    @Remarks,
+                    @CreatedBy,
+                    GETDATE()
+                )", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+
+                        command.Parameters.AddWithValue("@EmployeeId", ledger.EmployeeId);
+                        command.Parameters.AddWithValue("@VoucherTypeId", ledger.VoucherTypeId);
+                        command.Parameters.AddWithValue("@VoucherDate", ledger.VoucherDate);
+                        command.Parameters.AddWithValue("@ReferenceNo", (object?)ledger.ReferenceNo ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@DebitAmount", ledger.DebitAmount);
+                        command.Parameters.AddWithValue("@CreditAmount", ledger.CreditAmount);
+                        command.Parameters.AddWithValue("@Remarks", (object?)ledger.Remarks ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@CreatedBy", ledger.CreatedBy);
+
+                        var rows = await command.ExecuteNonQueryAsync();
+                        return rows > 0;
+                    }
+                }
+            }
+            catch
+            {
+                // optional logging
+            }
+
+            return false;
+        }
+
+        public async Task<bool> IsOpeningBalanceExistsAsync(long employeeId, int voucherTypeId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+                SELECT COUNT(1)
+                FROM EmployeeLedger
+                WHERE EmployeeId_FK = @EmployeeId
+                  AND VoucherTypeId = @VoucherTypeId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@EmployeeId", employeeId);
+                        command.Parameters.AddWithValue("@VoucherTypeId", voucherTypeId);
+
+                        var count = (int)await command.ExecuteScalarAsync();
+                        return count > 0;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+
+        public async Task<List<EmployeeLedgerReportVM>> GetEmployeeLedgerReportAsync(long employeeId)
+        {
+            var result = new List<EmployeeLedgerReportVM>();
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+                SELECT 
+                    L.VoucherDate,
+                    VT.VoucherTypeName,
+                    L.ReferenceNo,
+                    L.DebitAmount,
+                    L.CreditAmount,
+                    SUM(L.DebitAmount - L.CreditAmount)
+                        OVER (ORDER BY L.VoucherDate, L.LedgerId) AS RunningBalance,
+                    L.Remarks
+                FROM EmployeeLedger L
+                INNER JOIN EmployeeVoucherTypes VT 
+                    ON VT.VoucherTypeId = L.VoucherTypeId
+                WHERE 
+                L.EmployeeId_FK = @EmployeeId
+                ORDER BY L.VoucherDate, L.LedgerId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@EmployeeId", employeeId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                result.Add(new EmployeeLedgerReportVM
+                                {
+                                    VoucherDate = reader.GetDateTime(0),
+                                    VoucherTypeName = reader.GetString(1),
+                                    ReferenceNo = reader.IsDBNull(2) ? null : reader.GetString(2),
+                                    DebitAmount = reader.GetDecimal(3),
+                                    CreditAmount = reader.GetDecimal(4),
+                                    RunningBalance = reader.GetDecimal(5),
+                                    Remarks = reader.IsDBNull(6) ? null : reader.GetString(6)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return result;
+        }
+        public async Task<List<EmployeeLedgerReportVM>> GetAllEmployeeLedgerReportAsync()
+        {
+            var result = new List<EmployeeLedgerReportVM>();
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+                SELECT 
+
+                    L.VoucherDate,
+                    VT.VoucherTypeName,
+                    L.ReferenceNo,
+                    L.DebitAmount,
+                    L.CreditAmount,
+                    SUM(L.DebitAmount - L.CreditAmount)
+                        OVER (ORDER BY L.VoucherDate, L.LedgerId) AS RunningBalance,
+                    L.Remarks,
+                     LTRIM(RTRIM(
+        ISNULL(emp.FirstName, '') + ' ' + ISNULL(emp.LastName, '')
+    )) AS EmployeeName,
+L.EmployeeId_FK
+                FROM EmployeeLedger L
+                INNER JOIN EmployeeVoucherTypes VT
+                    ON VT.VoucherTypeId = L.VoucherTypeId
+                Left JOIN Employees emp on emp.EmployeeId= L.EmployeeId_FK
+                ORDER BY L.VoucherDate, L.LedgerId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        //command.Parameters.AddWithValue("@EmployeeId", employeeId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                result.Add(new EmployeeLedgerReportVM
+                                {
+                                    VoucherDate = reader.GetDateTime(0),
+                                    VoucherTypeName = reader.GetString(1),
+                                    ReferenceNo = reader.IsDBNull(2) ? null : reader.GetString(2),
+                                    DebitAmount = reader.GetDecimal(3),
+                                    CreditAmount = reader.GetDecimal(4),
+                                    RunningBalance = reader.GetDecimal(5),
+                                    Remarks = reader.IsDBNull(6) ? null : reader.GetString(6),
+                                    EmployeeName = reader.GetString(7),
+                                    EmployeeId_FK = reader.GetInt64(8)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch(Exception)
+            {
+                throw;
+            }
+
+            return result;
+        }
+        public async Task<decimal> GetEmployeeBalanceAsync(long employeeId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+                SELECT ISNULL(SUM(DebitAmount - CreditAmount), 0)
+                FROM EmployeeLedger
+                WHERE EmployeeId = @EmployeeId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@EmployeeId", employeeId);
+
+                        return Convert.ToDecimal(await command.ExecuteScalarAsync());
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return 0;
+        }
+
+        public async Task<List<EmployeeVoucherType>> GetAllVoucherTypesAsync()
+        {
+            var list = new List<EmployeeVoucherType>();
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(
+                        "SELECT VoucherTypeId, VoucherTypeName FROM EmployeeVoucherTypes", connection))
+                    {
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new EmployeeVoucherType
+                                {
+                                    VoucherTypeId = reader.GetInt32(0),
+                                    VoucherTypeName = reader.GetString(1)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return list;
+        }
+
+        public async Task<IEnumerable<Employee>> GetAllEmployeesAsync()
+        {
+            var employees = new List<Employee>();
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand(@"
+               
+             
+             SELECT EmployeeId, FirstName, LastName,LTRIM(RTRIM(
+        ISNULL(FirstName, '') + ' ' + ISNULL(LastName, '')
+    )) AS EmployeeName, PhoneNumber, CNIC, Address, Gender, Age, EmailAddress, 
+                       MaritalStatus, HusbandFatherName, Salary, JoiningDate, CreatedDate, CreatedByUserId_FK,
+                       ModifiedDate, ModifiedByUserId_FK, IsDeleted
+                FROM Employees
+                WHERE ISNULL(IsDeleted,0) = 0
+                ORDER BY FirstName, LastName", connection))
+                    {
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                employees.Add(new Employee
+                                {
+                                    EmployeeId = reader.GetInt64(reader.GetOrdinal("EmployeeId")),
+                                    FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                                    EmployeeName = reader.GetString(reader.GetOrdinal("EmployeeName")),
+                                    LastName = reader.IsDBNull(reader.GetOrdinal("LastName")) ? null : reader.GetString(reader.GetOrdinal("LastName")),
+                                    PhoneNumber = reader.IsDBNull(reader.GetOrdinal("PhoneNumber")) ? null : reader.GetString(reader.GetOrdinal("PhoneNumber")),
+                                    Cnic = reader.IsDBNull(reader.GetOrdinal("CNIC")) ? null : reader.GetString(reader.GetOrdinal("CNIC")),
+                                    Address = reader.IsDBNull(reader.GetOrdinal("Address")) ? null : reader.GetString(reader.GetOrdinal("Address")),
+                                    Gender = reader.IsDBNull(reader.GetOrdinal("Gender")) ? null : reader.GetString(reader.GetOrdinal("Gender")),
+                                    Age = reader.IsDBNull(reader.GetOrdinal("Age")) ? 0 : reader.GetInt32(reader.GetOrdinal("Age")),
+                                    EmailAddress = reader.IsDBNull(reader.GetOrdinal("EmailAddress")) ? null : reader.GetString(reader.GetOrdinal("EmailAddress")),
+                                    MaritalStatus = reader.IsDBNull(reader.GetOrdinal("MaritalStatus")) ? null : reader.GetString(reader.GetOrdinal("MaritalStatus")),
+                                    HusbandFatherName = reader.IsDBNull(reader.GetOrdinal("HusbandFatherName")) ? null : reader.GetString(reader.GetOrdinal("HusbandFatherName")),
+                                    Salary = reader.IsDBNull(reader.GetOrdinal("Salary")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Salary")),
+                                    JoiningDate = reader.IsDBNull(reader.GetOrdinal("JoiningDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("JoiningDate")),
+                                    CreatedDate = reader.IsDBNull(reader.GetOrdinal("CreatedDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                                    CreatedByUserIdFk = reader.IsDBNull(reader.GetOrdinal("CreatedByUserId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("CreatedByUserId_FK")),
+                                    ModifiedDate = reader.IsDBNull(reader.GetOrdinal("ModifiedDate")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
+                                    ModifiedByUserIdFk = reader.IsDBNull(reader.GetOrdinal("ModifiedByUserId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("ModifiedByUserId_FK")),
+                                    IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted"))
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // optional: log exception
+                Console.WriteLine($"Error fetching employees: {ex.Message}");
+            }
+
+            return employees;
+        }
+
     }
 }

@@ -13,13 +13,15 @@
                 </div>
                 <div class="card-body">
                     <div class="row row-cols-1 ">
-                        <div class="col">
-                            <label>Expense Type :</label>
-                           
-                                @Html.DropDownList("ExpenseTypeIdFk", ViewBag.EnabledExpenses as IEnumerable<SelectListItem>, "<-- Select Customer -->", new { @class = "form-control", @id = "ExpenseTypeIdFk" })
-                                
-                            
-                        </div>
+                    <div class="col">
+                        <label for="expenseType" class="form-label">Expense Type:</label>
+                        <input id="expenseType" asp-for="ExpenseTypeIdFk" style="width: 100%;" />
+                    </div>
+
+                    <div class="col" id="productDiv" style="display:none;">
+                        <label for="productSelect" class="form-label">Product:</label>
+                        <input id="productSelect" asp-for="ProductId_FK" style="width: 100%;" />
+                    </div>
                         <div class="col">
                             <label asp-for="ExpenseDetail" class="form-label"> Expense Detail:</label>
                             <input asp-for="ExpenseDetail" class="form-control" />
@@ -31,12 +33,9 @@
                             <span asp-validation-for="Amount" class="text-danger"></span>
                         </div>
                         <div class="col">
-                            <label>Expense Date</label>
-
-                            <input type="date" name="FromDate"
-                                   value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"])
-                                                                           ? DateTime.Now.ToString("yyyy-MM-dd")
-                                                                           : Context.Request.Query["FromDate"].ToString())"
+                            <label asp-for="ExpenseDate" class="form-label">Expense Date</label>
+                            <input type="date" name="FromDate" asp-for="ExpenseDate"
+                                   value="@(Model.ExpenseDate != default(DateTime) ? Model.ExpenseDate.ToString("yyyy-MM-dd") : (string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString()))"
                                    class="form-control" />
                         </div>
 
@@ -52,4 +51,122 @@
 @* </div> *@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+
+                var expenseTypeId = '@(Model?.ExpenseTypeIdFk.HasValue == true ? Model.ExpenseTypeIdFk.Value.ToString() : "")';
+        var productId = '@(Model?.ProductId_FK.HasValue == true ? Model.ProductId_FK.Value.ToString() : "")';
+
+        $(document).ready(function () {
+            console.log("Expense Type ID:", expenseTypeId);
+            console.log("Product ID:", productId);
+            console.log("Expense Detail:", '@Model?.ExpenseDetail');
+        });
+
+        // expenseType Selection Combobox
+        $("#expenseType").kendoComboBox({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: "/Expense/GetAllEnabledExpenseTypes",
+                        dataType: "json"
+                    }
+                }
+            },
+            dataTextField: "text",
+            dataValueField: "value",
+            placeholder: "-- Select Expense Type --",
+            filter: "contains",
+            suggest: false,
+            minLength: 1,
+            value: expenseTypeId, // Set initial value
+            dataBound: function(e) {
+                // After data is loaded, ensure value is set
+                console.log("Expense Type ComboBox dataBound - expenseTypeId:", expenseTypeId);
+                if (expenseTypeId && expenseTypeId !== '' && expenseTypeId !== '0') {
+                    var combo = this;
+                    console.log("Setting expense type value to:", expenseTypeId);
+                    combo.value(expenseTypeId);
+                    
+                    // Small delay to ensure value is set
+                    setTimeout(function() {
+                        // Get the selected item to check the text
+                        var selectedItem = combo.dataItem();
+                        var selectedText = selectedItem ? selectedItem.text : "";
+                        console.log("Selected expense type text:", selectedText);
+                        
+                        // Check if it's "Direct Product Expense"
+                        if (selectedText === "Direct Product Expense") {
+                            // Show product div
+                            $("#productDiv").show();
+                            
+                            // Load and set product value if it exists
+                            if (productId && productId !== '0' && productId !== '') {
+                                var productCombo = $("#productSelect").data("kendoComboBox");
+                                if (productCombo) {
+                                    productCombo.dataSource.read().then(function () {
+                                        productCombo.value(productId);
+                                    });
+                                }
+                            }
+                        } else {
+                            // Hide product div if not "Direct Product Expense"
+                            $("#productDiv").hide();
+                        }
+                    }, 100);
+                } else {
+                    console.log("No expense type ID to set");
+                }
+            },
+            change: function (e) {
+                var combo = this; // current kendo combobox
+                var selectedText = combo.text();   // get selected TEXT
+
+                if (selectedText === "Direct Product Expense") {
+                    $("#productDiv").show();
+                   
+                    var productCombo = $("#productSelect").data("kendoComboBox");
+                    productCombo.dataSource.read(); // load products
+
+                } else {
+                    $("#productDiv").hide();
+
+                    var productCombo = $("#productSelect").data("kendoComboBox");
+                    productCombo.value(""); // clear selection
+                }
+            }
+        });
+
+
+
+
+         // Product Selection Combobox
+                    $("#productSelect").kendoComboBox({
+                        dataSource: {
+                            transport: {
+                                read: {
+                                    url: "/Sales/GetProducts",
+                                    dataType: "json"
+                                }
+                            }
+                        },
+                        dataTextField: "text",
+                        dataValueField: "value",
+                        placeholder: "-- Select Product --",
+                        filter: "contains",
+                        suggest: false,
+                        minLength: 1,
+                        change: function(e) {
+                            console.log("=== PRODUCT CHANGE EVENT TRIGGERED ===");
+                            console.log("Product selection changed:", e.sender.value());
+                            console.log("Product change event - calling loadProductSizes");
+                            console.log("Event object:", e);
+
+                        },
+                        select: function(e) {
+                            console.log("Product selected:", e.item);
+                            console.log("Product select event - calling loadProductSizes");
+
+                        }
+                    });
+    </script>
 }

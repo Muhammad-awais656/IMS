@@ -12,6 +12,7 @@ public partial class Employee
     [StringLength(100, ErrorMessage = "First Name cannot exceed 100 characters")]
     [Display(Name = "First Name")]
     public string FirstName { get; set; } = null!;
+    public string EmployeeName { get; set; } = null!;
 
     [StringLength(100, ErrorMessage = "Last Name cannot exceed 100 characters")]
     [Display(Name = "Last Name")]
@@ -43,11 +44,11 @@ public partial class Employee
 
     [Required(ErrorMessage = "Joining Date is required")]
     [Display(Name = "Joining Date")]
-    public DateTime JoiningDate { get; set; }
+    public DateTime? JoiningDate { get; set; }
 
     [Range(0, double.MaxValue, ErrorMessage = "Salary must be a positive number")]
     [Display(Name = "Salary")]
-    public long? Salary { get; set; }
+    public decimal? Salary { get; set; }
 
     [StringLength(100, ErrorMessage = "Father/Husband Name cannot exceed 100 characters")]
     [Display(Name = "Father/Husband Name")]
@@ -64,7 +65,7 @@ public partial class Employee
 
     public bool IsDeleted { get; set; }
 
-    public DateTime CreatedDate { get; set; }
+    public DateTime? CreatedDate { get; set; }
 
     public long CreatedByUserIdFk { get; set; }
 

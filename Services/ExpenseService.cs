@@ -117,6 +117,7 @@ namespace IMS.Services
                         
                         command.Parameters.AddWithValue("@ExpenseDetail", expenseFilters.Details ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pExpenseTypeId", expenseFilters.ExpenseTypeId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pProductId", expenseFilters.ProductId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@AmountFrom", expenseFilters.AmountFrom ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@AmountTo", expenseFilters.AmountTo ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ExpenseDateFrom", expenseFilters.DateFrom == default(DateTime) ? DBNull.Value : expenseFilters.DateFrom);
@@ -140,6 +141,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         command.Parameters.AddWithValue("@ExpenseDetail", expenseFilters.Details ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pExpenseTypeId", expenseFilters.ExpenseTypeId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pProductId", expenseFilters.ProductId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@AmountFrom", expenseFilters.AmountFrom ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@AmountTo", expenseFilters.AmountTo ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ExpenseDateFrom", expenseFilters.DateFrom == default(DateTime) ? DBNull.Value : expenseFilters.DateFrom);
@@ -156,8 +158,10 @@ namespace IMS.Services
                                     expenses.Add(new ExpenseModel
                                     {
                                         ExpenseId = reader.GetInt64(reader.GetOrdinal("ExpenseId")),
+                                        ProductId_FK = reader.IsDBNull(reader.GetOrdinal("ProductId_FK"))? null: reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
                                         ExpenseType = reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
                                         ExpenseDetail = reader.GetString(reader.GetOrdinal("ExpenseDetail")),
+                                        ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? null : reader.GetString(reader.GetOrdinal("ProductName")),
                                         Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
                                         
                                         ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate"))
@@ -211,17 +215,21 @@ namespace IMS.Services
                             {
                                 if (await reader.ReadAsync())
                                 {
+                                    var expenseTypeIdOrdinal = reader.GetOrdinal("ExpenseTypeId_FK");
+                                    var productIdOrdinal = reader.GetOrdinal("ProductId_FK");
+                                    
                                     return new Expense
                                     {
                                         ExpenseId = reader.GetInt64(reader.GetOrdinal("ExpenseId")),
-                                        ExpenseTypeIdFk = reader.GetInt64(reader.GetOrdinal("ExpenseTypeId_FK")),
-                                        ExpenseDetail = reader.GetString(reader.GetOrdinal("ExpenseDetail")),
+                                        ExpenseTypeIdFk = reader.IsDBNull(expenseTypeIdOrdinal) ? null : reader.GetInt64(expenseTypeIdOrdinal),
+                                        ExpenseDetail = reader.IsDBNull(reader.GetOrdinal("ExpenseDetail")) ? string.Empty : reader.GetString(reader.GetOrdinal("ExpenseDetail")),
                                         Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
                                         ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
                                         ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
+                                        ProductId_FK = reader.IsDBNull(productIdOrdinal) ? null : reader.GetInt64(productIdOrdinal),
 
                                     };
                                 }

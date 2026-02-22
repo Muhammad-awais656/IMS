@@ -5,6 +5,7 @@ namespace IMS.Models
     public class EmployeeViewModel
     {
         public List<Employee> EmployeesList { get; set; }
+        public List<EmployeeLedgerReportVM> EmployeeLedgerList { get; set; }
         public string GenderType { get; set; }
         public string MaritalStatus { get; set; }
         public int CurrentPage { get; set; }

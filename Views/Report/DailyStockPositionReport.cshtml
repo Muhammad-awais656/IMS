@@ -1,0 +1,134 @@
+@model IMS.Models.DailyStockPositionReportViewModel;
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-boxes me-2"></i>
+                <h4 class="mb-0">Daily Stock Position</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <!-- Filter Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="DailyStockPositionReport" asp-controller="Report" method="get">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>Report Date
+                            </label>
+                            <input type="date" name="reportDate" asp-for="Filters.ReportDate"
+                                   value="@(Model.Filters?.ReportDate.HasValue == true ? Model.Filters.ReportDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))"
+                                   class="form-control" />
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="DailyStockPositionReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Report Header -->
+        <div class="text-center mb-4">
+            <h3 class="mb-1">DAILY STOCK POSITION</h3>
+            <h5 class="text-muted">Date: @Model.Filters?.ReportDate?.ToString("dd-MMM-yyyy")</h5>
+        </div>
+
+        <!-- Table Section -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive" id="printArea">
+                    <table id="dailyStockPositionTable" class="table table-bordered table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center"><i class="fa fa-tag me-1"></i>Particulars</th>
+                                <th class="text-center"><i class="fa fa-shopping-cart me-1"></i>Purchase</th>
+                                <th class="text-center"><i class="fa fa-shopping-bag me-1"></i>Sales</th>
+                                <th class="text-center"><i class="fa fa-box me-1"></i>Closing</th>
+                                <th class="text-center"><i class="fa fa-archive me-1"></i>Bags</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.StockPositionList.Any())
+                            {
+                                @foreach (var item in Model.StockPositionList)
+                                {
+                                    <tr>
+                                        <td><strong>@item.ProductName</strong></td>
+                                        <td class="text-end">@(item.PurchaseQuantity > 0 ? item.PurchaseQuantity.ToString("N2") : "")</td>
+                                        <td class="text-end">@(item.SalesQuantity > 0 ? item.SalesQuantity.ToString("N2") : "")</td>
+                                        <td class="text-end"><strong>@item.ClosingStock.ToString("N2")</strong></td>
+                                        <td class="text-end">@(item.Bags > 0 ? item.Bags.ToString() : "")</td>
+                                    </tr>
+                                }
+                                <!-- Total Row -->
+                                <tr class="table-info fw-bold">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td class="text-end"><strong>@Model.TotalPurchase.ToString("N2")</strong></td>
+                                    <td class="text-end"><strong>@Model.TotalSales.ToString("N2")</strong></td>
+                                    <td class="text-end"><strong>@Model.TotalClosing.ToString("N2")</strong></td>
+                                    <td class="text-end"><strong>@Model.TotalBags</strong></td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No Stock Data Found</h5>
+                                            <p class="text-muted">Try adjusting your filter criteria to see more results.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById("exportExcelBtn").addEventListener("click", function () {
+            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
+            var url = `/Report/ExportDailyStockPositionExcel?reportDate=${reportDate}`;
+            window.location.href = url;
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function () {
+            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
+            var url = `/Report/ExportDailyStockPositionPdf?reportDate=${reportDate}`;
+            window.location.href = url;
+        });
+    </script>
+}
+

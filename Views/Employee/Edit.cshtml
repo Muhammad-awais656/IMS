@@ -114,7 +114,7 @@
                     </label>
                     <input asp-for="JoiningDate" class="form-control form-control-lg" 
                            type="date" 
-                           value="@Model.JoiningDate.ToString("yyyy-MM-dd")"
+                           value="@Model.JoiningDate?.ToString("yyyy-MM-dd")"
                            required />
                     <span asp-validation-for="JoiningDate" class="text-danger small"></span>
                 </div>
