@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -23,11 +23,14 @@
 
         .sidebar {
             width: 250px;
+            min-width: 250px;
+            max-width: 250px;
+            flex-shrink: 0;
             background-color: #2c3e50;
             height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
-            transition: width 0.3s;
+            transition: width 0.3s, min-width 0.3s, max-width 0.3s;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             white-space: wrap;
         }
@@ -36,6 +39,8 @@
 
             .sidebar.collapsed {
                 width: 70px;
+                min-width: 70px;
+                max-width: 70px;
             }
 
             .sidebar .toggle-btn {
@@ -139,7 +144,7 @@
             display: none;
         }
 
-        /* Tooltip for collapsed state */
+        /* Tooltip for collapsed state - only when flyout is not used */
         .sidebar.collapsed .menu-item {
             position: relative;
         }
@@ -158,6 +163,53 @@
             z-index: 1000;
             box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
             font-size: 0.9em;
+        }
+
+        /* Collapsed sidebar: flyout panel to the right (overrides tooltip when present) */
+        .sidebar-flyout {
+            display: none;
+            position: fixed;
+            left: 70px;
+            min-width: 220px;
+            max-width: 280px;
+            background-color: #2c3e50;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.25);
+            z-index: 1050;
+            border-radius: 0 6px 6px 0;
+            padding: 8px 0;
+            border-left: 3px solid #3498db;
+        }
+
+        .sidebar-flyout.show {
+            display: block;
+        }
+
+        .sidebar-flyout a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            white-space: nowrap;
+            font-size: 0.95em;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-flyout a i {
+            width: 22px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        .sidebar-flyout a:hover {
+            background-color: #34495e;
+            color: #3498db;
+            border-left-color: #3498db;
+        }
+
+        /* Hide default tooltip when flyout is shown */
+        .sidebar.collapsed .menu-item.show-flyout:hover::after {
+            display: none;
         }
         /* Custom styles for the table */
         .custom-table {
@@ -252,6 +304,13 @@
 
      
         <div class="sidebar" id="sidebar">
+            <script>
+                try {
+                    if (sessionStorage.getItem('sidebarCollapsed') === '1') {
+                        document.getElementById('sidebar').classList.add('collapsed');
+                    }
+                } catch (e) {}
+            </script>
             <div class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></div>
 
             @* Dashboard *@
@@ -361,6 +420,8 @@
 
         </div>
 
+        <!-- Flyout panel when sidebar is collapsed (menus to the right, clickable) -->
+        <div id="sidebarFlyout" class="sidebar-flyout" aria-hidden="true"></div>      
         <div class="main" id="main">
             <div aria-live="polite" aria-atomic="true">
                 <div class="toast-container position-fixed p-3" style="top: 110px; right: 16px; z-index: 2000;">
@@ -492,8 +553,25 @@
         </div>
         <script>
             function toggleSidebar() {
-                $('#sidebar').toggleClass('collapsed');
+                var sidebar = document.getElementById('sidebar');
+                if (!sidebar) return;
+                sidebar.classList.toggle('collapsed');
+                try {
+                    sessionStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+                } catch (e) {}
+                if (sidebar.classList.contains('collapsed')) {
+                    if (typeof hideSidebarFlyout === 'function') hideSidebarFlyout();
+                }
             }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var sidebar = document.getElementById('sidebar');
+                try {
+                    if (sidebar && sessionStorage.getItem('sidebarCollapsed') === '1') {
+                        sidebar.classList.add('collapsed');
+                    }
+                } catch (e) {}
+            });
 
             function toggleSubmenu(element) {
                 const menuItem = element.closest('.menu-item');
@@ -529,6 +607,70 @@
                     }
                 }
             }
+
+            (function () {
+                var flyout = document.getElementById('sidebarFlyout');
+                var sidebar = document.getElementById('sidebar');
+                var hideTimer = null;
+
+                function showFlyout(menuItem, rect) {
+                    if (!sidebar || !sidebar.classList.contains('collapsed') || !flyout) return;
+                    var submenu = menuItem.querySelector('.submenu');
+                    var parentLink = menuItem.querySelector(':scope > a');
+                    flyout.innerHTML = '';
+                    if (submenu && submenu.children.length > 0) {
+                        [].forEach.call(submenu.children, function (a) {
+                            if (a.tagName === 'A') flyout.appendChild(a.cloneNode(true));
+                        });
+                    } else if (parentLink && parentLink.getAttribute('href') && parentLink.getAttribute('href') !== '#') {
+                        flyout.appendChild(parentLink.cloneNode(true));
+                    } else return;
+                    flyout.style.top = rect.top + 'px';
+                    flyout.classList.add('show');
+                    menuItem.classList.add('show-flyout');
+                    flyout.setAttribute('aria-hidden', 'false');
+                }
+
+                function hideSidebarFlyout() {
+                    if (hideTimer) clearTimeout(hideTimer);
+                    hideTimer = setTimeout(function () {
+                        if (flyout) {
+                            flyout.classList.remove('show');
+                            flyout.innerHTML = '';
+                            flyout.setAttribute('aria-hidden', 'true');
+                        }
+                        var list = document.querySelectorAll('.menu-item.show-flyout');
+                        for (var i = 0; i < list.length; i++) list[i].classList.remove('show-flyout');
+                        hideTimer = null;
+                    }, 120);
+                }
+
+                function cancelHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+
+                if (sidebar && flyout) {
+                    sidebar.addEventListener('mouseover', function (e) {
+                        if (!sidebar.classList.contains('collapsed')) return;
+                        var item = e.target.closest('.menu-item');
+                        if (item && !item.closest('.toggle-btn')) {
+                            cancelHide();
+                            showFlyout(item, item.getBoundingClientRect());
+                        }
+                    }, true);
+                    sidebar.addEventListener('mouseout', function (e) {
+                        if (!sidebar.classList.contains('collapsed')) return;
+                        var to = e.relatedTarget;
+                        if (to && (sidebar.contains(to) || flyout.contains(to))) return;
+                        hideSidebarFlyout();
+                    });
+                    flyout.addEventListener('mouseenter', cancelHide);
+                    flyout.addEventListener('mouseleave', function (e) {
+                        var to = e.relatedTarget;
+                        if (to && (sidebar.contains(to) || flyout.contains(to))) return;
+                        hideSidebarFlyout();
+                    });
+                }
+                window.hideSidebarFlyout = hideSidebarFlyout;
+            })();
 
                     document.addEventListener("DOMContentLoaded", function () {
                     var toastElList = [].slice.call(document.querySelectorAll('.toast'))

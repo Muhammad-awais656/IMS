@@ -1,4 +1,4 @@
-﻿@model IMS.Models.EmployeeViewModel;
+@model IMS.Models.EmployeeViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
@@ -24,22 +24,15 @@
                 </div>
             </div>
             <div class="card-body user-search-section pt-0">
-                <form asp-action="EmployeeLedger" asp-controller="Employee" asp-route-searchUsername="@ViewData["searchUsername"]" method="get">
+                <form id="filterForm" asp-action="EmployeeLedger" asp-controller="Employee" method="get">
 
                     <div class="row g-3 align-items-end">
-                        <!-- Search Input -->
+                        <!-- Employee Filter Dropdown (Kendo) -->
                         <div class="col-md-6">
-                            <div class="form-floating user-search-floating">
-                                <input type="text"
-                                       name="searchUsername"
-                                       value="@Context.Request.Query["searchUsername"]"
-                                       class="form-control user-search-input"
-                                       placeholder="Enter employee name"
-                                       onchange="SearchNameChange()" />
-                                <label class="text-muted">
-                                    <i class="fa-solid fa-user-tie me-1"></i>Search by Employee Name
-                                </label>
-                            </div>
+                            <label class="form-label text-muted">
+                                <i class="fa-solid fa-user-tie me-1"></i>Filter by Employee
+                            </label>
+                            <input name="employeeId" id="employeeFilterSelect" value="@ViewData["employeeId"]" style="width: 100%;" />
                         </div>
 
                         <!-- Action Buttons -->
@@ -79,7 +72,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.EmployeeLedgerList.Any())
+                    @if (Model?.EmployeeLedgerList != null && Model.EmployeeLedgerList.Any())
                     {
                         @foreach (var item in Model.EmployeeLedgerList)
                         {
@@ -119,33 +112,33 @@
                     else
                     {
                         <tr>
-                            <td colspan="6" class="text-center">No Record found.</td>
+                            <td colspan="8" class="text-center">No Record found.</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="text-muted">Total: @Model.TotalCount | Showing @Model.PageSize Records per page</span>
+            <span class="text-muted">Total: @(Model?.TotalCount ?? 0) | Showing @(Model?.PageSize ?? 25) Records per page</span>
             <div class="end-0">
                 <label for="pageSize" class="form-label me-2 text-muted">Items Per Page :</label>
                 <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this)">
-                    <option value="5" selected="@(Model.PageSize == 5)">5</option>
-                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                    <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                    <option value="5" selected="@(Model?.PageSize == 5)">5</option>
+                    <option value="10" selected="@(Model?.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model?.PageSize == 25)">25</option>
                 </select>
             </div>
-            @if (Model.TotalPages > 1)
+            @if (Model != null && Model.TotalPages > 1)
             {
                 <nav aria-label="User pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="1"
-                               asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">First</a>
+                               asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-searchUsername="@ViewData["searchUsername"]">Previous</a>
+                               asp-route-employeeId="@ViewData["employeeId"]">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -159,14 +152,14 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
+                                <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
+                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
+                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">Last</a>
                         </li>
                     </ul>
                 </nav>
@@ -177,6 +170,43 @@
 @* </div> *@
 @section Scripts {
     <script>
+        @{
+            var empList = ViewBag.Employees as Microsoft.AspNetCore.Mvc.Rendering.SelectList;
+            var employeeJson = "[{\"value\":\"\",\"text\":\"-- All Employees --\"}]";
+            if (empList != null)
+            {
+                var list = new List<object> { new { value = "", text = "-- All Employees --" } };
+                foreach (Microsoft.AspNetCore.Mvc.Rendering.SelectListItem s in empList)
+                {
+                    if (s != null)
+                        list.Add(new { value = s.Value ?? "", text = s.Text ?? "" });
+                }
+                employeeJson = System.Text.Json.JsonSerializer.Serialize(list);
+            }
+        }
+        var employeeFilterData = @Html.Raw(employeeJson);
+        if (!employeeFilterData || employeeFilterData.length === 0) {
+            employeeFilterData = [{ value: "", text: "-- All Employees --" }];
+        }
+
+        $(document).ready(function() {
+            var initialEmployeeId = "@(ViewData["employeeId"]?.ToString() ?? "")";
+            $("#employeeFilterSelect").kendoComboBox({
+                dataSource: { data: employeeFilterData },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "-- All Employees --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                value: initialEmployeeId || null,
+                change: function() {
+                    var val = this.value();
+                    $(this).val(val || "");
+                }
+            });
+        });
+
         // Enhanced Employee Management JavaScript
 
         // Initialize page
@@ -250,57 +280,15 @@
         }
 
         function SearchNameChange() {
-            // Add loading state
-            const searchBtn = document.querySelector('.btn-user-search');
-            if (searchBtn) {
-                searchBtn.classList.add('btn-loading');
-            }
-
-            // Get form values
-            const form = document.querySelector('form');
-            const formData = new FormData(form);
-            const params = new URLSearchParams();
-
-            // Add all form data to params
-            for (let [key, value] of formData.entries()) {
-                if (value.trim() !== '') {
-                    params.append(key, value);
-                }
-            }
-
-            // Add pagination
-            params.set('pageNumber', '1');
-            params.set('pageSize', document.getElementById('pageSize')?.value || '10');
-
-            // Redirect with parameters
-            window.location.href = '@Url.Action("EmployeeLedger", "Employee")' + '?' + params.toString();
+            document.getElementById('filterForm').submit();
         }
 
         function changePageSize(select) {
-            // Add loading state
-            const searchBtn = document.querySelector('.btn-user-search');
-            if (searchBtn) {
-                searchBtn.classList.add('btn-loading');
-            }
-
-            // Get current form values
-            const form = document.querySelector('form');
-            const formData = new FormData(form);
-            const params = new URLSearchParams();
-
-            // Add all form data to params
-            for (let [key, value] of formData.entries()) {
-                if (value.trim() !== '') {
-                    params.append(key, value);
-                }
-            }
-
-            // Add pagination
-            params.set('pageNumber', '1');
-            params.set('pageSize', select.value);
-
-            // Redirect with parameters
-            window.location.href = '@Url.Action("EmployeeLedger", "Employee")' + '?' + params.toString();
+            var employeeCombo = $("#employeeFilterSelect").data("kendoComboBox");
+            var employeeId = employeeCombo ? employeeCombo.value() : '';
+            var params = 'pageNumber=1&pageSize=' + select.value;
+            if (employeeId) params += '&employeeId=' + employeeId;
+            window.location.href = '@Url.Action("EmployeeLedger", "Employee")' + '?' + params;
         }
 
         // Add keyboard shortcuts

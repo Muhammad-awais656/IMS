@@ -1,4 +1,5 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
+@using Microsoft.AspNetCore.Mvc.Rendering
 @model EmployeeLedgerEntryVM
 
 <div class="card shadow-sm">
@@ -31,8 +32,10 @@
                 <div class="col-lg-3 col-md-6 mb-4">
                     <label class="form-label fw-semibold text-dark">
                         <i class="fa-solid fa-user me-1 text-primary"></i>Employee
+                        <span class="text-danger">*</span>
                     </label>
-                    <input name="EmployeeId_FK" id="employeeFilterSelect" style="width: 100%;" />
+                    <input name="EmployeeId" id="employeeFilterSelect" value="@(Model?.EmployeeId > 0 ? Model.EmployeeId.ToString() : "")" style="width: 100%;" />
+                    <span asp-validation-for="EmployeeId" class="text-danger small"></span>
                 </div>
 
                 <!-- Voucher Type -->
@@ -77,23 +80,23 @@
                     <span asp-validation-for="Amount" class="text-danger small"></span>
                 </div>
 
-                <!-- Reference No -->
+                <!-- Reference No (Optional) -->
                 <div class="col-md-6 mb-4">
                     <div class="form-floating">
                         <input asp-for="ReferenceNo"
                                class="form-control form-control-lg"
-                               placeholder="Enter reference number" />
+                               placeholder="Enter reference number (optional)" />
                         <label asp-for="ReferenceNo" class="fw-semibold">
-                            <i class="fa fa-hashtag me-1 text-primary"></i>Reference No
+                            <i class="fa fa-hashtag me-1 text-primary"></i>Reference No <span class="text-muted fw-normal">(Optional)</span>
                         </label>
                     </div>
                     <span asp-validation-for="ReferenceNo" class="text-danger small"></span>
                 </div>
 
-                <!-- Remarks -->
+                <!-- Remarks (Optional) -->
                 <div class="col-md-6 mb-4">
                     <label asp-for="Remarks" class="form-label fw-semibold">
-                        <i class="fa fa-comment me-1 text-primary"></i>Remarks
+                        <i class="fa fa-comment me-1 text-primary"></i>Remarks <span class="text-muted fw-normal">(Optional)</span>
                     </label>
                     <textarea asp-for="Remarks"
                               class="form-control"
@@ -122,35 +125,42 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
-    <script>
-
-        // Prepare customer data for Kendo combobox
-        const customerData = [
-            { value: "", text: "Please Select Employee" }
-            @if (ViewBag.Employees != null)
+    @{
+        var empSelectList = ViewBag.Employees as SelectList;
+        var employeeJson = "[{\"value\":\"\",\"text\":\"Please Select Employee\"}]";
+        if (empSelectList != null)
+        {
+            var list = new List<object> { new { value = "", text = "Please Select Employee" } };
+            foreach (SelectListItem s in empSelectList)
             {
-                        @foreach (var customer in ViewBag.Employees)
-                    {
-                            <text>,</text>
-                                                            <text>{ value: "@customer.EmployeeId", text: "@customer.EmployeeName" }</text>
-                    }
+                if (s != null)
+                    list.Add(new { value = s.Value ?? "", text = s.Text ?? "" });
             }
-        ];
+            employeeJson = System.Text.Json.JsonSerializer.Serialize(list);
+        }
+    }
+    <script>
+        var employeeData = @Html.Raw(employeeJson);
+        if (!employeeData || employeeData.length === 0) {
+            employeeData = [{ value: "", text: "Please Select Employee" }];
+        }
 
-        // Initialize customer filter combobox
-        $("#employeeFilterSelect").kendoComboBox({
-            dataSource: {
-                data: customerData
-            },
-            dataTextField: "text",
-            dataValueField: "value",
-            placeholder: "Select Employee...",
-            filter: "contains",
-            suggest: true,
-            minLength: 1,
-            change: function() {
-                console.log("Customer filter changed:", this.value());
-            }
+        $(document).ready(function() {
+            var initialValue = "@(Model?.EmployeeId > 0 ? Model.EmployeeId.ToString() : "")";
+            $("#employeeFilterSelect").kendoComboBox({
+                dataSource: { data: employeeData },
+                dataTextField: "text",
+                dataValueField: "value",
+                placeholder: "Please Select Employee",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                value: initialValue || null,
+                change: function() {
+                    var val = this.value();
+                    $(this).val(val || "");
+                }
+            });
         });
     </script>
 }

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace IMS.Models
 {
@@ -28,8 +28,8 @@ namespace IMS.Models
         [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than zero")]
         public decimal Amount { get; set; }
 
-        public string ReferenceNo { get; set; }
-        public string Remarks { get; set; }
+        public string? ReferenceNo { get; set; }
+        public string? Remarks { get; set; }
     }
 
 }

@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -321,6 +321,74 @@ emp.MaritalStatus
             return RedirectToAction(nameof(Index));
         }
 
+        /// <summary>
+        /// GET: Employee/GetTransactionHistory - Returns JSON for employee ledger (transaction history) modal.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetTransactionHistory(long employeeId, int pageNumber = 1, int pageSize = 10,
+            DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            try
+            {
+                var allLedger = await _employeeService.GetEmployeeLedgerReportAsync(employeeId);
+                var list = allLedger ?? new List<EmployeeLedgerReportVM>();
+
+                if (fromDate.HasValue)
+                    list = list.Where(x => x.VoucherDate.Date >= fromDate.Value.Date).ToList();
+                if (toDate.HasValue)
+                    list = list.Where(x => x.VoucherDate.Date <= toDate.Value.Date).ToList();
+
+                int totalCount = list.Count;
+                int totalPages = totalCount > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 1;
+                pageNumber = Math.Max(1, Math.Min(pageNumber, totalPages));
+
+                var paged = list
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(x => new
+                    {
+                        voucherDate = x.VoucherDate,
+                        voucherTypeName = x.VoucherTypeName ?? "",
+                        referenceNo = x.ReferenceNo ?? "",
+                        debitAmount = x.DebitAmount,
+                        creditAmount = x.CreditAmount,
+                        runningBalance = x.RunningBalance,
+                        remarks = x.Remarks ?? ""
+                    })
+                    .ToList();
+
+                var employee = await _employeeService.GetEmployeeByIdAsync(employeeId);
+                decimal currentBalance = await _employeeService.GetEmployeeBalanceAsync(employeeId);
+
+                return Json(new
+                {
+                    transactions = paged,
+                    totalCount,
+                    currentPage = pageNumber,
+                    totalPages,
+                    employeeSummary = new
+                    {
+                        employeeName = employee != null ? (employee.FirstName + " " + (employee.LastName ?? "")).Trim() : "",
+                        currentBalance,
+                        transactionCount = totalCount
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Error loading transaction history: " + ex.Message,
+                    transactions = new List<object>(),
+                    totalCount = 0,
+                    currentPage = 1,
+                    totalPages = 0,
+                    employeeSummary = new { employeeName = "", currentBalance = 0m, transactionCount = 0 }
+                });
+            }
+        }
+
      
 
         [HttpPost]
@@ -413,15 +481,43 @@ emp.MaritalStatus
    
 
         [HttpGet]
-        public async Task<ActionResult> EmployeeLedger()
+        public async Task<ActionResult> EmployeeLedger(long? employeeId = null, int pageNumber = 1, int? pageSize = null)
         {
             var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync();
-            EmployeeViewModel viewModel = new EmployeeViewModel
+            var list = ledger ?? new List<EmployeeLedgerReportVM>();
+
+            // Filter by selected employee when employeeId is provided
+            if (employeeId.HasValue && employeeId.Value > 0)
             {
-                EmployeeLedgerList = ledger
+                list = list.Where(x => x.EmployeeId_FK == employeeId.Value).ToList();
+            }
+
+            int totalCount = list.Count;
+            int currentPageSize = pageSize ?? 25;
+            if (currentPageSize < 1) currentPageSize = 25;
+            int totalPages = totalCount > 0 ? (int)Math.Ceiling(totalCount / (double)currentPageSize) : 1;
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageNumber > totalPages) pageNumber = totalPages;
+
+            var pagedList = list
+                .Skip((pageNumber - 1) * currentPageSize)
+                .Take(currentPageSize)
+                .ToList();
+
+            var viewModel = new EmployeeViewModel
+            {
+                EmployeeLedgerList = pagedList,
+                TotalCount = totalCount,
+                PageSize = currentPageSize,
+                TotalPages = totalPages,
+                CurrentPage = pageNumber
             };
-            //ViewBag.EmployeeId = employeeId;
-            //ViewBag.CurrentBalance = await _employeeService.GetEmployeeBalanceAsync(employeeId);
+            ViewData["employeeId"] = employeeId?.ToString() ?? "";
+            ViewBag.Employees = new SelectList(
+                await _employeeService.GetAllEmployeesAsync(),
+                "EmployeeId",
+                "EmployeeName",
+                employeeId);
             return View(viewModel);
         }
         [HttpGet]
