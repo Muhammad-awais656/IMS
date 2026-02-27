@@ -6,6 +6,7 @@ namespace IMS.Models
     {
         public List<SaleWithCustomerViewModel> SalesList { get; set; } = new List<SaleWithCustomerViewModel>();
         public List<Customer> CustomerList { get; set; } = new List<Customer>();
+        public SalesFilters Filters { get; set; } = new SalesFilters();
 
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }

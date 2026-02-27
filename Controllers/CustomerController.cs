@@ -22,40 +22,50 @@ namespace IMS.Controllers
             _logger = logger;
         }
         // GET: CustomerController
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string sidx = "Id", string sord = "asc", bool _search = false, string? customerName = null, string? phoneNumber = null,string? email=null)
+        public async Task<ActionResult> Index(CustomerViewModel model, int pageNumber = 1, int? pageSize = null, string sidx = "Id", string sord = "asc", bool _search = false)
         {
-            var viewModel = new CustomerViewModel();
             try
             {
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new CustomerViewModel();
+                }
+
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new CustomerFilters();
+                }
+
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
                 if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
                 {
                     currentPageSize = pageSize.Value;
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
-                if (customerName == null)
-                {
-                    customerName = HttpContext.Request.Query["searchUsername"].ToString();
-                }
-                if (phoneNumber==null)
-                {
-                    phoneNumber = HttpContext.Request.Query["searchContactNo"].ToString();
-                }
-                if (email==null)
-                {
-                    email = HttpContext.Request.Query["searchEmail"].ToString();
-                }
-                viewModel = await _customerService.GetCustomers(pageNumber, currentPageSize, customerName, phoneNumber, email);
 
+                // Preserve filters before service call
+                var filters = model.Filters;
 
+                // Get filtered data using model.Filters
+                model = await _customerService.GetCustomers(pageNumber, currentPageSize, 
+                    string.IsNullOrWhiteSpace(filters.CustomerName) ? null : filters.CustomerName,
+                    string.IsNullOrWhiteSpace(filters.PhoneNumber) ? null : filters.PhoneNumber,
+                    string.IsNullOrWhiteSpace(filters.Email) ? null : filters.Email);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-
+                if (model == null)
+                {
+                    model = new CustomerViewModel();
+                }
             }
-            return View(viewModel);
-            
+            return View(model);
         }
         
 

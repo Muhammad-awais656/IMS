@@ -47,17 +47,27 @@
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>From Date
                             </label>
-                            <input type="date" name="FromDate"
-                                   value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString())"
-                                   class="form-control" />
+                            <div class="input-group">
+                                <input type="date" name="Filters.FromDate"
+                                       value="@(Model.Filters?.FromDate.HasValue == true ? Model.Filters.FromDate.Value.ToString("yyyy-MM-dd") : new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.FromDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>To Date
                             </label>
-                            <input type="date" name="ToDate"
-                                   value="@(string.IsNullOrEmpty(Context.Request.Query["ToDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["ToDate"].ToString())"
-                                   class="form-control" />
+                            <div class="input-group">
+                                <input type="date" name="Filters.ToDate"
+                                       value="@(Model.Filters?.ToDate.HasValue == true ? Model.Filters.ToDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.ToDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">
@@ -272,6 +282,13 @@
 
 @section Scripts {
     <script>
+        function clearDate(fieldName) {
+            var input = document.querySelector(`input[name='${fieldName}']`);
+            if (input) {
+                input.value = '';
+                document.getElementById('filterForm').submit();
+            }
+        }
         $(document).ready(function() {
             // Initialize Kendo UI ComboBox for Account
             $("#accountComboBox").kendoComboBox({

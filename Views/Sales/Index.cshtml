@@ -134,41 +134,31 @@
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-user me-1 text-primary"></i>Customer
                                     </label>
-                                    <input name="customerId" id="customerFilterSelect" style="width: 100%;" />
+                                    <input name="Filters.CustomerId" id="customerFilterSelect" style="width: 100%;" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-receipt me-1 text-primary"></i>Bill Number
                                     </label>
-                                    <input type="number" name="billNumber" class="form-control" value="@Context.Request.Query["billNumber"]" placeholder="Enter Bill #" />
+                                    <input type="number" asp-for="Filters.BillNumber" class="form-control" placeholder="Enter Bill #" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-calendar me-1 text-primary"></i>From Date
                                     </label>
-                                    @{
-                                        var saleFromValue = Context.Request.Query["saleFrom"].FirstOrDefault();
-                                        var saleDateToValue = Context.Request.Query["saleDateTo"].FirstOrDefault();
-                                        // If no date parameters in query string, set to today (first load)
-                                        if (string.IsNullOrEmpty(saleFromValue) && string.IsNullOrEmpty(saleDateToValue) && !Context.Request.Query.ContainsKey("saleFrom") && !Context.Request.Query.ContainsKey("saleDateTo"))
-                                        {
-                                            saleFromValue = DateTime.Now.ToString("yyyy-MM-dd");
-                                            saleDateToValue = DateTime.Now.ToString("yyyy-MM-dd");
-                                        }
-                                    }
-                                    <input type="date" name="saleFrom" id="saleFrom" class="form-control" value="@saleFromValue" />
+                                    <input type="date" asp-for="Filters.SaleFrom" id="saleFrom" class="form-control" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-calendar me-1 text-primary"></i>To Date
                                     </label>
-                                    <input type="date" name="saleDateTo" id="saleDateTo" class="form-control" value="@saleDateToValue" />
+                                    <input type="date" asp-for="Filters.SaleDateTo" id="saleDateTo" class="form-control" />
                                 </div>
                                 <div class="col-lg-2 col-md-6">
                                     <label class="form-label fw-semibold text-dark">
                                         <i class="fa-solid fa-align-left me-1 text-primary"></i>Description
                                     </label>
-                                    <input type="text" name="description" class="form-control" value="@Context.Request.Query["description"]" placeholder="Enter description..." />
+                                    <input type="text" asp-for="Filters.Description" class="form-control" placeholder="Enter description..." />
                                 </div>
                             </div>
                             
@@ -363,23 +353,23 @@
                 <nav aria-label="User pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1" 
                                asp-route-pageSize="@Model.PageSize"
-                               asp-route-customerId="@Context.Request.Query["customerId"]"
-                               asp-route-billNumber="@Context.Request.Query["billNumber"]"
-                               asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
-                               asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                               asp-route-description="@Context.Request.Query["description"]"
+                               asp-route-Filters.CustomerId="@Model.Filters?.CustomerId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.SaleFrom="@(Model.Filters?.SaleFrom.HasValue == true ? Model.Filters.SaleFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.SaleDateTo="@(Model.Filters?.SaleDateTo.HasValue == true ? Model.Filters.SaleDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description"
 >First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" 
                                asp-route-pageSize="@Model.PageSize"
-                               asp-route-customerId="@Context.Request.Query["customerId"]"
-                               asp-route-billNumber="@Context.Request.Query["billNumber"]"
-                               asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
-                               asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                               asp-route-description="@Context.Request.Query["description"]">Previous</a>
+                               asp-route-Filters.CustomerId="@Model.Filters?.CustomerId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.SaleFrom="@(Model.Filters?.SaleFrom.HasValue == true ? Model.Filters.SaleFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.SaleDateTo="@(Model.Filters?.SaleDateTo.HasValue == true ? Model.Filters.SaleDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -395,30 +385,30 @@
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
                                 <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" 
                                    asp-route-pageSize="@Model.PageSize"
-                                   asp-route-customerId="@Context.Request.Query["customerId"]"
-                                   asp-route-billNumber="@Context.Request.Query["billNumber"]"
-                                   asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
-                                   asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                                   asp-route-description="@Context.Request.Query["description"]">@i</a>
+                                   asp-route-Filters.CustomerId="@Model.Filters?.CustomerId"
+                                   asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                                   asp-route-Filters.SaleFrom="@(Model.Filters?.SaleFrom.HasValue == true ? Model.Filters.SaleFrom.Value.ToString("yyyy-MM-dd") : null)"
+                                   asp-route-Filters.SaleDateTo="@(Model.Filters?.SaleDateTo.HasValue == true ? Model.Filters.SaleDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                                   asp-route-Filters.Description="@Model.Filters?.Description">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" 
                                asp-route-pageSize="@Model.PageSize"
-                               asp-route-customerId="@Context.Request.Query["customerId"]"
-                               asp-route-billNumber="@Context.Request.Query["billNumber"]"
-                               asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
-                               asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                               asp-route-description="@Context.Request.Query["description"]">Next</a>
+                               asp-route-Filters.CustomerId="@Model.Filters?.CustomerId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.SaleFrom="@(Model.Filters?.SaleFrom.HasValue == true ? Model.Filters.SaleFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.SaleDateTo="@(Model.Filters?.SaleDateTo.HasValue == true ? Model.Filters.SaleDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" 
                                asp-route-pageSize="@Model.PageSize"
-                               asp-route-customerId="@Context.Request.Query["customerId"]"
-                               asp-route-billNumber="@Context.Request.Query["billNumber"]"
-                               asp-route-saleFrom="@Context.Request.Query["saleFrom"]"
-                               asp-route-saleDateTo="@Context.Request.Query["saleDateTo"]"
-                               asp-route-description="@Context.Request.Query["description"]">Last</a>
+                               asp-route-Filters.CustomerId="@Model.Filters?.CustomerId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.SaleFrom="@(Model.Filters?.SaleFrom.HasValue == true ? Model.Filters.SaleFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.SaleDateTo="@(Model.Filters?.SaleDateTo.HasValue == true ? Model.Filters.SaleDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">Last</a>
                         </li>
                     </ul>
                 </nav>
@@ -433,18 +423,6 @@
         // Initialize Kendo UI combobox for customer filter
         $(document).ready(function() {
             debugger;
-            // Set default dates to today if not already set
-            const today = new Date().toISOString().split('T')[0];
-            const saleFromInput = document.getElementById('saleFrom');
-            const saleDateToInput = document.getElementById('saleDateTo');
-            
-            if (saleFromInput && !saleFromInput.value) {
-                saleFromInput.value = today;
-            }
-            if (saleDateToInput && !saleDateToInput.value) {
-                saleDateToInput.value = today;
-            }
-
             // Prepare customer data for Kendo combobox
             const customerData = [
                 { value: "", text: "All Customers" }
@@ -474,23 +452,13 @@
                 }
             });
 
-            // Set the selected value if there's a query parameter
-            const selectedCustomerId = "@Context.Request.Query["customerId"]";
+            // Set the selected value from model
+            const selectedCustomerId = "@(Model.Filters?.CustomerId?.ToString() ?? "")";
             if (selectedCustomerId) {
                 const customerCombo = $("#customerFilterSelect").data("kendoComboBox");
                 if (customerCombo) {
                     customerCombo.value(selectedCustomerId);
                 }
-            }
-
-
-            // Set default dates to today on first load if dates are empty
-            const saleFromValue = document.getElementById('saleFrom').value;
-            const saleDateToValue = document.getElementById('saleDateTo').value;
-            if (!saleFromValue && !saleDateToValue) {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('saleFrom').value = today;
-                document.getElementById('saleDateTo').value = today;
             }
 
             // Add event listeners for date inputs to auto-submit form when dates change
@@ -511,8 +479,8 @@
             }
             
             // Clear other inputs
-            document.querySelector('input[name="billNumber"]').value = '';
-            document.querySelector('input[name="description"]').value = '';
+            document.querySelector('input[name="Filters.BillNumber"]').value = '';
+            document.querySelector('input[name="Filters.Description"]').value = '';
             
             // Clear dates (set to empty)
             document.getElementById('saleFrom').value = '';
@@ -524,47 +492,43 @@
 
         function SearchCustomerChange() {
             debugger;
-            const search = document.querySelector('input[name="searchCustomer"]')?.value || '';
             const pageSize = document.getElementById("pageSize").value;
             const customerCombo = $("#customerFilterSelect").data("kendoComboBox");
             const customerId = customerCombo ? customerCombo.value() : '';
-            const billNumber = document.querySelector('input[name="billNumber"]')?.value || '';
-            const saleFrom = document.querySelector('input[name="saleFrom"]')?.value || '';
-            const saleDateTo = document.querySelector('input[name="saleDateTo"]')?.value || '';
-            const description = document.querySelector('input[name="description"]')?.value || '';
+            const billNumber = document.querySelector('input[name="Filters.BillNumber"]')?.value || '';
+            const saleFrom = document.querySelector('input[name="Filters.SaleFrom"]')?.value || '';
+            const saleDateTo = document.querySelector('input[name="Filters.SaleDateTo"]')?.value || '';
+            const description = document.querySelector('input[name="Filters.Description"]')?.value || '';
             
             const params = new URLSearchParams();
             params.set('pageNumber', '1');
             params.set('pageSize', pageSize);
-            if (search) params.set('searchCustomer', search);
-            if (customerId) params.set('customerId', customerId);
-            if (billNumber) params.set('billNumber', billNumber);
-            if (saleFrom) params.set('saleFrom', saleFrom);
-            if (saleDateTo) params.set('saleDateTo', saleDateTo);
-            if (description) params.set('description', description);
+            if (customerId) params.set('Filters.CustomerId', customerId);
+            if (billNumber) params.set('Filters.BillNumber', billNumber);
+            if (saleFrom) params.set('Filters.SaleFrom', saleFrom);
+            if (saleDateTo) params.set('Filters.SaleDateTo', saleDateTo);
+            if (description) params.set('Filters.Description', description);
             
             window.location.href = '@Url.Action("Index", "Sales")' + '?' + params.toString();
         }
 
         function changePageSize(select) {
             debugger;
-            const search = document.querySelector('input[name="searchCustomer"]')?.value || '';
             const customerCombo = $("#customerFilterSelect").data("kendoComboBox");
             const customerId = customerCombo ? customerCombo.value() : '';
-            const billNumber = document.querySelector('input[name="billNumber"]')?.value || '';
-            const saleFrom = document.querySelector('input[name="saleFrom"]')?.value || '';
-            const saleDateTo = document.querySelector('input[name="saleDateTo"]')?.value || '';
-            const description = document.querySelector('input[name="description"]')?.value || '';
+            const billNumber = document.querySelector('input[name="Filters.BillNumber"]')?.value || '';
+            const saleFrom = document.querySelector('input[name="Filters.SaleFrom"]')?.value || '';
+            const saleDateTo = document.querySelector('input[name="Filters.SaleDateTo"]')?.value || '';
+            const description = document.querySelector('input[name="Filters.Description"]')?.value || '';
             
             const params = new URLSearchParams();
             params.set('pageNumber', '1');
             params.set('pageSize', select.value);
-            if (search) params.set('searchCustomer', search);
-            if (customerId) params.set('customerId', customerId);
-            if (billNumber) params.set('billNumber', billNumber);
-            if (saleFrom) params.set('saleFrom', saleFrom);
-            if (saleDateTo) params.set('saleDateTo', saleDateTo);
-            if (description) params.set('description', description);
+            if (customerId) params.set('Filters.CustomerId', customerId);
+            if (billNumber) params.set('Filters.BillNumber', billNumber);
+            if (saleFrom) params.set('Filters.SaleFrom', saleFrom);
+            if (saleDateTo) params.set('Filters.SaleDateTo', saleDateTo);
+            if (description) params.set('Filters.Description', description);
             
             window.location.href = '@Url.Action("Index", "Sales")' + '?' + params.toString();
         }

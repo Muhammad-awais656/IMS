@@ -39,55 +39,68 @@ namespace IMS.Controllers
             _vendorService = vendorService;
             _expenseTypeService = expenseTypeService;
         }
-        public async Task<IActionResult> SalesReport(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> SalesReport(ReportsViewModel model, int pageNumber = 1, int? pageSize = null)
         {
-            SalesReportsFilters salesReportsFilters = new SalesReportsFilters();
-            salesReportsFilters.FromDate = DateTime.Now;
-            salesReportsFilters.ToDate = DateTime.Now;
-           
-            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            try
             {
-                currentPageSize = pageSize.Value;
-                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-            }
-          
-            var customers = await _customerService.GetAllEnabledCustomers();
-            var selectedCustomer = HttpContext.Request.Query["SalesReportsFilters.CustomerIdFk"].ToString();
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new ReportsViewModel();
+                }
 
-            long? selectedCustomerId = null;
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["custId"].ToString()))
-            {
-                selectedCustomerId = Convert.ToInt64(HttpContext.Request.Query["custId"].ToString());
-            }
-            if (!string.IsNullOrWhiteSpace(selectedCustomer))
-            {
+                // Initialize filters if null
+                if (model.SalesReportsFilters == null)
+                {
+                    model.SalesReportsFilters = new SalesReportsFilters();
+                }
 
-                selectedCustomerId = Convert.ToInt64(selectedCustomer);
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("SalesReportsFilters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("SalesReportsFilters.ToDate");
                 
-            }
-
-            ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", selectedCustomerId);
-            //ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", HttpContext.Request.Query["SalesReportsFilters.CustomerIdFk"].ToString()!=null ? Convert.ToInt64(HttpContext.Request.Query["SalesReportsFilters.CustomerIdFk"]): null);
+                if (!hasFromDateParam && !model.SalesReportsFilters.FromDate.HasValue)
+                {
+                    model.SalesReportsFilters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
                 
-            
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-            {
-                salesReportsFilters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+                if (!hasToDateParam && !model.SalesReportsFilters.ToDate.HasValue)
+                {
+                    model.SalesReportsFilters.ToDate = DateTime.Now;
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                //var customers = await _customerService.GetAllEnabledCustomers();
+                //ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.SalesReportsFilters.CustomerId);
+
+                // Preserve filters before service call
+                var salesReportsFilters = model.SalesReportsFilters;
+
+                // Get filtered data using model.SalesReportsFilters
+                model = await _reportService.GetAllSales(pageNumber, currentPageSize, salesReportsFilters);
+
+                // Reassign filters to ensure they're preserved
+                model.SalesReportsFilters = salesReportsFilters;
+
+                // Reassign dropdown again (important after service call)
+                //ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.SalesReportsFilters.CustomerId);
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            catch (Exception ex)
             {
-                salesReportsFilters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                {
+                    model = new ReportsViewModel();
+                }
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["SalesReportsFilters.CustomerIdFk"].ToString()))
-            {
-                salesReportsFilters.CustomerId = Convert.ToInt64(HttpContext.Request.Query["SalesReportsFilters.CustomerIdFk"]);
-            }
-            if (selectedCustomerId!=null && selectedCustomerId.Value>0)
-            {
-                salesReportsFilters.CustomerId = selectedCustomerId;
-            }
-            var model=await _reportService.GetAllSales(pageNumber, currentPageSize, salesReportsFilters);
 
             return View(model);
         }
@@ -256,52 +269,68 @@ namespace IMS.Controllers
             }
         }
 
-        public async Task<IActionResult> ProfitLossReport(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> ProfitLossReport(ProfitLossReportViewModel model, int pageNumber = 1, int? pageSize = null)
         {
-            ProfitLossReportFilters filters = new ProfitLossReportFilters();
-            filters.FromDate = DateTime.Now;
-            filters.ToDate = DateTime.Now;
-           
-            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            try
             {
-                currentPageSize = pageSize.Value;
-                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-            }
-          
-            var products = await _productService.GetAllEnabledProductsAsync();
-            var selectedProduct = HttpContext.Request.Query["ProfitLossReportFilters.ProductId"].ToString();
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new ProfitLossReportViewModel();
+                }
 
-            long? selectedProductId = null;
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["productId"].ToString()))
-            {
-                selectedProductId = Convert.ToInt64(HttpContext.Request.Query["productId"].ToString());
-            }
-            if (!string.IsNullOrWhiteSpace(selectedProduct))
-            {
-                selectedProductId = Convert.ToInt64(selectedProduct);
-            }
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new ProfitLossReportFilters();
+                }
 
-            ViewBag.Products = new SelectList(products, "ProductId", "ProductName", selectedProductId);
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
                 
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-            {
-                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                {
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                {
+                    model.Filters.ToDate = DateTime.Now;
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                var products = await _productService.GetAllEnabledProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
+
+                // Preserve filters before service call
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _reportService.GetProductWiseProfitLoss(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                // Reassign dropdown again (important after service call)
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            catch (Exception ex)
             {
-                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                {
+                    model = new ProfitLossReportViewModel();
+                }
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ProfitLossReportFilters.ProductId"].ToString()))
-            {
-                filters.ProductId = Convert.ToInt64(HttpContext.Request.Query["ProfitLossReportFilters.ProductId"]);
-            }
-            if (selectedProductId != null && selectedProductId.Value > 0)
-            {
-                filters.ProductId = selectedProductId;
-            }
-            var model = await _reportService.GetProductWiseProfitLoss(pageNumber, currentPageSize, filters);
-            model.Filters = filters;
 
             return View(model);
         }
@@ -679,52 +708,68 @@ namespace IMS.Controllers
             }
         }
 
-        public async Task<IActionResult> PurchaseReport(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> PurchaseReport(PurchaseReportViewModel model, int pageNumber = 1, int? pageSize = null)
         {
-            PurchaseReportFilters filters = new PurchaseReportFilters();
-            filters.FromDate = DateTime.Now;
-            filters.ToDate = DateTime.Now;
-           
-            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            try
             {
-                currentPageSize = pageSize.Value;
-                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-            }
-          
-            var vendors = await _vendorService.GetAllEnabledVendors();
-            var selectedVendor = HttpContext.Request.Query["PurchaseReportFilters.VendorId"].ToString();
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new PurchaseReportViewModel();
+                }
 
-            long? selectedVendorId = null;
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["vendorId"].ToString()))
-            {
-                selectedVendorId = Convert.ToInt64(HttpContext.Request.Query["vendorId"].ToString());
-            }
-            if (!string.IsNullOrWhiteSpace(selectedVendor))
-            {
-                selectedVendorId = Convert.ToInt64(selectedVendor);
-            }
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new PurchaseReportFilters();
+                }
 
-            ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", selectedVendorId);
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
                 
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-            {
-                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                {
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                {
+                    model.Filters.ToDate = DateTime.Now;
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", model.Filters.VendorId);
+
+                // Preserve filters before service call
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _reportService.GetPurchaseReport(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                // Reassign dropdown again (important after service call)
+                ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", model.Filters.VendorId);
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            catch (Exception ex)
             {
-                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                {
+                    model = new PurchaseReportViewModel();
+                }
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["PurchaseReportFilters.VendorId"].ToString()))
-            {
-                filters.VendorId = Convert.ToInt64(HttpContext.Request.Query["PurchaseReportFilters.VendorId"]);
-            }
-            if (selectedVendorId != null && selectedVendorId.Value > 0)
-            {
-                filters.VendorId = selectedVendorId;
-            }
-            var model = await _reportService.GetPurchaseReport(pageNumber, currentPageSize, filters);
-            model.Filters = filters;
 
             return View(model);
         }
@@ -889,52 +934,68 @@ namespace IMS.Controllers
             }
         }
 
-        public async Task<IActionResult> ProductWiseSalesReport(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> ProductWiseSalesReport(ProductWiseSalesReportViewModel model, int pageNumber = 1, int? pageSize = null)
         {
-            ProductWiseSalesReportFilters filters = new ProductWiseSalesReportFilters();
-            filters.FromDate = DateTime.Now;
-            filters.ToDate = DateTime.Now;
-           
-            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            try
             {
-                currentPageSize = pageSize.Value;
-                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-            }
-          
-            var products = await _productService.GetAllEnabledProductsAsync();
-            var selectedProduct = HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"].ToString();
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new ProductWiseSalesReportViewModel();
+                }
 
-            long? selectedProductId = null;
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["productId"].ToString()))
-            {
-                selectedProductId = Convert.ToInt64(HttpContext.Request.Query["productId"].ToString());
-            }
-            if (!string.IsNullOrWhiteSpace(selectedProduct))
-            {
-                selectedProductId = Convert.ToInt64(selectedProduct);
-            }
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new ProductWiseSalesReportFilters();
+                }
 
-            ViewBag.Products = new SelectList(products, "ProductId", "ProductName", selectedProductId);
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
                 
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-            {
-                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                {
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                {
+                    model.Filters.ToDate = DateTime.Now;
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                var products = await _productService.GetAllEnabledProductsAsync();
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
+
+                // Preserve filters before service call
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _reportService.GetProductWiseSalesReport(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                // Reassign dropdown again (important after service call)
+                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            catch (Exception ex)
             {
-                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                {
+                    model = new ProductWiseSalesReportViewModel();
+                }
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"].ToString()))
-            {
-                filters.ProductId = Convert.ToInt64(HttpContext.Request.Query["ProductWiseSalesReportFilters.ProductId"]);
-            }
-            if (selectedProductId != null && selectedProductId.Value > 0)
-            {
-                filters.ProductId = selectedProductId;
-            }
-            var model = await _reportService.GetProductWiseSalesReport(pageNumber, currentPageSize, filters);
-            model.Filters = filters;
 
             return View(model);
         }
@@ -1142,12 +1203,17 @@ namespace IMS.Controllers
                     model.Filters = new ProductWisePurchaseReportFilters();
                 }
 
-                // Set default dates if not provided
-                if (!model.Filters.FromDate.HasValue)
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+                
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = DateTime.Now;
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
                 }
-                if (!model.Filters.ToDate.HasValue)
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
                     model.Filters.ToDate = DateTime.Now;
                 }
@@ -1393,7 +1459,20 @@ namespace IMS.Controllers
                     model.Filters = new GeneralExpensesReportFilters();
                 }
 
-                // Don't set default dates - allow null to get all expenses
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+                
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                {
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                {
+                    model.Filters.ToDate = DateTime.Now;
+                }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
                 if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
@@ -1424,6 +1503,86 @@ namespace IMS.Controllers
 
                 // Reassign dropdown again (important after service call)
                 ViewBag.ExpenseTypes = new SelectList(expenseTypes, "ExpenseTypeId", "ExpenseTypeName", model.Filters.ExpenseTypeId);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+            }
+
+            return View(model);
+        }
+        public async Task<IActionResult> PurchaseOrderProductExpensesReport(GeneralExpensesReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new GeneralExpensesReportViewModel();
+                }
+
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new GeneralExpensesReportFilters();
+                }
+
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                // If dates are cleared by user (empty string in query), they will remain null
+                var fromDateParam = Request.Query["Filters.FromDate"].ToString();
+                var toDateParam = Request.Query["Filters.ToDate"].ToString();
+                
+                // Only set defaults if this is a fresh load (no date parameters in query)
+                if (string.IsNullOrEmpty(fromDateParam))
+                {
+                    if (!model.Filters.FromDate.HasValue)
+                    {
+                        // First time load - set to 1st of current month
+                        model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    }
+                    // If user cleared the date (empty string), model.Filters.FromDate will be null, which is fine
+                }
+                
+                if (string.IsNullOrEmpty(toDateParam))
+                {
+                    if (!model.Filters.ToDate.HasValue)
+                    {
+                        // First time load - set to today
+                        model.Filters.ToDate = DateTime.Now;
+                    }
+                    // If user cleared the date (empty string), model.Filters.ToDate will be null, which is fine
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                //var expenseTypes = await _expenseTypeService.GetAllEnabledExpenseTypesAsync();
+
+                //ViewBag.ExpenseTypes = new SelectList(expenseTypes, "ExpenseTypeId", "ExpenseTypeName", model.Filters.ExpenseTypeId);
+
+                // Date validation - only validate if both dates are provided
+                if (model.Filters.FromDate.HasValue && model.Filters.ToDate.HasValue && model.Filters.FromDate > model.Filters.ToDate)
+                {
+                    TempData["WarningMessage"] = "From Date cannot be greater than To Date.";
+                }
+
+                // Preserve filters before service call
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _reportService.GetPOExpensesReport(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                // Reassign dropdown again (important after service call)
+                //ViewBag.ExpenseTypes = new SelectList(expenseTypes, "ExpenseTypeId", "ExpenseTypeName", model.Filters.ExpenseTypeId);
             }
             catch (Exception ex)
             {
@@ -1694,6 +1853,7 @@ namespace IMS.Controllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
         }
+      
 
         public async Task<IActionResult> ExportGeneralExpensesPdf(long? expenseTypeId = null, long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
         {
@@ -1801,63 +1961,259 @@ namespace IMS.Controllers
             }
         }
 
-        public async Task<IActionResult> BankCreditDebitReport(int pageNumber = 1, int? pageSize = null)
+        public async Task<IActionResult> ExportPOExpensesExcel(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
         {
-            BankCreditDebitReportFilters filters = new BankCreditDebitReportFilters();
-            filters.FromDate = DateTime.Now;
-            filters.ToDate = DateTime.Now;
-           
-            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
-            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            var filters = new GeneralExpensesReportFilters
             {
-                currentPageSize = pageSize.Value;
-                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
-            }
-          
-            var personalPayments = await _vendorService.GetAllPersonalPaymentsAsync(1, 1000, new PersonalPaymentFilters { IsActive = true });
-            var selectedAccount = HttpContext.Request.Query["BankCreditDebitReportFilters.PersonalPaymentId"].ToString();
+                ProductId = productId,
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+            
+            // Get all data for export (use large page size to get all records)
+            var model = await _reportService.GetPOExpensesReport(1, 10000, filters);
 
-            long? selectedAccountId = null;
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["accountId"].ToString()))
+            string reportName = "Direct Product Expense Report";
+            string worksheetName = "Direct Product Expense Report";
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add(worksheetName);
+            
+            // Add header
+            worksheet.Cell(1, 1).Value = "Date";
+            worksheet.Cell(1, 2).Value = "Expense Type";
+            worksheet.Cell(1, 3).Value = "Product Name";
+            worksheet.Cell(1, 4).Value = "Expense Detail";
+            worksheet.Cell(1, 5).Value = "Amount";
+            
+            // Style header
+            var headerRange = worksheet.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            // Add data
+            int row = 2;
+            foreach (var item in model.ExpensesList)
             {
-                selectedAccountId = Convert.ToInt64(HttpContext.Request.Query["accountId"].ToString());
-            }
-            if (!string.IsNullOrWhiteSpace(selectedAccount))
-            {
-                selectedAccountId = Convert.ToInt64(selectedAccount);
+                if (item.IsTotalRow)
+                {
+                    // Total row - bold and different background
+                    worksheet.Cell(row, 1).Value = "";
+                    worksheet.Cell(row, 2).Value = $"Total - {item.ExpenseTypeName}";
+                    worksheet.Cell(row, 2).Style.Font.Bold = true;
+                    worksheet.Cell(row, 3).Value = "";
+                    worksheet.Cell(row, 4).Value = "";
+                    worksheet.Cell(row, 5).Value = item.Amount;
+                    worksheet.Cell(row, 5).Style.Font.Bold = true;
+                    
+                    var totalRange = worksheet.Range(row, 1, row, 5);
+                    totalRange.Style.Font.Bold = true;
+                    totalRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
+                }
+                else
+                {
+                    // Regular row
+                    worksheet.Cell(row, 1).Value = item.ExpenseDate != DateTime.MinValue ? item.ExpenseDate.ToString("dd-MMM-yyyy") : "";
+                    worksheet.Cell(row, 2).Value = item.ExpenseTypeName;
+                    worksheet.Cell(row, 3).Value = item.ProductName;
+                    worksheet.Cell(row, 4).Value = item.ExpenseDetail;
+                    worksheet.Cell(row, 5).Value = item.Amount;
+                }
+                row++;
             }
 
-            ViewBag.Accounts = new SelectList(
-                personalPayments.PersonalPaymentList.Select(pp => new { 
-                    PersonalPaymentId = pp.PersonalPaymentId, 
-                    DisplayName = $"{pp.BankName} - {pp.AccountNumber} ({pp.AccountHolderName})" 
-                }), 
-                "PersonalPaymentId", 
-                "DisplayName", 
-                selectedAccountId);
+            // Add summary row
+            row++;
+            worksheet.Cell(row, 2).Value = "TOTAL:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalAmount;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            
+            var summaryRange = worksheet.Range(row, 1, row, 5);
+            summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"{reportName.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportPOExpensesPdf(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new GeneralExpensesReportFilters
+            {
+                ProductId = productId,
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+            
+            // Get all data for export (use large page size to get all records)
+            var model = await _reportService.GetPOExpensesReport(1, 10000, filters);
+
+            string reportTitle = "Direct Product Expense Report";
+
+            using (var stream = new MemoryStream())
+            {
+                var document = new Document(PageSize.A4, 20f, 20f, 20f, 20f);
+                PdfWriter.GetInstance(document, stream);
+
+                document.Open();
+
+                // Title
+                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                document.Add(new Paragraph(reportTitle, titleFont) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n")); // Add space
+
+                // Table with 5 columns
+                PdfPTable table = new PdfPTable(5);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 2f, 2.5f, 2.5f, 3f, 2f });
+
+                // Header row
+                string[] headers = { "Date", "Expense Type", "Product Name", "Expense Detail", "Amount" };
+
+                foreach (var header in headers)
+                {
+                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(cell);
+                }
+
+                // Data rows
+                foreach (var item in model.ExpensesList)
+                {
+                    if (item.IsTotalRow)
+                    {
+                        // Total row - bold and different background
+                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                        {
+                            BackgroundColor = BaseColor.BLUE
+                        };
+                        table.AddCell(totalCell1);
+                        
+                        var totalCell2 = new PdfPCell(new Phrase($"Total - {item.ExpenseTypeName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                        {
+                            BackgroundColor = BaseColor.BLUE
+                        };
+                        table.AddCell(totalCell2);
+                        
+                        table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(item.Amount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                    }
+                    else
+                    {
+                        // Regular row
+                        table.AddCell(item.ExpenseDate != DateTime.MinValue ? item.ExpenseDate.ToString("dd-MMM-yyyy") : "");
+                        table.AddCell(item.ExpenseTypeName ?? "");
+                        table.AddCell(item.ExpenseDetail ?? "");
+                        table.AddCell(item.Amount.ToString("N2"));
+                    }
+                }
+
+                // Summary row
+                var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                {
+                    Colspan = 3,
+                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(summaryCell);
+                table.AddCell(new PdfPCell(new Phrase(model.TotalAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+                document.Add(table);
+                document.Close();
+
+                byte[] bytes = stream.ToArray();
+                string filename = $"{reportTitle.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                return File(bytes, "application/pdf", filename);
+            }
+        }
+       
+
+        public async Task<IActionResult> BankCreditDebitReport(BankCreditDebitReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new BankCreditDebitReportViewModel();
+                }
+
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new BankCreditDebitReportFilters();
+                }
+
+                // Set default dates only if not provided (first time load)
+                // FromDate: 1st of current month, ToDate: Today
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
                 
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["FromDate"].ToString()))
-            {
-                filters.FromDate = Convert.ToDateTime(HttpContext.Request.Query["FromDate"]);
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                {
+                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                }
+                
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                {
+                    model.Filters.ToDate = DateTime.Now;
+                }
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                // Load dropdown data
+                var personalPayments = await _vendorService.GetAllPersonalPaymentsAsync(1, 1000, new PersonalPaymentFilters { IsActive = true });
+                ViewBag.Accounts = new SelectList(
+                    personalPayments.PersonalPaymentList.Select(pp => new { 
+                        PersonalPaymentId = pp.PersonalPaymentId, 
+                        DisplayName = $"{pp.BankName} - {pp.AccountNumber} ({pp.AccountHolderName})" 
+                    }), 
+                    "PersonalPaymentId", 
+                    "DisplayName", 
+                    model.Filters.PersonalPaymentId);
+
+                // Preserve filters before service call
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _reportService.GetBankCreditDebitReport(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                // Reassign dropdown again (important after service call)
+                ViewBag.Accounts = new SelectList(
+                    personalPayments.PersonalPaymentList.Select(pp => new { 
+                        PersonalPaymentId = pp.PersonalPaymentId, 
+                        DisplayName = $"{pp.BankName} - {pp.AccountNumber} ({pp.AccountHolderName})" 
+                    }), 
+                    "PersonalPaymentId", 
+                    "DisplayName", 
+                    model.Filters.PersonalPaymentId);
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["ToDate"].ToString()))
+            catch (Exception ex)
             {
-                filters.ToDate = Convert.ToDateTime(HttpContext.Request.Query["ToDate"]);
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                {
+                    model = new BankCreditDebitReportViewModel();
+                }
             }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["BankCreditDebitReportFilters.PersonalPaymentId"].ToString()))
-            {
-                filters.PersonalPaymentId = Convert.ToInt64(HttpContext.Request.Query["BankCreditDebitReportFilters.PersonalPaymentId"]);
-            }
-            if (selectedAccountId != null && selectedAccountId.Value > 0)
-            {
-                filters.PersonalPaymentId = selectedAccountId;
-            }
-            if (!string.IsNullOrEmpty(HttpContext.Request.Query["TransactionType"].ToString()))
-            {
-                filters.TransactionType = HttpContext.Request.Query["TransactionType"].ToString();
-            }
-            var model = await _reportService.GetBankCreditDebitReport(pageNumber, currentPageSize, filters);
-            model.Filters = filters;
 
             return View(model);
         }

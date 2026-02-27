@@ -43,7 +43,7 @@
                                     <i class="fa-solid fa-building me-1 text-primary"></i>Vendor
                                 </label>
                                 <div>
-                                    <input type="hidden" name="vendorId" id="vendorId" value="@ViewData["vendorId"]" />
+                                    <input type="hidden" name="Filters.VendorId" id="vendorId" asp-for="Filters.VendorId" />
                                     <input id="vendorIdCombo" style="width: 100%;" />
                                 </div>
                             </div>
@@ -52,7 +52,7 @@
                                     <i class="fa-solid fa-file-invoice me-1 text-primary"></i>Bill Number
                                 </label>
                                 <div>
-                                    <input type="hidden" name="billNumber" id="billNumber" value="@ViewData["billNumber"]" />
+                                    <input type="hidden" name="Filters.BillNumber" id="billNumber" asp-for="Filters.BillNumber" />
                                     <input id="billNumberCombo" style="width: 100%;" />
                                 </div>
                             </div>
@@ -60,13 +60,13 @@
                                 <label class="form-label fw-semibold text-dark">
                                     <i class="fa-solid fa-calendar me-1 text-primary"></i>From Date
                                 </label>
-                                <input type="date" name="billDateFrom" id="billDateFrom" class="form-control" value="@ViewData["billDateFrom"]" />
+                                <input type="date" asp-for="Filters.BillDateFrom" id="billDateFrom" class="form-control" />
                             </div>
                             <div class="col-lg-2 col-md-6">
                                 <label class="form-label fw-semibold text-dark">
                                     <i class="fa-solid fa-calendar me-1 text-primary"></i>To Date
                                 </label>
-                                <input type="date" name="billDateTo" id="billDateTo" class="form-control" value="@ViewData["billDateTo"]" />
+                                <input type="date" asp-for="Filters.BillDateTo" id="billDateTo" class="form-control" />
                             </div>
                         </div>
                         
@@ -252,17 +252,21 @@
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" 
-                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
-                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
-                               asp-route-description="@ViewData["description"]">
+                               asp-route-Filters.VendorId="@Model.Filters?.VendorId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.BillDateFrom="@(Model.Filters?.BillDateFrom.HasValue == true ? Model.Filters.BillDateFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.BillDateTo="@(Model.Filters?.BillDateTo.HasValue == true ? Model.Filters.BillDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">
                                 <i class="fa-solid fa-angles-left"></i>
                             </a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
-                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
-                               asp-route-description="@ViewData["description"]">
+                               asp-route-Filters.VendorId="@Model.Filters?.VendorId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.BillDateFrom="@(Model.Filters?.BillDateFrom.HasValue == true ? Model.Filters.BillDateFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.BillDateTo="@(Model.Filters?.BillDateTo.HasValue == true ? Model.Filters.BillDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">
                                 <i class="fa-solid fa-chevron-left"></i>
                             </a>
                         </li>
@@ -278,24 +282,30 @@
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
                                 <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize"
-                                   asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
-                                   asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
-                                   asp-route-description="@ViewData["description"]">@i</a>
+                                   asp-route-Filters.VendorId="@Model.Filters?.VendorId"
+                                   asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                                   asp-route-Filters.BillDateFrom="@(Model.Filters?.BillDateFrom.HasValue == true ? Model.Filters.BillDateFrom.Value.ToString("yyyy-MM-dd") : null)"
+                                   asp-route-Filters.BillDateTo="@(Model.Filters?.BillDateTo.HasValue == true ? Model.Filters.BillDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                                   asp-route-Filters.Description="@Model.Filters?.Description">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
-                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
-                               asp-route-description="@ViewData["description"]">
+                               asp-route-Filters.VendorId="@Model.Filters?.VendorId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.BillDateFrom="@(Model.Filters?.BillDateFrom.HasValue == true ? Model.Filters.BillDateFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.BillDateTo="@(Model.Filters?.BillDateTo.HasValue == true ? Model.Filters.BillDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">
                                 <i class="fa-solid fa-chevron-right"></i>
                             </a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize"
-                               asp-route-vendorId="@ViewData["vendorId"]" asp-route-billNumber="@ViewData["billNumber"]" 
-                               asp-route-billDateFrom="@ViewData["billDateFrom"]" asp-route-billDateTo="@ViewData["billDateTo"]"
-                               asp-route-description="@ViewData["description"]">
+                               asp-route-Filters.VendorId="@Model.Filters?.VendorId"
+                               asp-route-Filters.BillNumber="@Model.Filters?.BillNumber"
+                               asp-route-Filters.BillDateFrom="@(Model.Filters?.BillDateFrom.HasValue == true ? Model.Filters.BillDateFrom.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.BillDateTo="@(Model.Filters?.BillDateTo.HasValue == true ? Model.Filters.BillDateTo.Value.ToString("yyyy-MM-dd") : null)"
+                               asp-route-Filters.Description="@Model.Filters?.Description">
                                 <i class="fa-solid fa-angles-right"></i>
                             </a>
                         </li>
@@ -328,8 +338,7 @@
             // Add form validation feedback
             addFormValidation();
             
-            // Set default dates
-            setDefaultDates();
+            // Dates should be empty on first load - no default dates set
             
             // Initialize collapse functionality
             initializeCollapse();
@@ -344,10 +353,10 @@
                 var billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
                 
                 if (vendorCombo) {
-                    $("#vendorId").val(vendorCombo.value() || "");
+                    document.getElementById('vendorId').value = vendorCombo.value() || "";
                 }
                 if (billNumberCombo) {
-                    $("#billNumber").val(billNumberCombo.value() || "");
+                    document.getElementById('billNumber').value = billNumberCombo.value() || "";
                 }
                 
                 // Show loading state on search button
@@ -409,21 +418,6 @@
             });
         }
 
-        function setDefaultDates() {
-            const billDateFrom = document.getElementById('billDateFrom');
-            const billDateTo = document.getElementById('billDateTo');
-            
-            if (!billDateFrom.value) {
-                const today = new Date();
-                const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-                billDateFrom.value = oneMonthAgo.toISOString().split('T')[0];
-            }
-            
-            if (!billDateTo.value) {
-                const today = new Date();
-                billDateTo.value = today.toISOString().split('T')[0];
-            }
-        }
 
         function initializeCollapse() {
             const collapseElement = document.getElementById('filterCollapse');
@@ -454,9 +448,9 @@
                 existingBillNumberCombo.destroy();
             }
             
-            // Get selected values from hidden inputs or query parameters
-            var selectedVendorId = $("#vendorId").val() || getQueryParam('vendorId');
-            var selectedBillNumber = $("#billNumber").val() || getQueryParam('billNumber');
+            // Get selected values from model
+            var selectedVendorId = "@(Model.Filters?.VendorId?.ToString() ?? "")";
+            var selectedBillNumber = "@(Model.Filters?.BillNumber?.ToString() ?? "")";
             
             // Initialize Vendor ComboBox
             $("#vendorIdCombo").kendoComboBox({
@@ -476,7 +470,7 @@
                 minLength: 1,
                 change: function() {
                     var vendorId = this.value();
-                    $("#vendorId").val(vendorId || "");
+                    document.getElementById('vendorId').value = vendorId || "";
                     loadBillNumbers(vendorId);
                 },
                 value: selectedVendorId || ""
@@ -495,7 +489,7 @@
                 minLength: 1,
                 change: function() {
                     var billNumber = this.value();
-                    $("#billNumber").val(billNumber || "");
+                    document.getElementById('billNumber').value = billNumber || "";
                 },
                 value: selectedBillNumber || "",
                 enabled: selectedVendorId ? true : false
@@ -536,8 +530,8 @@
             }
             
             // Reset hidden fields
-            $("#vendorId").val("");
-            $("#billNumber").val("");
+            document.getElementById('vendorId').value = "";
+            document.getElementById('billNumber').value = "";
             
             var billDateFrom = document.getElementById('billDateFrom');
             var billDateTo = document.getElementById('billDateTo');
@@ -568,12 +562,12 @@
                     billNumberCombo.value("");
                     billNumberCombo.enable(false);
                 }
-                $("#billNumber").val("");
+                document.getElementById('billNumber').value = "";
                 return;
             }
             
             // Get selected bill number from parameter or hidden field
-            selectedBillNumber = selectedBillNumber || $("#billNumber").val();
+            selectedBillNumber = selectedBillNumber || document.getElementById('billNumber').value;
             
             // Show loading state
             if (billNumberCombo) {
@@ -707,8 +701,8 @@
             const vendorCombo = $("#vendorIdCombo").data("kendoComboBox");
             const billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
             
-            const vendorId = vendorCombo ? vendorCombo.value() : $("#vendorId").val();
-            const billNumber = billNumberCombo ? billNumberCombo.value() : $("#billNumber").val();
+            const vendorId = vendorCombo ? vendorCombo.value() : document.getElementById('vendorId').value;
+            const billNumber = billNumberCombo ? billNumberCombo.value() : document.getElementById('billNumber').value;
             const billDateFrom = document.getElementById("billDateFrom").value;
             const billDateTo = document.getElementById("billDateTo").value;
             
@@ -716,10 +710,10 @@
             const params = new URLSearchParams();
             params.set('pageNumber', '1');
             params.set('pageSize', select.value);
-            if (vendorId) params.set('vendorId', vendorId);
-            if (billNumber) params.set('billNumber', billNumber);
-            if (billDateFrom) params.set('billDateFrom', billDateFrom);
-            if (billDateTo) params.set('billDateTo', billDateTo);
+            if (vendorId) params.set('Filters.VendorId', vendorId);
+            if (billNumber) params.set('Filters.BillNumber', billNumber);
+            if (billDateFrom) params.set('Filters.BillDateFrom', billDateFrom);
+            if (billDateTo) params.set('Filters.BillDateTo', billDateTo);
             
             window.location.href = '@Url.Action("Index", "VendorPayments")' + '?' + params.toString();
         }

@@ -22,39 +22,44 @@ namespace IMS.Controllers
             _vendorPaymentService = vendorPaymentService;
         }
 
-        public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
-            long? customerId = null, long? saleId = null,
-            DateTime? paymentDateFrom = null, DateTime? paymentDateTo = null)
+        public async Task<IActionResult> Index(CustomerPaymentViewModel model, int pageNumber = 1, int? pageSize = null)
         {
             try
             {
-                var filters = new CustomerPaymentFilters
+                // Initialize model if null
+                if (model == null)
                 {
-                    CustomerId = customerId,
-                    SaleId = saleId,
-                    PaymentDateFrom = paymentDateFrom,
-                    PaymentDateTo = paymentDateTo
-                };
-                if (filters.PaymentDateFrom == null && filters.PaymentDateTo==null)
-                {
-                    filters.PaymentDateFrom = DateTime.Now;
-                    filters.PaymentDateTo = DateTime.Now;
+                    model = new CustomerPaymentViewModel();
                 }
-                var viewModel = await _customerPaymentService.GetAllPaymentsAsync(pageNumber, pageSize ?? 10, filters);
 
-                // Store filter values in ViewData for form persistence
-                ViewData["customerId"] = customerId;
-                ViewData["saleId"] = saleId;
-                ViewData["paymentDateFrom"] = paymentDateFrom?.ToString("yyyy-MM-dd");
-                ViewData["paymentDateTo"] = paymentDateTo?.ToString("yyyy-MM-dd");
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new CustomerPaymentFilters();
+                }
 
-                return View(viewModel);
+                // Don't set default dates - let them be null to show all payments on first load
+
+                var currentPageSize = pageSize ?? 10;
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _customerPaymentService.GetAllPaymentsAsync(pageNumber, currentPageSize, filters);
+
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading payments index");
                 TempData["ErrorMessage"] = "An error occurred while loading payments.";
-                return View(new CustomerPaymentViewModel());
+                if (model == null)
+                {
+                    model = new CustomerPaymentViewModel();
+                }
+                return View(model);
             }
         }
 

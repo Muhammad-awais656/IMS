@@ -125,7 +125,7 @@ namespace IMS.Services
                             SUM(TotalReceivedAmount) AS TotalReceivedAmount,
                             SUM(TotalDueAmount) AS TotalDueAmount
                         FROM Sales
-                        WHERE IsDeleted = 0
+                        WHERE ISNULL(IsDeleted,0) = 0
                             AND (@CustomerId IS NULL OR CustomerId_FK = @CustomerId)
                             AND (@FromDate IS NULL OR SaleDate >= @FromDate)
                             AND (@ToDate IS NULL OR SaleDate <= @ToDate);
@@ -134,8 +134,8 @@ namespace IMS.Services
                     using (var totalsCommand = new SqlCommand(totalsSql, connection))
                     {
                         totalsCommand.Parameters.AddWithValue("@CustomerId", (object)salesReportsFilters?.CustomerId ?? DBNull.Value);
-                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.FromDate);
-                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
+                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) || salesReportsFilters?.FromDate ==null ? DBNull.Value : (object)salesReportsFilters.FromDate);
+                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) || salesReportsFilters?.ToDate==null ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
 
                         using (var totalsReader = await totalsCommand.ExecuteReaderAsync())
                         {
@@ -1943,7 +1943,7 @@ namespace IMS.Services
                             WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
                                 AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
-                                AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId)
+                                AND ISNULL(e.ProductId_FK,0) = 0
                                
                             GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
                         )
@@ -1979,7 +1979,7 @@ namespace IMS.Services
                         WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
                             AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
                             AND (@ExpenseTypeId IS NULL OR e.ExpenseTypeId_FK = @ExpenseTypeId)
-                            AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId);
+                            AND ISNULL(e.ProductId_FK,0) = 0;
                     ";
 
                     var offset = (pageNumber - 1) * (pageSize ?? 10);
@@ -2010,6 +2010,174 @@ namespace IMS.Services
                                     ExpenseTypeName = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeName"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
+                                    ExpenseDetail = reader.IsDBNull(reader.GetOrdinal("ExpenseDetail"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ExpenseDetail")),
+                                    Amount = reader.IsDBNull(reader.GetOrdinal("Amount"))
+                                        ? 0m
+                                        : reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                    IsTotalRow = false
+                                });
+                            }
+
+                            // Read total records
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
+                            }
+
+                            // Read summary totals
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
+                            }
+                        }
+                    }
+
+                    // Add expense type total rows
+                    // Group expenses by expense type and add total rows
+                    var expenseTypeGroups = expensesList.GroupBy(e => e.ExpenseTypeId).ToList();
+                    var finalList = new List<GeneralExpensesReportItem>();
+                    
+                    foreach (var group in expenseTypeGroups)
+                    {
+                        var typeExpenses = group.OrderBy(e => e.ExpenseDate).ToList();
+                        finalList.AddRange(typeExpenses);
+                        
+                        // Add total row for this expense type
+                        var typeTotal = new GeneralExpensesReportItem
+                        {
+                            ExpenseDate = DateTime.MinValue,
+                            ExpenseTypeId = group.Key,
+                            ExpenseTypeName = typeExpenses.First().ExpenseTypeName,
+                            ExpenseDetail = string.Empty,
+                            Amount = typeExpenses.Sum(e => e.Amount),
+                            IsTotalRow = true
+                        };
+                        finalList.Add(typeTotal);
+                    }
+                    
+                    expensesList = finalList;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            return new GeneralExpensesReportViewModel
+            {
+                ExpensesList = expensesList,
+                Filters = filters ?? new GeneralExpensesReportFilters(),
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalAmount = totalAmount
+            };
+        }
+        public async Task<GeneralExpensesReportViewModel> GetPOExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters)
+        {
+            var expensesList = new List<GeneralExpensesReportItem>();
+            int totalRecords = 0;
+            decimal totalAmount = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        WITH DailyExpenses AS (
+                            SELECT 
+                                CAST(e.ExpenseDate AS DATE) AS ExpenseDate,
+                                e.ExpenseTypeId_FK AS ExpenseTypeId,
+                                ISNULL(et.ExpenseTypeName, '') AS ExpenseTypeName,
+                                ISNULL(p.ProductName, '') AS ProductName,
+                                MAX(e.ExpenseDetail) AS ExpenseDetail,
+                                SUM(e.Amount) AS Amount
+                            FROM Expenses e
+                            LEFT JOIN AdminExpenseTypes et ON e.ExpenseTypeId_FK = et.ExpenseTypeId
+                            LEFT JOIN Products p ON e.ProductId_FK = p.ProductId
+                            WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                                AND (e.ProductId_FK IS NOT NULL AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId))
+                               
+                            GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName, p.ProductName
+                        )
+                        SELECT 
+                            de.ExpenseDate,
+                            de.ExpenseTypeId,
+                            de.ExpenseTypeName,
+                            de.ProductName,
+                            de.ExpenseDetail,
+                            de.Amount,
+                            0 AS IsTotalRow
+                        FROM DailyExpenses de
+                        ORDER BY de.ExpenseTypeName, de.ExpenseDate
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+                        SELECT COUNT(*) AS TotalRecords
+                        FROM (
+                            SELECT 
+                                CAST(e.ExpenseDate AS DATE) AS ExpenseDate,
+                                e.ExpenseTypeId_FK AS ExpenseTypeId
+                            FROM Expenses e
+                            LEFT JOIN AdminExpenseTypes et ON e.ExpenseTypeId_FK = et.ExpenseTypeId
+                            WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                                AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                                AND (e.ProductId_FK IS NOT NULL AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId))
+                            GROUP BY CAST(e.ExpenseDate AS DATE), e.ExpenseTypeId_FK, et.ExpenseTypeName
+                        ) AS DailyExpenses;
+
+                        SELECT 
+                            SUM(e.Amount) AS TotalAmount
+                        FROM Expenses e
+                        WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= @FromDate)
+                            AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= @ToDate)
+                            AND (e.ProductId_FK IS NOT NULL AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId));
+                    ";
+
+                    var offset = (pageNumber - 1) * (pageSize ?? 10);
+                    var pageSizeValue = pageSize ?? 10;
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
+                       
+                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", offset);
+                        command.Parameters.AddWithValue("@PageSize", pageSizeValue);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            // Read daily expenses data
+                            while (await reader.ReadAsync())
+                            {
+                                expensesList.Add(new GeneralExpensesReportItem
+                                {
+                                    ExpenseDate = reader.IsDBNull(reader.GetOrdinal("ExpenseDate"))
+                                        ? DateTime.MinValue
+                                        : reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
+                                    ExpenseTypeId = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeId"))
+                                        ? 0
+                                        : reader.GetInt64(reader.GetOrdinal("ExpenseTypeId")),
+                                    ExpenseTypeName = reader.IsDBNull(reader.GetOrdinal("ExpenseTypeName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ExpenseTypeName")),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
+                                        ? string.Empty
+                                        : reader.GetString(reader.GetOrdinal("ProductName")),
                                     ExpenseDetail = reader.IsDBNull(reader.GetOrdinal("ExpenseDetail"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ExpenseDetail")),

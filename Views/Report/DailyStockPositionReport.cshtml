@@ -118,17 +118,37 @@
 
 @section Scripts {
     <script>
-        document.getElementById("exportExcelBtn").addEventListener("click", function () {
-            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
-            var url = `/Report/ExportDailyStockPositionExcel?reportDate=${reportDate}`;
-            window.location.href = url;
-        });
+        document.addEventListener("DOMContentLoaded", function() {
+            var exportExcelBtn = document.getElementById("exportExcelBtn");
+            var exportPdfBtn = document.getElementById("exportPdfBtn");
+            
+            if (exportExcelBtn) {
+                exportExcelBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var reportDateInput = document.querySelector("input[name='reportDate']");
+                    var reportDate = reportDateInput ? reportDateInput.value : "";
+                    if (!reportDate) {
+                        reportDate = new Date().toISOString().split('T')[0]; // Default to today if empty
+                    }
+                    var url = `/Report/ExportDailyStockPositionExcel?reportDate=${reportDate}`;
+                    window.location.href = url;
+                });
+            }
 
-        document.getElementById("exportPdfBtn").addEventListener("click", function () {
-            var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
-            var url = `/Report/ExportDailyStockPositionPdf?reportDate=${reportDate}`;
-            window.location.href = url;
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var reportDateInput = document.querySelector("input[name='reportDate']");
+                    var reportDate = reportDateInput ? reportDateInput.value : "";
+                    if (!reportDate) {
+                        reportDate = new Date().toISOString().split('T')[0]; // Default to today if empty
+                    }
+                    var url = `/Report/ExportDailyStockPositionPdf?reportDate=${reportDate}`;
+                    window.location.href = url;
+                });
+            }
         });
     </script>
 }
+
 

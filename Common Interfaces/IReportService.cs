@@ -17,6 +17,7 @@ namespace IMS.Common_Interfaces
         Task<ProductWiseSalesReportViewModel> GetProductWiseSalesReport(int pageNumber, int? pageSize, ProductWiseSalesReportFilters? filters);
         Task<ProductWisePurchaseReportViewModel> GetProductWisePurchaseReport(int pageNumber, int? pageSize, ProductWisePurchaseReportFilters? filters);
         Task<GeneralExpensesReportViewModel> GetGeneralExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters);
+        Task<GeneralExpensesReportViewModel> GetPOExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters);
         Task<DailyStockPositionReportViewModel> GetDailyStockPositionReport(DailyStockPositionReportFilters? filters);
     }
 }

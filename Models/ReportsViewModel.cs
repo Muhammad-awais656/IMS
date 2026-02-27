@@ -316,6 +316,7 @@ namespace IMS.Models
         public string ExpenseDetail { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public bool IsTotalRow { get; set; } = false; // To identify total rows for each expense type
+        public string ProductName { get; set; } = string.Empty;
     }
 
     public class GeneralExpensesReportFilters

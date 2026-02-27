@@ -26,52 +26,53 @@ namespace IMS.Controllers
         }
 
         // GET: VendorBillsController
-        public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
-            long? vendorId = null, long? billNumber = null,
-            DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null, long? selectedUnitId = null)
+        public async Task<IActionResult> Index(VendorBillsViewModel model, int pageNumber = 1, int? pageSize = null)
         {
             try
             {
-                // Set today's date as default if no dates are provided
-                var today = DateTime.Today;
-                if (!billDateFrom.HasValue)
-                    billDateFrom = DateTime.Now;                 //.AddMonths(-1);
-                if (!billDateTo.HasValue)
-                    billDateTo = today;
-
-                var filters = new VendorBillsFilters
+                // Initialize model if null
+                if (model == null)
                 {
-                    VendorId = vendorId,
-                    BillNumber = billNumber,
-                    BillDateFrom = billDateFrom,
-                    BillDateTo = billDateTo,
-                    Description = description
-                };
-
-                var viewModel = await _vendorBillsService.GetAllBillsAsync(pageNumber, pageSize ?? 10, filters);
-                viewModel.VendorList = await _vendorBillsService.GetAllVendorsAsync();
-
-                // Load bill numbers if vendor is selected
-                if (vendorId.HasValue)
-                {
-                    ViewBag.BillNumbers = await _vendorBillsService.GetSupplierBillNumbersAsync(vendorId.Value);
+                    model = new VendorBillsViewModel();
                 }
 
-                // Store filter values in ViewData for form persistence
-                ViewData["vendorId"] = vendorId;
-                ViewData["billNumber"] = billNumber;
-                ViewData["billDateFrom"] = billDateFrom?.ToString("yyyy-MM-dd");
-                ViewData["billDateTo"] = billDateTo?.ToString("yyyy-MM-dd");
-                ViewData["description"] = description;
-                ViewData["selectedUnitId"] = selectedUnitId;
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new VendorBillsFilters();
+                }
 
-                return View(viewModel);
+                // Don't set default dates - let them be null to show all bills on first load
+
+                var currentPageSize = pageSize ?? 10;
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _vendorBillsService.GetAllBillsAsync(pageNumber, currentPageSize, filters);
+                
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+                
+                // Load vendors
+                model.VendorList = await _vendorBillsService.GetAllVendorsAsync();
+
+                // Load bill numbers if vendor is selected
+                if (model.Filters.VendorId.HasValue)
+                {
+                    ViewBag.BillNumbers = await _vendorBillsService.GetSupplierBillNumbersAsync(model.Filters.VendorId.Value);
+                }
+
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading vendor bills");
                 TempData["ErrorMessage"] = "An error occurred while loading vendor bills.";
-                return View(new VendorBillsViewModel());
+                if (model == null)
+                {
+                    model = new VendorBillsViewModel();
+                }
+                return View(model);
             }
         }
 

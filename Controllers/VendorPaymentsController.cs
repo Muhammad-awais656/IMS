@@ -25,50 +25,53 @@ namespace IMS.Controllers
         }
 
         // GET: VendorPaymentsController
-        public async Task<IActionResult> Index(int pageNumber = 1, int? pageSize = 10,
-            long? vendorId = null, long? billNumber = null,
-            DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
+        public async Task<IActionResult> Index(VendorPaymentViewModel model, int pageNumber = 1, int? pageSize = null)
         {
             try
             {
-                if (billDateFrom == null && billDateTo ==null)
+                // Initialize model if null
+                if (model == null)
                 {
-                    billDateFrom = DateTime.Now;                //DateTime.Now.AddMonths(-1);
-                    billDateTo = DateTime.Now;
-
+                    model = new VendorPaymentViewModel();
                 }
-                var filters = new VendorPaymentFilters
-                {
-                    VendorId = vendorId,
-                    BillNumber = billNumber,
-                    BillDateFrom = billDateFrom,
-                    BillDateTo = billDateTo,
-                    Description = description
-                };
 
-                var viewModel = await _vendorPaymentService.GetAllBillPaymentsAsync(pageNumber, pageSize ?? 10, filters);
-                viewModel.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new VendorPaymentFilters();
+                }
+
+                // Don't set default dates - let them be null to show all payments on first load
+
+                var currentPageSize = pageSize ?? 10;
+                var filters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _vendorPaymentService.GetAllBillPaymentsAsync(pageNumber, currentPageSize, filters);
+                
+                // Reassign filters to ensure they're preserved
+                model.Filters = filters;
+                
+                // Load vendors
+                model.VendorList = await _vendorPaymentService.GetAllVendorsAsync();
 
                 // Load bill numbers if vendor is selected
-                if (vendorId.HasValue)
+                if (model.Filters.VendorId.HasValue)
                 {
-                    ViewBag.BillNumbers = await _vendorPaymentService.GetSupplierBillNumbersAsync(vendorId.Value);
+                    ViewBag.BillNumbers = await _vendorPaymentService.GetSupplierBillNumbersAsync(model.Filters.VendorId.Value);
                 }
 
-                // Store filter values in ViewData for form persistence
-                ViewData["vendorId"] = vendorId;
-                ViewData["billNumber"] = billNumber;
-                ViewData["billDateFrom"] = billDateFrom?.ToString("yyyy-MM-dd");
-                ViewData["billDateTo"] = billDateTo?.ToString("yyyy-MM-dd");
-                ViewData["description"] = description;
-
-                return View(viewModel);
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading vendor payments");
                 TempData["ErrorMessage"] = "An error occurred while loading vendor payments.";
-                return View(new VendorPaymentViewModel());
+                if (model == null)
+                {
+                    model = new VendorPaymentViewModel();
+                }
+                return View(model);
             }
         }
 

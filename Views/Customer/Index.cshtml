@@ -25,9 +25,6 @@
             <div class="card-body user-search-section pt-0">
                 <form asp-action="Index" 
                       asp-controller="Customer" 
-                      asp-route-searchUsername="@ViewData["searchUsername"]" 
-                      asp-route-searchContactNo="@ViewData["searchContactNo"]"
-                      asp-route-searchEmail="@ViewData["searchEmail"]"
                       method="get">
                     
                     <div class="row g-3 mb-4">
@@ -35,8 +32,7 @@
                         <div class="col-md-4">
                             <div class="form-floating user-search-floating">
                                 <input type="text"
-                                       name="searchUsername"
-                                       value="@Context.Request.Query["searchUsername"]"
+                                       asp-for="Filters.CustomerName"
                                        class="form-control user-search-input"
                                        placeholder="Enter Customer Name"
                                        onchange="SearchNameChange()" />
@@ -49,8 +45,7 @@
                         <div class="col-md-4">
                             <div class="form-floating user-search-floating">
                                 <input type="text"
-                                       name="searchContactNo"
-                                       value="@Context.Request.Query["searchContactNo"]"
+                                       asp-for="Filters.PhoneNumber"
                                        class="form-control user-search-input"
                                        placeholder="Enter Contact Number"
                                        onchange="SearchNameChange()" />
@@ -63,8 +58,7 @@
                         <div class="col-md-4">
                             <div class="form-floating user-search-floating">
                                 <input type="text"
-                                       name="searchEmail"
-                                       value="@Context.Request.Query["searchEmail"]"
+                                       asp-for="Filters.Email"
                                        class="form-control user-search-input"
                                        placeholder="Enter Email"
                                        onchange="SearchNameChange()" />
@@ -176,11 +170,16 @@
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="1"
-                               asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">First</a>
+                               asp-route-pageSize="@Model.PageSize" 
+                               asp-route-Filters.CustomerName="@Model.Filters?.CustomerName"
+                               asp-route-Filters.PhoneNumber="@Model.Filters?.PhoneNumber"
+                               asp-route-Filters.Email="@Model.Filters?.Email">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-searchUsername="@ViewData["searchUsername"]">Previous</a>
+                               asp-route-Filters.CustomerName="@Model.Filters?.CustomerName"
+                               asp-route-Filters.PhoneNumber="@Model.Filters?.PhoneNumber"
+                               asp-route-Filters.Email="@Model.Filters?.Email">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -194,14 +193,23 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">@i</a>
+                                <a class="page-link" asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" 
+                                   asp-route-Filters.CustomerName="@Model.Filters?.CustomerName"
+                                   asp-route-Filters.PhoneNumber="@Model.Filters?.PhoneNumber"
+                                   asp-route-Filters.Email="@Model.Filters?.Email">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Next</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" 
+                               asp-route-Filters.CustomerName="@Model.Filters?.CustomerName"
+                               asp-route-Filters.PhoneNumber="@Model.Filters?.PhoneNumber"
+                               asp-route-Filters.Email="@Model.Filters?.Email">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchUsername="@ViewData["searchUsername"]">Last</a>
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" 
+                               asp-route-Filters.CustomerName="@Model.Filters?.CustomerName"
+                               asp-route-Filters.PhoneNumber="@Model.Filters?.PhoneNumber"
+                               asp-route-Filters.Email="@Model.Filters?.Email">Last</a>
                         </li>
                     </ul>
                 </nav>

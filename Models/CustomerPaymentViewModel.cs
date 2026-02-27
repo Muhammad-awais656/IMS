@@ -7,6 +7,7 @@ namespace IMS.Models
         public List<PaymentWithCustomerViewModel> PaymentsList { get; set; } = new List<PaymentWithCustomerViewModel>();
         public List<Customer> CustomerList { get; set; } = new List<Customer>();
         public List<Sale> SalesList { get; set; } = new List<Sale>();
+        public CustomerPaymentFilters Filters { get; set; } = new CustomerPaymentFilters();
 
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }

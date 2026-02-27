@@ -35,12 +35,22 @@ namespace IMS.Controllers
         }
 
         // GET: SalesController
-        public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string? searchCustomer = null, 
-            long? customerId = null, long? billNumber = null, DateTime? saleFrom = null, DateTime? saleDateTo = null, 
-            string? description = null)
+        public async Task<ActionResult> Index(SalesViewModel model, int pageNumber = 1, int? pageSize = null)
         {
             try
             {
+                // Initialize model if null
+                if (model == null)
+                {
+                    model = new SalesViewModel();
+                }
+
+                // Initialize filters if null
+                if (model.Filters == null)
+                {
+                    model.Filters = new SalesFilters();
+                }
+
                 var currentPageSize = pageSize ?? HttpContext.Session.GetInt32("PageSize") ?? 10;
                 HttpContext.Session.SetInt32("PageSize", currentPageSize);
 
@@ -49,82 +59,45 @@ namespace IMS.Controllers
                 if (!hasAnySales)
                 {
                     TempData["InfoMessage"] = "No sales records found in the database. You can create your first sale using the 'Add New Sale' button.";
-                    var emptyViewModel = new SalesViewModel();
                     // Load customers for the filter dropdown even when no sales exist
                     var customersRes = await _salesService.GetAllCustomersAsync();
-                    emptyViewModel.CustomerList = customersRes;
-                    return View(emptyViewModel);
+                    model.CustomerList = customersRes;
+                    return View(model);
                 }
 
-                var stockFilters = new SalesFilters();
-                if (!string.IsNullOrEmpty(searchCustomer))
-                {
-                    stockFilters.CustomerId = customerId;
-                }
-                else if (customerId.HasValue)
-                {
-                    stockFilters.CustomerId = customerId;
-                }
-                if (billNumber.HasValue)
-                {
-                    stockFilters.BillNumber = billNumber;
-                }
+                // Preserve filters before service call
+                var stockFilters = model.Filters;
+
+                // Get filtered data using model.Filters
+                model = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
                 
-                // Check if date parameters were explicitly provided in query string
-                var saleFromParam = HttpContext.Request.Query["saleFrom"].FirstOrDefault();
-                var saleDateToParam = HttpContext.Request.Query["saleDateTo"].FirstOrDefault();
-                var hasExplicitDateParams = HttpContext.Request.Query.ContainsKey("saleFrom") || HttpContext.Request.Query.ContainsKey("saleDateTo");
-                
-                if (!hasExplicitDateParams)
-                {
-                    // First load - no date parameters in query string, set to today's date
-                    var today = DateTime.Now.Date;
-                    stockFilters.SaleFrom = today;
-                    stockFilters.SaleDateTo = today;
-                }
-                else
-                {
-                    // Date parameters were provided in query string
-                    // Parse and set SaleFrom if provided and valid
-                    if (!string.IsNullOrEmpty(saleFromParam) && DateTime.TryParse(saleFromParam, out var parsedFrom))
-                    {
-                        stockFilters.SaleFrom = parsedFrom.Date;
-                    }
-                    // Parse and set SaleDateTo if provided and valid
-                    if (!string.IsNullOrEmpty(saleDateToParam) && DateTime.TryParse(saleDateToParam, out var parsedTo))
-                    {
-                        stockFilters.SaleDateTo = parsedTo.Date;
-                    }
-                    // If dates were cleared (empty strings or invalid), filters will remain null and show all sales
-                }
-                
-                if (!string.IsNullOrEmpty(description))
-                {
-                    stockFilters.Description = description;
-                }
-                var viewModel = await _salesService.GetAllSalesAsync(pageNumber, currentPageSize, stockFilters);
+                // Reassign filters to ensure they're preserved
+                model.Filters = stockFilters;
                 
                 // Load customers for the filter dropdown
                 var customers = await _salesService.GetAllCustomersAsync();
-                viewModel.CustomerList = customers;
+                model.CustomerList = customers;
                 
-                return View(viewModel);
+                return View(model);
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                var errorViewModel = new SalesViewModel();
+                if (model == null)
+                {
+                    model = new SalesViewModel();
+                }
                 try
                 {
                     // Load customers for the filter dropdown even when there's an error
                     var customers = await _salesService.GetAllCustomersAsync();
-                    errorViewModel.CustomerList = customers;
+                    model.CustomerList = customers;
                 }
                 catch (Exception customerEx)
                 {
                     _logger.LogError(customerEx, "Error loading customers for filter dropdown");
                 }
-                return View(errorViewModel);
+                return View(model);
             }
         }
 

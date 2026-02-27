@@ -6,6 +6,7 @@ namespace IMS.Models
     {
         public List<VendorBillViewModel> BillsList { get; set; } = new List<VendorBillViewModel>();
         public List<AdminSupplier> VendorList { get; set; } = new List<AdminSupplier>();
+        public VendorBillsFilters Filters { get; set; } = new VendorBillsFilters();
 
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
