@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -211,7 +212,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pCustomerId", CustomerId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDate", paymentDate);
                         command.Parameters.AddWithValue("@pCreatedBy", createdBy);
-                        command.Parameters.AddWithValue("@pCreatedDate", createdDate == default(DateTime) ? DateTime.Now : createdDate);
+                        command.Parameters.AddWithValue("@pCreatedDate", createdDate == default(DateTime) ? DateTimeHelper.Now : createdDate);
                         command.Parameters.AddWithValue("@pDescription", (object?)description ?? DBNull.Value);
                         command.Parameters.AddWithValue("@PaymentMethod", (object?)paymentMethod ?? DBNull.Value);
                         command.Parameters.AddWithValue("@onlineAccountId", (object?)onlineAccountId ?? DBNull.Value);

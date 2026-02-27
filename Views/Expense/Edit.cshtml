@@ -1,4 +1,4 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
 @model Expense;
 
 
@@ -35,7 +35,7 @@
                         <div class="col">
                             <label asp-for="ExpenseDate" class="form-label">Expense Date</label>
                             <input type="date" name="FromDate" asp-for="ExpenseDate"
-                                   value="@(Model.ExpenseDate != default(DateTime) ? Model.ExpenseDate.ToString("yyyy-MM-dd") : (string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTime.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString()))"
+                                   value="@(Model.ExpenseDate != default(DateTime) ? Model.ExpenseDate.ToString("yyyy-MM-dd") : (string.IsNullOrEmpty(Context.Request.Query["FromDate"]) ? DateTimeHelper.Now.ToString("yyyy-MM-dd") : Context.Request.Query["FromDate"].ToString()))"
                                    class="form-control" />
                         </div>
 

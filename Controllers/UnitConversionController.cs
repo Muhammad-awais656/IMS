@@ -118,9 +118,9 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     unitConversion.CreatedBy = userId;
-                    unitConversion.CreatedDate = DateTime.Now;
+                    unitConversion.CreatedDate = DateTimeHelper.Now;
                     unitConversion.ModifiedBy = userId;
-                    unitConversion.ModifiedDate = DateTime.Now;
+                    unitConversion.ModifiedDate = DateTimeHelper.Now;
 
                     var result = await _unitConversionService.CreateUnitConversionAsync(unitConversion);
                     if (result)
@@ -198,7 +198,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    unitConversion.ModifiedDate = DateTime.Now;
+                    unitConversion.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     unitConversion.ModifiedBy = userId;

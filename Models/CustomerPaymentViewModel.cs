@@ -1,5 +1,7 @@
 using IMS.DAL.PrimaryDBContext;
 
+using IMS.CommonUtilities;
+
 namespace IMS.Models
 {
     public class CustomerPaymentViewModel
@@ -21,7 +23,7 @@ namespace IMS.Models
         public decimal PaymentAmount { get; set; }
         public long SaleId { get; set; }
         public long CustomerId { get; set; }
-        public DateTime PaymentDate { get; set; } = DateTime.Now;
+        public DateTime PaymentDate { get; set; } = DateTimeHelper.Now;
         public string? Description { get; set; }
         public string? PaymentMethod { get; set; }
         public string? SupplierName { get; set; }

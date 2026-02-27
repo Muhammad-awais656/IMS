@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -96,9 +96,9 @@ namespace IMS.Controllers
                     
                     // Handle null values for optional fields
                     customer.CreatedBy = userId;
-                    customer.CreatedDate = DateTime.Now;
+                    customer.CreatedDate = DateTimeHelper.Now;
                     customer.ModifiedBy = userId;
-                    customer.ModifiedDate = DateTime.Now;
+                    customer.ModifiedDate = DateTimeHelper.Now;
                     
                     // Ensure optional fields are properly handled
                     if (string.IsNullOrWhiteSpace(customer.CustomerEmail))
@@ -177,7 +177,7 @@ namespace IMS.Controllers
                     long userId = long.Parse(userIdStr);
                     
                     // Handle null values for optional fields
-                    customer.ModifiedDate = DateTime.Now;
+                    customer.ModifiedDate = DateTimeHelper.Now;
                     customer.ModifiedBy = userId;
                     
                     // Ensure optional fields are properly handled

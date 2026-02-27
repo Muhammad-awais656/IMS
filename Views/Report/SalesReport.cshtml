@@ -1,4 +1,4 @@
-﻿@model IMS.Models.ReportsViewModel;
+@model IMS.Models.ReportsViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
@@ -46,7 +46,7 @@
                             </label>
                             <div class="input-group">
                                 <input type="date" name="SalesReportsFilters.FromDate"
-                                       value="@(Model.SalesReportsFilters?.FromDate?.ToString("yyyy-MM-dd") ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).ToString("yyyy-MM-dd"))"
+                                       value="@(Model.SalesReportsFilters?.FromDate?.ToString("yyyy-MM-dd") ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1).ToString("yyyy-MM-dd"))"
                                        class="form-control" />
                                 <button type="button" class="btn btn-outline-secondary" onclick="clearDate('SalesReportsFilters.FromDate')" title="Clear Date">
                                     <i class="fa fa-times"></i>
@@ -59,7 +59,7 @@
                             </label>
                             <div class="input-group">
                                 <input type="date" name="SalesReportsFilters.ToDate"
-                                       value="@(Model.SalesReportsFilters?.ToDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))"
+                                       value="@(Model.SalesReportsFilters?.ToDate?.ToString("yyyy-MM-dd") ?? DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
                                        class="form-control" />
                                 <button type="button" class="btn btn-outline-secondary" onclick="clearDate('SalesReportsFilters.ToDate')" title="Clear Date">
                                     <i class="fa fa-times"></i>

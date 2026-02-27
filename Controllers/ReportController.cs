@@ -1,4 +1,5 @@
-﻿    using ClosedXML.Excel;
+using IMS.CommonUtilities;
+    using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Wordprocessing;
 using IMS.Common_Interfaces;
 using IMS.Models;
@@ -62,12 +63,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.SalesReportsFilters.FromDate.HasValue)
                 {
-                    model.SalesReportsFilters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.SalesReportsFilters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.SalesReportsFilters.ToDate.HasValue)
                 {
-                    model.SalesReportsFilters.ToDate = DateTime.Now;
+                    model.SalesReportsFilters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -116,8 +117,8 @@ namespace IMS.Controllers
             var salesReportsFilters = new SalesReportsFilters
             {
                 CustomerId = custId,
-                FromDate = fromDate ?? DateTime.Now, // default today if null
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now, // default today if null
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
 
@@ -173,7 +174,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"SalesReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"SalesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -194,8 +195,8 @@ namespace IMS.Controllers
             var salesReportsFilters = new SalesReportsFilters
             {
                 CustomerId = custId,
-                FromDate = fromDate ?? DateTime.Now, // default today if null
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now, // default today if null
+                ToDate = toDate ?? DateTimeHelper.Now
             };
 
             var model = await _reportService.GetAllSalesReport(pageNumber, currentPageSize, salesReportsFilters);
@@ -264,7 +265,7 @@ namespace IMS.Controllers
 
                 document.Add(table);
                 document.Close();
-                string filename = $"SalesReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"SalesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
         }
@@ -292,12 +293,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -346,8 +347,8 @@ namespace IMS.Controllers
             var filters = new ProfitLossReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             var model = await _reportService.GetProductWiseProfitLossReport(pageNumber, currentPageSize, filters);
 
@@ -397,7 +398,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"ProfitLossReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"ProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -414,8 +415,8 @@ namespace IMS.Controllers
             var filters = new ProfitLossReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
 
             var model = await _reportService.GetProductWiseProfitLossReport(pageNumber, currentPageSize, filters);
@@ -495,7 +496,7 @@ namespace IMS.Controllers
 
                 document.Add(table);
                 document.Close();
-                string filename = $"ProfitLossReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"ProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
         }
@@ -519,7 +520,7 @@ namespace IMS.Controllers
                 // Set default report date if not provided
                 if (!model.Filters.ReportDate.HasValue)
                 {
-                    model.Filters.ReportDate = DateTime.Now;
+                    model.Filters.ReportDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -565,7 +566,7 @@ namespace IMS.Controllers
             var filters = new DailyStockReportFilters
             {
                 ProductId = productId,
-                ReportDate = reportDate ?? DateTime.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now
             };
             var model = await _reportService.GetDailyStockReportForExport(pageNumber, currentPageSize, filters);
 
@@ -619,7 +620,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"DailyStockReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"DailyStockReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -636,7 +637,7 @@ namespace IMS.Controllers
             var filters = new DailyStockReportFilters
             {
                 ProductId = productId,
-                ReportDate = reportDate ?? DateTime.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now
             };
 
             var model = await _reportService.GetDailyStockReportForExport(pageNumber, currentPageSize, filters);
@@ -703,7 +704,7 @@ namespace IMS.Controllers
 
                 document.Add(table);
                 document.Close();
-                string filename = $"DailyStockReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"DailyStockReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
         }
@@ -731,12 +732,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -785,8 +786,8 @@ namespace IMS.Controllers
             var filters = new PurchaseReportFilters
             {
                 VendorId = vendorId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             var model = await _reportService.GetPurchaseReportForExport(pageNumber, currentPageSize, filters);
 
@@ -842,7 +843,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"PurchaseReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"PurchaseReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -859,8 +860,8 @@ namespace IMS.Controllers
             var filters = new PurchaseReportFilters
             {
                 VendorId = vendorId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
 
             var model = await _reportService.GetPurchaseReportForExport(pageNumber, currentPageSize, filters);
@@ -929,7 +930,7 @@ namespace IMS.Controllers
 
                 document.Add(table);
                 document.Close();
-                string filename = $"PurchaseReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"PurchaseReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
         }
@@ -957,12 +958,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -1005,8 +1006,8 @@ namespace IMS.Controllers
             var filters = new ProductWiseSalesReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             
             // Get all data for export (use large page size to get all records)
@@ -1080,7 +1081,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"ProductWiseSalesReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"ProductWiseSalesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -1091,8 +1092,8 @@ namespace IMS.Controllers
             var filters = new ProductWiseSalesReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             
             // Get all data for export (use large page size to get all records)
@@ -1182,7 +1183,7 @@ namespace IMS.Controllers
                 document.Close();
 
                 byte[] bytes = stream.ToArray();
-                string filename = $"ProductWiseSalesReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"ProductWiseSalesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(bytes, "application/pdf", filename);
             }
         }
@@ -1210,12 +1211,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -1261,8 +1262,8 @@ namespace IMS.Controllers
             var filters = new ProductWisePurchaseReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             
             // Get all data for export (use large page size to get all records)
@@ -1336,7 +1337,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"ProductWisePurchaseReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"ProductWisePurchaseReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -1347,8 +1348,8 @@ namespace IMS.Controllers
             var filters = new ProductWisePurchaseReportFilters
             {
                 ProductId = productId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now
             };
             
             // Get all data for export (use large page size to get all records)
@@ -1438,7 +1439,7 @@ namespace IMS.Controllers
                 document.Close();
 
                 byte[] bytes = stream.ToArray();
-                string filename = $"ProductWisePurchaseReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"ProductWisePurchaseReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(bytes, "application/pdf", filename);
             }
         }
@@ -1466,12 +1467,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -1539,7 +1540,7 @@ namespace IMS.Controllers
                     if (!model.Filters.FromDate.HasValue)
                     {
                         // First time load - set to 1st of current month
-                        model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                        model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                     }
                     // If user cleared the date (empty string), model.Filters.FromDate will be null, which is fine
                 }
@@ -1549,7 +1550,7 @@ namespace IMS.Controllers
                     if (!model.Filters.ToDate.HasValue)
                     {
                         // First time load - set to today
-                        model.Filters.ToDate = DateTime.Now;
+                        model.Filters.ToDate = DateTimeHelper.Now;
                     }
                     // If user cleared the date (empty string), model.Filters.ToDate will be null, which is fine
                 }
@@ -1598,7 +1599,7 @@ namespace IMS.Controllers
             {
                 var filters = new DailyStockPositionReportFilters
                 {
-                    ReportDate = reportDate ?? DateTime.Now
+                    ReportDate = reportDate ?? DateTimeHelper.Now
                 };
 
                 var model = await _reportService.GetDailyStockPositionReport(filters);
@@ -1609,7 +1610,7 @@ namespace IMS.Controllers
                 TempData["ErrorMessage"] = ex.Message;
                 return View(new DailyStockPositionReportViewModel
                 {
-                    Filters = new DailyStockPositionReportFilters { ReportDate = DateTime.Now }
+                    Filters = new DailyStockPositionReportFilters { ReportDate = DateTimeHelper.Now }
                 });
             }
         }
@@ -1618,7 +1619,7 @@ namespace IMS.Controllers
         {
             var filters = new DailyStockPositionReportFilters
             {
-                ReportDate = reportDate ?? DateTime.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now
             };
             
             var model = await _reportService.GetDailyStockPositionReport(filters);
@@ -1692,7 +1693,7 @@ namespace IMS.Controllers
         {
             var filters = new DailyStockPositionReportFilters
             {
-                ReportDate = reportDate ?? DateTime.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now
             };
             
             var model = await _reportService.GetDailyStockPositionReport(filters);
@@ -1848,7 +1849,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"{reportName.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"{reportName.Replace(" ", "")}_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -1956,7 +1957,7 @@ namespace IMS.Controllers
                 document.Close();
 
                 byte[] bytes = stream.ToArray();
-                string filename = $"{reportTitle.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"{reportTitle.Replace(" ", "")}_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(bytes, "application/pdf", filename);
             }
         }
@@ -2036,7 +2037,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"{reportName.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"{reportName.Replace(" ", "")}_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -2132,7 +2133,7 @@ namespace IMS.Controllers
                 document.Close();
 
                 byte[] bytes = stream.ToArray();
-                string filename = $"{reportTitle.Replace(" ", "")}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"{reportTitle.Replace(" ", "")}_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(bytes, "application/pdf", filename);
             }
         }
@@ -2161,12 +2162,12 @@ namespace IMS.Controllers
                 
                 if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
                 {
-                    model.Filters.FromDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
                 }
                 
                 if (!hasToDateParam && !model.Filters.ToDate.HasValue)
                 {
-                    model.Filters.ToDate = DateTime.Now;
+                    model.Filters.ToDate = DateTimeHelper.Now;
                 }
 
                 int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
@@ -2229,8 +2230,8 @@ namespace IMS.Controllers
             var filters = new BankCreditDebitReportFilters
             {
                 PersonalPaymentId = accountId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now,
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now,
                 TransactionType = transactionType
             };
             var model = await _reportService.GetBankCreditDebitReportForExport(pageNumber, currentPageSize, filters);
@@ -2293,7 +2294,7 @@ namespace IMS.Controllers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            string filename = $"BankCreditDebitReport_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            string filename = $"BankCreditDebitReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
@@ -2310,8 +2311,8 @@ namespace IMS.Controllers
             var filters = new BankCreditDebitReportFilters
             {
                 PersonalPaymentId = accountId,
-                FromDate = fromDate ?? DateTime.Now,
-                ToDate = toDate ?? DateTime.Now,
+                FromDate = fromDate ?? DateTimeHelper.Now,
+                ToDate = toDate ?? DateTimeHelper.Now,
                 TransactionType = transactionType
             };
 
@@ -2410,7 +2411,7 @@ namespace IMS.Controllers
 
                 document.Add(table);
                 document.Close();
-                string filename = $"BankCreditDebitReport_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string filename = $"BankCreditDebitReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
         }

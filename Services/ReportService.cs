@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -44,8 +45,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", (object)salesReportsFilters.CustomerId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@pBillNumber",  DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleFrom", salesReportsFilters.FromDate == default(DateTime) ? DateTime.Now : salesReportsFilters.FromDate);
-                        command.Parameters.AddWithValue("@pSaleDateTo", salesReportsFilters.ToDate == default(DateTime) ? DateTime.Now : salesReportsFilters.ToDate);
+                        command.Parameters.AddWithValue("@pSaleFrom", salesReportsFilters.FromDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.FromDate);
+                        command.Parameters.AddWithValue("@pSaleDateTo", salesReportsFilters.ToDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.ToDate);
                         command.Parameters.AddWithValue("@pDescription",  DBNull.Value);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -200,8 +201,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", (object)salesReportsFilters.CustomerId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@pBillNumber", DBNull.Value);
-                        command.Parameters.AddWithValue("@pSaleFrom", salesReportsFilters.FromDate == default(DateTime) ? DateTime.Now : salesReportsFilters.FromDate);
-                        command.Parameters.AddWithValue("@pSaleDateTo", salesReportsFilters.ToDate == default(DateTime) ? DateTime.Now : salesReportsFilters.ToDate);
+                        command.Parameters.AddWithValue("@pSaleFrom", salesReportsFilters.FromDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.FromDate);
+                        command.Parameters.AddWithValue("@pSaleDateTo", salesReportsFilters.ToDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.ToDate);
                         command.Parameters.AddWithValue("@pDescription", DBNull.Value);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -1807,7 +1808,7 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    var reportDate = filters?.ReportDate ?? DateTime.Now;
+                    var reportDate = filters?.ReportDate ?? DateTimeHelper.Now;
                     var reportDateOnly = reportDate.Date;
 
                     var sql = @"
@@ -1910,7 +1911,7 @@ namespace IMS.Services
             return new DailyStockPositionReportViewModel
             {
                 StockPositionList = stockPositionList,
-                Filters = filters ?? new DailyStockPositionReportFilters { ReportDate = DateTime.Now },
+                Filters = filters ?? new DailyStockPositionReportFilters { ReportDate = DateTimeHelper.Now },
                 TotalPurchase = totalPurchase,
                 TotalSales = totalSales,
                 TotalClosing = totalClosing,

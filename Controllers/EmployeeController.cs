@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
@@ -106,9 +107,9 @@ namespace IMS.Controllers
                     
                     // Handle null values for optional fields
                     employee.CreatedByUserIdFk = userId;
-                    employee.CreatedDate = DateTime.Now;
+                    employee.CreatedDate = DateTimeHelper.Now;
                     employee.ModifiedByUserIdFk = userId;
-                    employee.ModifiedDate = DateTime.Now;
+                    employee.ModifiedDate = DateTimeHelper.Now;
                     
                     // Ensure optional fields are properly handled (Address is now required)
                     if (string.IsNullOrWhiteSpace(employee.LastName))
@@ -216,7 +217,7 @@ emp.MaritalStatus
                     long userId = long.Parse(userIdStr);
                     
                     // Handle null values for optional fields
-                    employee.ModifiedDate = DateTime.Now;
+                    employee.ModifiedDate = DateTimeHelper.Now;
                     employee.ModifiedByUserIdFk = userId;
                     
                     // Ensure optional fields are properly handled (Address is now required)
@@ -298,7 +299,7 @@ emp.MaritalStatus
             {
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr);
-                var modifiedDate = DateTime.Now;
+                var modifiedDate = DateTimeHelper.Now;
                 var res = await _employeeService.DeleteEmployeeAsync(id, modifiedDate, userId);
                 if (res != 0)
                 {
@@ -540,7 +541,7 @@ emp.MaritalStatus
                 return View(new EmployeeLedgerEntryVM
                 {
                     EmployeeId = employeeId,
-                    VoucherDate = DateTime.Today
+                    VoucherDate = DateTimeHelper.Today
                 });
             }
             catch (Exception ex)

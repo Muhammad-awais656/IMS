@@ -1,4 +1,4 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
 @model Expense;
 
     <div class="card shadow-sm">
@@ -41,7 +41,7 @@
                             
                             <input id="fromDate" type="date" name="FromDate"
                                    value="@(string.IsNullOrEmpty(Context.Request.Query["FromDate"])
-                                        ? DateTime.Now.ToString("yyyy-MM-dd")
+                                        ? DateTimeHelper.Now.ToString("yyyy-MM-dd")
                                         : Context.Request.Query["FromDate"].ToString())"
                                    class="form-control" />
                         </div>

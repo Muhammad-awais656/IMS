@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
+using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using IMS.Services;
@@ -143,7 +144,7 @@ namespace IMS.Controllers
                 ViewBag.NextBillNumber = nextBillNumber;
 
                 return View(new VendorBillGenerationViewModel { 
-                    BillDate = DateTime.Now,
+                    BillDate = DateTimeHelper.Now,
                     BillNumber = nextBillNumber
                 });
             }
@@ -237,7 +238,7 @@ namespace IMS.Controllers
                 {
                     VendorList = await _vendorBillsService.GetAllVendorsAsync(),
                     ProductList = products,
-                    BillDate = DateTime.Today,
+                    BillDate = DateTimeHelper.Today,
                     BillNumber = nextBillNumber
                 };
                 
@@ -702,7 +703,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     
-                    DateTime currentDateTime = DateTime.Now;
+                    DateTime currentDateTime = DateTimeHelper.Now;
                     long billId;
 
                     // Create new bill
@@ -1016,7 +1017,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     model.ModifiedBy = userId;
-                    model.ModifiedDate = DateTime.Now;
+                    model.ModifiedDate = DateTimeHelper.Now;
                     
                     // Update the vendor bill
                     var success = await _vendorBillsService.UpdateVendorBillAsync(id, model);

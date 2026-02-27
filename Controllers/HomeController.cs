@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -61,9 +62,9 @@ namespace IMS.Controllers
                 },
                 RecentTransactions = new List<RecentTransactionDto>
                 {
-                    new() { TransactionId = 1010, Type = "Sale", Party = "Customer X", Amount = 122.00m, Date = DateTime.Now.AddDays(-1) },
-                    new() { TransactionId = 1009, Type = "Purchase", Party = "Vendor Y", Amount = 2360.00m, Date = DateTime.Now.AddDays(-5) },
-                    new() { TransactionId = 1008, Type = "Sale", Party = "Customer Z", Amount = 950.00m, Date = DateTime.Now.AddDays(-7) }
+                    new() { TransactionId = 1010, Type = "Sale", Party = "Customer X", Amount = 122.00m, Date = DateTimeHelper.Now.AddDays(-1) },
+                    new() { TransactionId = 1009, Type = "Purchase", Party = "Vendor Y", Amount = 2360.00m, Date = DateTimeHelper.Now.AddDays(-5) },
+                    new() { TransactionId = 1008, Type = "Sale", Party = "Customer Z", Amount = 950.00m, Date = DateTimeHelper.Now.AddDays(-7) }
                 }
             };
             if (enabledProducts.Result.Any())
@@ -139,7 +140,7 @@ namespace IMS.Controllers
         public IActionResult Ping()
         {
             // Touch session to keep it alive
-            HttpContext.Session.SetString("Ping", DateTime.Now.ToString());
+            HttpContext.Session.SetString("Ping", DateTimeHelper.Now.ToString());
             return Ok();
         }
 

@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
+using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using IMS.Services;
@@ -134,7 +135,7 @@ namespace IMS.Controllers
                         paymentMethod = model.PaymentMethod,
                         onlineAccountId = model.OnlineAccountId,
                         CreatedBy = userId, // TODO: Get from current user session
-                        CreatedDate = DateTime.Now,
+                        CreatedDate = DateTimeHelper.Now,
                         Description = model.Description,
                         SupplierId = null,
                     };
@@ -155,7 +156,7 @@ namespace IMS.Controllers
                                     model.PaymentAmount, // Credit the received amount to the online account
                                     transactionDescription,
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
 
                                 _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}",
@@ -189,7 +190,7 @@ namespace IMS.Controllers
                                     supplierId: model.VendorId.Value,
                                     paymentDate: model.PaymentDate,
                                     createdBy: userId,
-                                    createdDate: DateTime.Now,
+                                    createdDate: DateTimeHelper.Now,
                                     description: vendorPaymentDescription,
                                     paymentMethod: "General Payments",
                                     onlineAccountId: null,
@@ -333,7 +334,7 @@ namespace IMS.Controllers
                         paymentMethod = model.PaymentMethod,
                         onlineAccountId = newOnline ? model.OnlineAccountId : null,
                         ModifiedBy = userId, // TODO: Get from current user session
-                        ModifiedDate = DateTime.Now,
+                        ModifiedDate = DateTimeHelper.Now,
                         Description = model.Description,
                         SupplierId = model.VendorId
                     };
@@ -351,7 +352,7 @@ namespace IMS.Controllers
                                     -existingPayment.PaymentAmount,
                                     $"Reversed payment for Sale #{existingPayment.SaleId}",
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
                             }
                             catch (Exception ex)
@@ -372,7 +373,7 @@ namespace IMS.Controllers
                                     model.PaymentAmount,
                                     transactionDescription,
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
 
                                 _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}",
@@ -446,7 +447,7 @@ namespace IMS.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTime.Now, userId);
+                var result = await _customerPaymentService.DeletePaymentAsync(id, DateTimeHelper.Now, userId);
                 if (result > 0)
                 {
                     var isOnline = string.Equals(existingPayment.paymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
@@ -462,7 +463,7 @@ namespace IMS.Controllers
                                 -existingPayment.PaymentAmount,
                                 $"Deleted Payment - Sale Id #{existingPayment.SaleId}",
                                 userId,
-                                DateTime.Now
+                                DateTimeHelper.Now
                             );
                         }
                         catch (Exception ex)

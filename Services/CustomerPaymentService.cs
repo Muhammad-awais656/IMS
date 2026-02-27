@@ -1,4 +1,5 @@
 using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -178,7 +179,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pVendorId", payment.SupplierId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pPaymentDate", payment.PaymentDate);
                         command.Parameters.AddWithValue("@pCreatedBy", payment.CreatedBy);
-                        command.Parameters.AddWithValue("@pCreatedDate", payment.CreatedDate == default(DateTime) ? DateTime.Now : payment.CreatedDate);
+                        command.Parameters.AddWithValue("@pCreatedDate", payment.CreatedDate == default(DateTime) ? DateTimeHelper.Now : payment.CreatedDate);
                         command.Parameters.AddWithValue("@pDescription", payment.Description ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@PaymentMethod", payment.paymentMethod ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@onlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
@@ -236,7 +237,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@OnlineAccountId", payment.onlineAccountId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@VendorId", payment.SupplierId ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@ModifiedBy", payment.ModifiedBy);
-                        command.Parameters.AddWithValue("@ModifiedDate", payment.ModifiedDate ?? DateTime.Now);
+                        command.Parameters.AddWithValue("@ModifiedDate", payment.ModifiedDate ?? DateTimeHelper.Now);
 
                         response = await command.ExecuteNonQueryAsync();
                     }

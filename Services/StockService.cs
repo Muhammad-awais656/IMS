@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -38,9 +39,9 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pQuantity", stock.AvailableQuantity);
                     
                         command.Parameters.AddWithValue("@pComment", stock.Comment ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@pCreatedDate", stock.CreatedDate == default(DateTime) ? DateTime.Now : stock.CreatedDate);
+                        command.Parameters.AddWithValue("@pCreatedDate", stock.CreatedDate == default(DateTime) ? DateTimeHelper.Now : stock.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", stock.CreatedBy);
-                        command.Parameters.AddWithValue("@pModifiedDate", stock.ModifiedDate == default(DateTime) || stock.ModifiedDate==null ? DateTime.Now : stock.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedDate", stock.ModifiedDate == default(DateTime) || stock.ModifiedDate==null ? DateTimeHelper.Now : stock.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", stock.ModifiedBy == null ? stock.CreatedBy : stock.ModifiedBy);
 
                         var unitTypeyIdParam = new SqlParameter("@pStockMasterId", SqlDbType.BigInt)
@@ -86,7 +87,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pUsedQuantity", stock.UsedQuantity);
                         command.Parameters.AddWithValue("@TotalQuantity", stock.TotalQuantity);
                         command.Parameters.AddWithValue("@pModifiedBy", stock.ModifiedBy);
-                        command.Parameters.AddWithValue("@pModifiedDate", stock.ModifiedDate == default(DateTime) ? DateTime.Now : stock.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedDate", stock.ModifiedDate == default(DateTime) ? DateTimeHelper.Now : stock.ModifiedDate);
 
                         var rowsAffected = await command.ExecuteNonQueryAsync();
                         response = rowsAffected;

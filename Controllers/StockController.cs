@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -226,14 +226,14 @@ namespace IMS.Controllers
                             existingStock.TotalQuantity += stock.TotalQuantity;
                             existingStock.AvailableQuantity += stock.TotalQuantity; // Add new stock to available quantity
                             existingStock.ModifiedBy = userId;
-                            existingStock.ModifiedDate = DateTime.Now;
+                            existingStock.ModifiedDate = DateTimeHelper.Now;
                             
                             var updateResult = await _stockService.UpdateStockAsync(existingStock);
                             long transactionReturn = _saleService.SaleTransactionCreate(
                                 existingStock.StockMasterId,
                                 (decimal)stock.TotalQuantity,
                                 string.IsNullOrEmpty(stock.Comment) ? "" :stock.Comment,
-                                DateTime.Now,
+                                DateTimeHelper.Now,
                                 userId,
                                 1, // Added Stock Transaction Type
                                 0
@@ -253,7 +253,7 @@ namespace IMS.Controllers
                         {
                             // Create new stock
                             stock.CreatedBy = userId;
-                            stock.CreatedDate = DateTime.Now;
+                            stock.CreatedDate = DateTimeHelper.Now;
                             
                             // For new stock, assume all quantity is available initially
                             stock.AvailableQuantity = stock.TotalQuantity;
@@ -338,7 +338,7 @@ namespace IMS.Controllers
                     
                     if (IsvalidData)
                     {
-                        stock.ModifiedDate = DateTime.Now;
+                        stock.ModifiedDate = DateTimeHelper.Now;
                         var userIdStr = HttpContext.Session.GetString("UserId");
                         long userId = long.Parse(userIdStr);
                         stock.ModifiedBy = userId;
@@ -443,7 +443,7 @@ namespace IMS.Controllers
                                stock.StockMasterId,
                                (decimal)userInputStock,
                                string.IsNullOrEmpty(stock.Comment) ? "Editted Stocks" : $"Editted Stock \t{stock.Comment}",
-                               DateTime.Now,
+                               DateTimeHelper.Now,
                                userId,
                                1, // Added Stock Transaction Type
                                0
@@ -511,7 +511,7 @@ namespace IMS.Controllers
             {
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr);
-                var modifiedDate = DateTime.Now;
+                var modifiedDate = DateTimeHelper.Now;
                 
                 var res = await _stockService.DeleteStockAsync(id, modifiedDate, userId);
                 if (res != 0)

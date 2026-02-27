@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 
 namespace IMS.Models
@@ -11,7 +12,7 @@ namespace IMS.Models
 
         // Bill Information
         public long BillNumber { get; set; }
-        public DateTime BillDate { get; set; } = DateTime.Now;
+        public DateTime BillDate { get; set; } = DateTimeHelper.Now;
         public decimal PayNow { get; set; }
         public string? Description { get; set; }
 

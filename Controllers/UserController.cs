@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -35,7 +35,7 @@ namespace IMS.Controllers
         public async Task<IActionResult> GetAllUsers(int pageNumber=1, int? pageSize = null,string? UserNameSearch=null)
         {
             PagedUsersViewModel viewModel = new PagedUsersViewModel();
-            _logger.LogInformation("Visited Home/Index at {Time}", DateTime.UtcNow);
+            _logger.LogInformation("Visited Home/Index at {Time}", DateTimeHelper.Now);
 
             try
             {

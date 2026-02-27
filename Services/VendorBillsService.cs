@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -704,7 +705,7 @@ namespace IMS.Services
                                 command.Parameters.AddWithValue("@pTotalReceivedAmount", model.PaidAmount);
                                 command.Parameters.AddWithValue("@pTotalDueAmount", model.DueAmount);
                                 command.Parameters.AddWithValue("@pSupplierId_FK", model.VendorId);
-                                command.Parameters.AddWithValue("@pModifiedDate", model.ModifiedDate == default(DateTime) ? DateTime.Now : model.ModifiedDate);
+                                command.Parameters.AddWithValue("@pModifiedDate", model.ModifiedDate == default(DateTime) ? DateTimeHelper.Now : model.ModifiedDate);
                                 command.Parameters.AddWithValue("@pModifiedBy", model.ModifiedBy);
                                 command.Parameters.AddWithValue("@pDiscountAmount", model.DiscountAmount);
                                 command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
@@ -790,7 +791,7 @@ namespace IMS.Services
                         {
                             long billId = 0;
                             long paymentId = 0;
-                            var createdDate = DateTime.Now;
+                            var createdDate = DateTimeHelper.Now;
                             var createdBy = 1; // TODO: Get from session
 
                             // Create the bill using AddBill stored procedure
@@ -959,7 +960,7 @@ namespace IMS.Services
                                         newTotalQuantity,
                                         prodMaster.UsedQuantity, // Keep used quantity same
                                         userId,
-                                        DateTime.Now
+                                        DateTimeHelper.Now
                                     );
 
                                     _logger.LogInformation("Stock reversed for product {ProductId}: Decreased by {Quantity}. New available: {NewAvailable}, New total: {NewTotal}",

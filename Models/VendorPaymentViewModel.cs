@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 
 namespace IMS.Models
@@ -29,7 +30,7 @@ namespace IMS.Models
         public long SupplierId { get; set; }
         public long BillId { get; set; }
         public decimal PaymentAmount { get; set; }
-        public DateTime PaymentDate { get; set; } = DateTime.Now;
+        public DateTime PaymentDate { get; set; } = DateTimeHelper.Now;
         public string? Description { get; set; }
         public string? PaymentMethod { get; set; }
         public long? OnlineAccountId { get; set; }

@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
+using IMS.Common_Interfaces;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.AspNetCore.Http;
@@ -182,7 +183,7 @@ namespace IMS.Controllers
                     supplierId: model.SupplierId,
                     paymentDate: model.PaymentDate,
                     createdBy: createdBy,
-                    createdDate: DateTime.Now,
+                    createdDate: DateTimeHelper.Now,
                     description: model.Description,
                     paymentMethod: model.PaymentMethod,
                     onlineAccountId: model.OnlineAccountId,
@@ -222,7 +223,7 @@ namespace IMS.Controllers
                                 model.PaymentAmount, // Debit the payment amount from the online account
                                 transactionDescription,
                                 createdBy,
-                                DateTime.Now
+                                DateTimeHelper.Now
                             );
 
                             _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Bill ID: {BillId}",
@@ -259,7 +260,7 @@ namespace IMS.Controllers
                                 paymentMethod = "General Payments",
                                 onlineAccountId = null,
                                 CreatedBy = createdBy,
-                                CreatedDate = DateTime.Now,
+                                CreatedDate = DateTimeHelper.Now,
                                 Description = customerPaymentDescription,
                                 SupplierId = null
                             };
@@ -457,7 +458,7 @@ namespace IMS.Controllers
                                     existingPayment.PaymentAmount, // Reverse: add back the amount
                                     $"Reversed payment for Bill #{existingPayment.BillId}",
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
                             }
                             catch (Exception ex)
@@ -478,7 +479,7 @@ namespace IMS.Controllers
                                     -model.PaymentAmount, // Debit: subtract the payment amount
                                     transactionDescription,
                                     userId,
-                                    DateTime.Now
+                                    DateTimeHelper.Now
                                 );
 
                                 _logger.LogInformation("Online payment transaction processed successfully. Transaction ID: {TransactionId}, Bill ID: {BillId}",
@@ -553,7 +554,7 @@ namespace IMS.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var result = await _vendorPaymentService.DeletePaymentAsync(id, DateTime.Now, userId);
+                var result = await _vendorPaymentService.DeletePaymentAsync(id, DateTimeHelper.Now, userId);
                 if (result > 0)
                 {
                     var isOnline = string.Equals(existingPayment.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
@@ -569,7 +570,7 @@ namespace IMS.Controllers
                                 existingPayment.PaymentAmount, // Reverse: add back the amount
                                 $"Deleted Payment - Bill Id #{existingPayment.BillId}",
                                 userId,
-                                DateTime.Now
+                                DateTimeHelper.Now
                             );
                         }
                         catch (Exception ex)

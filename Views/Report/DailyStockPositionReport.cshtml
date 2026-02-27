@@ -36,7 +36,7 @@
                                 <i class="fa fa-calendar me-1 text-primary"></i>Report Date
                             </label>
                             <input type="date" name="reportDate" asp-for="Filters.ReportDate"
-                                   value="@(Model.Filters?.ReportDate.HasValue == true ? Model.Filters.ReportDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))"
+                                   value="@(Model.Filters?.ReportDate.HasValue == true ? Model.Filters.ReportDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
                                    class="form-control" />
                         </div>
                         <div class="col-md-4 d-flex align-items-end">

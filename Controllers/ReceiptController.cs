@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -88,7 +89,7 @@ namespace IMS.Controllers
             try
             {
                 var pdfBytes = await _modernReceiptService.GenerateReceiptPdfAsync(saleId, templateType);
-                var fileName = $"Receipt_Sale_{saleId}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+                var fileName = $"Receipt_Sale_{saleId}_{DateTimeHelper.Now:yyyyMMdd_HHmmss}.html";
                 
                 return File(pdfBytes, "text/html", fileName);
             }

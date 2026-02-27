@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml.Spreadsheet;
+using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
@@ -186,9 +187,9 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalDueAmount", sale.TotalDueAmount);
                         command.Parameters.AddWithValue("@pCustomerId_FK", sale.CustomerIdFk);
                         command.Parameters.AddWithValue("@pSupplierId_FK", sale.SupplierIdFk);
-                        command.Parameters.AddWithValue("@pCreatedDate", sale.CreatedDate == default(DateTime) ? DateTime.Now : sale.CreatedDate);
+                        command.Parameters.AddWithValue("@pCreatedDate", sale.CreatedDate == default(DateTime) ? DateTimeHelper.Now : sale.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", sale.CreatedBy);
-                        command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTime.Now : sale.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTimeHelper.Now : sale.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", sale.ModifiedBy == 0 ? sale.CreatedBy : sale.ModifiedBy);
                         command.Parameters.AddWithValue("@pDiscountAmount", sale.DiscountAmount);
                         command.Parameters.AddWithValue("@pBillNumber", sale.BillNumber);
@@ -410,7 +411,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalReceivedAmount", sale.TotalReceivedAmount);
                         command.Parameters.AddWithValue("@pTotalDueAmount", sale.TotalDueAmount);
                         command.Parameters.AddWithValue("@pCustomerId_FK", sale.CustomerIdFk);
-                        command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTime.Now : sale.ModifiedDate);
+                        command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTimeHelper.Now : sale.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", sale.ModifiedBy);
                         command.Parameters.AddWithValue("@pDiscountAmount", sale.DiscountAmount);
                         command.Parameters.AddWithValue("@pBillNumber", sale.BillNumber);

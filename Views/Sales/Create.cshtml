@@ -19,7 +19,7 @@
                         </div>
                         <div class="col">
                             <label asp-for="SaleDate" class="form-label">Sale Date:</label>
-                            <input asp-for="SaleDate" class="form-control" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            <input asp-for="SaleDate" class="form-control" type="date" value="@DateTimeHelper.Now.ToString("yyyy-MM-dd")" />
                             <span asp-validation-for="SaleDate" class="text-danger"></span>
                         </div>
                         <div class="col">

@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -72,9 +72,9 @@ namespace IMS.Controllers
                     
                     // Handle null values for optional fields
                     expenseType.CreatedBy = userId;
-                    expenseType.CreatedDate = DateTime.Now;
+                    expenseType.CreatedDate = DateTimeHelper.Now;
                     expenseType.ModifiedBy = userId;
-                    expenseType.ModifiedDate = DateTime.Now;
+                    expenseType.ModifiedDate = DateTimeHelper.Now;
                     
                     // Ensure optional fields are properly handled
                     if (string.IsNullOrWhiteSpace(expenseType.ExpenseTypeDescription))
@@ -136,7 +136,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    ExpenseType.ModifiedDate = DateTime.Now;
+                    ExpenseType.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     ExpenseType.ModifiedBy = userId;

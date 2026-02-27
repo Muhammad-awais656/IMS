@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -153,9 +153,9 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     sale.CreatedBy = userId;
-                    sale.CreatedDate = DateTime.Now;
+                    sale.CreatedDate = DateTimeHelper.Now;
                     sale.ModifiedBy = userId;
-                    sale.ModifiedDate = DateTime.Now;
+                    sale.ModifiedDate = DateTimeHelper.Now;
 
                     var result = await _salesService.CreateSaleAsync(sale);
                     if (result)
@@ -230,7 +230,7 @@ namespace IMS.Controllers
             {
                 try
                 {
-                    sale.ModifiedDate = DateTime.Now;
+                    sale.ModifiedDate = DateTimeHelper.Now;
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     sale.ModifiedBy = userId;
@@ -296,7 +296,7 @@ namespace IMS.Controllers
             {
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr);
-                var modifiedDate = DateTime.Now;
+                var modifiedDate = DateTimeHelper.Now;
                 
                 // Get sale information before deletion to check for online payment reversal
                 var sale = await _salesService.GetSaleByIdAsync(id);
@@ -328,7 +328,7 @@ namespace IMS.Controllers
                             -sale.TotalReceivedAmount, // Negative amount for reversal
                             transactionDescription,
                             userId,
-                            DateTime.Now
+                            DateTimeHelper.Now
                         );
 
                         _logger.LogInformation("Online payment reversal transaction created successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}, OnlineAccountId: {OnlineAccountId}",
@@ -399,7 +399,7 @@ namespace IMS.Controllers
                 ViewBag.NextBillNumber = nextBillNumber;
 
 
-                return View(new AddSaleViewModel { SaleDate = DateTime.Now });
+                return View(new AddSaleViewModel { SaleDate = DateTimeHelper.Now });
             }
             catch (Exception ex)
             {
@@ -713,7 +713,7 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     
-                    DateTime currentDateTime = DateTime.Now;
+                    DateTime currentDateTime = DateTimeHelper.Now;
                     long saleId;
 
                     // Check if we're editing an existing sale
@@ -1091,9 +1091,9 @@ namespace IMS.Controllers
                 CustomerAddress = vendor.SupplierAddress,
                 IsEnabled = true,
                 CreatedBy = userId,
-                CreatedDate = DateTime.Now,
+                CreatedDate = DateTimeHelper.Now,
                 ModifiedBy = userId,
-                ModifiedDate = DateTime.Now
+                ModifiedDate = DateTimeHelper.Now
             };
 
             var created = await _customerService.CreateCustomerAsync(newCustomer);

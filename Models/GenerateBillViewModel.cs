@@ -1,3 +1,4 @@
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 
 namespace IMS.Models
@@ -15,7 +16,7 @@ namespace IMS.Models
         public long? CustomerId { get; set; }
         public long? CreatedBy { get; set; }
         public long BillNumber { get; set; }
-        public DateTime BillDate { get; set; } = DateTime.Today;
+        public DateTime BillDate { get; set; } = DateTimeHelper.Today;
         public decimal TotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal PaidAmount { get; set; }
