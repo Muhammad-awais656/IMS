@@ -217,7 +217,14 @@
             {
                 <p><b> Invoice Discount:</b> <span class="text-right">@Model.DiscountAmount.ToString("N2")</span></p>
             }
-            <p><b>Total Amount:</b> <span class="text-right">@Model.TotalAmount.ToString("N2")</span></p>
+            <p><b>Total Amount:</b> <span class="text-right">
+                @{
+                        var totalAfterDiscount = Model.TotalAmount - Model.DiscountAmount;
+
+                }
+                    @totalAfterDiscount.ToString("N2")
+                </span>
+            </p>
             <p><b>Paid Amount:</b> <span class="text-right">@Model.TotalReceivedAmount.ToString("N2")</span></p>
             @if (Model.TotalDueAmount > 0)
             {
