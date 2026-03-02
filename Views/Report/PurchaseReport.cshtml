@@ -291,31 +291,34 @@
             });
         });
 
-        function changePageSize(select) {
-            var vendorId = document.getElementById("vendorComboBox").value;
-            var fromDate = document.querySelector("input[name='FromDate']").value;
-            var toDate = document.querySelector("input[name='ToDate']").value;
+        function getPurchaseReportParams() {
+            var vendorEl = document.getElementById("vendorComboBox") || document.querySelector("select[name='PurchaseReportFilters.VendorId']");
+            var fromDateInput = document.querySelector("input[name='Filters.FromDate']");
+            var toDateInput = document.querySelector("input[name='Filters.ToDate']");
+            var vendorId = vendorEl ? (vendorEl.value || '') : '';
+            var fromDate = fromDateInput ? fromDateInput.value : '';
+            var toDate = toDateInput ? toDateInput.value : '';
+            return { vendorId: vendorId, fromDate: fromDate, toDate: toDate };
+        }
 
-            var url = `/Report/PurchaseReport?pageNumber=1&vendorId=${vendorId}&pageSize=${select.value}&FromDate=${fromDate}&ToDate=${toDate}`;
+        function changePageSize(select) {
+            var p = getPurchaseReportParams();
+            var url = `/Report/PurchaseReport?pageNumber=1&vendorId=${p.vendorId}&pageSize=${select.value}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
             window.location.href = url;
         }
     </script>
     <script>
-        document.getElementById("exportExcelBtn").addEventListener("click", function () {
-            var vendorId = document.getElementById("vendorComboBox").value;
-            var fromDate = document.querySelector("input[name='FromDate']").value;
-            var toDate = document.querySelector("input[name='ToDate']").value;
-
-            var url = `/Report/ExportPurchaseExcel?vendorId=${vendorId}&FromDate=${fromDate}&ToDate=${toDate}`;
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getPurchaseReportParams();
+            var url = `/Report/ExportPurchaseExcel?vendorId=${p.vendorId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
             window.location.href = url;
         });
 
-        document.getElementById("exportPdfBtn").addEventListener("click", function () {
-            var vendorId = document.getElementById("vendorComboBox").value;
-            var fromDate = document.querySelector("input[name='FromDate']").value;
-            var toDate = document.querySelector("input[name='ToDate']").value;
-
-            var url = `/Report/ExportPurchasePdf?vendorId=${vendorId}&FromDate=${fromDate}&ToDate=${toDate}`;
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getPurchaseReportParams();
+            var url = `/Report/ExportPurchasePdf?vendorId=${p.vendorId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
             window.location.href = url;
         });
     </script>
