@@ -8,6 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using NuGet.Protocol.Core.Types;
 using System.Threading.Tasks;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -233,6 +239,52 @@ namespace IMS.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(string? name = null, string? phoneNumber = null, string? ntn = null)
+        {
+            try
+            {
+                const int exportPageSize = 100000;
+                var model = await _vndorservice.GetAllVendors(1, exportPageSize, name, phoneNumber, ntn);
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Vendors");
+                worksheet.Cell(1, 1).Value = "Vendor Id"; worksheet.Cell(1, 2).Value = "Vendor Name"; worksheet.Cell(1, 3).Value = "Phone"; worksheet.Cell(1, 4).Value = "Email"; worksheet.Cell(1, 5).Value = "Address";
+                var headerRange = worksheet.Range(1, 1, 1, 5); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                int row = 2;
+                foreach (var item in model.VendorList ?? new List<AdminSupplier>())
+                {
+                    worksheet.Cell(row, 1).Value = item.SupplierId; worksheet.Cell(row, 2).Value = item.SupplierName ?? ""; worksheet.Cell(row, 3).Value = item.SupplierPhoneNumber ?? ""; worksheet.Cell(row, 4).Value = item.SupplierEmail ?? ""; worksheet.Cell(row, 5).Value = item.SupplierAddress ?? "";
+                    row++;
+                }
+                worksheet.Columns().AdjustToContents();
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Vendors_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting vendors to Excel"); TempData["ErrorMessage"] = "An error occurred while exporting to Excel."; return RedirectToAction(nameof(Index)); }
+        }
 
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(string? name = null, string? phoneNumber = null, string? ntn = null)
+        {
+            try
+            {
+                const int exportPageSize = 100000;
+                var model = await _vndorservice.GetAllVendors(1, exportPageSize, name, phoneNumber, ntn);
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
+                PdfWriter.GetInstance(document, stream); document.Open();
+                document.Add(new Paragraph("Supplier/Vendor Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+                var table = new PdfPTable(5); table.WidthPercentage = 100; table.SetWidths(new float[] { 1f, 2.5f, 1.5f, 2f, 2.5f });
+                foreach (var h in new[] { "Vendor Id", "Vendor Name", "Phone", "Email", "Address" })
+                { var cell = new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8))) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = BaseColor.LIGHT_GRAY }; table.AddCell(cell); }
+                foreach (var c in model.VendorList ?? new List<AdminSupplier>())
+                { table.AddCell(c.SupplierId.ToString()); table.AddCell(c.SupplierName ?? ""); table.AddCell(c.SupplierPhoneNumber ?? ""); table.AddCell(c.SupplierEmail ?? ""); table.AddCell(c.SupplierAddress ?? ""); }
+                document.Add(table); document.Close();
+                return File(stream.ToArray(), "application/pdf", $"Vendors_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting vendors to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
+        }
     }
 }

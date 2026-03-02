@@ -10,6 +10,12 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using System.Linq;
 using static NuGet.Packaging.PackagingConstants;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -622,5 +628,54 @@ namespace IMS.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(long? productId = null, string? productCode = null, decimal? priceFrom = null, decimal? priceTo = null, long? categoryId = null, long? labelId = null, long? measuringUnitTypeId = null)
+        {
+            try
+            {
+                var filters = new ProductViewModel.ProductFilters { ProductId = productId, ProductCode = productCode, PriceFrom = priceFrom, PriceTo = priceTo, CategoryId = categoryId, LabelId = labelId, MeasuringUnitTypeId = measuringUnitTypeId };
+                const int exportPageSize = 100000;
+                var model = await _productService.GetAllProductAsync(1, exportPageSize, filters);
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Products");
+                worksheet.Cell(1, 1).Value = "Product Id"; worksheet.Cell(1, 2).Value = "Product Name"; worksheet.Cell(1, 3).Value = "Product Code"; worksheet.Cell(1, 4).Value = "Category"; worksheet.Cell(1, 5).Value = "Label"; worksheet.Cell(1, 6).Value = "MU Type"; worksheet.Cell(1, 7).Value = "Price"; worksheet.Cell(1, 8).Value = "Enabled";
+                var headerRange = worksheet.Range(1, 1, 1, 8); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                int row = 2;
+                foreach (var item in model.Items ?? new List<ProductViewModel>())
+                {
+                    worksheet.Cell(row, 1).Value = item.ProductId; worksheet.Cell(row, 2).Value = item.ProductName ?? ""; worksheet.Cell(row, 3).Value = item.ProductCode ?? ""; worksheet.Cell(row, 4).Value = item.CategoryName ?? ""; worksheet.Cell(row, 5).Value = item.LabelName ?? ""; worksheet.Cell(row, 6).Value = item.MeasuringUnitTypeName ?? ""; worksheet.Cell(row, 7).Value = item.Price ?? 0; worksheet.Cell(row, 8).Value = item.IsEnabled ? "Yes" : "No";
+                    row++;
+                }
+                worksheet.Columns().AdjustToContents();
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Products_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting products to Excel"); TempData["ErrorMessage"] = "An error occurred while exporting to Excel."; return RedirectToAction(nameof(Index)); }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(long? productId = null, string? productCode = null, decimal? priceFrom = null, decimal? priceTo = null, long? categoryId = null, long? labelId = null, long? measuringUnitTypeId = null)
+        {
+            try
+            {
+                var filters = new ProductViewModel.ProductFilters { ProductId = productId, ProductCode = productCode, PriceFrom = priceFrom, PriceTo = priceTo, CategoryId = categoryId, LabelId = labelId, MeasuringUnitTypeId = measuringUnitTypeId };
+                const int exportPageSize = 100000;
+                var model = await _productService.GetAllProductAsync(1, exportPageSize, filters);
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 12f, 12f, 12f, 12f);
+                PdfWriter.GetInstance(document, stream); document.Open();
+                document.Add(new Paragraph("Product Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+                var table = new PdfPTable(8); table.WidthPercentage = 100; table.SetWidths(new float[] { 0.8f, 2f, 1f, 1.2f, 1f, 1.2f, 1f, 0.6f });
+                foreach (var h in new[] { "Product Id", "Product Name", "Code", "Category", "Label", "MU Type", "Price", "Enabled" })
+                { var cell = new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = BaseColor.LIGHT_GRAY }; table.AddCell(cell); }
+                foreach (var p in model.Items ?? new List<ProductViewModel>())
+                { table.AddCell(p.ProductId.ToString()); table.AddCell(p.ProductName ?? ""); table.AddCell(p.ProductCode ?? ""); table.AddCell(p.CategoryName ?? ""); table.AddCell(p.LabelName ?? ""); table.AddCell(p.MeasuringUnitTypeName ?? ""); table.AddCell((p.Price ?? 0).ToString("N2")); table.AddCell(p.IsEnabled ? "Yes" : "No"); }
+                document.Add(table); document.Close();
+                return File(stream.ToArray(), "application/pdf", $"Products_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting products to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
+        }
     }
 }

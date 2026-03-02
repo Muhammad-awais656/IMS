@@ -14,6 +14,12 @@
                     <h4 class="mb-0">Personal Payment Accounts</h4>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                        <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                    </a>
+                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                        <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                    </a>
                     <button type="button" class="btn btn-success btn-sm" onclick="showBankDepositModal()">
                         <i class="fa-solid fa-arrow-down me-1"></i>Bank Deposit
                     </button>
@@ -1250,5 +1256,28 @@
                 submitBtn.innerHTML = originalText;
             });
         }
+
+        function getPersonalPaymentsExportParams() {
+            var bankCombo = $("#bankComboBox").data("kendoComboBox");
+            var personalPaymentId = bankCombo ? bankCombo.value() : (document.getElementById('bankIdHidden') && document.getElementById('bankIdHidden').value) || '';
+            var accountNumber = document.querySelector('input[name="PaymentFilters.AccountNumber"]')?.value || '';
+            var fromDate = document.querySelector('input[name="FromDate"]')?.value || '';
+            var toDate = document.querySelector('input[name="ToDate"]')?.value || '';
+            return { personalPaymentId: personalPaymentId || '', accountNumber, fromDate, toDate };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getPersonalPaymentsExportParams();
+            var params = new URLSearchParams();
+            if (p.personalPaymentId) params.set('personalPaymentId', p.personalPaymentId); if (p.accountNumber) params.set('accountNumber', p.accountNumber); if (p.fromDate) params.set('fromDate', p.fromDate); if (p.toDate) params.set('toDate', p.toDate);
+            window.location.href = '@Url.Action("ExportExcel", "PersonalPayments")' + (params.toString() ? '?' + params.toString() : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getPersonalPaymentsExportParams();
+            var params = new URLSearchParams();
+            if (p.personalPaymentId) params.set('personalPaymentId', p.personalPaymentId); if (p.accountNumber) params.set('accountNumber', p.accountNumber); if (p.fromDate) params.set('fromDate', p.fromDate); if (p.toDate) params.set('toDate', p.toDate);
+            window.location.href = '@Url.Action("ExportPdf", "PersonalPayments")' + (params.toString() ? '?' + params.toString() : '');
+        });
     </script>
 }

@@ -1,4 +1,4 @@
-﻿@model IMS.Models.VendorPaymentViewModel
+@model IMS.Models.VendorPaymentViewModel
 @{
     ViewBag.Title = "Vendor Payments";
 }
@@ -16,6 +16,12 @@
             <div>
                 <a asp-action="CreatePayment" class="btn btn-success me-2">
                     <i class="fa-solid fa-plus me-1"></i>Add New Payment
+                </a>
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm me-2">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                 </a>
             </div>
         </div>
@@ -717,5 +723,37 @@
             
             window.location.href = '@Url.Action("Index", "VendorPayments")' + '?' + params.toString();
         }
+
+        function getVendorPaymentsExportParams() {
+            const vendorCombo = $("#vendorIdCombo").data("kendoComboBox");
+            const billNumberCombo = $("#billNumberCombo").data("kendoComboBox");
+            const vendorId = vendorCombo ? vendorCombo.value() : (document.getElementById('vendorId') && document.getElementById('vendorId').value) || '';
+            const billNumber = billNumberCombo ? billNumberCombo.value() : (document.getElementById('billNumber') && document.getElementById('billNumber').value) || '';
+            const billDateFrom = document.getElementById("billDateFrom") ? document.getElementById("billDateFrom").value : '';
+            const billDateTo = document.getElementById("billDateTo") ? document.getElementById("billDateTo").value : '';
+            return { vendorId: vendorId || '', billNumber: billNumber || '', fromDate: billDateFrom, toDate: billDateTo };
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorPaymentsExportParams();
+            var params = new URLSearchParams();
+            if (p.vendorId) params.set('vendorId', p.vendorId);
+            if (p.billNumber) params.set('billNumber', p.billNumber);
+            if (p.fromDate) params.set('fromDate', p.fromDate);
+            if (p.toDate) params.set('toDate', p.toDate);
+            window.location.href = '@Url.Action("ExportExcel", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorPaymentsExportParams();
+            var params = new URLSearchParams();
+            if (p.vendorId) params.set('vendorId', p.vendorId);
+            if (p.billNumber) params.set('billNumber', p.billNumber);
+            if (p.fromDate) params.set('fromDate', p.fromDate);
+            if (p.toDate) params.set('toDate', p.toDate);
+            window.location.href = '@Url.Action("ExportPdf", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+        });
     </script>
 }

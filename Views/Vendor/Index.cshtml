@@ -1,4 +1,4 @@
-﻿@model IMS.Models.VendorViewModel;
+@model IMS.Models.VendorViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
@@ -85,6 +85,12 @@
                                     </button>
                                     <a asp-action="Index" class="btn btn-user-reset">
                                         <i class="fa-solid fa-refresh me-2"></i>Reset Filters
+                                    </a>
+                                    <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                                        <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                                    </a>
+                                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                                        <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                                     </a>
                                 </div>
                                 <a asp-action="Create" class="btn btn-user-create">
@@ -368,6 +374,28 @@
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+        });
+
+        function getVendorExportParams() {
+            return {
+                name: document.querySelector('input[name="searchUsername"]')?.value || '',
+                phoneNumber: document.querySelector('input[name="searchContactNo"]')?.value || '',
+                ntn: document.querySelector('input[name="searchEmail"]')?.value || ''
+            };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorExportParams();
+            var params = new URLSearchParams();
+            if (p.name) params.set('name', p.name); if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber); if (p.ntn) params.set('ntn', p.ntn);
+            window.location.href = '@Url.Action("ExportExcel", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorExportParams();
+            var params = new URLSearchParams();
+            if (p.name) params.set('name', p.name); if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber); if (p.ntn) params.set('ntn', p.ntn);
+            window.location.href = '@Url.Action("ExportPdf", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
         });
     </script>
 }

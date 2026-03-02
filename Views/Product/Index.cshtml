@@ -1,4 +1,4 @@
-﻿@model IMS.Models.ProductViewModel;
+@model IMS.Models.ProductViewModel;
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
@@ -20,6 +20,12 @@
                     <h5 class="mb-0 user-search-title">
                         <i class="fa-solid fa-search user-search-icon me-2"></i>Search & Actions
                     </h5>
+                    <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm me-2">
+                        <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                    </a>
+                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm me-2">
+                        <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                    </a>
                     <a asp-action="Create" class="btn btn-user-create">
                         <i class="fa-solid fa-plus me-2"></i>Create Product
                     </a>
@@ -726,6 +732,36 @@
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+        });
+
+        function getProductExportParams() {
+            var productCombo = $("#productDropdown").data("kendoComboBox");
+            var mutCombo = $("#mutDropdown").data("kendoComboBox");
+            var catCombo = $("#categoryDropdown").data("kendoComboBox");
+            var labelCombo = $("#labelDropdown").data("kendoComboBox");
+            return {
+                productId: productCombo ? productCombo.value() : (document.querySelector('input[name="searchpName"]')?.value || ''),
+                productCode: document.querySelector('input[name="searchpCode"]')?.value || '',
+                priceFrom: document.querySelector('input[name="searchpFrom"]')?.value || '',
+                priceTo: document.querySelector('input[name="searchpTo"]')?.value || '',
+                categoryId: catCombo ? catCombo.value() : (document.querySelector('input[name="catId"]')?.value || ''),
+                labelId: labelCombo ? labelCombo.value() : (document.querySelector('input[name="searchULabelId"]')?.value || ''),
+                measuringUnitTypeId: mutCombo ? mutCombo.value() : (document.querySelector('input[name="searchUMUTId"]')?.value || '')
+            };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getProductExportParams();
+            var params = new URLSearchParams();
+            if (p.productId) params.set('productId', p.productId); if (p.productCode) params.set('productCode', p.productCode); if (p.priceFrom) params.set('priceFrom', p.priceFrom); if (p.priceTo) params.set('priceTo', p.priceTo); if (p.categoryId) params.set('categoryId', p.categoryId); if (p.labelId) params.set('labelId', p.labelId); if (p.measuringUnitTypeId) params.set('measuringUnitTypeId', p.measuringUnitTypeId);
+            window.location.href = '@Url.Action("ExportExcel", "Product")' + (params.toString() ? '?' + params.toString() : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getProductExportParams();
+            var params = new URLSearchParams();
+            if (p.productId) params.set('productId', p.productId); if (p.productCode) params.set('productCode', p.productCode); if (p.priceFrom) params.set('priceFrom', p.priceFrom); if (p.priceTo) params.set('priceTo', p.priceTo); if (p.categoryId) params.set('categoryId', p.categoryId); if (p.labelId) params.set('labelId', p.labelId); if (p.measuringUnitTypeId) params.set('measuringUnitTypeId', p.measuringUnitTypeId);
+            window.location.href = '@Url.Action("ExportPdf", "Product")' + (params.toString() ? '?' + params.toString() : '');
         });
     </script>
 }

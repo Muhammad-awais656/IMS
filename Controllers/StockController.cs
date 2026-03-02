@@ -5,6 +5,12 @@ using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -1062,6 +1068,56 @@ namespace IMS.Controllers
                 _logger.LogError(ex, "Error getting stock history for modal");
                 return Json(new { success = false, message = "Error loading stock history" });
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(string? productName = null)
+        {
+            try
+            {
+                var filters = new StockFilters { ProductName = productName };
+                const int exportPageSize = 100000;
+                var model = await _stockService.GetAllStocksAsync(1, exportPageSize, filters);
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Stock");
+                worksheet.Cell(1, 1).Value = "Product Name"; worksheet.Cell(1, 2).Value = "Product Code"; worksheet.Cell(1, 3).Value = "Total Qty"; worksheet.Cell(1, 4).Value = "Used Qty"; worksheet.Cell(1, 5).Value = "Available Qty"; worksheet.Cell(1, 6).Value = "Unit Price"; worksheet.Cell(1, 7).Value = "Location";
+                var headerRange = worksheet.Range(1, 1, 1, 7); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                int row = 2;
+                foreach (var item in model.StockList ?? new List<StockWithProductViewModel>())
+                {
+                    worksheet.Cell(row, 1).Value = item.ProductName ?? ""; worksheet.Cell(row, 2).Value = item.ProductCode ?? ""; worksheet.Cell(row, 3).Value = item.TotalQuantity; worksheet.Cell(row, 4).Value = item.UsedQuantity; worksheet.Cell(row, 5).Value = item.AvailableQuantity; worksheet.Cell(row, 6).Value = item.UnitPrice; worksheet.Cell(row, 7).Value = item.StockLocaion ?? "";
+                    row++;
+                }
+                worksheet.Columns().AdjustToContents();
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Stock_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting stock to Excel"); TempData["ErrorMessage"] = "An error occurred while exporting to Excel."; return RedirectToAction(nameof(Index)); }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(string? productName = null)
+        {
+            try
+            {
+                var filters = new StockFilters { ProductName = productName };
+                const int exportPageSize = 100000;
+                var model = await _stockService.GetAllStocksAsync(1, exportPageSize, filters);
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
+                PdfWriter.GetInstance(document, stream); document.Open();
+                document.Add(new Paragraph("Stock Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+                var table = new PdfPTable(7); table.WidthPercentage = 100; table.SetWidths(new float[] { 2f, 1.2f, 1.2f, 1.2f, 1.2f, 1f, 1.5f });
+                foreach (var h in new[] { "Product Name", "Code", "Total Qty", "Used Qty", "Available Qty", "Unit Price", "Location" })
+                { var cell = new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8))) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = BaseColor.LIGHT_GRAY }; table.AddCell(cell); }
+                foreach (var s in model.StockList ?? new List<StockWithProductViewModel>())
+                { table.AddCell(s.ProductName ?? ""); table.AddCell(s.ProductCode ?? ""); table.AddCell(s.TotalQuantity.ToString("N2")); table.AddCell(s.UsedQuantity.ToString("N2")); table.AddCell(s.AvailableQuantity.ToString("N2")); table.AddCell(s.UnitPrice.ToString("N2")); table.AddCell(s.StockLocaion ?? ""); }
+                document.Add(table); document.Close();
+                return File(stream.ToArray(), "application/pdf", $"Stock_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf");
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error exporting stock to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
         }
     }
 }

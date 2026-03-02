@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.CodeAnalysis;
 using System.Linq;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -1109,6 +1115,189 @@ namespace IMS.Controllers
                 c.CustomerName.Equals(vendorCustomerName, StringComparison.OrdinalIgnoreCase));
 
             return existingCustomer?.CustomerId;
+        }
+
+        /// <summary>
+        /// Export sales to Excel (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(long? customerId = null, long? billNumber = null, DateTime? saleFrom = null, DateTime? saleDateTo = null, string? description = null)
+        {
+            try
+            {
+                var filters = new SalesFilters
+                {
+                    CustomerId = customerId,
+                    BillNumber = billNumber,
+                    SaleFrom = saleFrom,
+                    SaleDateTo = saleDateTo,
+                    Description = string.IsNullOrWhiteSpace(description) ? null : description
+                };
+                const int exportPageSize = 100000;
+                var model = await _salesService.GetAllSalesAsync(1, exportPageSize, filters);
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Sales");
+
+                worksheet.Cell(1, 1).Value = "Sale Id";
+                worksheet.Cell(1, 2).Value = "Bill #";
+                worksheet.Cell(1, 3).Value = "Sales Date";
+                worksheet.Cell(1, 4).Value = "Customer";
+                worksheet.Cell(1, 5).Value = "Supplier";
+                worksheet.Cell(1, 6).Value = "Total Amount";
+                worksheet.Cell(1, 7).Value = "Discount";
+                worksheet.Cell(1, 8).Value = "Received";
+                worksheet.Cell(1, 9).Value = "Total Dues";
+                worksheet.Cell(1, 10).Value = "Description";
+                worksheet.Cell(1, 11).Value = "Payment Method";
+                worksheet.Cell(1, 12).Value = "Status";
+
+                var headerRange = worksheet.Range(1, 1, 1, 12);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+                int row = 2;
+                decimal totalAmount = 0, totalDiscount = 0, totalReceived = 0, totalDue = 0;
+                foreach (var item in model.SalesList ?? new List<SaleWithCustomerViewModel>())
+                {
+                    worksheet.Cell(row, 1).Value = item.SaleId;
+                    worksheet.Cell(row, 2).Value = item.BillNumber;
+                    worksheet.Cell(row, 3).Value = item.SaleDate.ToString("dd-MMM-yyyy");
+                    worksheet.Cell(row, 4).Value = item.CustomerName ?? "";
+                    worksheet.Cell(row, 5).Value = item.SupplierName ?? "";
+                    worksheet.Cell(row, 6).Value = item.TotalAmount;
+                    worksheet.Cell(row, 7).Value = item.DiscountAmount;
+                    worksheet.Cell(row, 8).Value = item.TotalReceivedAmount;
+                    worksheet.Cell(row, 9).Value = item.TotalDueAmount;
+                    worksheet.Cell(row, 10).Value = item.SaleDescription ?? "";
+                    worksheet.Cell(row, 11).Value = item.PaymentMethod ?? "";
+                    worksheet.Cell(row, 12).Value = item.IsDeleted ? "Deleted" : "Active";
+                    totalAmount += item.TotalAmount;
+                    totalDiscount += item.DiscountAmount;
+                    totalReceived += item.TotalReceivedAmount;
+                    totalDue += item.TotalDueAmount;
+                    row++;
+                }
+
+                row++;
+                worksheet.Cell(row, 5).Value = "TOTAL:";
+                worksheet.Cell(row, 5).Style.Font.Bold = true;
+                worksheet.Cell(row, 6).Value = totalAmount;
+                worksheet.Cell(row, 6).Style.Font.Bold = true;
+                worksheet.Cell(row, 7).Value = totalDiscount;
+                worksheet.Cell(row, 7).Style.Font.Bold = true;
+                worksheet.Cell(row, 8).Value = totalReceived;
+                worksheet.Cell(row, 8).Style.Font.Bold = true;
+                worksheet.Cell(row, 9).Value = totalDue;
+                worksheet.Cell(row, 9).Style.Font.Bold = true;
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                string filename = $"Sales_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sales to Excel");
+                TempData["ErrorMessage"] = "An error occurred while exporting to Excel.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        /// <summary>
+        /// Export sales to PDF (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(long? customerId = null, long? billNumber = null, DateTime? saleFrom = null, DateTime? saleDateTo = null, string? description = null)
+        {
+            try
+            {
+                var filters = new SalesFilters
+                {
+                    CustomerId = customerId,
+                    BillNumber = billNumber,
+                    SaleFrom = saleFrom,
+                    SaleDateTo = saleDateTo,
+                    Description = string.IsNullOrWhiteSpace(description) ? null : description
+                };
+                const int exportPageSize = 100000;
+                var model = await _salesService.GetAllSalesAsync(1, exportPageSize, filters);
+
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 12f, 12f, 12f, 12f);
+                PdfWriter.GetInstance(document, stream);
+                document.Open();
+
+                document.Add(new Paragraph("Sales Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+
+                var table = new PdfPTable(12);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 0.8f, 0.8f, 1.2f, 2f, 1.5f, 1.2f, 1f, 1f, 1.2f, 2f, 1.2f, 0.8f });
+
+                string[] headers = { "Sale Id", "Bill #", "Date", "Customer", "Supplier", "Total", "Discount", "Received", "Dues", "Description", "Payment", "Status" };
+                foreach (var header in headers)
+                {
+                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(cell);
+                }
+
+                decimal totalAmount = 0, totalDiscount = 0, totalReceived = 0, totalDue = 0;
+                foreach (var s in model.SalesList ?? new List<SaleWithCustomerViewModel>())
+                {
+                    table.AddCell(s.SaleId.ToString());
+                    table.AddCell(s.BillNumber.ToString());
+                    table.AddCell(s.SaleDate.ToString("dd-MMM-yy"));
+                    table.AddCell(s.CustomerName ?? "");
+                    table.AddCell(s.SupplierName ?? "");
+                    table.AddCell(s.TotalAmount.ToString("N2"));
+                    table.AddCell(s.DiscountAmount.ToString("N2"));
+                    table.AddCell(s.TotalReceivedAmount.ToString("N2"));
+                    table.AddCell(s.TotalDueAmount.ToString("N2"));
+                    table.AddCell(s.SaleDescription ?? "");
+                    table.AddCell(s.PaymentMethod ?? "");
+                    table.AddCell(s.IsDeleted ? "Deleted" : "Active");
+                    totalAmount += s.TotalAmount;
+                    totalDiscount += s.DiscountAmount;
+                    totalReceived += s.TotalReceivedAmount;
+                    totalDue += s.TotalDueAmount;
+                }
+
+                var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7)))
+                {
+                    Colspan = 5,
+                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(summaryCell);
+                table.AddCell(new PdfPCell(new Phrase(totalAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase(totalDiscount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase(totalReceived.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                table.AddCell(new PdfPCell(new Phrase(totalDue.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                for (int i = 0; i < 3; i++)
+                    table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+                document.Add(table);
+                document.Close();
+
+                string filename = $"Sales_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+                return File(stream.ToArray(), "application/pdf", filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sales to PDF");
+                TempData["ErrorMessage"] = "An error occurred while exporting to PDF.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         // GET: SalesController/PrintReceipt/5

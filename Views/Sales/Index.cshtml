@@ -1,4 +1,4 @@
-﻿@model IMS.Models.SalesViewModel
+@model IMS.Models.SalesViewModel
 @using System.Linq
 @using System.Globalization
 
@@ -112,7 +112,20 @@
 
         <div class="card-body">
             <!-- Toolbar -->
-            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <a asp-action="AddSale" class="btn btn-success me-2">
+                        <i class="fa-solid fa-plus me-1"></i>Add New Sale
+                    </a>
+                    <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm me-2">
+                        <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                    </a>
+                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                        <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+
             <!-- Advanced Filters -->
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -570,6 +583,40 @@
                 submitBtn.prop('disabled', true);
                 submitBtn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Searching...');
             });
+        });
+
+        function getSalesExportParams() {
+            const customerCombo = $("#customerFilterSelect").data("kendoComboBox");
+            const customerId = customerCombo ? customerCombo.value() : '';
+            const billNumber = document.querySelector('input[name="Filters.BillNumber"]')?.value || '';
+            const saleFrom = document.getElementById('saleFrom')?.value || '';
+            const saleDateTo = document.getElementById('saleDateTo')?.value || '';
+            const description = document.querySelector('input[name="Filters.Description"]')?.value || '';
+            return { customerId: customerId || '', billNumber, saleFrom, saleDateTo, description };
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getSalesExportParams();
+            var params = new URLSearchParams();
+            if (p.customerId) params.set('customerId', p.customerId);
+            if (p.billNumber) params.set('billNumber', p.billNumber);
+            if (p.saleFrom) params.set('saleFrom', p.saleFrom);
+            if (p.saleDateTo) params.set('saleDateTo', p.saleDateTo);
+            if (p.description) params.set('description', p.description);
+            window.location.href = '@Url.Action("ExportExcel", "Sales")' + (params.toString() ? '?' + params.toString() : '');
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getSalesExportParams();
+            var params = new URLSearchParams();
+            if (p.customerId) params.set('customerId', p.customerId);
+            if (p.billNumber) params.set('billNumber', p.billNumber);
+            if (p.saleFrom) params.set('saleFrom', p.saleFrom);
+            if (p.saleDateTo) params.set('saleDateTo', p.saleDateTo);
+            if (p.description) params.set('description', p.description);
+            window.location.href = '@Url.Action("ExportPdf", "Sales")' + (params.toString() ? '?' + params.toString() : '');
         });
     </script>
 }

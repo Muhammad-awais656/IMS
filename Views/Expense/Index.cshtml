@@ -1,4 +1,4 @@
-﻿@model IMS.Models.ExpenseViewModel;
+@model IMS.Models.ExpenseViewModel;
 
 <link href="~/css/product-management.css" rel="stylesheet" />
 <link href="~/css/user-management.css" rel="stylesheet" />
@@ -129,6 +129,12 @@
                                         </button>
                                         <a asp-action="Index" class="btn btn-secondary btn-enhanced btn-reset px-4 py-2">
                                             <i class="fa-solid fa-refresh me-2"></i>Reset Filters
+                                        </a>
+                                        <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                                            <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                                        </a>
+                                        <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                                            <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                                         </a>
                                     </div>
                                 </div>
@@ -471,6 +477,34 @@
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+        });
+
+        function getExpenseExportParams() {
+            var expenseTypeCombo = $("#expenseType").data("kendoComboBox");
+            var productCombo = $("#productSelect").data("kendoComboBox");
+            return {
+                expenseTypeId: expenseTypeCombo ? expenseTypeCombo.value() : (document.querySelector('input[name="expenseFilters.ExpenseTypeId"]')?.value || document.querySelector('#expenseType')?.value || ''),
+                productId: productCombo ? productCombo.value() : (document.querySelector('input[name="expenseFilters.ProductId"]')?.value || document.querySelector('#productSelect')?.value || ''),
+                details: document.querySelector('input[name="ExpenseFilters.Details"]')?.value || document.getElementById('expenseDetail')?.value || '',
+                amountFrom: document.querySelector('input[name="ExpenseFilters.AmountFrom"]')?.value || '',
+                amountTo: document.querySelector('input[name="ExpenseFilters.AmountTo"]')?.value || document.getElementById('searchpTo')?.value || '',
+                dateFrom: document.getElementById('FromDate')?.value || document.querySelector('input[name="expenseFilters.DateFrom"]')?.value || '',
+                dateTo: document.querySelector('input[name="expenseFilters.DateTo"]')?.value || document.getElementById('ToDate')?.value || ''
+            };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getExpenseExportParams();
+            var params = new URLSearchParams();
+            if (p.expenseTypeId) params.set('expenseTypeId', p.expenseTypeId); if (p.productId) params.set('productId', p.productId); if (p.details) params.set('details', p.details); if (p.amountFrom) params.set('amountFrom', p.amountFrom); if (p.amountTo) params.set('amountTo', p.amountTo); if (p.dateFrom) params.set('dateFrom', p.dateFrom); if (p.dateTo) params.set('dateTo', p.dateTo);
+            window.location.href = '@Url.Action("ExportExcel", "Expense")' + (params.toString() ? '?' + params.toString() : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getExpenseExportParams();
+            var params = new URLSearchParams();
+            if (p.expenseTypeId) params.set('expenseTypeId', p.expenseTypeId); if (p.productId) params.set('productId', p.productId); if (p.details) params.set('details', p.details); if (p.amountFrom) params.set('amountFrom', p.amountFrom); if (p.amountTo) params.set('amountTo', p.amountTo); if (p.dateFrom) params.set('dateFrom', p.dateFrom); if (p.dateTo) params.set('dateTo', p.dateTo);
+            window.location.href = '@Url.Action("ExportPdf", "Expense")' + (params.toString() ? '?' + params.toString() : '');
         });
     </script>
 }

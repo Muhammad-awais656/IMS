@@ -5,6 +5,12 @@ using IMS.Models;
 using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using static IMS.Models.CustomerPaymentViewModel;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -500,6 +506,160 @@ namespace IMS.Controllers
             {
                 _logger.LogError(ex, "Error fetching customer bills for customer {CustomerId}", customerId);
                 return Json(new { success = false, message = "Error fetching customer bills" });
+            }
+        }
+
+        /// <summary>
+        /// Export customer payments to Excel (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(long? customerId = null, long? saleId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            try
+            {
+                var filters = new CustomerPaymentFilters
+                {
+                    CustomerId = customerId,
+                    SaleId = saleId,
+                    PaymentDateFrom = fromDate,
+                    PaymentDateTo = toDate
+                };
+                const int exportPageSize = 100000;
+                var model = await _customerPaymentService.GetAllPaymentsAsync(1, exportPageSize, filters);
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Customer Payments");
+
+                worksheet.Cell(1, 1).Value = "Payment Id";
+                worksheet.Cell(1, 2).Value = "Customer Name";
+                worksheet.Cell(1, 3).Value = "Bill Number";
+                worksheet.Cell(1, 4).Value = "Amount";
+                worksheet.Cell(1, 5).Value = "Payment Date";
+                worksheet.Cell(1, 6).Value = "Description";
+                worksheet.Cell(1, 7).Value = "Payment Method";
+                worksheet.Cell(1, 8).Value = "Status";
+
+                var headerRange = worksheet.Range(1, 1, 1, 8);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+                int row = 2;
+                decimal totalAmount = 0;
+                foreach (var item in model.PaymentsList)
+                {
+                    worksheet.Cell(row, 1).Value = item.PaymentId;
+                    worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
+                    worksheet.Cell(row, 3).Value = item.BillNumber;
+                    worksheet.Cell(row, 4).Value = item.PaymentAmount;
+                    worksheet.Cell(row, 5).Value = item.PaymentDate.ToString("dd-MMM-yyyy HH:mm");
+                    worksheet.Cell(row, 6).Value = item.Description ?? "";
+                    worksheet.Cell(row, 7).Value = item.PaymentMethod ?? "";
+                    worksheet.Cell(row, 8).Value = item.IsDeleted == true ? "Deleted" : "Active";
+                    totalAmount += item.PaymentAmount;
+                    row++;
+                }
+
+                row++;
+                worksheet.Cell(row, 3).Value = "TOTAL:";
+                worksheet.Cell(row, 3).Style.Font.Bold = true;
+                worksheet.Cell(row, 4).Value = totalAmount;
+                worksheet.Cell(row, 4).Style.Font.Bold = true;
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                string filename = $"CustomerPayments_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting customer payments to Excel");
+                TempData["ErrorMessage"] = "An error occurred while exporting to Excel.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        /// <summary>
+        /// Export customer payments to PDF (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(long? customerId = null, long? saleId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            try
+            {
+                var filters = new CustomerPaymentFilters
+                {
+                    CustomerId = customerId,
+                    SaleId = saleId,
+                    PaymentDateFrom = fromDate,
+                    PaymentDateTo = toDate
+                };
+                const int exportPageSize = 100000;
+                var model = await _customerPaymentService.GetAllPaymentsAsync(1, exportPageSize, filters);
+
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
+                PdfWriter.GetInstance(document, stream);
+                document.Open();
+
+                document.Add(new Paragraph("Customer Payments Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+
+                var table = new PdfPTable(8);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 1f, 2.5f, 1.2f, 1.5f, 2f, 2.5f, 1.5f, 1f });
+
+                string[] headers = { "Payment Id", "Customer Name", "Bill #", "Amount", "Payment Date", "Description", "Payment Method", "Status" };
+                foreach (var header in headers)
+                {
+                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(cell);
+                }
+
+                decimal totalAmount = 0;
+                foreach (var p in model.PaymentsList)
+                {
+                    table.AddCell(p.PaymentId.ToString());
+                    table.AddCell(p.CustomerName ?? "");
+                    table.AddCell(p.BillNumber.ToString());
+                    table.AddCell(p.PaymentAmount.ToString("N2"));
+                    totalAmount += p.PaymentAmount;
+                    table.AddCell(p.PaymentDate.ToString("dd-MMM-yyyy HH:mm"));
+                    table.AddCell(p.Description ?? "");
+                    table.AddCell(p.PaymentMethod ?? "");
+                    table.AddCell(p.IsDeleted == true ? "Deleted" : "Active");
+                }
+
+                var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                {
+                    Colspan = 4,
+                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(summaryCell);
+                table.AddCell(new PdfPCell(new Phrase(totalAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                for (int i = 0; i < 3; i++)
+                    table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+                document.Add(table);
+                document.Close();
+
+                string filename = $"CustomerPayments_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+                return File(stream.ToArray(), "application/pdf", filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting customer payments to PDF");
+                TempData["ErrorMessage"] = "An error occurred while exporting to PDF.";
+                return RedirectToAction(nameof(Index));
             }
         }
     }

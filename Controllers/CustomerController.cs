@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NuGet.Protocol.Core.Types;
 using System.Threading.Tasks;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Document = iTextSharp.text.Document;
+using Paragraph = iTextSharp.text.Paragraph;
+using PageSize = iTextSharp.text.PageSize;
 
 namespace IMS.Controllers
 {
@@ -276,6 +282,119 @@ namespace IMS.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        /// <summary>
+        /// Export customers to Excel (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportExcel(string? customerName = null, string? phoneNumber = null, string? email = null)
+        {
+            try
+            {
+                const int exportPageSize = 100000;
+                var model = await _customerService.GetCustomers(1, exportPageSize, customerName, phoneNumber, email);
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Customers");
+
+                worksheet.Cell(1, 1).Value = "Customer Id";
+                worksheet.Cell(1, 2).Value = "Customer Name";
+                worksheet.Cell(1, 3).Value = "Contact Number";
+                worksheet.Cell(1, 4).Value = "Email";
+                worksheet.Cell(1, 5).Value = "Address";
+                worksheet.Cell(1, 6).Value = "Enabled";
+
+                var headerRange = worksheet.Range(1, 1, 1, 6);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+                int row = 2;
+                foreach (var item in model.Customers ?? new List<Customer>())
+                {
+                    worksheet.Cell(row, 1).Value = item.CustomerId;
+                    worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
+                    worksheet.Cell(row, 3).Value = item.CustomerContactNumber ?? "";
+                    worksheet.Cell(row, 4).Value = item.CustomerEmail ?? "";
+                    worksheet.Cell(row, 5).Value = item.CustomerAddress ?? "";
+                    worksheet.Cell(row, 6).Value = item.IsEnabled ? "Yes" : "No";
+                    row++;
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                string filename = $"Customers_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting customers to Excel");
+                TempData["ErrorMessage"] = "An error occurred while exporting to Excel.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        /// <summary>
+        /// Export customers to PDF (same filters as Index).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportPdf(string? customerName = null, string? phoneNumber = null, string? email = null)
+        {
+            try
+            {
+                const int exportPageSize = 100000;
+                var model = await _customerService.GetCustomers(1, exportPageSize, customerName, phoneNumber, email);
+
+                using var stream = new MemoryStream();
+                var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
+                PdfWriter.GetInstance(document, stream);
+                document.Open();
+
+                document.Add(new Paragraph("Customer Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("\n"));
+
+                var table = new PdfPTable(6);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 1f, 2.5f, 1.5f, 2f, 2.5f, 0.8f });
+
+                string[] headers = { "Customer Id", "Customer Name", "Contact Number", "Email", "Address", "Enabled" };
+                foreach (var header in headers)
+                {
+                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(cell);
+                }
+
+                foreach (var c in model.Customers ?? new List<Customer>())
+                {
+                    table.AddCell(c.CustomerId.ToString());
+                    table.AddCell(c.CustomerName ?? "");
+                    table.AddCell(c.CustomerContactNumber ?? "");
+                    table.AddCell(c.CustomerEmail ?? "");
+                    table.AddCell(c.CustomerAddress ?? "");
+                    table.AddCell(c.IsEnabled ? "Yes" : "No");
+                }
+
+                document.Add(table);
+                document.Close();
+
+                string filename = $"Customers_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+                return File(stream.ToArray(), "application/pdf", filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting customers to PDF");
+                TempData["ErrorMessage"] = "An error occurred while exporting to PDF.";
+                return RedirectToAction(nameof(Index));
+            }
         }
     }
 }

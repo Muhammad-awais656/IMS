@@ -1,4 +1,4 @@
-﻿@model IMS.Models.VendorBillsViewModel
+@model IMS.Models.VendorBillsViewModel
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
@@ -105,6 +105,12 @@
                                         </button>
                                         <a asp-action="Index" class="btn btn-secondary btn-enhanced btn-reset px-4 py-2">
                                             <i class="fa-solid fa-refresh me-2"></i>Reset Filters
+                                        </a>
+                                        <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                                            <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                                        </a>
+                                        <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                                            <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                                         </a>
                                     </div>
                                    @*  <div class="d-flex gap-2">
@@ -686,6 +692,31 @@
                     collapseIcon.className = isExpanded ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-down';
                 });
             }
+        });
+
+        function getVendorBillsExportParams() {
+            const vendorCombo = $("#vendorId").data("kendoComboBox");
+            const billCombo = $("#billNumber").data("kendoComboBox");
+            const vendorId = vendorCombo ? vendorCombo.value() : (document.getElementById('hiddenVendorId') && document.getElementById('hiddenVendorId').value) || '';
+            const billNumber = billCombo ? billCombo.value() : (document.getElementById('hiddenBillNumber') && document.getElementById('hiddenBillNumber').value) || '';
+            const billDateFrom = document.getElementById("billDateFrom") ? document.getElementById("billDateFrom").value : '';
+            const billDateTo = document.getElementById("billDateTo") ? document.getElementById("billDateTo").value : '';
+            const description = document.getElementById("description") ? document.getElementById("description").value : '';
+            return { vendorId: vendorId || '', billNumber: billNumber || '', billDateFrom, billDateTo, description };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorBillsExportParams();
+            var params = new URLSearchParams();
+            if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
+            window.location.href = '@Url.Action("ExportExcel", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorBillsExportParams();
+            var params = new URLSearchParams();
+            if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
+            window.location.href = '@Url.Action("ExportPdf", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
         });
     </script>
 }
