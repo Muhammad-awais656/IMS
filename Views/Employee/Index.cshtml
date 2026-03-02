@@ -51,6 +51,12 @@
                                 <a asp-action="Index" class="btn btn-user-reset">
                                     <i class="fa-solid fa-refresh me-2"></i>Refresh
                                 </a>
+                                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                                </a>
+                                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                                </a>
                                 <a asp-action="Create" class="btn btn-user-create">
                                     <i class="fa-solid fa-plus me-2"></i>Create Employee
                                 </a>
@@ -507,6 +513,20 @@
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+        });
+
+        function getEmployeeExportParams() {
+            return { firstName: document.querySelector('input[name="searchUsername"]')?.value || '' };
+        }
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getEmployeeExportParams();
+            window.location.href = '@Url.Action("ExportExcel", "Employee")' + (p.firstName ? '?firstName=' + encodeURIComponent(p.firstName) : '');
+        });
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getEmployeeExportParams();
+            window.location.href = '@Url.Action("ExportPdf", "Employee")' + (p.firstName ? '?firstName=' + encodeURIComponent(p.firstName) : '');
         });
     </script>
 }
