@@ -280,7 +280,7 @@
             var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
 
             var url = `/Report/ExportDailyStockExcel?productId=${productId}&reportDate=${reportDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'DailyStockReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -288,7 +288,7 @@
             var reportDate = document.querySelector("input[name='Filters.ReportDate']").value;
 
             var url = `/Report/ExportDailyStockPdf?productId=${productId}&reportDate=${reportDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'DailyStockReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

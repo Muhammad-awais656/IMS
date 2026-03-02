@@ -709,14 +709,16 @@
             var p = getVendorBillsExportParams();
             var params = new URLSearchParams();
             if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
-            window.location.href = '@Url.Action("ExportExcel", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'VendorBills_export.xlsx', 'Preparing Excel export... Please wait.');
         });
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getVendorBillsExportParams();
             var params = new URLSearchParams();
             if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
-            window.location.href = '@Url.Action("ExportPdf", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'VendorBills_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

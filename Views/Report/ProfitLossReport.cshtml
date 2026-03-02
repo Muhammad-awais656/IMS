@@ -309,14 +309,14 @@
             e.preventDefault();
             var p = getProfitLossParams();
             var url = `/Report/ExportProfitLossExcel?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'ProfitLossReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getProfitLossParams();
             var url = `/Report/ExportProfitLossPdf?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'ProfitLossReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

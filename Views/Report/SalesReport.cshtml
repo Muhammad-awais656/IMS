@@ -341,7 +341,7 @@
             var toDate = document.querySelector("input[name='SalesReportsFilters.ToDate']").value;
 
             var url = `/Report/ExportExcel?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'SalesReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -351,7 +351,7 @@
             var toDate = document.querySelector("input[name='SalesReportsFilters.ToDate']").value;
 
             var url = `/Report/ExportPdf?custId=${custId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'SalesReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

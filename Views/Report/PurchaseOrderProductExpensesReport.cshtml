@@ -422,7 +422,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportPOExpensesExcel?productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'PurchaseOrderProductExpensesReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -432,7 +432,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportPOExpensesPdf?productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'PurchaseOrderProductExpensesReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

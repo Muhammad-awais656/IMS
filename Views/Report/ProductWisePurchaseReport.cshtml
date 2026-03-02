@@ -346,7 +346,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportProductWisePurchaseExcel?productId=${productId}&fromDate=${fromDate}&toDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'ProductWisePurchaseReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -355,7 +355,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportProductWisePurchasePdf?productId=${productId}&fromDate=${fromDate}&toDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'ProductWisePurchaseReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

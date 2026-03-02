@@ -415,7 +415,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportGeneralExpensesExcel?expenseTypeId=${expenseTypeId}&productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'GeneralExpensesReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -428,7 +428,7 @@
             var toDate = document.querySelector("input[name='Filters.ToDate']").value;
 
             var url = `/Report/ExportGeneralExpensesPdf?expenseTypeId=${expenseTypeId}&productId=${productId}&FromDate=${fromDate}&ToDate=${toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'GeneralExpensesReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

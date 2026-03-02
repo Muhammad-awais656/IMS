@@ -395,7 +395,8 @@
             if (p.customerName) params.set('customerName', p.customerName);
             if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber);
             if (p.email) params.set('email', p.email);
-            window.location.href = '@Url.Action("ExportExcel", "Customer")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "Customer")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Customers_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
@@ -405,7 +406,8 @@
             if (p.customerName) params.set('customerName', p.customerName);
             if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber);
             if (p.email) params.set('email', p.email);
-            window.location.href = '@Url.Action("ExportPdf", "Customer")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "Customer")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Customers_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

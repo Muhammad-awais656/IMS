@@ -742,7 +742,8 @@
             if (p.billNumber) params.set('billNumber', p.billNumber);
             if (p.fromDate) params.set('fromDate', p.fromDate);
             if (p.toDate) params.set('toDate', p.toDate);
-            window.location.href = '@Url.Action("ExportExcel", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'VendorPayments_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
@@ -753,7 +754,8 @@
             if (p.billNumber) params.set('billNumber', p.billNumber);
             if (p.fromDate) params.set('fromDate', p.fromDate);
             if (p.toDate) params.set('toDate', p.toDate);
-            window.location.href = '@Url.Action("ExportPdf", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "VendorPayments")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'VendorPayments_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

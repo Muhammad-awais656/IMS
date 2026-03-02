@@ -325,7 +325,7 @@
             var transactionType = document.querySelector("select[name='TransactionType']").value;
 
             var url = `/Report/ExportBankCreditDebitExcel?accountId=${accountId}&FromDate=${fromDate}&ToDate=${toDate}&TransactionType=${transactionType}`;
-            window.location.href = url;
+            exportWithLoader(url, 'BankCreditDebitReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
@@ -335,7 +335,7 @@
             var transactionType = document.querySelector("select[name='TransactionType']").value;
 
             var url = `/Report/ExportBankCreditDebitPdf?accountId=${accountId}&FromDate=${fromDate}&ToDate=${toDate}&TransactionType=${transactionType}`;
-            window.location.href = url;
+            exportWithLoader(url, 'BankCreditDebitReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

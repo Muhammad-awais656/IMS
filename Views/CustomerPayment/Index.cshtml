@@ -658,7 +658,8 @@
             if (p.saleId) params.set('saleId', p.saleId);
             if (p.fromDate) params.set('fromDate', p.fromDate);
             if (p.toDate) params.set('toDate', p.toDate);
-            window.location.href = '@Url.Action("ExportExcel", "CustomerPayment")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "CustomerPayment")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'CustomerPayments_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
@@ -669,7 +670,8 @@
             if (p.saleId) params.set('saleId', p.saleId);
             if (p.fromDate) params.set('fromDate', p.fromDate);
             if (p.toDate) params.set('toDate', p.toDate);
-            window.location.href = '@Url.Action("ExportPdf", "CustomerPayment")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "CustomerPayment")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'CustomerPayments_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

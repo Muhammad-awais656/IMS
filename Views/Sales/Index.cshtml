@@ -595,8 +595,7 @@
             return { customerId: customerId || '', billNumber, saleFrom, saleDateTo, description };
         }
 
-        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
-            e.preventDefault();
+        function buildSalesExportUrl(action) {
             var p = getSalesExportParams();
             var params = new URLSearchParams();
             if (p.customerId) params.set('customerId', p.customerId);
@@ -604,19 +603,20 @@
             if (p.saleFrom) params.set('saleFrom', p.saleFrom);
             if (p.saleDateTo) params.set('saleDateTo', p.saleDateTo);
             if (p.description) params.set('description', p.description);
-            window.location.href = '@Url.Action("ExportExcel", "Sales")' + (params.toString() ? '?' + params.toString() : '');
+            var base = '@Url.Action("ExportExcel", "Sales")'.replace('ExportExcel', action);
+            return params.toString() ? base + '?' + params.toString() : base;
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var url = buildSalesExportUrl('ExportExcel');
+            exportWithLoader(url, 'Sales_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
-            var p = getSalesExportParams();
-            var params = new URLSearchParams();
-            if (p.customerId) params.set('customerId', p.customerId);
-            if (p.billNumber) params.set('billNumber', p.billNumber);
-            if (p.saleFrom) params.set('saleFrom', p.saleFrom);
-            if (p.saleDateTo) params.set('saleDateTo', p.saleDateTo);
-            if (p.description) params.set('description', p.description);
-            window.location.href = '@Url.Action("ExportPdf", "Sales")' + (params.toString() ? '?' + params.toString() : '');
+            var url = buildSalesExportUrl('ExportPdf');
+            exportWithLoader(url, 'Sales_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

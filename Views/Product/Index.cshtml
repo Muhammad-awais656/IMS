@@ -754,14 +754,16 @@
             var p = getProductExportParams();
             var params = new URLSearchParams();
             if (p.productId) params.set('productId', p.productId); if (p.productCode) params.set('productCode', p.productCode); if (p.priceFrom) params.set('priceFrom', p.priceFrom); if (p.priceTo) params.set('priceTo', p.priceTo); if (p.categoryId) params.set('categoryId', p.categoryId); if (p.labelId) params.set('labelId', p.labelId); if (p.measuringUnitTypeId) params.set('measuringUnitTypeId', p.measuringUnitTypeId);
-            window.location.href = '@Url.Action("ExportExcel", "Product")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "Product")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Products_export.xlsx', 'Preparing Excel export... Please wait.');
         });
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getProductExportParams();
             var params = new URLSearchParams();
             if (p.productId) params.set('productId', p.productId); if (p.productCode) params.set('productCode', p.productCode); if (p.priceFrom) params.set('priceFrom', p.priceFrom); if (p.priceTo) params.set('priceTo', p.priceTo); if (p.categoryId) params.set('categoryId', p.categoryId); if (p.labelId) params.set('labelId', p.labelId); if (p.measuringUnitTypeId) params.set('measuringUnitTypeId', p.measuringUnitTypeId);
-            window.location.href = '@Url.Action("ExportPdf", "Product")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "Product")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Products_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

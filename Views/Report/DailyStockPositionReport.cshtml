@@ -131,7 +131,7 @@
                         reportDate = new Date().toISOString().split('T')[0]; // Default to today if empty
                     }
                     var url = `/Report/ExportDailyStockPositionExcel?reportDate=${reportDate}`;
-                    window.location.href = url;
+                    exportWithLoader(url, 'DailyStockPositionReport_export.xlsx', 'Preparing Excel export... Please wait.');
                 });
             }
 
@@ -144,7 +144,7 @@
                         reportDate = new Date().toISOString().split('T')[0]; // Default to today if empty
                     }
                     var url = `/Report/ExportDailyStockPositionPdf?reportDate=${reportDate}`;
-                    window.location.href = url;
+                    exportWithLoader(url, 'DailyStockPositionReport_export.pdf', 'Preparing PDF export... Please wait.');
                 });
             }
         });

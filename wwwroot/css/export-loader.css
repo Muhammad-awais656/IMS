@@ -1,0 +1,111 @@
+/* Full-page overlay loader for long operations (e.g. export Excel/PDF) */
+.ims-export-loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.2) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: ims-loader-fade-in 0.25s ease-out;
+}
+
+.ims-export-loader-box {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
+    border-radius: 20px;
+    padding: 2.25rem 2.75rem;
+    box-shadow:
+        0 25px 50px -12px rgba(102, 126, 234, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.8) inset,
+        0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    text-align: center;
+    min-width: 300px;
+    max-width: 90vw;
+    animation: ims-loader-box-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ims-export-loader-spinner-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.25rem;
+}
+
+.ims-export-loader-spinner {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #667eea;
+    border-right-color: #764ba2;
+    animation: ims-export-loader-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+}
+
+.ims-export-loader-spinner::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-bottom-color: #667eea;
+    border-left-color: #a78bfa;
+    animation: ims-export-loader-spin 0.7s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite reverse;
+}
+
+.ims-export-loader-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #667eea;
+    opacity: 0.9;
+    animation: ims-loader-pulse 1.5s ease-in-out infinite;
+}
+
+.ims-export-loader-message {
+    font-size: 1.05rem;
+    color: #374151;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+}
+
+.ims-export-loader-sub {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 400;
+    margin: 0.4rem 0 0;
+}
+
+@keyframes ims-loader-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes ims-loader-box-in {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes ims-export-loader-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ims-loader-pulse {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.05); }
+}

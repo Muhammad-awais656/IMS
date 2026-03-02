@@ -388,14 +388,16 @@
             var p = getVendorExportParams();
             var params = new URLSearchParams();
             if (p.name) params.set('name', p.name); if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber); if (p.ntn) params.set('ntn', p.ntn);
-            window.location.href = '@Url.Action("ExportExcel", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportExcel", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Vendors_export.xlsx', 'Preparing Excel export... Please wait.');
         });
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getVendorExportParams();
             var params = new URLSearchParams();
             if (p.name) params.set('name', p.name); if (p.phoneNumber) params.set('phoneNumber', p.phoneNumber); if (p.ntn) params.set('ntn', p.ntn);
-            window.location.href = '@Url.Action("ExportPdf", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
+            var url = '@Url.Action("ExportPdf", "Vendor")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'Vendors_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }

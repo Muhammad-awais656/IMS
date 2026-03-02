@@ -312,14 +312,14 @@
             e.preventDefault();
             var p = getPurchaseReportParams();
             var url = `/Report/ExportPurchaseExcel?vendorId=${p.vendorId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'PurchaseReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getPurchaseReportParams();
             var url = `/Report/ExportPurchasePdf?vendorId=${p.vendorId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
-            window.location.href = url;
+            exportWithLoader(url, 'PurchaseReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>
 }
