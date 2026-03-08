@@ -303,8 +303,7 @@ namespace IMS.Controllers
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr);
                 var modifiedDate = DateTimeHelper.Now;
-                
-                // Get sale information before deletion to check for online payment reversal
+
                 var sale = await _salesService.GetSaleByIdAsync(id);
                 if (sale == null)
                 {
@@ -312,47 +311,31 @@ namespace IMS.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                // Check if sale has online payment that needs reversal transaction
-                var isOnline = !string.IsNullOrEmpty(sale.PaymentMethod) 
+                // Handle online payment reversal and payments the same way as Edit Sale
+                var isOnline = !string.IsNullOrEmpty(sale.PaymentMethod)
                     && string.Equals(sale.PaymentMethod, "Online", StringComparison.OrdinalIgnoreCase)
                     && sale.TotalReceivedAmount > 0;
-                
-                // Get the online account ID (check both PersonalPaymentId and OnlineAccountId)
-                long? onlineAccountId = sale.PersonalPaymentId.HasValue && sale.PersonalPaymentId > 0 
-                    ? sale.PersonalPaymentId 
-                    : (sale.OnlineAccountId.HasValue && sale.OnlineAccountId > 0 ? sale.OnlineAccountId : null);
 
-                if (isOnline && onlineAccountId.HasValue)
+                if (isOnline)
                 {
                     try
                     {
-                        // Create reversal transaction with negative amount
-                        var transactionDescription = $"Deleted Sale - Bill # {sale.BillNumber} - {sale.SaleDescription ?? "Sale Deletion"}";
-                        var transactionId = await _salesService.ProcessOnlinePaymentTransactionAsync(
-                            onlineAccountId.Value,
-                            sale.SaleId,
-                            -sale.TotalReceivedAmount, // Negative amount for reversal
-                            transactionDescription,
-                            userId,
-                            DateTimeHelper.Now
-                        );
-
-                        _logger.LogInformation("Online payment reversal transaction created successfully. Transaction ID: {TransactionId}, Sale ID: {SaleId}, OnlineAccountId: {OnlineAccountId}",
-                            transactionId, sale.SaleId, onlineAccountId.Value);
+                        await _salesService.ReverseOnlinePaymentTransactionBySaleIdAsync(id, userId);
+                        _logger.LogInformation("Online payment reversed for deleted Sale ID: {SaleId}", id);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error creating reversal online payment transaction for deleted Sale ID: {SaleId}", id);
+                        _logger.LogError(ex, "Error reversing online payment for deleted Sale ID: {SaleId}", id);
                         TempData["WarningMessage"] = "Sale deletion initiated but reversing the online transaction failed. Please verify account balances.";
                     }
                 }
-                else 
-                {
-                    //soft delete Payments 
-                    await _salesService.UpdatePaymentsBySaleIdAsync(id);
-                }
 
-                 var res = await _salesService.DeleteSaleAsync(id, modifiedDate, userId);
+                // Delete payments against this sale (as in Edit Sale)
+                await _salesService.DeletePaymentBySaleIdAsync(id);
+                // Delete stock transaction records for this sale (as in Edit Sale)
+                await _salesService.DeleteStockTransactionBySaleIdAsync(id);
+
+                var res = await _salesService.DeleteSaleAsync(id, modifiedDate, userId);
                 if (res != 0)
                 {
                     TempData["Success"] = "Sale deleted successfully!";
@@ -450,6 +433,7 @@ namespace IMS.Controllers
                     SaleDate = sale.SaleDate,
                     DiscountAmount = sale.DiscountAmount,
                     ReceivedAmount = sale.TotalReceivedAmount,
+                    PayNow = sale.TotalReceivedAmount, // Show received amount in Pay Now when editing
                     DueAmount = sale.TotalDueAmount,
                     Description = sale.SaleDescription,
                     SaleId = sale.SaleId, // Add this to track the sale being edited
@@ -462,7 +446,7 @@ namespace IMS.Controllers
                 bool isVendorCustomer = false;
                 if (sale.CustomerIdFk > 0)
                 {
-                    var customerDetails = await _customerService.GetCustomerIdAsync(sale.CustomerIdFk);
+                    var customerDetails = await _customerService.GetCustomerIdAsync(sale.CustomerIdFk.Value);
                     if (customerDetails != null &&
                         !string.IsNullOrWhiteSpace(customerDetails.CustomerName) &&
                         customerDetails.CustomerName.StartsWith(VendorCustomerPrefix, StringComparison.OrdinalIgnoreCase))
@@ -485,7 +469,7 @@ namespace IMS.Controllers
                 // Get previous due amount for the customer
                 if (!isVendorCustomer && sale.CustomerIdFk > 0)
                 {
-                    var previousDueAmount = await _salesService.GetPreviousDueAmountByCustomerIdAsync(sale.CustomerIdFk);
+                    var previousDueAmount = await _salesService.GetPreviousDueAmountByCustomerIdAsync(sale.CustomerIdFk.Value);
                     viewModel.PreviousDue = previousDueAmount;
                 }
 
@@ -501,6 +485,217 @@ namespace IMS.Controllers
                 TempData["ErrorMessage"] = "Error loading the sale for editing. Please try again.";
                 return RedirectToAction("Index");
             }
+        }
+
+        /// <summary>
+        /// POST: SalesController/EditSale/5 - Save changes for an existing sale. Separate from AddSale so edit-specific logic (e.g. stock revert) does not affect Add Sale.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> EditSale(long id, AddSaleViewModel model)
+        {
+            if (model == null)
+            {
+                TempData["ErrorMessage"] = "Invalid form data.";
+                return RedirectToAction(nameof(EditSale), new { id });
+            }
+
+            model.SaleId = id;
+
+            // Remove SaleDetails/Description/PayNow validation errors; we validate manually
+            var keysToRemove = ModelState.Keys.Where(k => k.StartsWith("SaleDetails") || k.StartsWith("Description") || k.StartsWith("PayNow")).ToList();
+            foreach (var key in keysToRemove)
+                ModelState.Remove(key);
+
+            var hasCustomer = model.CustomerId.HasValue && model.CustomerId > 0;
+            var hasVendor = model.VendorId.HasValue && model.VendorId > 0;
+            if (!hasCustomer && !hasVendor)
+            {
+                TempData["ErrorMessage"] = "Please select a customer or vendor. One of them is mandatory.";
+                await ReloadEditSaleViewDataAsync(id, model);
+                return View("AddSale", model);
+            }
+            if (hasCustomer && hasVendor)
+            {
+                TempData["ErrorMessage"] = "Please select either a customer or a vendor, not both.";
+                await ReloadEditSaleViewDataAsync(id, model);
+                return View("AddSale", model);
+            }
+
+            if (model.SaleDetails == null || !model.SaleDetails.Any())
+            {
+                TempData["ErrorMessage"] = "Please add at least one product to the sale.";
+                await ReloadEditSaleViewDataAsync(id, model);
+                return View("AddSale", model);
+            }
+
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Please check the form data and try again.";
+                await ReloadEditSaleViewDataAsync(id, model);
+                return View("AddSale", model);
+            }
+
+            try
+            {
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr);
+                DateTime currentDateTime = DateTimeHelper.Now;
+
+                // Revert stock for existing sale (restore quantities from deleted details)
+                await _salesService.TransactionDeleteAndStockUpdate(id);
+                await _salesService.DeleteSaleDetailsBySaleIdAsync(id);
+                await _salesService.DeletePaymentBySaleIdAsync(id);
+                await _salesService.DeleteStockTransactionBySaleIdAsync(id);
+                await _salesService.ReverseOnlinePaymentTransactionBySaleIdAsync(id, userId);
+
+                var updateResult = await _salesService.UpdateSaleAsync(new Sale
+                {
+                    SaleId = id,
+                    TotalAmount = model.TotalAmount,
+                    TotalReceivedAmount = model.ReceivedAmount,
+                    TotalDueAmount = model.DueAmount,
+                    CustomerIdFk = model.CustomerId ?? 0,
+                    SupplierIdFk = model.VendorId ?? 0,
+                    DiscountAmount = model.DiscountAmount,
+                    BillNumber = long.Parse(model.BillNo ?? "0"),
+                    SaleDescription = model.Description ?? "Update Sales Return",
+                    SaleDate = model.SaleDate,
+                    ModifiedBy = userId,
+                    ModifiedDate = currentDateTime,
+                    PaymentMethod = model.PaymentMethod,
+                    OnlineAccountId = model.PaymentMethod == "Online" ? model.OnlineAccountId : null,
+                });
+
+                if (updateResult == 0)
+                {
+                    TempData["ErrorMessage"] = "Failed to update sale.";
+                    await ReloadEditSaleViewDataAsync(id, model);
+                    return View("AddSale", model);
+                }
+
+                foreach (var detail in model.SaleDetails)
+                {
+                    int detailReturnValue;
+                    _salesService.AddSaleDetails(
+                        id,
+                        detail.ProductId,
+                        detail.UnitPrice,
+                        detail.Quantity,
+                        detail.SalePrice,
+                        detail.LineDiscountAmount,
+                        detail.PayableAmount,
+                        detail.ProductRangeId,
+                        currentDateTime,
+                        userId,
+                        model.PaymentMethod,
+                        model.OnlineAccountId,
+                        out detailReturnValue
+                    );
+
+                    var prodMaster = await _salesService.GetStockByProductIdAsync(detail.ProductId);
+                    if (prodMaster != null)
+                    {
+                        decimal quantityToDeduct = (decimal)detail.Quantity;
+                        var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(detail.ProductId);
+                        var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == detail.ProductRangeId);
+
+                        if (selectedProductRange != null)
+                        {
+                            var product = await _productService.GetProductByIdAsync(detail.ProductId);
+                            if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
+                            {
+                                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
+                                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                                long? baseUnitId = smallestUnit?.MeasuringUnitId ?? (measuringUnits.Any() ? measuringUnits.First().MeasuringUnitId : (long?)null);
+
+                                if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
+                                {
+                                    var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                                    var convertedQuantity = await unitConversionService.ConvertUnitAsync(
+                                        selectedProductRange.MeasuringUnitId_FK,
+                                        baseUnitId.Value,
+                                        (decimal)detail.Quantity
+                                    );
+                                    if (convertedQuantity.HasValue)
+                                        quantityToDeduct = convertedQuantity.Value;
+                                }
+                            }
+                        }
+
+                        _salesService.UpdateStock(
+                            prodMaster.StockMasterId,
+                            detail.ProductId,
+                            prodMaster.AvailableQuantity - quantityToDeduct,
+                            prodMaster.TotalQuantity,
+                            prodMaster.UsedQuantity + quantityToDeduct,
+                            userId,
+                            currentDateTime
+                        );
+
+                        _salesService.SaleTransactionCreate(
+                            prodMaster.StockMasterId,
+                            (decimal)detail.Quantity,
+                            $"Sale #{id}",
+                            currentDateTime,
+                            userId,
+                            2,
+                            id
+                        );
+                    }
+                }
+
+                if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
+                {
+                    try
+                    {
+                        var transactionDescription = $"Sale Credit - Bill #{model.BillNo} - {model.Description}";
+                        await _salesService.ProcessOnlinePaymentTransactionAsync(
+                            model.OnlineAccountId.Value,
+                            id,
+                            model.ReceivedAmount,
+                            transactionDescription,
+                            userId,
+                            currentDateTime
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing online payment transaction for Edit Sale ID: {SaleId}", id);
+                    }
+                }
+
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                    Request.Headers["Content-Type"].ToString().Contains("application/x-www-form-urlencoded"))
+                {
+                    if (model.ActionType == "saveAndPrint")
+                        return Json(new { success = true, message = "Sale updated successfully!", saleId = id, print = true });
+                    return Json(new { success = true, message = "Sale updated successfully!", saleId = id });
+                }
+
+                TempData["Success"] = "Sale updated successfully!";
+                if (model.ActionType == "saveAndPrint")
+                    return RedirectToAction("Details", new { id, print = true });
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating sale ID: {SaleId}", id);
+                TempData["ErrorMessage"] = ex.Message;
+                await ReloadEditSaleViewDataAsync(id, model);
+                return View("AddSale", model);
+            }
+        }
+
+        private async Task ReloadEditSaleViewDataAsync(long saleId, AddSaleViewModel model)
+        {
+            var products = await _productService.GetAllEnabledProductsAsync();
+            ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
+            var customers = await _salesService.GetAllCustomersAsync();
+            ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.CustomerId);
+            ViewBag.IsEdit = true;
+            ViewBag.IsEditMode = true;
+            ViewBag.SaleId = saleId;
         }
 
         [HttpGet]
@@ -753,55 +948,21 @@ namespace IMS.Controllers
                 }
 
                     _logger.LogInformation("Sale details validation passed - {Count} items", model.SaleDetails.Count);
+
+                    // Add Sale POST only handles new sales; edit submissions must use EditSale POST
+                    if (model.SaleId.HasValue && model.SaleId > 0)
+                    {
+                        _logger.LogWarning("AddSale POST received SaleId {SaleId}; redirecting to Edit Sale.", model.SaleId);
+                        return RedirectToAction(nameof(EditSale), new { id = model.SaleId.Value });
+                    }
+
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     
                     DateTime currentDateTime = DateTimeHelper.Now;
-                    long saleId;
 
-                    // Check if we're editing an existing sale
-                    if (model.SaleId.HasValue && model.SaleId > 0)
-                    {
-                        _logger.LogInformation("Updating existing sale with ID: {SaleId}", model.SaleId);
-                        //Update Stock
-                        await _salesService.TransactionDeleteAndStockUpdate(model.SaleId.Value);
-                        // Delete existing sale details
-                        await _salesService.DeleteSaleDetailsBySaleIdAsync(model.SaleId.Value);
-                        // Update existing sale
-                        var updateResult = await _salesService.UpdateSaleAsync(new Sale
-                        {
-                            SaleId = model.SaleId.Value,
-                            TotalAmount = model.TotalAmount,
-                            TotalReceivedAmount = model.ReceivedAmount,
-                            TotalDueAmount = model.DueAmount,
-                            CustomerIdFk = model.CustomerId.Value,
-                            SupplierIdFk=  model.VendorId.Value,
-                            DiscountAmount = model.DiscountAmount,
-                            BillNumber = long.Parse(model.BillNo ?? "0"),
-                            SaleDescription = model.Description ?? "Update Sales Return",
-                            SaleDate = model.SaleDate,
-                            ModifiedBy = userId,
-                            ModifiedDate = currentDateTime,
-                            PaymentMethod = model.PaymentMethod,
-                            OnlineAccountId = model.PaymentMethod== "Online" ? model.OnlineAccountId : null,
-                        });
-
-                        if (updateResult == 0)
-                        {
-                            TempData["ErrorMessage"] = "Failed to update sale.";
-                            await ReloadViewDataAsync();
-                            return View(model);
-                        }
-                       
-                        
-                        saleId = model.SaleId.Value;
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Creating new sale");
-                        
-                        // Create new sale
-                        saleId = await _salesService.CreateSaleAsync(
+                    _logger.LogInformation("Creating new sale");
+                    long saleId = await _salesService.CreateSaleAsync(
                             model.TotalAmount,
                             model.ReceivedAmount,
                             model.DueAmount,
@@ -818,7 +979,6 @@ namespace IMS.Controllers
                             model.PaymentMethod,
                             model.OnlineAccountId
                         );
-                    }
 
                     if (saleId > 0)
                     {
@@ -955,21 +1115,19 @@ namespace IMS.Controllers
                             Request.Headers["Content-Type"].ToString().Contains("application/x-www-form-urlencoded"))
                         {
                             // AJAX request - return JSON
-                            string successMessage = model.SaleId.HasValue ? "Sale updated successfully!" : "Sale created successfully!";
                             if (model.ActionType == "saveAndPrint")
                             {
-                                return Json(new { success = true, message = successMessage, saleId = saleId, print = true });
+                                return Json(new { success = true, message = "Sale created successfully!", saleId = saleId, print = true });
                             }
                             else
                             {
-                                return Json(new { success = true, message = successMessage, saleId = saleId });
+                                return Json(new { success = true, message = "Sale created successfully!", saleId = saleId });
                             }
                         }
                         else
                         {
                             // Regular form submission - use TempData and redirect
-                            string successMessage = model.SaleId.HasValue ? "Sale updated successfully!" : "Sale created successfully!";
-                            TempData["Success"] = successMessage;
+                            TempData["Success"] = "Sale created successfully!";
                             
                             if (model.ActionType == "saveAndPrint")
                             {
@@ -1452,22 +1610,26 @@ namespace IMS.Controllers
                             //var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
 
                            
-                            var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
+                            //var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
 
-                            if (conversionResult.HasValue)
-                            {
-                                // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
-                                // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
-                                // Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
+                            //if (conversionResult.HasValue)
+                            //{
+                                //// conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
+                                //// So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
+                                //// Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
                                 
-                                item.PrintQuantity = conversionResult.Value;
-                            }
-                            else
-                            {
+                            //    item.PrintQuantity = conversionResult.Value;
+                            //}
+                            //else
+                            //{
                                 item.PrintQuantity = (decimal)item.Quantity;
-                            }
+                           // }
                             
 
+                        }
+                        else
+                        {
+                            item.PrintQuantity = (decimal)item.Quantity;
                         }
 
 

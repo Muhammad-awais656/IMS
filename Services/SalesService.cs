@@ -410,7 +410,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pTotalAmount", sale.TotalAmount);
                         command.Parameters.AddWithValue("@pTotalReceivedAmount", sale.TotalReceivedAmount);
                         command.Parameters.AddWithValue("@pTotalDueAmount", sale.TotalDueAmount);
-                        command.Parameters.AddWithValue("@pCustomerId_FK", sale.CustomerIdFk);
+                        command.Parameters.AddWithValue("@pCustomerId_FK", sale.CustomerIdFk  ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pSupplierId_FK", sale.SupplierIdFk ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pModifiedDate", sale.ModifiedDate == default(DateTime) ? DateTimeHelper.Now : sale.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", sale.ModifiedBy);
                         command.Parameters.AddWithValue("@pDiscountAmount", sale.DiscountAmount);
@@ -446,12 +447,18 @@ namespace IMS.Services
                     {
                         try
                         {
-                            // Step 1: Get sale details to reverse stock (using the same connection/transaction)
+                            // Step 1: Get sale details to reverse stock (inline SQL so Quantity/amounts are correct, same as Edit Sale / GetSaleDetailsBySaleIdAsync)
                             var saleDetails = new List<SaleDetailViewModel>();
-                            using (var command = new SqlCommand("GetSaleDetailsBySaleId", connection, transaction))
+                            var detailsSql = @"SELECT sd.PrductId_FK, sd.ProductRangeId_FK, sd.UnitPrice, sd.Quantity, sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount,
+                                               p.ProductName, mu.MeasuringUnitAbbreviation
+                                               FROM SaleDetails sd
+                                               LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                                               LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
+                                               LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                                               WHERE sd.SaleId_FK = @SaleId";
+                            using (var command = new SqlCommand(detailsSql, connection, transaction))
                             {
-                                command.CommandType = CommandType.StoredProcedure;
-                                command.Parameters.AddWithValue("@pSaleId", id);
+                                command.Parameters.AddWithValue("@SaleId", id);
                                 using (var reader = await command.ExecuteReaderAsync())
                                 {
                                     while (await reader.ReadAsync())
@@ -467,7 +474,6 @@ namespace IMS.Services
                                             SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
                                             LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
                                             PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount"),
-                                            PaymentMethod = reader.IsDBNull("PaymentMethod") ? string.Empty : reader.GetString("PaymentMethod"),
                                         });
                                     }
                                 }
@@ -730,14 +736,22 @@ namespace IMS.Services
             var saleDetails = new List<SaleDetailViewModel>();
             try
             {
+                // Use inline SQL from SaleDetails so UnitPrice, SalePrice, LineDiscountAmount, PayableAmount are always populated (SP may return different column names or nulls)
+                var detailsSql = @"SELECT sd.PrductId_FK, sd.ProductRangeId_FK, sd.UnitPrice, sd.Quantity, sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount,
+                                   p.ProductName, mu.MeasuringUnitAbbreviation
+                                   FROM SaleDetails sd
+                                   LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                                   LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
+                                   LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                                   WHERE sd.SaleId_FK = @SaleId";
+
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    
-                    using (var command = new SqlCommand("GetSaleDetailsBySaleId", connection))
+
+                    using (var command = new SqlCommand(detailsSql, connection))
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        command.Parameters.AddWithValue("@SaleId", saleId);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -753,7 +767,8 @@ namespace IMS.Services
                                     Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
                                     SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
                                     LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
-                                    PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount")
+                                    PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount"),
+                                    ProductSize = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation")
                                 });
                             }
                         }
@@ -906,6 +921,93 @@ namespace IMS.Services
             return response;
         }
 
+        public async Task<int> DeletePaymentBySaleIdAsync(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand("DeletePaymentBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting payments by sale ID {SaleId}", saleId);
+                throw;
+            }
+            return response;
+        }
+
+        public async Task<int> DeleteStockTransactionBySaleIdAsync(long saleId)
+        {
+            int response = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand("DeleteStockTransactionBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        response = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting stock transactions by sale ID {SaleId}", saleId);
+                throw;
+            }
+            return response;
+        }
+
+        public async Task<int> ReverseOnlinePaymentTransactionBySaleIdAsync(long saleId, long modifiedBy)
+        {
+            int returnValue = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    using (var command = new SqlCommand("ReverseOnlinePaymentTransactionBySaleId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pSaleId", saleId);
+                        command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                        var returnValueParam = new SqlParameter("@pReturnValue", SqlDbType.Int)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        command.Parameters.Add(returnValueParam);
+
+                        await command.ExecuteNonQueryAsync();
+
+                        if (returnValueParam.Value != null && returnValueParam.Value != DBNull.Value)
+                        {
+                            returnValue = Convert.ToInt32(returnValueParam.Value);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reversing online payment transaction by sale ID {SaleId}", saleId);
+                throw;
+            }
+            return returnValue;
+        }
+
         public async Task<int> UpdatePaymentsBySaleIdAsync(long saleId)
         {
             int response = 0;
@@ -925,7 +1027,7 @@ namespace IMS.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting sale details by sale ID");
+                _logger.LogError(ex, "Error updating payments by sale ID");
                 throw;
             }
             return response;
