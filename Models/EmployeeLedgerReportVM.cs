@@ -1,7 +1,9 @@
-﻿namespace IMS.Models
+namespace IMS.Models
 {
     public class EmployeeLedgerReportVM
     {
+        public long LedgerId { get; set; }
+        public int VoucherTypeId { get; set; }
         public DateTime VoucherDate { get; set; }
         public string VoucherTypeName { get; set; }
         public string ReferenceNo { get; set; }

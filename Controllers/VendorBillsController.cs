@@ -748,8 +748,10 @@ namespace IMS.Controllers
                                 detail.SalePrice,
                                 detail.LineDiscountAmount,
                                 detail.PayableAmount,
-                                detail.ProductRangeId
-                                
+                                detail.ProductRangeId,
+                                model.PaymentMethod,
+                                model.OnlineAccountId
+
                             );
 
                             // Get stock information and update (INCREASE stock instead of decrease)
@@ -1296,6 +1298,92 @@ namespace IMS.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error exporting vendor bills to Excel"); TempData["ErrorMessage"] = "An error occurred while exporting to Excel."; return RedirectToAction(nameof(Index)); }
         }
 
+        /// <summary>Generate PO Details Report in Excel (Code, Product, Item Level Discount, Unit Sale Price, Qty, Total Discount, Payable), bill-wise with Total Payable. Uses same filters as Vendor Bills Management.</summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportPODetailsReportExcel(long? vendorId = null, long? billNumber = null, DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
+        {
+            try
+            {
+                var filters = new VendorBillsFilters { VendorId = vendorId, BillNumber = billNumber, BillDateFrom = billDateFrom, BillDateTo = billDateTo, Description = string.IsNullOrWhiteSpace(description) ? null : description };
+                var list = await _vendorBillsService.GetPODetailsReportForExportAsync(filters);
+
+                string[] headers = { "Code", "Product", "Item Level Discount", "Unit Sale Price", "Qty", "Total Discount", "Payable" };
+                const int colCount = 7;
+                int row = 1;
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("PO Details Report");
+
+                worksheet.Cell(row, 1).Value = "PO Details Report";
+                worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                row += 2;
+
+                var culture = new System.Globalization.CultureInfo("ur-PK");
+                var items = list ?? new List<PODetailReportItem>();
+                long? currentBillId = null;
+                decimal billTotalPayable = 0;
+
+                foreach (var item in items)
+                {
+                    if (item.PurchaseOrderIdFk != currentBillId)
+                    {
+                        if (currentBillId.HasValue)
+                        {
+                            worksheet.Cell(row, 1).Value = "Total Payable";
+                            worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                            worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                            worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                            row++;
+                        }
+                        billTotalPayable = 0;
+                        currentBillId = item.PurchaseOrderIdFk;
+                        var billLabel = item.BillNumber.HasValue ? $"Bill # {item.BillNumber} (PO Id: {item.PurchaseOrderIdFk})" : $"PO Id: {item.PurchaseOrderIdFk}";
+                        worksheet.Cell(row, 1).Value = billLabel;
+                        worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                        row++;
+                        for (int c = 0; c < headers.Length; c++)
+                            worksheet.Cell(row, c + 1).Value = headers[c];
+                        worksheet.Range(row, 1, row, colCount).Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightGray;
+                        row++;
+                    }
+
+                    billTotalPayable += item.PayableAmount;
+                    worksheet.Cell(row, 1).Value = item.Code ?? "";
+                    worksheet.Cell(row, 2).Value = item.ProductName ?? "";
+                    worksheet.Cell(row, 3).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 4).Value = item.UnitPrice.ToString("N2", culture);
+                    worksheet.Cell(row, 5).Value = item.Quantity;
+                    worksheet.Cell(row, 6).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 7).Value = item.PayableAmount.ToString("N2", culture);
+                    row++;
+                }
+
+                if (currentBillId.HasValue)
+                {
+                    worksheet.Cell(row, 1).Value = "Total Payable";
+                    worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                    worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                    worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                    row++;
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"PODetailsReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting PO details report to Excel");
+                TempData["ErrorMessage"] = "An error occurred while generating the PO details report.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> ExportPdf(long? vendorId = null, long? billNumber = null, DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
         {
@@ -1321,5 +1409,51 @@ namespace IMS.Controllers
             }
             catch (Exception ex) { _logger.LogError(ex, "Error exporting vendor bills to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
         }
+
+        /// <summary>Save vendor opening balance (creates an opening balance bill for the vendor).</summary>
+        [HttpPost]
+        [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
+        public async Task<JsonResult> SaveVendorOpenBalance([FromBody] VendorOpenBalanceRequest request)
+        {
+            try
+            {
+                if (request == null || request.VendorId <= 0)
+                    return Json(new { success = false, message = "Invalid vendor." });
+                //if (string.IsNullOrWhiteSpace(request.Type) || (request.Type != "Payable" && request.Type != "Receivable"))
+                //    return Json(new { success = false, message = "Type must be Payable or Receivable." });
+                if (request.OpeningBalance < 0)
+                    return Json(new { success = false, message = "Opening balance cannot be negative." });
+                if (request.OpeningBalance == 0)
+                    return Json(new { success = false, message = "Opening balance cannot be empty." });
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long createdBy = long.TryParse(userIdStr, out var uid) ? uid : 1;
+
+                DateTime? balanceDate = null;
+                if (!string.IsNullOrWhiteSpace(request.BalanceDate) && DateTime.TryParse(request.BalanceDate, out var parsedDate))
+                    balanceDate = parsedDate;
+
+                long billId = await _vendorService.AddOpeningBalanceVendorBillAsync(
+                    request.VendorId,
+                    request.Type,
+                    request.OpeningBalance,
+                    createdBy,
+                    balanceDate);
+                return Json(new { success = true, message = "Opening balance saved.", billId = billId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving vendor opening balance");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+    }
+
+    public class VendorOpenBalanceRequest
+    {
+        public long VendorId { get; set; }
+        public string Type { get; set; } = ""; // "Payable" or "Receivable"
+        public decimal OpeningBalance { get; set; }
+        public string? BalanceDate { get; set; } // ISO date from UI (e.g. "yyyy-MM-dd")
     }
 }

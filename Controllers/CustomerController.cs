@@ -396,5 +396,47 @@ namespace IMS.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+
+        /// <summary>
+        /// Get customers for Kendo dropdown (e.g. Customer Open Balance modal).
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetCustomersForDropdown()
+        {
+            try
+            {
+                var customers = await _customerService.GetAllEnabledCustomers();
+                var result = customers?.Select(c => new
+                {
+                    value = c.CustomerId.ToString(),
+                    text = c.CustomerName
+                }).ToList();
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customers for dropdown");
+                return Json(new List<object>());
+            }
+        }
+
+        /// <summary>
+        /// Get current balance for a customer (e.g. for Customer Open Balance modal). Placeholder returns 0; implement from sales/payments as needed.
+        /// </summary>
+        [HttpGet]
+        public Task<IActionResult> GetCustomerBalance(long customerId)
+        {
+            try
+            {
+                // TODO: Implement from sales receivable / payments when business logic is defined
+                decimal balance = 0;
+                return Task.FromResult<IActionResult>(Json(new { success = true, balance = balance }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer balance");
+                return Task.FromResult<IActionResult>(Json(new { success = false, balance = 0m, message = ex.Message }));
+            }
+        }
     }
 }

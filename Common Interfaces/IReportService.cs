@@ -1,4 +1,4 @@
-﻿using IMS.Models;
+using IMS.Models;
 
 namespace IMS.Common_Interfaces
 {
@@ -19,5 +19,7 @@ namespace IMS.Common_Interfaces
         Task<GeneralExpensesReportViewModel> GetGeneralExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters);
         Task<GeneralExpensesReportViewModel> GetPOExpensesReport(int pageNumber, int? pageSize, GeneralExpensesReportFilters? filters);
         Task<DailyStockPositionReportViewModel> GetDailyStockPositionReport(DailyStockPositionReportFilters? filters);
+        Task<CustomerLedgerReportViewModel> GetCustomerLedgerReport(CustomerLedgerReportFilters? filters);
+        Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters);
     }
 }

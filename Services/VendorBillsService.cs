@@ -1275,5 +1275,125 @@ namespace IMS.Services
                 throw;
             }
         }
+
+        public async Task<List<PODetailReportItem>> GetPODetailsReportForExportAsync(VendorBillsFilters? filters)
+        {
+            var list = new List<PODetailReportItem>();
+            var sql = @"SELECT poi.PurchaseOrderItemId, poi.PurchaseOrderId_FK, poi.PrductId_FK, poi.UnitPrice, poi.Quantity, poi.PurchasePrice, poi.LineDiscountAmount, poi.PayableAmount, poi.ProductRangeId_FK,
+                p.ProductName, po.BillNumber, mu.MeasuringUnitAbbreviation AS Code
+                FROM PurchaseOrderItems poi
+                INNER JOIN PurchaseOrders po ON po.PurchaseOrderId = poi.PurchaseOrderId_FK AND (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                LEFT JOIN Products p ON p.ProductId = poi.PrductId_FK
+                LEFT JOIN ProductRange pr ON poi.ProductRangeId_FK = pr.ProductRangeId
+                LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                WHERE 1=1";
+            var parameters = new List<SqlParameter>();
+            if (filters?.VendorId != null)
+            {
+                sql += " AND po.SupplierId_FK = @pVendorId";
+                parameters.Add(new SqlParameter("@pVendorId", filters.VendorId.Value));
+            }
+            if (filters?.BillNumber != null)
+            {
+                sql += " AND po.BillNumber = @pBillNumber";
+                parameters.Add(new SqlParameter("@pBillNumber", filters.BillNumber.Value));
+            }
+            if (filters?.BillDateFrom != null)
+            {
+                sql += " AND CAST(po.PurchaseOrderDate AS DATE) >= @pBillDateFrom";
+                parameters.Add(new SqlParameter("@pBillDateFrom", filters.BillDateFrom.Value.Date));
+            }
+            if (filters?.BillDateTo != null)
+            {
+                sql += " AND CAST(po.PurchaseOrderDate AS DATE) <= @pBillDateTo";
+                parameters.Add(new SqlParameter("@pBillDateTo", filters.BillDateTo.Value.Date));
+            }
+            if (!string.IsNullOrWhiteSpace(filters?.Description))
+            {
+                sql += " AND po.PurchaseOrderDescription LIKE @pDescription";
+                parameters.Add(new SqlParameter("@pDescription", "%" + filters.Description.Trim() + "%"));
+            }
+            sql += " ORDER BY poi.PurchaseOrderId_FK, poi.PurchaseOrderItemId";
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var cmd = new SqlCommand(sql, connection))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var item = new PODetailReportItem
+                                {
+                                    PurchaseOrderItemId = reader.GetInt64(reader.GetOrdinal("PurchaseOrderItemId")),
+                                    PurchaseOrderIdFk = reader.GetInt64(reader.GetOrdinal("PurchaseOrderId_FK")),
+                                    PrductIdFk = reader.GetInt64(reader.GetOrdinal("PrductId_FK")),
+                                    Code = SafeGetStringNull(reader, "Code"),
+                                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    Quantity = reader.GetInt64(reader.GetOrdinal("Quantity")),
+                                    PurchasePrice = reader.GetDecimal(reader.GetOrdinal("PurchasePrice")),
+                                    LineDiscountAmount = reader.GetDecimal(reader.GetOrdinal("LineDiscountAmount")),
+                                    PayableAmount = reader.GetDecimal(reader.GetOrdinal("PayableAmount")),
+                                    ProductRangeIdFk = SafeGetInt64Null(reader, "ProductRangeId_FK"),
+                                    ProductName = SafeGetStringNull(reader, "ProductName"),
+                                    BillNumber = SafeGetInt64Null(reader, "BillNumber")
+                                };
+                                list.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting PO details report for export");
+                throw;
+            }
+            return list;
+        }
+
+        private static long? SafeGetInt64Null(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetInt64(ord);
+            }
+            catch { return null; }
+        }
+
+        private static DateTime? SafeGetDateTimeNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetDateTime(ord);
+            }
+            catch { return null; }
+        }
+
+        private static string? SafeGetStringNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetString(ord);
+            }
+            catch { return null; }
+        }
+
+        private static bool? SafeGetBoolNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetBoolean(ord);
+            }
+            catch { return null; }
+        }
     }
 }

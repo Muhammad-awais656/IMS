@@ -136,6 +136,31 @@ namespace IMS.Models
         public string? MeasuringUnitAbbreviation { get; set; }
         public bool IsSmallestUnit { get; set; }
     }
+
+    /// <summary>Row for Sale Detail Report (Excel export).</summary>
+    public class SaleDetailReportItem
+    {
+        public long SaleDetailId { get; set; }
+        public long SaleIdFk { get; set; }
+        public long PrductIdFk { get; set; }
+        /// <summary>Unit abbreviation (e.g. kg) for display as Code.</summary>
+        public string? Code { get; set; }
+        public decimal UnitPrice { get; set; }
+        public long Quantity { get; set; }
+        public decimal SalePrice { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal PayableAmount { get; set; }
+        public long? ProductRangeIdFk { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public long? CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public long? ModifiedBy { get; set; }
+        public string? PaymentMethod { get; set; }
+        public long? OnlineAccountId { get; set; }
+        public string? ProductName { get; set; }
+        public string? BankName { get; set; }
+        public long? BillNumber { get; set; }
+    }
 }
 
 

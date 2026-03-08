@@ -2219,6 +2219,421 @@ namespace IMS.Controllers
             return View(model);
         }
 
+        public async Task<IActionResult> CustomerLedgerReport(CustomerLedgerReportViewModel model)
+        {
+            try
+            {
+                if (model == null)
+                    model = new CustomerLedgerReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new CustomerLedgerReportFilters();
+
+                var hasFrom = Request.Query.ContainsKey("Filters.FromDate");
+                var hasTo = Request.Query.ContainsKey("Filters.ToDate");
+                if (!hasFrom && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasTo && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now;
+
+                var customers = await _customerService.GetAllEnabledCustomers();
+                ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.Filters.CustomerId);
+
+                var filters = model.Filters;
+                model = await _reportService.GetCustomerLedgerReport(filters);
+                model.Filters = filters;
+                ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.Filters.CustomerId);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                    model = new CustomerLedgerReportViewModel();
+                var customers = await _customerService.GetAllEnabledCustomers();
+                ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", model.Filters?.CustomerId);
+            }
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportCustomerLedgerExcel(long? customerId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new CustomerLedgerReportFilters
+            {
+                CustomerId = customerId,
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetCustomerLedgerReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Customer Ledger Report");
+
+            worksheet.Cell(1, 1).Value = "Date";
+            worksheet.Cell(1, 2).Value = "GL Account (Customer)";
+            worksheet.Cell(1, 3).Value = "Debit";
+            worksheet.Cell(1, 4).Value = "Credit";
+            worksheet.Cell(1, 5).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            var ledgerList = model.LedgerList ?? new List<CustomerLedgerReportItem>();
+            bool multiCustomer = model.CustomerName == "All Customers" && ledgerList.Any();
+            var excelCustomerColors = new[] { XLColor.LightGray, XLColor.LightYellow, XLColor.LightCyan, XLColor.Lavender, XLColor.LightGreen };
+            string? prevCustomer = null;
+            int colorIndex = -1;
+
+            int row = 2;
+            foreach (var item in ledgerList)
+            {
+                if (multiCustomer)
+                {
+                    var cust = item.CustomerName ?? "";
+                    if (cust != prevCustomer) { prevCustomer = cust; colorIndex++; }
+                    var fillColor = excelCustomerColors[colorIndex % excelCustomerColors.Length];
+                    worksheet.Range(row, 1, row, 5).Style.Fill.BackgroundColor = fillColor;
+                }
+                worksheet.Cell(row, 1).Value = item.Date.ToString("dd-MMM-yy");
+                worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
+                worksheet.Cell(row, 3).Value = item.Debit;
+                worksheet.Cell(row, 4).Value = item.Credit;
+                worksheet.Cell(row, 5).Value = item.Balance;
+                row++;
+            }
+
+            row++;
+            worksheet.Cell(row, 2).Value = "Total Debit:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 3).Value = model.TotalDebit;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Total Credit:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalCredit;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Closing Balance:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.ClosingBalance;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"CustomerLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportCustomerLedgerPdf(long? customerId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new CustomerLedgerReportFilters
+            {
+                CustomerId = customerId,
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetCustomerLedgerReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            document.Add(new Paragraph("Customer Ledger Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+            if (!string.IsNullOrEmpty(model.CustomerName))
+                document.Add(new Paragraph(model.CustomerName, FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(5);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.5f, 3f, 2f, 2f, 2f });
+            string[] headers = { "Date", "GL Account (Customer)", "Debit", "Credit", "Balance" };
+            foreach (var header in headers)
+            {
+                var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(cell);
+            }
+
+            var ledgerListPdf = model.LedgerList ?? new List<CustomerLedgerReportItem>();
+            bool multiCustomerPdf = model.CustomerName == "All Customers" && ledgerListPdf.Any();
+            var pdfCustomerColors = new BaseColor[]
+            {
+                new BaseColor(240, 240, 240),   // light gray
+                new BaseColor(255, 255, 220),   // light yellow
+                new BaseColor(220, 240, 255),   // light blue
+                new BaseColor(230, 230, 250),   // lavender
+                new BaseColor(220, 255, 220)    // light green
+            };
+            string? prevCustomerPdf = null;
+            int colorIndexPdf = -1;
+
+            foreach (var item in ledgerListPdf)
+            {
+                BaseColor? rowBg = null;
+                if (multiCustomerPdf)
+                {
+                    var cust = item.CustomerName ?? "";
+                    if (cust != prevCustomerPdf) { prevCustomerPdf = cust; colorIndexPdf++; }
+                    rowBg = pdfCustomerColors[colorIndexPdf % pdfCustomerColors.Length];
+                }
+                var dateCell = new PdfPCell(new Phrase(item.Date.ToString("dd-MMM-yy"), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var nameCell = new PdfPCell(new Phrase(item.CustomerName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var debitCell = new PdfPCell(new Phrase(item.Debit > 0 ? item.Debit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var creditCell = new PdfPCell(new Phrase(item.Credit > 0 ? item.Credit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var balanceCell = new PdfPCell(new Phrase(item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
+                table.AddCell(dateCell);
+                table.AddCell(nameCell);
+                table.AddCell(debitCell);
+                table.AddCell(creditCell);
+                table.AddCell(balanceCell);
+            }
+
+            var totalLabelCell = new PdfPCell(new Phrase("Total Debit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+            {
+                Colspan = 2,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(totalLabelCell);
+            table.AddCell(new PdfPCell(new Phrase(model.TotalDebit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            var creditLabelCell = new PdfPCell(new Phrase("Total Credit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+            {
+                Colspan = 2,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(creditLabelCell);
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalCredit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            var balanceLabelCell = new PdfPCell(new Phrase("Closing Balance", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+            {
+                Colspan = 2,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(balanceLabelCell);
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.ClosingBalance >= 0 ? model.ClosingBalance.ToString("N2") : "(" + (-model.ClosingBalance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            document.Add(table);
+            document.Close();
+
+            string filename = $"CustomerLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        public async Task<IActionResult> VendorLedgerReport(VendorLedgerReportViewModel model)
+        {
+            try
+            {
+                if (model == null) model = new VendorLedgerReportViewModel();
+                if (model.Filters == null) model.Filters = new VendorLedgerReportFilters();
+
+                var hasFrom = Request.Query.ContainsKey("Filters.FromDate");
+                var hasTo = Request.Query.ContainsKey("Filters.ToDate");
+                if (!hasFrom && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasTo && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now;
+
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", model.Filters.VendorId);
+
+                var filters = model.Filters;
+                model = await _reportService.GetVendorLedgerReport(filters);
+                model.Filters = filters;
+                ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", model.Filters.VendorId);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null) model = new VendorLedgerReportViewModel();
+                var vendors = await _vendorService.GetAllEnabledVendors();
+                ViewBag.Vendors = new SelectList(vendors, "SupplierId", "SupplierName", model.Filters?.VendorId);
+            }
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportVendorLedgerExcel(long? vendorId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new VendorLedgerReportFilters
+            {
+                VendorId = vendorId,
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetVendorLedgerReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Vendor Ledger Report");
+
+            worksheet.Cell(1, 1).Value = "Date";
+            worksheet.Cell(1, 2).Value = "GL Account (Vendor)";
+            worksheet.Cell(1, 3).Value = "Debit";
+            worksheet.Cell(1, 4).Value = "Credit";
+            worksheet.Cell(1, 5).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            var ledgerList = model.LedgerList ?? new List<VendorLedgerReportItem>();
+            bool multiVendor = model.VendorName == "All Vendors" && ledgerList.Any();
+            var excelColors = new[] { XLColor.LightGray, XLColor.LightYellow, XLColor.LightCyan, XLColor.Lavender, XLColor.LightGreen };
+            string? prevVendor = null;
+            int colorIndex = -1;
+
+            int row = 2;
+            foreach (var item in ledgerList)
+            {
+                if (multiVendor)
+                {
+                    var v = item.VendorName ?? "";
+                    if (v != prevVendor) { prevVendor = v; colorIndex++; }
+                    var fillColor = excelColors[colorIndex % excelColors.Length];
+                    worksheet.Range(row, 1, row, 5).Style.Fill.BackgroundColor = fillColor;
+                }
+                worksheet.Cell(row, 1).Value = item.Date.ToString("dd-MMM-yy");
+                worksheet.Cell(row, 2).Value = item.VendorName ?? "";
+                worksheet.Cell(row, 3).Value = item.Debit;
+                worksheet.Cell(row, 4).Value = item.Credit;
+                worksheet.Cell(row, 5).Value = item.Balance;
+                row++;
+            }
+
+            row++;
+            worksheet.Cell(row, 2).Value = "Total Debit:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 3).Value = model.TotalDebit;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Total Credit:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalCredit;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Closing Balance:";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.ClosingBalance;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"VendorLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+        }
+
+        public async Task<IActionResult> ExportVendorLedgerPdf(long? vendorId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new VendorLedgerReportFilters
+            {
+                VendorId = vendorId,
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetVendorLedgerReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            document.Add(new Paragraph("Vendor Ledger Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+            if (!string.IsNullOrEmpty(model.VendorName))
+                document.Add(new Paragraph(model.VendorName, FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(5);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.5f, 3f, 2f, 2f, 2f });
+            string[] headers = { "Date", "GL Account (Vendor)", "Debit", "Credit", "Balance" };
+            foreach (var header in headers)
+            {
+                var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(cell);
+            }
+
+            var ledgerListPdf = model.LedgerList ?? new List<VendorLedgerReportItem>();
+            bool multiVendorPdf = model.VendorName == "All Vendors" && ledgerListPdf.Any();
+            var pdfColors = new BaseColor[]
+            {
+                new BaseColor(240, 240, 240),
+                new BaseColor(255, 255, 220),
+                new BaseColor(220, 240, 255),
+                new BaseColor(230, 230, 250),
+                new BaseColor(220, 255, 220)
+            };
+            string? prevVendorPdf = null;
+            int colorIndexPdf = -1;
+
+            foreach (var item in ledgerListPdf)
+            {
+                BaseColor? rowBg = null;
+                if (multiVendorPdf)
+                {
+                    var v = item.VendorName ?? "";
+                    if (v != prevVendorPdf) { prevVendorPdf = v; colorIndexPdf++; }
+                    rowBg = pdfColors[colorIndexPdf % pdfColors.Length];
+                }
+                var dateCell = new PdfPCell(new Phrase(item.Date.ToString("dd-MMM-yy"), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var nameCell = new PdfPCell(new Phrase(item.VendorName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var debitCell = new PdfPCell(new Phrase(item.Debit > 0 ? item.Debit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var creditCell = new PdfPCell(new Phrase(item.Credit > 0 ? item.Credit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var balanceCell = new PdfPCell(new Phrase(item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
+                table.AddCell(dateCell);
+                table.AddCell(nameCell);
+                table.AddCell(debitCell);
+                table.AddCell(creditCell);
+                table.AddCell(balanceCell);
+            }
+
+            var totalLabelCell = new PdfPCell(new Phrase("Total Debit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            table.AddCell(totalLabelCell);
+            table.AddCell(new PdfPCell(new Phrase(model.TotalDebit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            var creditLabelCell = new PdfPCell(new Phrase("Total Credit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            table.AddCell(creditLabelCell);
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalCredit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            var balanceLabelCell = new PdfPCell(new Phrase("Closing Balance", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            table.AddCell(balanceLabelCell);
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.ClosingBalance >= 0 ? model.ClosingBalance.ToString("N2") : "(" + (-model.ClosingBalance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            document.Add(table);
+            document.Close();
+
+            string filename = $"VendorLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
         public async Task<IActionResult> ExportBankCreditDebitExcel(int pageNumber = 1, int? pageSize = null, long? accountId = null, DateTime? fromDate = null, DateTime? toDate = null, string? transactionType = null)
         {
             int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;

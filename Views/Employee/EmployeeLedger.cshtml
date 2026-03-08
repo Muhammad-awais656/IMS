@@ -10,8 +10,18 @@
 
 @* <div class="container ms-0"> *@
 <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <h2 class="mb-0" style="text-align:center"> Employee Ledger Management</h2>
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h2 class="mb-0" style="text-align:center"> Employee Ledger Management</h2>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportEmployeeLedgerExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportEmployeeLedgerPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <!-- Enhanced Search Section -->
@@ -28,16 +38,28 @@
 
                     <div class="row g-3 align-items-end">
                         <!-- Employee Filter Dropdown (Kendo) -->
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="form-label text-muted">
                                 <i class="fa-solid fa-user-tie me-1"></i>Filter by Employee
                             </label>
                             <input name="employeeId" id="employeeFilterSelect" value="@ViewData["employeeId"]" style="width: 100%;" />
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted">
+                                <i class="fa fa-calendar me-1"></i>From Date
+                            </label>
+                            <input type="date" name="fromDate" id="employeeLedgerFromDate" class="form-control" value="@(ViewData["fromDate"] ?? "")" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted">
+                                <i class="fa fa-calendar me-1"></i>To Date
+                            </label>
+                            <input type="date" name="toDate" id="employeeLedgerToDate" class="form-control" value="@(ViewData["toDate"] ?? "")" />
+                        </div>
 
                         <!-- Action Buttons -->
-                        <div class="col-md-6">
-                            <div class="d-flex user-button-group justify-content-end">
+                        <div class="col-md-5">
+                            <div class="d-flex user-button-group justify-content-end flex-wrap gap-2">
                                 <button type="submit" class="btn btn-user-search">
                                     <i class="fa-solid fa-magnifying-glass me-2"></i>Search
                                 </button>
@@ -93,13 +115,13 @@
 
                                 <td class="table-actions">
                                     <div class="btn-group" role="group">
-                                        <a asp-action="Details" asp-route-id="@item.EmployeeId_FK" class="btn btn-sm btn-outline-info" title="View Details">
+                                        <a asp-action="ViewLedgerEntry" asp-route-id="@item.LedgerId" class="btn btn-sm btn-outline-info" title="View Ledger Entry">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
-                                        <a asp-action="Edit" asp-route-id="@item.EmployeeId_FK" class="btn btn-sm btn-outline-warning" title="Edit Employee">
+                                        <a asp-action="EditLedgerEntry" asp-route-id="@item.LedgerId" class="btn btn-sm btn-outline-warning" title="Edit Ledger Entry">
                                             <i class="fa-solid fa-edit"></i>
                                         </a>
-                                        <a asp-action="Delete" asp-route-id="@item.EmployeeId_FK" class="btn btn-sm btn-outline-danger" title="Delete Employee">
+                                        <a asp-action="DeleteLedgerEntry" asp-route-id="@item.LedgerId" class="btn btn-sm btn-outline-danger" title="Delete Ledger Entry">
                                             <i class="fa-solid fa-trash"></i>
                                         </a>
                                     </div>
@@ -134,11 +156,11 @@
                     <ul class="pagination justify-content-center">
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="1"
-                               asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">First</a>
+                               asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]" asp-route-fromDate="@ViewData["fromDate"]" asp-route-toDate="@ViewData["toDate"]">First</a>
                         </li>
                         <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                             <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize"
-                               asp-route-employeeId="@ViewData["employeeId"]">Previous</a>
+                               asp-route-employeeId="@ViewData["employeeId"]" asp-route-fromDate="@ViewData["fromDate"]" asp-route-toDate="@ViewData["toDate"]">Previous</a>
                         </li>
                         @{
                             int startPage = Math.Max(1, Model.CurrentPage - 1);
@@ -152,14 +174,14 @@
                         @for (int i = startPage; i <= endPage; i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">@i</a>
+                                <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]" asp-route-fromDate="@ViewData["fromDate"]" asp-route-toDate="@ViewData["toDate"]">@i</a>
                             </li>
                         }
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">Next</a>
+                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]" asp-route-fromDate="@ViewData["fromDate"]" asp-route-toDate="@ViewData["toDate"]">Next</a>
                         </li>
                         <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
-                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]">Last</a>
+                            <a class="page-link" asp-action="EmployeeLedger" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-employeeId="@ViewData["employeeId"]" asp-route-fromDate="@ViewData["fromDate"]" asp-route-toDate="@ViewData["toDate"]">Last</a>
                         </li>
                     </ul>
                 </nav>
@@ -286,8 +308,12 @@
         function changePageSize(select) {
             var employeeCombo = $("#employeeFilterSelect").data("kendoComboBox");
             var employeeId = employeeCombo ? employeeCombo.value() : '';
+            var fromDate = document.getElementById("employeeLedgerFromDate") ? document.getElementById("employeeLedgerFromDate").value : '';
+            var toDate = document.getElementById("employeeLedgerToDate") ? document.getElementById("employeeLedgerToDate").value : '';
             var params = 'pageNumber=1&pageSize=' + select.value;
             if (employeeId) params += '&employeeId=' + employeeId;
+            if (fromDate) params += '&fromDate=' + encodeURIComponent(fromDate);
+            if (toDate) params += '&toDate=' + encodeURIComponent(toDate);
             window.location.href = '@Url.Action("EmployeeLedger", "Employee")' + '?' + params;
         }
 
@@ -318,6 +344,43 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
+
+        function getEmployeeLedgerExportParams() {
+            var employeeCombo = $("#employeeFilterSelect").data("kendoComboBox");
+            var employeeId = employeeCombo ? employeeCombo.value() : '';
+            var fromDate = document.getElementById("employeeLedgerFromDate") ? document.getElementById("employeeLedgerFromDate").value : '';
+            var toDate = document.getElementById("employeeLedgerToDate") ? document.getElementById("employeeLedgerToDate").value : '';
+            var params = new URLSearchParams();
+            if (employeeId) params.append("employeeId", employeeId);
+            if (fromDate) params.append("fromDate", fromDate);
+            if (toDate) params.append("toDate", toDate);
+            return params;
+        }
+
+        var excelBtn = document.getElementById("exportEmployeeLedgerExcelBtn");
+        if (excelBtn) {
+            excelBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                var params = getEmployeeLedgerExportParams();
+                var url = '@Url.Action("ExportEmployeeLedgerExcel", "Employee")' + (params.toString() ? '?' + params.toString() : '');
+                if (typeof exportWithLoader === "function")
+                    exportWithLoader(url, "EmployeeLedger_export.xlsx", "Preparing Excel export... Please wait.");
+                else
+                    window.location.href = url;
+            });
+        }
+        var pdfBtn = document.getElementById("exportEmployeeLedgerPdfBtn");
+        if (pdfBtn) {
+            pdfBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                var params = getEmployeeLedgerExportParams();
+                var url = '@Url.Action("ExportEmployeeLedgerPdf", "Employee")' + (params.toString() ? '?' + params.toString() : '');
+                if (typeof exportWithLoader === "function")
+                    exportWithLoader(url, "EmployeeLedger_export.pdf", "Preparing PDF export... Please wait.");
+                else
+                    window.location.href = url;
+            });
+        }
     </script>
 }
 

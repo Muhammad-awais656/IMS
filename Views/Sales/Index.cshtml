@@ -120,8 +120,11 @@
                     <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm me-2">
                         <i class="fa fa-file-excel text-success me-1"></i> Export Excel
                     </a>
-                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm me-2">
                         <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                    </a>
+                    <a href="#" id="exportSaleDetailReportBtn" class="btn btn-info btn-sm">
+                        <i class="fa fa-file-excel me-1"></i> Generate Sale Detail Report
                     </a>
                 </div>
             </div>
@@ -617,6 +620,12 @@
             e.preventDefault();
             var url = buildSalesExportUrl('ExportPdf');
             exportWithLoader(url, 'Sales_export.pdf', 'Preparing PDF export... Please wait.');
+        });
+
+        document.getElementById("exportSaleDetailReportBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var url = buildSalesExportUrl('ExportSaleDetailReportExcel');
+            exportWithLoader(url, 'SaleDetailReport.xlsx', 'Generating Sale Detail Report... Please wait.');
         });
     </script>
 }

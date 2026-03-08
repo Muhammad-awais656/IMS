@@ -1,4 +1,4 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using System.Collections;
 
@@ -17,7 +17,10 @@ namespace IMS.Common_Interfaces
         Task<bool> IsOpeningBalanceExistsAsync(long employeeId, int voucherTypeId);
         Task<List<EmployeeLedgerReportVM>> GetEmployeeLedgerReportAsync(long employeeId);
 
-        Task<List<EmployeeLedgerReportVM>> GetAllEmployeeLedgerReportAsync();
+        Task<List<EmployeeLedgerReportVM>> GetAllEmployeeLedgerReportAsync(DateTime? fromDate = null, DateTime? toDate = null);
+        Task<EmployeeLedgerEntryVM?> GetEmployeeLedgerEntryByIdAsync(int ledgerId);
+        Task<bool> UpdateEmployeeLedgerAsync(EmployeeLedger ledger);
+        Task<bool> DeleteEmployeeLedgerAsync(int ledgerId);
         Task<decimal> GetEmployeeBalanceAsync(long employeeId);
 
         Task<List<EmployeeVoucherType>> GetAllVoucherTypesAsync();

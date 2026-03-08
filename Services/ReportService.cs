@@ -2254,5 +2254,298 @@ namespace IMS.Services
             };
         }
 
+        public async Task<CustomerLedgerReportViewModel> GetCustomerLedgerReport(CustomerLedgerReportFilters? filters)
+        {
+            var ledgerRows = new List<(DateTime Date, string? CustomerName, string? GLAccount, decimal Debit, decimal Credit)>();
+            string? customerName = null;
+            decimal totalDebit = 0;
+            decimal totalCredit = 0;
+            if (filters == null)
+                filters = new CustomerLedgerReportFilters();
+            var hasCustomerFilter = filters.CustomerId.HasValue && filters.CustomerId.Value > 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var fromDate = filters.FromDate ?? (DateTime?)null;
+                    var toDate = filters.ToDate.HasValue ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : (DateTime?)null;
+
+                    // Sales: Debit = (TotalAmount - DiscountAmount), include CustomerName
+                    var salesSql = @"
+                        SELECT s.SaleDate AS [Date], ISNULL(c.CustomerName, '') AS CustomerName,
+                               (s.TotalAmount - ISNULL(s.DiscountAmount,0)) AS DebitAmount,
+                               ISNULL(s.SaleDescription, '') AS GLAccount, s.BillNumber
+                        FROM Sales s
+                        LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+                        WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                          AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+                          AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
+                          AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
+                        ORDER BY s.SaleDate, s.SaleId";
+                    using (var cmd = new SqlCommand(salesSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@CustomerId", hasCustomerFilter ? (object)filters.CustomerId!.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@FromDate", (object?)fromDate ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ToDate", (object?)toDate ?? DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var date = reader.GetDateTime(reader.GetOrdinal("Date"));
+                                var cName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName"));
+                                if (string.IsNullOrWhiteSpace(cName)) cName = null;
+                                var debit = reader.GetDecimal(reader.GetOrdinal("DebitAmount"));
+                                var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? "" : reader.GetString(reader.GetOrdinal("GLAccount"));
+                                if (string.IsNullOrWhiteSpace(gl) && !reader.IsDBNull(reader.GetOrdinal("BillNumber")))
+                                    gl = "Bill #" + reader.GetInt64(reader.GetOrdinal("BillNumber"));
+                                ledgerRows.Add((date, cName, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
+                                totalDebit += debit;
+                            }
+                        }
+                    }
+
+                    // Payments: Credit = PaymentAmount, include CustomerName
+                    var paymentsSql = @"
+                        SELECT p.PaymentDate AS [Date], ISNULL(c.CustomerName, '') AS CustomerName,
+                               p.PaymentAmount AS CreditAmount, ISNULL(p.Description, '') AS GLAccount
+                        FROM Payments p
+                        LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
+                        WHERE (@CustomerId IS NULL OR p.CustomerId = @CustomerId)
+                          AND (@FromDate IS NULL OR p.PaymentDate >= @FromDate)
+                          AND (@ToDate IS NULL OR p.PaymentDate <= @ToDate)
+                        ORDER BY p.PaymentDate, p.PaymentId";
+                    using (var cmd = new SqlCommand(paymentsSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@CustomerId", hasCustomerFilter ? (object)filters.CustomerId!.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@FromDate", (object?)fromDate ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ToDate", (object?)toDate ?? DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var date = reader.GetDateTime(reader.GetOrdinal("Date"));
+                                var cName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName"));
+                                if (string.IsNullOrWhiteSpace(cName)) cName = null;
+                                var credit = reader.GetDecimal(reader.GetOrdinal("CreditAmount"));
+                                var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? null : reader.GetString(reader.GetOrdinal("GLAccount"));
+                                if (string.IsNullOrWhiteSpace(gl)) gl = null;
+                                ledgerRows.Add((date, cName, gl, 0, credit));
+                                totalCredit += credit;
+                            }
+                        }
+                    }
+
+                    if (hasCustomerFilter)
+                    {
+                        using (var cmd = new SqlCommand("SELECT CustomerName FROM Customers WHERE CustomerId = @CustomerId", connection))
+                        {
+                            cmd.Parameters.AddWithValue("@CustomerId", filters.CustomerId!.Value);
+                            var nameObj = await cmd.ExecuteScalarAsync();
+                            if (nameObj != null && nameObj != DBNull.Value)
+                                customerName = nameObj.ToString();
+                        }
+                    }
+                    else
+                        customerName = "All Customers";
+                }
+
+                // Sort by Customer first so each customer's entries appear together (like attachment), then by Date; then compute running balance
+                var sorted = ledgerRows
+                    .OrderBy(x => x.CustomerName ?? "")
+                    .ThenBy(x => x.Date)
+                    .ThenBy(x => x.Debit > 0 ? 0 : 1)
+                    .ToList();
+                decimal runningBalance = 0;
+                var ledgerList = new List<CustomerLedgerReportItem>();
+                foreach (var row in sorted)
+                {
+                    runningBalance += row.Debit - row.Credit;
+                    ledgerList.Add(new CustomerLedgerReportItem
+                    {
+                        Date = row.Date,
+                        CustomerName = row.CustomerName,
+                        GLAccount = row.GLAccount,
+                        Debit = row.Debit,
+                        Credit = row.Credit,
+                        Balance = runningBalance
+                    });
+                }
+
+                return new CustomerLedgerReportViewModel
+                {
+                    LedgerList = ledgerList,
+                    Filters = filters,
+                    CustomerName = customerName,
+                    TotalDebit = totalDebit,
+                    TotalCredit = totalCredit,
+                    ClosingBalance = totalDebit - totalCredit
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCustomerLedgerReport error");
+                return new CustomerLedgerReportViewModel
+                {
+                    LedgerList = new List<CustomerLedgerReportItem>(),
+                    Filters = filters,
+                    CustomerName = null,
+                    TotalDebit = 0,
+                    TotalCredit = 0,
+                    ClosingBalance = 0
+                };
+            }
+        }
+
+        public async Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters)
+        {
+            var ledgerRows = new List<(DateTime Date, string? VendorName, string? GLAccount, decimal Debit, decimal Credit)>();
+            string? vendorName = null;
+            decimal totalDebit = 0;
+            decimal totalCredit = 0;
+            if (filters == null)
+                filters = new VendorLedgerReportFilters();
+            var hasVendorFilter = filters.VendorId.HasValue && filters.VendorId.Value > 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var fromDate = filters.FromDate ?? (DateTime?)null;
+                    var toDate = filters.ToDate.HasValue ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : (DateTime?)null;
+
+                    // PurchaseOrders: Debit = (TotalAmount - DiscountAmount), include VendorName
+                    var purchasesSql = @"
+                        SELECT po.PurchaseOrderDate AS [Date], ISNULL(s.SupplierName, '') AS VendorName,
+                               (po.TotalAmount - ISNULL(po.DiscountAmount, 0)) AS DebitAmount,
+                               ISNULL(po.PurchaseOrderDescription, '') AS GLAccount, po.BillNumber
+                        FROM PurchaseOrders po
+                        LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
+                        WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                          AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
+                          AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                          AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                        ORDER BY po.PurchaseOrderDate, po.PurchaseOrderId";
+                    using (var cmd = new SqlCommand(purchasesSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@VendorId", hasVendorFilter ? (object)filters.VendorId!.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@FromDate", (object?)fromDate ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ToDate", (object?)toDate ?? DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var date = reader.GetDateTime(reader.GetOrdinal("Date"));
+                                var vName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName"));
+                                if (string.IsNullOrWhiteSpace(vName)) vName = null;
+                                var debit = reader.GetDecimal(reader.GetOrdinal("DebitAmount"));
+                                var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? "" : reader.GetString(reader.GetOrdinal("GLAccount"));
+                                if (string.IsNullOrWhiteSpace(gl))
+                                {
+                                    if (!reader.IsDBNull(reader.GetOrdinal("BillNumber")))
+                                        gl = "Bill #" + reader.GetInt64(reader.GetOrdinal("BillNumber"));
+                                }
+                                ledgerRows.Add((date, vName, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
+                                totalDebit += debit;
+                            }
+                        }
+                    }
+
+                    // BillPayments: Credit = PaymentAmount, include VendorName
+                    var paymentsSql = @"
+                        SELECT p.PaymentDate AS [Date], ISNULL(s.SupplierName, '') AS VendorName,
+                               p.PaymentAmount AS CreditAmount, ISNULL(p.Description, '') AS GLAccount
+                        FROM BillPayments p
+                        LEFT JOIN AdminSuppliers s ON p.SupplierId_FK = s.SupplierId
+                        WHERE (@VendorId IS NULL OR p.SupplierId_FK = @VendorId)
+                          AND (@FromDate IS NULL OR p.PaymentDate >= @FromDate)
+                          AND (@ToDate IS NULL OR CAST(p.PaymentDate AS DATE) <= @ToDate)
+                        ORDER BY p.PaymentDate, p.PaymentId";
+                    using (var cmd = new SqlCommand(paymentsSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@VendorId", hasVendorFilter ? (object)filters.VendorId!.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@FromDate", (object?)fromDate ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ToDate", (object?)toDate ?? DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var date = reader.GetDateTime(reader.GetOrdinal("Date"));
+                                var vName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName"));
+                                if (string.IsNullOrWhiteSpace(vName)) vName = null;
+                                var credit = reader.GetDecimal(reader.GetOrdinal("CreditAmount"));
+                                var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? null : reader.GetString(reader.GetOrdinal("GLAccount"));
+                                if (string.IsNullOrWhiteSpace(gl)) gl = null;
+                                ledgerRows.Add((date, vName, gl, 0, credit));
+                                totalCredit += credit;
+                            }
+                        }
+                    }
+
+                    if (hasVendorFilter)
+                    {
+                        using (var cmd = new SqlCommand("SELECT SupplierName FROM AdminSuppliers WHERE SupplierId = @VendorId", connection))
+                        {
+                            cmd.Parameters.AddWithValue("@VendorId", filters.VendorId!.Value);
+                            var nameObj = await cmd.ExecuteScalarAsync();
+                            if (nameObj != null && nameObj != DBNull.Value)
+                                vendorName = nameObj.ToString();
+                        }
+                    }
+                    else
+                        vendorName = "All Vendors";
+                }
+
+                // Sort by Vendor first, then by Date; compute running balance
+                var sorted = ledgerRows
+                    .OrderBy(x => x.VendorName ?? "")
+                    .ThenBy(x => x.Date)
+                    .ThenBy(x => x.Debit > 0 ? 0 : 1)
+                    .ToList();
+                decimal runningBalance = 0;
+                var ledgerList = new List<VendorLedgerReportItem>();
+                foreach (var row in sorted)
+                {
+                    runningBalance += row.Debit - row.Credit;
+                    ledgerList.Add(new VendorLedgerReportItem
+                    {
+                        Date = row.Date,
+                        VendorName = row.VendorName,
+                        GLAccount = row.GLAccount,
+                        Debit = row.Debit,
+                        Credit = row.Credit,
+                        Balance = runningBalance
+                    });
+                }
+
+                return new VendorLedgerReportViewModel
+                {
+                    LedgerList = ledgerList,
+                    Filters = filters,
+                    VendorName = vendorName,
+                    TotalDebit = totalDebit,
+                    TotalCredit = totalCredit,
+                    ClosingBalance = totalDebit - totalCredit
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetVendorLedgerReport error");
+                return new VendorLedgerReportViewModel
+                {
+                    LedgerList = new List<VendorLedgerReportItem>(),
+                    Filters = filters,
+                    VendorName = null,
+                    TotalDebit = 0,
+                    TotalCredit = 0,
+                    ClosingBalance = 0
+                };
+            }
+        }
+
     }
 }

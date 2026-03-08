@@ -85,4 +85,27 @@ namespace IMS.Models
         public long PurchaseOrderId { get; set; }
         public decimal TotalDueAmount { get; set; }
     }
+
+    /// <summary>Row for PO Details Report (Excel export) - bill-wise.</summary>
+    public class PODetailReportItem
+    {
+        public long PurchaseOrderItemId { get; set; }
+        public long PurchaseOrderIdFk { get; set; }
+        public long PrductIdFk { get; set; }
+        /// <summary>Unit abbreviation (e.g. kg) for display as Code.</summary>
+        public string? Code { get; set; }
+        public decimal UnitPrice { get; set; }
+        public long Quantity { get; set; }
+        public decimal PurchasePrice { get; set; }
+        public decimal LineDiscountAmount { get; set; }
+        public decimal PayableAmount { get; set; }
+        public long? ProductRangeIdFk { get; set; }
+        public bool? IsDeleted { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public string? PaymentMethod { get; set; }
+        public long? OnlineAccountId { get; set; }
+        public string? ProductName { get; set; }
+        public string? BankName { get; set; }
+        public long? BillNumber { get; set; }
+    }
 }

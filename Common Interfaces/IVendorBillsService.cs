@@ -39,5 +39,8 @@ namespace IMS.Common_Interfaces
         
         // Get active bill numbers for vendor using GetAllVendorActiveBillNumbers stored procedure
         Task<List<SupplierBillNumber>> GetActiveBillNumbersAsync(long supplierId);
+
+        /// <summary>Gets PO details report for Excel export (bill-wise). Respects VendorBillsFilters when provided.</summary>
+        Task<List<PODetailReportItem>> GetPODetailsReportForExportAsync(VendorBillsFilters? filters);
     }
 }

@@ -92,6 +92,12 @@
                                     <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
                                         <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                                     </a>
+                                    <a asp-action="CreatePayment" asp-controller="VendorPayments" class="btn btn-user-reset">
+                                        <i class="fa-solid fa-scale-balanced me-1"></i>Advance Payment
+                                    </a>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="showVendorOpenBalanceModal()">
+                                        <i class="fa-solid fa-scale-balanced me-1"></i> Vendor Payable
+                                    </button>
                                 </div>
                                 <a asp-action="Create" class="btn btn-user-create">
                                     <i class="fa-solid fa-plus me-2"></i>Create Vendor
@@ -219,6 +225,71 @@
     </div>
 </div>
 
+<!-- Vendor Open Balance Modal -->
+<div class="modal fade" id="vendorOpenBalanceModal" tabindex="-1" aria-labelledby="vendorOpenBalanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="vendorOpenBalanceModalLabel">
+                    <i class="fa-solid fa-scale-balanced me-2"></i>Vendor Open Balance
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="vendorOpenBalanceForm">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label for="openBalanceVendorSelect" class="form-label fw-semibold">
+                                <i class="fa-solid fa-building me-1 text-primary"></i>Select Vendor <span class="text-danger">*</span>
+                            </label>
+                            <input id="openBalanceVendorSelect" style="width: 100%;" />
+                            <input type="hidden" id="openBalanceVendorIdHidden" />
+                            <span class="text-danger small" id="openBalanceVendorError"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="openBalanceVendorCurrentBalance" class="form-label fw-semibold">
+                                <i class="fa fa-wallet me-1 text-success"></i>Current Balance
+                            </label>
+                            <input type="text" id="openBalanceVendorCurrentBalance" class="form-control" readonly />
+                            <small class="text-muted">Balance for the selected vendor</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="openBalanceVendorDate" class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" id="openBalanceVendorDate" class="form-control" required />
+                            <span class="text-danger small" id="openBalanceVendorDateError"></span>
+                        </div>
+                       @*  <div class="col-md-6">
+                            <label for="openBalanceVendorTypeSelect" class="form-label fw-semibold">
+                                <i class="fa-solid fa-list me-1 text-primary"></i>Type <span class="text-danger">*</span>
+                            </label>
+                            <select id="openBalanceVendorTypeSelect" class="form-select">
+                                <option value="">--Select Type--</option>
+                                <option value="Payable">Payable</option>
+                                <option value="Receivable">Receivable</option>
+                            </select>
+                            <span class="text-danger small" id="openBalanceVendorTypeError"></span>
+                        </div> *@
+                        <div class="col-md-12">
+                            <label for="openBalanceVendorAmount" class="form-label fw-semibold">
+                                <i class="fa fa-money-bill me-1 text-info"></i>Opening Balance <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" id="openBalanceVendorAmount" class="form-control" step="0.001" min="0" placeholder="Enter opening balance" />
+                            <span class="text-danger small" id="openBalanceVendorAmountError"></span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="saveVendorOpenBalanceBtn" onclick="saveVendorOpenBalance(event)">
+                    <i class="fa-solid fa-check me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -227,7 +298,163 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             initializeVendorManagement();
+            if (typeof $ !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                initializeVendorOpenBalanceModal();
+            } else {
+                setTimeout(function() {
+                    if (typeof $ !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                        initializeVendorOpenBalanceModal();
+                    }
+                }, 500);
+            }
         });
+
+        function formatCurrency(amount) {
+            return 'Rs ' + parseFloat(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function initializeVendorOpenBalanceModal() {
+            if ($("#openBalanceVendorSelect").length === 0) return;
+            var existingCombo = $("#openBalanceVendorSelect").data("kendoComboBox");
+            if (existingCombo) existingCombo.destroy();
+
+            $("#openBalanceVendorSelect").kendoComboBox({
+                placeholder: "--Select Vendor--",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "text",
+                dataValueField: "value",
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetVendors", "Vendor")",
+                            dataType: "json"
+                        }
+                    }
+                },
+                change: function() {
+                    var vendorId = this.value();
+                    $("#openBalanceVendorIdHidden").val(vendorId);
+                    if (vendorId) {
+                        loadVendorBalance(vendorId);
+                    } else {
+                        var balanceInput = document.getElementById('openBalanceVendorCurrentBalance');
+                        balanceInput.value = '';
+                        balanceInput.style.backgroundColor = '';
+                        balanceInput.style.color = '';
+                    }
+                }
+            });
+        }
+
+        function loadVendorBalance(vendorId) {
+            var balanceInput = document.getElementById('openBalanceVendorCurrentBalance');
+            balanceInput.value = 'Loading...';
+            balanceInput.style.backgroundColor = '#f8f9fa';
+            balanceInput.style.color = '#6c757d';
+
+            fetch('@Url.Action("GetPreviousDueAmount", "VendorBills")?vendorId=' + vendorId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && data.previousDueAmount !== undefined) {
+                        var amount = parseFloat(data.previousDueAmount);
+                        balanceInput.value = formatCurrency(amount);
+                        balanceInput.style.backgroundColor = amount > 0 ? '#fff3cd' : '#d1edff';
+                        balanceInput.style.color = amount > 0 ? '#856404' : '#0c5460';
+                    } else {
+                        balanceInput.value = formatCurrency(0);
+                        balanceInput.style.backgroundColor = '';
+                        balanceInput.style.color = '';
+                    }
+                })
+                .catch(function() {
+                    balanceInput.value = formatCurrency(0);
+                    balanceInput.style.backgroundColor = '#f8d7da';
+                    balanceInput.style.color = '#721c24';
+                });
+        }
+
+        function showVendorOpenBalanceModal() {
+            var combo = $("#openBalanceVendorSelect").data("kendoComboBox");
+            if (combo) {
+                combo.value("");
+            }
+            $("#openBalanceVendorIdHidden").val("");
+            $("#openBalanceVendorCurrentBalance").val('');
+            $("#openBalanceVendorAmount").val('');
+            var now = new Date();
+            var year = now.getFullYear();
+            var month = String(now.getMonth() + 1).padStart(2, '0');
+            var day = String(now.getDate()).padStart(2, '0');
+            $("#openBalanceVendorDate").val(year + '-' + month + '-' + day);
+            $("#openBalanceVendorError").text('');
+            $("#openBalanceVendorTypeError").text('');
+            $("#openBalanceVendorAmountError").text('');
+            $("#openBalanceVendorDateError").text('');
+
+            var modal = new bootstrap.Modal(document.getElementById('vendorOpenBalanceModal'));
+            modal.show();
+        }
+
+        function saveVendorOpenBalance(event) {
+            var vendorId = $("#openBalanceVendorIdHidden").val();
+            var amount = parseFloat($("#openBalanceVendorAmount").val()) || 0;
+            var balanceDate = $("#openBalanceVendorDate").val();
+
+            $("#openBalanceVendorError").text('');
+            $("#openBalanceVendorTypeError").text('');
+            $("#openBalanceVendorAmountError").text('');
+            $("#openBalanceVendorDateError").text('');
+
+            var isValid = true;
+            if (!vendorId) {
+                $("#openBalanceVendorError").text('Please select a vendor');
+                isValid = false;
+            }
+            if (amount <= 0) {
+                $("#openBalanceVendorAmountError").text('Please enter a valid opening balance');
+                isValid = false;
+            }
+            if (!balanceDate) {
+                $("#openBalanceVendorDateError").text('Please select a date');
+                isValid = false;
+            }
+            if (!isValid) return;
+
+            var submitBtn = (event && event.target) ? event.target : document.getElementById('saveVendorOpenBalanceBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+            }
+            fetch('@Url.Action("SaveVendorOpenBalance", "VendorBills")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vendorId: parseInt(vendorId, 10), openingBalance: amount, balanceDate: balanceDate })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                bootstrap.Modal.getInstance(document.getElementById('vendorOpenBalanceModal')).hide();
+                if (data.success) {
+                    if (typeof toastr !== 'undefined') toastr.success(data.message || 'Opening balance saved.');
+                    else alert(data.message || 'Opening balance saved.');
+                } else {
+                    if (typeof toastr !== 'undefined') toastr.error(data.message || 'Failed to save.');
+                    else alert(data.message || 'Failed to save.');
+                }
+            })
+            .catch(function(err) {
+                console.error('Save vendor opening balance error:', err);
+                if (typeof toastr !== 'undefined') toastr.error('Error saving opening balance.');
+                else alert('Error saving opening balance.');
+            })
+            .finally(function() {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Save';
+                }
+            });
+        }
 
         function initializeVendorManagement() {
             // Add loading states to buttons

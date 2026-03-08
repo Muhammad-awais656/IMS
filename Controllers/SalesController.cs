@@ -533,6 +533,43 @@ namespace IMS.Controllers
             }
         }
 
+        [HttpPost]
+        [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
+        public async Task<JsonResult> SaveCustomerOpenBalance([FromBody] CustomerOpenBalanceRequest request)
+        {
+            try
+            {
+                if (request == null || request.CustomerId <= 0)
+                    return Json(new { success = false, message = "Invalid customer." });
+                //if (string.IsNullOrWhiteSpace(request.Type) || (request.Type != "Payable" && request.Type != "Receivable"))
+                //    return Json(new { success = false, message = "Type must be Payable or Receivable." });
+                if (request.OpeningBalance < 0)
+                    return Json(new { success = false, message = "Opening balance cannot be negative." });
+                if (request.OpeningBalance == 0)
+                    return Json(new { success = false, message = "Opening balance cannot be empty." });
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long createdBy = long.TryParse(userIdStr, out var uid) ? uid : 1;
+
+                DateTime? balanceDate = null;
+                if (!string.IsNullOrWhiteSpace(request.BalanceDate) && DateTime.TryParse(request.BalanceDate, out var parsedDate))
+                    balanceDate = parsedDate;
+
+                long saleId = await _salesService.AddOpeningBalanceSaleAsync(
+                    request.CustomerId,
+                    request.Type,
+                    request.OpeningBalance,
+                    createdBy,
+                    balanceDate);
+                return Json(new { success = true, message = "Opening balance saved.", saleId = saleId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving customer opening balance");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<JsonResult> GetNextBillNumber()
         {
@@ -1209,6 +1246,104 @@ namespace IMS.Controllers
         }
 
         /// <summary>
+        /// Generate Sale Detail Report in Excel (Code, Product, Item Level Discount, Unit Sale Price, Qty, Total Discount, Payable). Uses same filters as Sales Management.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportSaleDetailReportExcel(long? customerId = null, long? billNumber = null, DateTime? saleFrom = null, DateTime? saleDateTo = null, string? description = null)
+        {
+            try
+            {
+                var filters = new SalesFilters
+                {
+                    CustomerId = customerId,
+                    BillNumber = billNumber,
+                    SaleFrom = saleFrom,
+                    SaleDateTo = saleDateTo,
+                    Description = string.IsNullOrWhiteSpace(description) ? null : description
+                };
+                var list = await _salesService.GetSaleDetailReportForExportAsync(filters);
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Sale Detail Report");
+
+                string[] headers = { "Code", "Product", "Item Level Discount", "Unit Sale Price", "Qty", "Total Discount", "Payable" };
+                const int colCount = 7;
+                int row = 1;
+
+                worksheet.Cell(row, 1).Value = "Sale Detail Report";
+                worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                row += 2;
+
+                var culture = new System.Globalization.CultureInfo("ur-PK");
+                var items = list ?? new List<SaleDetailReportItem>();
+                long? currentSaleId = null;
+                decimal billTotalPayable = 0;
+
+                foreach (var item in items)
+                {
+                    if (item.SaleIdFk != currentSaleId)
+                    {
+                        if (currentSaleId.HasValue)
+                        {
+                            worksheet.Cell(row, 1).Value = "Total Payable";
+                            worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                            worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                            worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                            row++;
+                        }
+                        billTotalPayable = 0;
+                        currentSaleId = item.SaleIdFk;
+                        var billLabel = item.BillNumber.HasValue ? $"Bill # {item.BillNumber} (Sale Id: {item.SaleIdFk})" : $"Sale Id: {item.SaleIdFk}";
+                        worksheet.Cell(row, 1).Value = billLabel;
+                        worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                        row++;
+                        for (int c = 0; c < headers.Length; c++)
+                            worksheet.Cell(row, c + 1).Value = headers[c];
+                        worksheet.Range(row, 1, row, colCount).Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightGray;
+                        row++;
+                    }
+
+                    billTotalPayable += item.PayableAmount;
+                    worksheet.Cell(row, 1).Value = item.Code ?? "";
+                    worksheet.Cell(row, 2).Value = item.ProductName ?? "";
+                    worksheet.Cell(row, 3).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 4).Value = item.UnitPrice.ToString("N2", culture);
+                    worksheet.Cell(row, 5).Value = item.Quantity;
+                    worksheet.Cell(row, 6).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 7).Value = item.PayableAmount.ToString("N2", culture);
+                    row++;
+                }
+
+                if (currentSaleId.HasValue)
+                {
+                    worksheet.Cell(row, 1).Value = "Total Payable";
+                    worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                    worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                    worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                    row++;
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                string filename = $"SaleDetailReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    filename);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sale detail report to Excel");
+                TempData["ErrorMessage"] = "An error occurred while generating the sale detail report.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        /// <summary>
         /// Export sales to PDF (same filters as Index).
         /// </summary>
         [HttpGet]
@@ -1542,5 +1677,13 @@ namespace IMS.Controllers
                 return Json(new { success = false, message = "Error converting unit", convertedStock = stockInBaseUnit, conversionFactor = 1 });
             }
         }
+    }
+
+    public class CustomerOpenBalanceRequest
+    {
+        public long CustomerId { get; set; }
+        public string Type { get; set; } = ""; // "Payable" or "Receivable"
+        public decimal OpeningBalance { get; set; }
+        public string? BalanceDate { get; set; } // ISO date from UI (e.g. "yyyy-MM-dd")
     }
 }

@@ -1,4 +1,5 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
+using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -562,7 +563,37 @@ namespace IMS.Services
             }
         }
 
-        public async Task<long> AddVendorBillDetails(long billId, long productId, decimal unitPrice, decimal purchasePrice, decimal quantity, decimal salePrice, decimal lineDiscountAmount, decimal payableAmount, long productRangeId)
+        public async Task<long> AddOpeningBalanceVendorBillAsync(long vendorId, string typePayableOrReceivable, decimal openingBalance, long createdBy, DateTime? balanceDate = null)
+        {
+            var now = balanceDate ?? DateTimeHelper.Now;
+            decimal totalAmount = openingBalance;
+            decimal paidAmount = 0;
+            decimal dueAmount = openingBalance;
+            //if (string.Equals(typePayableOrReceivable, "Receivable", StringComparison.OrdinalIgnoreCase))
+            //{
+            //    totalAmount = -Math.Abs(openingBalance);
+            //    dueAmount = -Math.Abs(openingBalance);
+            //}
+            long billId = await CreateVendorBillAsync(
+                totalAmount: totalAmount,
+                paidAmount: paidAmount,
+                dueAmount: dueAmount,
+                vendorId: vendorId,
+                customerId: null,
+                createdDate: now,
+                createdBy: createdBy,
+                modifiedDate: now,
+                modifiedBy: createdBy,
+                discountAmount: 0,
+                billNumber: 0,
+                description: "Opening Balance",
+                billDate: now,
+                paymentMethod: "Adjustment",
+                onlineAccountId: null);
+            return billId;
+        }
+
+        public async Task<long> AddVendorBillDetails(long billId, long productId, decimal unitPrice, decimal purchasePrice, decimal quantity, decimal salePrice, decimal lineDiscountAmount, decimal payableAmount, long productRangeId, string? PaymentMethod, long? onlineId)
         {
        
             try
@@ -583,6 +614,9 @@ namespace IMS.Services
                         itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                         itemCommand.Parameters.AddWithValue("@pPayableAmount", payableAmount);
                         itemCommand.Parameters.AddWithValue("@ProductRangeId_FK", productRangeId);
+                        itemCommand.Parameters.AddWithValue("@PaymentMethod", PaymentMethod ?? (object)DBNull.Value);
+                        itemCommand.Parameters.AddWithValue("@onlineAccountId", onlineId ?? (object)DBNull.Value);
+                        
 
                         // Output parameter for BillDetailsId
                         var billDetailsIdParam = new SqlParameter("@pBillDetailsId", SqlDbType.BigInt)
