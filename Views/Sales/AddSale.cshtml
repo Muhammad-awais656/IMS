@@ -408,15 +408,13 @@
                 suggest: false,
                 minLength: 1,
                 change: function(e) {
+                    if (window._addSaleSkipProductChangeLoad) return;
                     console.log("=== PRODUCT CHANGE EVENT TRIGGERED ===");
-                    console.log("Product selection changed:", e.sender.value());
-                    console.log("Product change event - calling loadProductSizes");
-                    console.log("Event object:", e);
                     loadProductSizes();
                 },
                 select: function(e) {
+                    if (window._addSaleSkipProductChangeLoad) return;
                     console.log("Product selected:", e.item);
-                    console.log("Product select event - calling loadProductSizes");
                     loadProductSizes();
                 }
             });
@@ -816,8 +814,8 @@
             });
         }
 
-        function loadProductSizes() {
-            console.log("=== loadProductSizes function called ===");
+        function loadProductSizes(productRangeIdToSelect, onSizesLoadedCallback) {
+            console.log("=== loadProductSizes function called ===", productRangeIdToSelect ? "(select productRangeId: " + productRangeIdToSelect + ")" : "");
             const productCombo = $("#productSelect").data("kendoComboBox");
             const productId = productCombo ? productCombo.value() : null;
             const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
@@ -838,8 +836,10 @@
                 sizeCombo.dataSource.data([]);
             }
 
-            // Reset fields
-            resetProductFields();
+            // When editing a row we pass productRangeIdToSelect - don't reset form fields (quantity, prices, etc.)
+            if (!productRangeIdToSelect) {
+                resetProductFields();
+            }
 
             if (productId) {
                 console.log("Loading product sizes for product ID:", productId);
@@ -879,6 +879,21 @@
                                 console.log("Product sizes loaded successfully");
                                 console.log("Product size combobox enabled and not readonly");
                                 
+                                // When editing a row: select the correct size once data is loaded
+                                if (productRangeIdToSelect != null && productRangeIdToSelect !== '') {
+                                    const sizeData = sizeCombo.dataSource.data().find(item =>
+                                        String(item.productRangeId) === String(productRangeIdToSelect) || String(item.value) === String(productRangeIdToSelect)
+                                    );
+                                    if (sizeData) {
+                                        sizeCombo.value(sizeData.value);
+                                        sizeCombo.trigger("change");
+                                        console.log("Edit row: selected product size", sizeData.value);
+                                    }
+                                    if (typeof onSizesLoadedCallback === 'function') {
+                                        setTimeout(onSizesLoadedCallback, 100);
+                                    }
+                                }
+                                
                                 // Additional fallback to ensure combobox is properly enabled
                                 setTimeout(() => {
                                     if (sizeCombo) {
@@ -902,6 +917,9 @@
                                 sizeCombo.dataSource.data([]);
                                 sizeCombo.enable(false);
                             }
+                            if (productRangeIdToSelect && typeof onSizesLoadedCallback === 'function') {
+                                setTimeout(onSizesLoadedCallback, 50);
+                            }
                         }
                     })
                     .catch(error => {
@@ -909,6 +927,9 @@
                         if (sizeCombo) {
                             sizeCombo.dataSource.data([]);
                             sizeCombo.enable(false);
+                        }
+                        if (productRangeIdToSelect && typeof onSizesLoadedCallback === 'function') {
+                            setTimeout(onSizesLoadedCallback, 50);
                         }
                     });
             } else {
@@ -1479,10 +1500,21 @@
                 // Update totals
                 updateTotals();
 
-                showSuccessMessage('Existing sale details loaded successfully!');
+                // Use in-form alert so we don't depend on notification service (its container may not exist yet on load)
+                showAddSaleFormSuccess('Existing sale details loaded successfully!');
             } else {
                 console.log('No existing sale details found');
             }
+        }
+
+        function showAddSaleFormSuccess(message) {
+            const form = document.getElementById('addSaleForm');
+            if (!form) return;
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>' + message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            form.insertBefore(alertDiv, form.firstChild);
+            setTimeout(function() { if (alertDiv.parentNode) alertDiv.remove(); }, 3000);
         }
 
         function addExistingProductToTable(detail) {
@@ -2321,59 +2353,30 @@
                 // Get the row data (strip Rs/$ from values so Unit Price, Sale Price, Line Discount, Payable populate correctly)
                 const productId = row.querySelector('input[name*=".ProductId"]').value;
                 const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
-                const productSize = row.querySelector('input[name*=".ProductSize"]').value;
                 const unitPrice = parseRowAmount(row.querySelector('input[name*=".UnitPrice"]').value);
                 const quantity = parseFloat(row.querySelector('input[name*=".Quantity"]').value) || 0;
                 const salePrice = parseRowAmount(row.querySelector('input[name*=".SalePrice"]').value);
                 const lineDiscountAmount = parseRowAmount(row.querySelector('input[name*=".LineDiscountAmount"]').value);
-                const payableAmount = parseRowAmount(row.querySelector('input[name*=".PayableAmount"]').value);
 
-                // Get product name from the table cell
-                const productName = row.cells[1].textContent;
-
-                // Populate the form fields
+                // Populate product first, then load sizes and select the correct size (async); when done, populate rest of form
                 const productCombo = $("#productSelect").data("kendoComboBox");
                 if (productCombo) {
+                    window._addSaleSkipProductChangeLoad = true;
                     productCombo.value(productId);
-                    // Trigger product change to load sizes
-                    productCombo.trigger("change");
+                    // Load sizes for this product; when loaded we'll select productRangeId and then run callback to fill form
+                    loadProductSizes(productRangeId, function() {
+                        window._addSaleSkipProductChangeLoad = false;
+                        document.getElementById('quantity').value = quantity;
+                        document.getElementById('unitPrice').value = unitPrice.toFixed(2);
+                        document.getElementById('salePrice').value = salePrice.toFixed(2);
+                        const itemLevelDiscount = quantity > 0 ? lineDiscountAmount / quantity : 0;
+                        document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(2);
+                        calculatePayableAmount();
+                        row.remove();
+                        updateTotals();
+                        showSuccessMessage('Product loaded for editing. Update the values and click "Add to Sale" to save changes.');
+                    });
                 }
-
-                // Wait a bit for the sizes to load, then select the correct size
-                setTimeout(() => {
-                    const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
-                    if (sizeCombo && sizeCombo.dataSource.data().length > 0) {
-                        // Find the correct size in the data source
-                        const sizeData = sizeCombo.dataSource.data().find(item => 
-                            item.productRangeId == productRangeId
-                        );
-                        if (sizeData) {
-                            sizeCombo.value(sizeData.value);
-                            // Trigger size change to load unit price
-                            sizeCombo.trigger("change");
-                        }
-                    }
-
-                    // Populate other fields
-                    document.getElementById('quantity').value = quantity;
-                    document.getElementById('unitPrice').value = unitPrice.toFixed(2);
-                    document.getElementById('salePrice').value = salePrice.toFixed(2);
-                    // Calculate item level discount (per unit discount)
-                    const itemLevelDiscount = quantity > 0 ? lineDiscountAmount / quantity : 0;
-                    document.getElementById('discountAmount').value = itemLevelDiscount.toFixed(2);
-
-                    // Calculate payable amount
-                    calculatePayableAmount();
-
-                    // Remove the row from table (user will add it back with updated values)
-                    row.remove();
-                    updateTotals();
-
-                    // Show success message
-                    showSuccessMessage('Product loaded for editing. Update the values and click "Add to Sale" to save changes.');
-
-                }, 500); // Wait 500ms for the product sizes to load
-
             } catch (error) {
                 console.error('Error editing product from table:', error);
                 showErrorMessage('Error loading product for editing. Please try again.');

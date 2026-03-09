@@ -489,10 +489,11 @@ namespace IMS.Controllers
                 var enabledMeasuringUnits = measuringUnits.Where(mu => mu.IsEnabled).ToList();
                 _logger.LogInformation("Found {Count} enabled measuring units for type {MeasuringUnitTypeId}", enabledMeasuringUnits.Count, measuringUnitTypeId);
                 
+                // Use abbreviation (e.g. kg, Bori) for display when available; fallback to name
                 var result = enabledMeasuringUnits.Select(mu => new
                 {
                     value = mu.MeasuringUnitId.ToString(),
-                    text = mu.MeasuringUnitName
+                    text = !string.IsNullOrWhiteSpace(mu.MeasuringUnitAbbreviation) ? mu.MeasuringUnitAbbreviation : (mu.MeasuringUnitName ?? "")
                 }).ToList();
                 
                 _logger.LogInformation("Returning {Count} enabled measuring units: {Result}", result.Count, string.Join(", ", result.Select(r => $"{r.text}({r.value})")));

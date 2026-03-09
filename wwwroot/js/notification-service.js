@@ -26,13 +26,11 @@ class NotificationService {
         this.toastContainer = document.querySelector('.toast-container');
         
         if (!this.toastContainer) {
-            // Create toast container
+            const main = document.querySelector('#main') || document.body;
+            if (!main) return;
             const container = document.createElement('div');
             container.className = 'toast-container position-fixed top-0 end-0 p-3';
             container.style.zIndex = '9999';
-            
-            // Add to main content area
-            const main = document.querySelector('#main') || document.body;
             main.appendChild(container);
             this.toastContainer = container;
         }
@@ -94,6 +92,17 @@ class NotificationService {
      * @param {string} icon - FontAwesome icon class
      */
     showToast(message, type, duration, icon) {
+        // Ensure container exists (may not be created yet if showToast runs before init's document.ready)
+        if (!this.toastContainer) {
+            this.createToastContainer();
+        }
+        const container = this.toastContainer;
+        if (!container) {
+            console.warn('NotificationService: No toast container available, falling back to console.');
+            console.log(`[${type}] ${message}`);
+            return null;
+        }
+
         // Create unique ID for the toast
         const toastId = 'toast_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
@@ -119,7 +128,7 @@ class NotificationService {
         `;
         
         // Add to container
-        this.toastContainer.appendChild(toastElement);
+        container.appendChild(toastElement);
         
         // Initialize and show toast
         const toast = new bootstrap.Toast(toastElement);
@@ -139,6 +148,7 @@ class NotificationService {
      * Clear all toasts
      */
     clearAllToasts() {
+        if (!this.toastContainer) return;
         const toasts = this.toastContainer.querySelectorAll('.toast');
         toasts.forEach(toast => {
             const bsToast = bootstrap.Toast.getInstance(toast);

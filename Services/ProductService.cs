@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -337,6 +337,34 @@ namespace IMS.Services
 
                         }
 
+                    }
+                    // Populate MeasuringUnitName and MeasuringUnitAbbreviation for each product range (for MU column display on Edit)
+                    var muIds = productRanges.Where(pr => pr.MeasuringUnitIdFk > 0).Select(pr => pr.MeasuringUnitIdFk).Distinct().ToList();
+                    if (muIds.Any())
+                    {
+                        var idList = string.Join(",", muIds);
+                        using (var muCmd = new SqlCommand($"SELECT MeasuringUnitId, MeasuringUnitName, MeasuringUnitAbbreviation FROM AdminMeasuringUnits WHERE MeasuringUnitId IN ({idList})", connection))
+                        {
+                            using (var muReader = await muCmd.ExecuteReaderAsync())
+                            {
+                                var muMap = new Dictionary<long, (string Name, string Abbrev)>();
+                                while (await muReader.ReadAsync())
+                                {
+                                    var muId = muReader.GetInt64(0);
+                                    var name = muReader.IsDBNull(1) ? null : muReader.GetString(1);
+                                    var abbrev = muReader.IsDBNull(2) ? null : muReader.GetString(2);
+                                    muMap[muId] = (name ?? "", abbrev ?? "");
+                                }
+                                foreach (var pr in productRanges)
+                                {
+                                    if (muMap.TryGetValue(pr.MeasuringUnitIdFk, out var mu))
+                                    {
+                                        pr.MeasuringUnitName = mu.Name;
+                                        pr.MeasuringUnitAbbreviation = mu.Abbrev;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
