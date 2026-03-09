@@ -21,6 +21,7 @@ public partial class Sale
 
     public long? CustomerIdFk { get; set; }
     public long? SupplierIdFk { get; set; }
+    public long? VendorId { get; set; }
 
     public string? SaleDescription { get; set; }
     public string? PaymentMethod { get; set; }

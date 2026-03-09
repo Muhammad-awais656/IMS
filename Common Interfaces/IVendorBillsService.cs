@@ -33,7 +33,15 @@ namespace IMS.Common_Interfaces
         
         // Delete method
         Task<bool> DeleteVendorBillAsync(long billId, long userId);
-        
+
+        // Edit Vendor Bill flow (mirror Sales): revert stock, delete details/payments/transactions, reverse online payment
+        Task RevertStockForVendorBillAsync(long billId, long modifiedBy);
+        Task<int> DeleteBillDetailsByBillIdAsync(long billId);
+        Task<int> DeletePaymentByBillIdAsync(long billId);
+        Task<int> DeleteStockTransactionByBillIdAsync(long billId);
+        Task<int> ReverseOnlinePaymentTransactionByBillIdAsync(long billId, long modifiedBy);
+        Task UpdateVendorBillHeaderAsync(long billId, VendorBillGenerationViewModel model);
+
         // Get all bill numbers for vendor
         Task<List<VendorBillViewModel>> GetAllBillNumbersForVendorAsync(long vendorId);
         

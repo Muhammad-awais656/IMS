@@ -43,7 +43,7 @@ namespace IMS.Models
         public long BillId { get; set; }
         public long PaymentId { get; set; }
         public long BillNumber { get; set; }
-        public long VendorId { get; set; }
+        public long? VendorId { get; set; }
         public long? CustomerId { get; set; }
         public string VendorName { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
