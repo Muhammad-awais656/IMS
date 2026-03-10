@@ -429,6 +429,7 @@ namespace IMS.Controllers
                     TotalReceivedAmount = sale.TotalReceivedAmount,
                     TotalDueAmount = sale.TotalDueAmount,
                     CustomerId = sale.CustomerIdFk,
+                    VendorId = sale.VendorId,
                     BillNo = sale.BillNumber.ToString(),
                     SaleDate = sale.SaleDate,
                     DiscountAmount = sale.DiscountAmount,
@@ -460,7 +461,8 @@ namespace IMS.Controllers
                         {
                             viewModel.VendorId = matchedVendor.SupplierId;
                             viewModel.CustomerId = null;
-                            viewModel.PreviousDue = 0;
+                            viewModel.PreviousDue = await _vendorBillsService.GetPreviousDueAmountAsync(matchedVendor.SupplierId);
+                            ViewBag.SelectedVendorName = matchedVendor.SupplierName;
                             isVendorCustomer = true;
                         }
                     }

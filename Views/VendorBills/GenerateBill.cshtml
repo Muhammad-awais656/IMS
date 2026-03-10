@@ -352,7 +352,8 @@
             }
         }
 
-            // Customer Selection Combobox
+            // Customer Selection Combobox (set initial value when editing a customer bill)
+            var initialCustomerValue = $("#customerSelect").val();
             $("#customerSelect").kendoComboBox({
                 dataSource: {
                     transport: {
@@ -368,6 +369,7 @@
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
+                value: initialCustomerValue || undefined,
                 change: function() {
                     // Clear vendor when customer is selected
                     const vendorCombo = $("#vendorSelect").data("kendoComboBox");
@@ -377,6 +379,9 @@
                     loadPreviousDueAmount();
                 }
             });
+            if (initialCustomerValue) {
+                setTimeout(function() { loadPreviousDueAmount(); }, 500);
+            }
         function loadPreviousDueAmount() {
                    const customerCombo = $("#customerSelect").data("kendoComboBox");
                    const customerId = customerCombo ? customerCombo.value() : null;
@@ -1788,7 +1793,8 @@
             var discountAmountTotal = parseFloat($("#discountAmountTotal").val()) || 0;
             var payNow = parseFloat($("#payNow").val()) || 0;
 
-            var billAmount = totalAmount - discountAmountTotal;
+            // var billAmount = totalAmount - discountAmountTotal;
+            var billAmount = totalAmount;
             $("#billAmount").val(billAmount.toFixed(2));
         }
 
@@ -2091,15 +2097,24 @@
                 }, 400);
             }
 
-            // Populate basic form fields
+            // Populate basic form fields - vendor
             if ($("#vendorSelect").val()) {
                 var vendorCombo = $("#vendorSelect").data("kendoComboBox");
                 if (vendorCombo) {
                     vendorCombo.value($("#vendorSelect").val());
-                    // Load vendor data after setting value
                     setTimeout(function() {
-                        // loadVendorData($("#vendorSelect").val());
                         loadVendorPreviousDueAmount();
+                    }, 500);
+                }
+            }
+
+            // Populate customer dropdown and previous due when editing a customer bill
+            if ($("#customerSelect").val()) {
+                var customerCombo = $("#customerSelect").data("kendoComboBox");
+                if (customerCombo) {
+                    customerCombo.value($("#customerSelect").val());
+                    setTimeout(function() {
+                        loadPreviousDueAmount();
                     }, 500);
                 }
             }

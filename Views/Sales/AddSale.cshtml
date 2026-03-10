@@ -338,14 +338,16 @@
         function initializeEditMode() {
             console.log('=== INITIALIZING EDIT MODE ===');
             
-            // Get model values safely
+            // Get model values safely (selected vendor name is passed so ComboBox can display it without loading remote data)
             const customerId = @(Model.CustomerId?.ToString() ?? "null");
+            const vendorId = @(Model.VendorId?.ToString() ?? "null");
+            const selectedVendorName = @(ViewBag.SelectedVendorName != null ? Html.Raw(Json.Serialize(ViewBag.SelectedVendorName)) : Html.Raw("null"));
             const paymentMethod = @(Model.PaymentMethod != null ? Json.Serialize(Model.PaymentMethod) : "null");
             const onlineAccountId = @(Model.OnlineAccountId?.ToString() ?? "null");
             
-            console.log('Model values:', { customerId, paymentMethod, onlineAccountId });
+            console.log('Model values:', { customerId, vendorId, selectedVendorName, paymentMethod, onlineAccountId });
             
-            // Set customer dropdown value
+            // Set customer dropdown value when sale was made for a customer
             const customerCombo = $("#customerSelect").data("kendoComboBox");
             if (customerCombo && customerId) {
                 customerCombo.value(customerId.toString());
@@ -353,6 +355,24 @@
                 
                 // Load previous due amount for the selected customer
                 loadPreviousDueAmount();
+            }
+            
+            // Set vendor dropdown value when sale was made for a vendor
+            // Remote ComboBox has no data until user types, so add the selected vendor to dataSource so it can display
+            const vendorCombo = $("#vendorSelect").data("kendoComboBox");
+            if (vendorCombo && vendorId) {
+                if (selectedVendorName) {
+                    var ds = vendorCombo.dataSource;
+                    if (ds) {
+                        ds.add({ value: vendorId.toString(), text: selectedVendorName });
+                    }
+                }
+                vendorCombo.value(vendorId.toString());
+                console.log('Vendor set to:', vendorId, selectedVendorName);
+                document.getElementById('vendorSelect').value = vendorId.toString();
+                
+                // Load previous due amount for the selected vendor
+                loadVendorPreviousDueAmount();
             }
             
             // Set payment method dropdown value

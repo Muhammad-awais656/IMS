@@ -22,14 +22,16 @@ namespace IMS.Controllers
         private readonly ILogger<VendorBillsController> _logger;
         private readonly IProductService _productService;
         private readonly IAdminMeasuringUnitService _measuringUnitService;
+        private readonly ISalesService _salesService;
 
-        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger, IProductService productService, IAdminMeasuringUnitService measuringUnitService)
+        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger, IProductService productService, IAdminMeasuringUnitService measuringUnitService, ISalesService salesService)
         {
             _vendorBillsService = vendorBillsService;
             _vendorService = vendorService;
             _logger = logger;
             _productService = productService;
             _measuringUnitService = measuringUnitService;
+            _salesService = salesService;
         }
 
         // GET: VendorBillsController
@@ -996,6 +998,7 @@ namespace IMS.Controllers
                 {
                     BillId = vendorBill.BillId,
                     VendorId = vendorBill.VendorId,
+                    CustomerId = vendorBill.CustomerId,
                     BillNumber = vendorBill.BillNumber,
                     BillDate = vendorBill.BillDate,
                     TotalAmount = vendorBill.TotalAmount,
@@ -1008,6 +1011,16 @@ namespace IMS.Controllers
                     IsEditMode = IsEditMode, // Pass IsEditMode to the model
                     BillDetails = billDetailsList
                 };
+
+                // Load previous due for the selected vendor or customer
+                if (vendorBill.CustomerId.HasValue && vendorBill.CustomerId > 0)
+                {
+                    viewModel.PreviousDue = await _salesService.GetPreviousDueAmountByCustomerIdAsync(vendorBill.CustomerId.Value);
+                }
+                else if (vendorBill.VendorId.HasValue && vendorBill.VendorId > 0)
+                {
+                    viewModel.PreviousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorBill.VendorId.Value);
+                }
 
                 ViewBag.IsEdit = true;
                 ViewBag.IsEditMode = IsEditMode;
