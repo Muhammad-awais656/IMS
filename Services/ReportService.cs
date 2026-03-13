@@ -2352,16 +2352,23 @@ namespace IMS.Services
                         customerName = "All Customers";
                 }
 
-                // Sort by Customer first so each customer's entries appear together (like attachment), then by Date; then compute running balance
+                // Sort by Customer first so each customer's entries appear together, then by Date; compute running balance per customer
                 var sorted = ledgerRows
                     .OrderBy(x => x.CustomerName ?? "")
                     .ThenBy(x => x.Date)
                     .ThenBy(x => x.Debit > 0 ? 0 : 1)
                     .ToList();
                 decimal runningBalance = 0;
+                string? previousCustomerKey = null;
                 var ledgerList = new List<CustomerLedgerReportItem>();
                 foreach (var row in sorted)
                 {
+                    var customerKey = row.CustomerName ?? "";
+                    if (customerKey != previousCustomerKey)
+                    {
+                        runningBalance = 0;
+                        previousCustomerKey = customerKey;
+                    }
                     runningBalance += row.Debit - row.Credit;
                     ledgerList.Add(new CustomerLedgerReportItem
                     {
@@ -2500,16 +2507,23 @@ namespace IMS.Services
                         vendorName = "All Vendors";
                 }
 
-                // Sort by Vendor first, then by Date; compute running balance
+                // Sort by Vendor first so each vendor's entries appear together, then by Date; compute running balance per vendor
                 var sorted = ledgerRows
                     .OrderBy(x => x.VendorName ?? "")
                     .ThenBy(x => x.Date)
                     .ThenBy(x => x.Debit > 0 ? 0 : 1)
                     .ToList();
                 decimal runningBalance = 0;
+                string? previousVendorKey = null;
                 var ledgerList = new List<VendorLedgerReportItem>();
                 foreach (var row in sorted)
                 {
+                    var vendorKey = row.VendorName ?? "";
+                    if (vendorKey != previousVendorKey)
+                    {
+                        runningBalance = 0;
+                        previousVendorKey = vendorKey;
+                    }
                     runningBalance += row.Debit - row.Credit;
                     ledgerList.Add(new VendorLedgerReportItem
                     {
