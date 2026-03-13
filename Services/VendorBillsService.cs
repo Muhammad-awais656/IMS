@@ -1001,154 +1001,154 @@ namespace IMS.Services
 
                             // Step 4.5: Handle online payment records if payment method is Online
                             // Get bill information to check payment method
-                            string? paymentMethod = null;
-                            long? onlineAccountId = null;
-                            using (var billCommand = new SqlCommand("GetBillByBillId", connection, transaction))
-                            {
-                                billCommand.CommandType = CommandType.StoredProcedure;
-                                billCommand.Parameters.AddWithValue("@pBillId", billId);
-                                using (var reader = await billCommand.ExecuteReaderAsync())
-                                {
-                                    if (await reader.ReadAsync())
-                                    {
-                                        try
-                                        {
-                                            if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
-                                            {
-                                                paymentMethod = reader.GetString("PaymentMethod");
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            paymentMethod = null;
-                                        }
+                            //string? paymentMethod = null;
+                            //long? onlineAccountId = null;
+                            //using (var billCommand = new SqlCommand("GetBillByBillId", connection, transaction))
+                            //{
+                            //    billCommand.CommandType = CommandType.StoredProcedure;
+                            //    billCommand.Parameters.AddWithValue("@pBillId", billId);
+                            //    using (var reader = await billCommand.ExecuteReaderAsync())
+                            //    {
+                            //        if (await reader.ReadAsync())
+                            //        {
+                            //            try
+                            //            {
+                            //                if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
+                            //                {
+                            //                    paymentMethod = reader.GetString("PaymentMethod");
+                            //                }
+                            //            }
+                            //            catch
+                            //            {
+                            //                paymentMethod = null;
+                            //            }
                                         
-                                        try
-                                        {
-                                            if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
-                                            {
-                                                onlineAccountId = reader.GetInt64("OnlineAccountId");
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            onlineAccountId = null;
-                                        }
-                                    }
-                                }
-                            }
+                            //            try
+                            //            {
+                            //                if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
+                            //                {
+                            //                    onlineAccountId = reader.GetInt64("OnlineAccountId");
+                            //                }
+                            //            }
+                            //            catch
+                            //            {
+                            //                onlineAccountId = null;
+                            //            }
+                            //        }
+                            //    }
+                            //}
 
-                            if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger.LogInformation("Vendor bill {BillId} has Online payment method, updating PersonalPaymentPurchaseDetail and PersonalPayments", billId);
+                            //if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
+                            //{
+                            //    _logger.LogInformation("Vendor bill {BillId} has Online payment method, updating PersonalPaymentPurchaseDetail and PersonalPayments", billId);
 
-                                // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentPurchaseDetail for this bill
-                                var personalPaymentIds = new List<long>();
-                                using (var command = new SqlCommand(@"
-                                    SELECT DISTINCT PersonalPaymentId 
-                                    FROM PersonalPaymentPurchaseDetail 
-                                    WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@BillId", billId);
-                                    using (var reader = await command.ExecuteReaderAsync())
-                                    {
-                                        while (await reader.ReadAsync())
-                                        {
-                                            if (!reader.IsDBNull("PersonalPaymentId"))
-                                            {
-                                                personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
-                                            }
-                                        }
-                                    }
-                                }
+                            //    // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentPurchaseDetail for this bill
+                            //    var personalPaymentIds = new List<long>();
+                            //    using (var command = new SqlCommand(@"
+                            //        SELECT DISTINCT PersonalPaymentId 
+                            //        FROM PersonalPaymentPurchaseDetail 
+                            //        WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@BillId", billId);
+                            //        using (var reader = await command.ExecuteReaderAsync())
+                            //        {
+                            //            while (await reader.ReadAsync())
+                            //            {
+                            //                if (!reader.IsDBNull("PersonalPaymentId"))
+                            //                {
+                            //                    personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
+                            //                }
+                            //            }
+                            //        }
+                            //    }
 
-                                // Also add the OnlineAccountId from the bill if it exists
-                                if (onlineAccountId.HasValue && onlineAccountId.Value > 0 && !personalPaymentIds.Contains(onlineAccountId.Value))
-                                {
-                                    personalPaymentIds.Add(onlineAccountId.Value);
-                                }
+                            //    // Also add the OnlineAccountId from the bill if it exists
+                            //    if (onlineAccountId.HasValue && onlineAccountId.Value > 0 && !personalPaymentIds.Contains(onlineAccountId.Value))
+                            //    {
+                            //        personalPaymentIds.Add(onlineAccountId.Value);
+                            //    }
 
-                                // Step 4.5.2: Update PersonalPaymentPurchaseDetail - Set IsActive = 0 where PurchaseOrderId = billId
-                                using (var command = new SqlCommand(@"
-                                    UPDATE PersonalPaymentPurchaseDetail 
-                                    SET IsActive = 0, ModifiedDate = GETDATE() 
-                                    WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@BillId", billId);
-                                    var detailsAffected = await command.ExecuteNonQueryAsync();
-                                    _logger.LogInformation("Updated {Count} PersonalPaymentPurchaseDetail records (IsActive = 0) for bill {BillId}", detailsAffected, billId);
-                                }
+                            //    // Step 4.5.2: Update PersonalPaymentPurchaseDetail - Set IsActive = 0 where PurchaseOrderId = billId
+                            //    using (var command = new SqlCommand(@"
+                            //        UPDATE PersonalPaymentPurchaseDetail 
+                            //        SET IsActive = 0, ModifiedDate = GETDATE() 
+                            //        WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@BillId", billId);
+                            //        var detailsAffected = await command.ExecuteNonQueryAsync();
+                            //        _logger.LogInformation("Updated {Count} PersonalPaymentPurchaseDetail records (IsActive = 0) for bill {BillId}", detailsAffected, billId);
+                            //    }
 
-                                // Step 4.5.3: Calculate total amount from PersonalPaymentPurchaseDetail and update CreditAmount in PersonalPayments
-                                if (personalPaymentIds.Count > 0)
-                                {
-                                    // Calculate total amount per PersonalPaymentId from PersonalPaymentPurchaseDetail
-                                    var paymentAmounts = new Dictionary<long, decimal>();
-                                    using (var command = new SqlCommand(@"
-                                        SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
-                                        FROM PersonalPaymentPurchaseDetail 
-                                        WHERE PurchaseId = @BillId AND IsActive = 0
-                                        GROUP BY PersonalPaymentId", connection, transaction))
-                                    {
-                                        command.Parameters.AddWithValue("@BillId", billId);
-                                        using (var reader = await command.ExecuteReaderAsync())
-                                        {
-                                            while (await reader.ReadAsync())
-                                            {
-                                                if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
-                                                {
-                                                    var ppId = reader.GetInt64("PersonalPaymentId");
-                                                    var totalAmount = reader.GetDecimal("TotalAmount");
-                                                    paymentAmounts[ppId] = totalAmount;
-                                                }
-                                            }
-                                        }
-                                    }
+                            //    // Step 4.5.3: Calculate total amount from PersonalPaymentPurchaseDetail and update CreditAmount in PersonalPayments
+                            //    if (personalPaymentIds.Count > 0)
+                            //    {
+                            //        // Calculate total amount per PersonalPaymentId from PersonalPaymentPurchaseDetail
+                            //        var paymentAmounts = new Dictionary<long, decimal>();
+                            //        using (var command = new SqlCommand(@"
+                            //            SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
+                            //            FROM PersonalPaymentPurchaseDetail 
+                            //            WHERE PurchaseId = @BillId AND IsActive = 0
+                            //            GROUP BY PersonalPaymentId", connection, transaction))
+                            //        {
+                            //            command.Parameters.AddWithValue("@BillId", billId);
+                            //            using (var reader = await command.ExecuteReaderAsync())
+                            //            {
+                            //                while (await reader.ReadAsync())
+                            //                {
+                            //                    if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
+                            //                    {
+                            //                        var ppId = reader.GetInt64("PersonalPaymentId");
+                            //                        var totalAmount = reader.GetDecimal("TotalAmount");
+                            //                        paymentAmounts[ppId] = totalAmount;
+                            //                    }
+                            //                }
+                            //            }
+                            //        }
 
-                                    // Update PersonalPayments - Decrease CreditAmount by the calculated total amount
-                                    foreach (var ppId in personalPaymentIds)
-                                    {
-                                        // Get current CreditAmount for this PersonalPayment
-                                        decimal currentCreditAmount = 0;
-                                        using (var getCommand = new SqlCommand(@"
-                                            SELECT CreditAmount 
-                                            FROM PersonalPayments 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            var result = await getCommand.ExecuteScalarAsync();
-                                            if (result != null && result != DBNull.Value)
-                                            {
-                                                currentCreditAmount = Convert.ToDecimal(result);
-                                            }
-                                        }
+                            //        // Update PersonalPayments - Decrease CreditAmount by the calculated total amount
+                            //        foreach (var ppId in personalPaymentIds)
+                            //        {
+                            //            // Get current CreditAmount for this PersonalPayment
+                            //            decimal currentCreditAmount = 0;
+                            //            using (var getCommand = new SqlCommand(@"
+                            //                SELECT CreditAmount 
+                            //                FROM PersonalPayments 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                var result = await getCommand.ExecuteScalarAsync();
+                            //                if (result != null && result != DBNull.Value)
+                            //                {
+                            //                    currentCreditAmount = Convert.ToDecimal(result);
+                            //                }
+                            //            }
 
-                                        // Calculate new CreditAmount (subtract the total amount from PersonalPaymentPurchaseDetail)
-                                        decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
-                                        decimal newCreditAmount = currentCreditAmount + amountToSubtract;
+                            //            // Calculate new CreditAmount (subtract the total amount from PersonalPaymentPurchaseDetail)
+                            //            decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
+                            //            decimal newCreditAmount = currentCreditAmount + amountToSubtract;
                                         
-                                        // Ensure CreditAmount doesn't go negative
-                                        if (newCreditAmount < 0) newCreditAmount = 0;
+                            //            // Ensure CreditAmount doesn't go negative
+                            //            if (newCreditAmount < 0) newCreditAmount = 0;
 
-                                        // Update PersonalPayments with new CreditAmount
-                                        using (var updateCommand = new SqlCommand(@"
-                                            UPDATE PersonalPayments 
-                                            SET CreditAmount = @NewCreditAmount, ModifiedDate = GETDATE() 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            updateCommand.Parameters.AddWithValue("@NewCreditAmount", newCreditAmount);
-                                            var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
-                                            _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for bill {BillId}: CreditAmount decreased by {AmountToSubtract} (from {OldCreditAmount} to {NewCreditAmount}), Rows affected: {RowsAffected}", 
-                                                ppId, billId, amountToSubtract, currentCreditAmount, newCreditAmount, paymentsAffected);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("No PersonalPaymentIds found for bill {BillId} with Online payment method", billId);
-                                }
-                            }
+                            //            // Update PersonalPayments with new CreditAmount
+                            //            using (var updateCommand = new SqlCommand(@"
+                            //                UPDATE PersonalPayments 
+                            //                SET CreditAmount = @NewCreditAmount, ModifiedDate = GETDATE() 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                updateCommand.Parameters.AddWithValue("@NewCreditAmount", newCreditAmount);
+                            //                var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
+                            //                _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for bill {BillId}: CreditAmount decreased by {AmountToSubtract} (from {OldCreditAmount} to {NewCreditAmount}), Rows affected: {RowsAffected}", 
+                            //                    ppId, billId, amountToSubtract, currentCreditAmount, newCreditAmount, paymentsAffected);
+                            //            }
+                            //        }
+                            //    }
+                            //    else
+                            //    {
+                            //        _logger.LogWarning("No PersonalPaymentIds found for bill {BillId} with Online payment method", billId);
+                            //    }
+                            //}
 
                             // Step 5: Mark the bill as deleted (soft delete)
                                 using (var command = new SqlCommand(@"

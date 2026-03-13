@@ -30,12 +30,13 @@ namespace IMS.Controllers
         private readonly IAdminLablesService _adminLablesService;
         private readonly IVendor _vendorService;
         private readonly IAdminMeasuringUnitService _adminMeasuringUnitService;
+        private readonly IStockService _stockservice;
 
         public ProductController(IProductService productService,ILogger<ProductController> logger,ICategoryService categoryService
             , IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService, 
             IAdminLablesService adminLablesService,
             IVendor vendor,
-            IAdminMeasuringUnitService adminMeasuringUnitService)
+            IAdminMeasuringUnitService adminMeasuringUnitService,IStockService stockService)
         {
                 _logger = logger;
                 _productService = productService;
@@ -44,6 +45,7 @@ namespace IMS.Controllers
             _adminLablesService = adminLablesService;
             _vendorService = vendor;
             _adminMeasuringUnitService = adminMeasuringUnitService;
+            _stockservice = stockService;
         }
         
         public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null )
@@ -211,6 +213,18 @@ namespace IMS.Controllers
                     {
                         // Get the created product ID
                         var createdProduct = await _productService.GetProductByCodeAsync(model.ProductCode);
+                     
+                        await _stockservice.CreateStockAsync( new StockMaster
+                        {
+                            ProductIdFk = createdProduct.ProductId,
+                            AvailableQuantity = 0,
+                            Comment = "Initial stock entry",
+                            CreatedBy = userId,
+                            CreatedDate = DateTimeHelper.Now,
+                            ModifiedBy = userId,
+                            ModifiedDate = DateTimeHelper.Now
+                        });
+
                         if (createdProduct != null && model.productRanges != null && model.productRanges.Any())
                         {
                             // Save all product ranges
