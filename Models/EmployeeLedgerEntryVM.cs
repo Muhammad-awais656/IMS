@@ -14,6 +14,9 @@ namespace IMS.Models
 
     public class EmployeeLedgerEntryVM
     {
+        /// <summary>Set when editing an existing entry.</summary>
+        public long? LedgerId { get; set; }
+
         [Required]
         public long EmployeeId { get; set; }
 

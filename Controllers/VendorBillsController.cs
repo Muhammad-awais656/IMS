@@ -22,14 +22,16 @@ namespace IMS.Controllers
         private readonly ILogger<VendorBillsController> _logger;
         private readonly IProductService _productService;
         private readonly IAdminMeasuringUnitService _measuringUnitService;
+        private readonly ISalesService _salesService;
 
-        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger, IProductService productService, IAdminMeasuringUnitService measuringUnitService)
+        public VendorBillsController(IVendorBillsService vendorBillsService, IVendor vendorService, ILogger<VendorBillsController> logger, IProductService productService, IAdminMeasuringUnitService measuringUnitService, ISalesService salesService)
         {
             _vendorBillsService = vendorBillsService;
             _vendorService = vendorService;
             _logger = logger;
             _productService = productService;
             _measuringUnitService = measuringUnitService;
+            _salesService = salesService;
         }
 
         // GET: VendorBillsController
@@ -632,6 +634,13 @@ namespace IMS.Controllers
                     ModelState.Remove(key);
                 }
                 
+                // GenerateBill POST only creates new bills; edit submissions must use Edit POST
+                if (model.BillId.HasValue && model.BillId > 0)
+                {
+                    _logger.LogWarning("GenerateBill POST received BillId {BillId}; redirecting to Edit.", model.BillId);
+                    return RedirectToAction(nameof(Edit), new { id = model.BillId.Value });
+                }
+
                 // Validate only the main bill properties
                 if (ModelState.IsValid)
                 {
@@ -748,8 +757,10 @@ namespace IMS.Controllers
                                 detail.SalePrice,
                                 detail.LineDiscountAmount,
                                 detail.PayableAmount,
-                                detail.ProductRangeId
-                                
+                                detail.ProductRangeId,
+                                model.PaymentMethod,
+                                model.OnlineAccountId
+
                             );
 
                             // Get stock information and update (INCREASE stock instead of decrease)
@@ -954,10 +965,15 @@ namespace IMS.Controllers
                 var billDetailsList = new List<VendorBillDetailViewModel>();
                 foreach (var item in billItems)
                 {
-                    // Get product ranges for this product
+                    // Get product ranges for this product (for MeasuringUnit when not on bill item)
                     var productRanges = await _vendorBillsService.GetProductSizesAsync(item.ProductId);
                     var productRange = productRanges.FirstOrDefault(pr => pr.ProductRangeId == item.ProductRangeId);
-                    
+                    // Prefer abbreviation from bill item (GetVendorBillItemsAsync); fallback to product range
+                    var muAbbrev = !string.IsNullOrWhiteSpace(productRange?.MeasuringUnitAbbreviation)
+                        ? productRange.MeasuringUnitAbbreviation
+                        : (item.MeasuringUnitAbbreviation ?? "");
+                    var muId = productRange?.MeasuringUnitIdFk ?? item.MeasuringUnitId;
+
                     var billDetail = new VendorBillDetailViewModel
                     {
                         ProductId = item.ProductId,
@@ -965,14 +981,14 @@ namespace IMS.Controllers
                         ProductSize = item.ProductSize,
                         UnitPrice = item.UnitPrice,
                         PurchasePrice = item.BillPrice,
-                        Quantity = (decimal)item.Quantity, // Changed to decimal
+                        Quantity = (decimal)item.Quantity,
                         SalePrice = item.UnitPrice,
                         LineDiscountAmount = item.DiscountAmount,
                         PayableAmount = item.PayableAmount,
                         ProductRangeId = item.ProductRangeId,
                         ProductCode = item.ProductCode,
-                        MeasuringUnitId = productRange?.MeasuringUnitIdFk,
-                        MeasuringUnitAbbreviation = productRange?.MeasuringUnitAbbreviation
+                        MeasuringUnitId = muId != 0 ? muId : (long?)null,
+                        MeasuringUnitAbbreviation = !string.IsNullOrWhiteSpace(muAbbrev) ? muAbbrev : null
                     };
                     billDetailsList.Add(billDetail);
                 }
@@ -982,6 +998,7 @@ namespace IMS.Controllers
                 {
                     BillId = vendorBill.BillId,
                     VendorId = vendorBill.VendorId,
+                    CustomerId = vendorBill.CustomerId,
                     BillNumber = vendorBill.BillNumber,
                     BillDate = vendorBill.BillDate,
                     TotalAmount = vendorBill.TotalAmount,
@@ -994,6 +1011,16 @@ namespace IMS.Controllers
                     IsEditMode = IsEditMode, // Pass IsEditMode to the model
                     BillDetails = billDetailsList
                 };
+
+                // Load previous due for the selected vendor or customer
+                if (vendorBill.CustomerId.HasValue && vendorBill.CustomerId > 0)
+                {
+                    viewModel.PreviousDue = await _salesService.GetPreviousDueAmountByCustomerIdAsync(vendorBill.CustomerId.Value);
+                }
+                else if (vendorBill.VendorId.HasValue && vendorBill.VendorId > 0)
+                {
+                    viewModel.PreviousDue = await _vendorBillsService.GetPreviousDueAmountAsync(vendorBill.VendorId.Value);
+                }
 
                 ViewBag.IsEdit = true;
                 ViewBag.IsEditMode = IsEditMode;
@@ -1014,77 +1041,161 @@ namespace IMS.Controllers
         {
             try
             {
-                // Check if this is an AJAX request
                 bool isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
-                
-                if (ModelState.IsValid)
+
+                // Remove BillDetails/Description/PayNow validation keys so we validate them manually
+                var keysToRemove = new List<string>();
+                foreach (var key in ModelState.Keys)
                 {
-                    // Get user ID from session
-                    var userIdStr = HttpContext.Session.GetString("UserId");
-                    long userId = long.Parse(userIdStr);
-                    model.ModifiedBy = userId;
-                    model.ModifiedDate = DateTimeHelper.Now;
-                    
-                    // Update the vendor bill
-                    var success = await _vendorBillsService.UpdateVendorBillAsync(id, model);
-                    
-                    if (success)
-                    {
-                        if (isAjaxRequest)
-                        {
-                            return Json(new { success = true, message = "Vendor bill updated successfully!", billId = id });
-                        }
-                        TempData["SuccessMessage"] = "Vendor bill updated successfully!";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        if (isAjaxRequest)
-                        {
-                            return Json(new { success = false, message = "Error updating vendor bill." });
-                        }
-                        TempData["ErrorMessage"] = "Error updating vendor bill.";
-                    }
+                    if (key.StartsWith("BillDetails") || key.StartsWith("Description") || key.StartsWith("PayNow"))
+                        keysToRemove.Add(key);
                 }
-                else
+                foreach (var key in keysToRemove)
+                    ModelState.Remove(key);
+
+                if (!ModelState.IsValid)
                 {
-                    var errorMessages = ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList();
-                    
+                    var errorMessages = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
                     if (isAjaxRequest)
-                    {
                         return Json(new { success = false, message = "Please correct the validation errors.", errors = errorMessages });
-                    }
                     TempData["ErrorMessage"] = "Please correct the validation errors.";
-                }
-
-                // Reload data for the view (only for non-AJAX requests)
-                if (!isAjaxRequest)
-                {
-                    var products = await _vendorBillsService.GetAllProductsAsync();
-                    ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
-
-                    var vendors = await _vendorBillsService.GetAllVendorsAsync();
-                    ViewBag.Vendors = new SelectList(vendors, "VendorId", "VendorName", model.VendorId);
-
+                    await ReloadViewDataAsync();
                     ViewBag.IsEdit = true;
                     return View("GenerateBill", model);
                 }
-                
-                return Json(new { success = false, message = "Error updating vendor bill." });
+
+                // Validate vendor and bill details (same as GenerateBill)
+                if ((!model.VendorId.HasValue || model.VendorId == 0) && (!model.CustomerId.HasValue || model.CustomerId == 0))
+                {
+                    if (isAjaxRequest)
+                        return Json(new { success = false, message = "Please select a vendor OR Customer." });
+                    TempData["ErrorMessage"] = "Please select a vendor.";
+                    await ReloadViewDataAsync();
+                    ViewBag.IsEdit = true;
+                    return View("GenerateBill", model);
+                }
+                if (model.BillDetails == null || !model.BillDetails.Any())
+                {
+                    TempData["ErrorMessage"] = "Please add at least one product to the bill.";
+                    await ReloadViewDataAsync();
+                    ViewBag.IsEdit = true;
+                    return View("GenerateBill", model);
+                }
+                if (model.PaymentMethod != "PayLater" && model.PayNow <= 0)
+                {
+                    TempData["ErrorMessage"] = "Pay Now amount is required when payment method is not 'Pay Later'.";
+                    await ReloadViewDataAsync();
+                    ViewBag.IsEdit = true;
+                    return View("GenerateBill", model);
+                }
+                if (model.PaymentMethod == "Online" && (!model.OnlineAccountId.HasValue || model.OnlineAccountId == 0))
+                {
+                    TempData["ErrorMessage"] = "Please select an online account for online payment.";
+                    await ReloadViewDataAsync();
+                    ViewBag.IsEdit = true;
+                    return View("GenerateBill", model);
+                }
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr);
+                model.ModifiedBy = userId;
+                model.ModifiedDate = DateTimeHelper.Now;
+
+                // Get existing bill to reverse online payment if it was Online
+                var existingBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (existingBill == null)
+                {
+                    if (isAjaxRequest)
+                        return Json(new { success = false, message = "Vendor bill not found." });
+                    TempData["ErrorMessage"] = "Vendor bill not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // 1) Revert stock for current bill items
+                await _vendorBillsService.RevertStockForVendorBillAsync(id, userId);
+                // 2) Delete bill details, payments, stock transactions
+                await _vendorBillsService.DeleteBillDetailsByBillIdAsync(id);
+                await _vendorBillsService.DeletePaymentByBillIdAsync(id);
+                await _vendorBillsService.DeleteStockTransactionByBillIdAsync(id);
+                // 3) Reverse online payment if existing bill was Online
+                if (existingBill.PaymentMethod == "Online")
+                    await _vendorBillsService.ReverseOnlinePaymentTransactionByBillIdAsync(id, userId);
+                // 4) Update bill header only
+                await _vendorBillsService.UpdateVendorBillHeaderAsync(id, model);
+
+                // 5) Re-add details with stock update and transactions (same as GenerateBill)
+                DateTime currentDateTime = DateTimeHelper.Now;
+                foreach (var detail in model.BillDetails)
+                {
+                    await _vendorService.AddVendorBillDetails(
+                        id,
+                        detail.ProductId,
+                        detail.UnitPrice,
+                        detail.PurchasePrice,
+                        detail.Quantity,
+                        detail.SalePrice,
+                        detail.LineDiscountAmount,
+                        detail.PayableAmount,
+                        detail.ProductRangeId,
+                        model.PaymentMethod,
+                        model.OnlineAccountId
+                    );
+                    var prodMaster = await _vendorService.GetStockByProductIdAsync(detail.ProductId);
+                    if (prodMaster != null)
+                    {
+                        _vendorService.UpdateStock(
+                            prodMaster.StockMasterId,
+                            detail.ProductId,
+                            prodMaster.AvailableQuantity + (decimal)detail.Quantity,
+                            prodMaster.TotalQuantity + (decimal)detail.Quantity,
+                            prodMaster.UsedQuantity,
+                            userId,
+                            currentDateTime
+                        );
+                        _vendorService.VendorBillTransactionCreate(
+                            prodMaster.StockMasterId,
+                            (decimal)detail.Quantity,
+                            $"Vendor Bill #{id}",
+                            currentDateTime,
+                            userId,
+                            3,
+                            id
+                        );
+                    }
+                }
+
+                // 6) Process online payment if new payment method is Online
+                if (model.PaymentMethod == "Online" && model.OnlineAccountId.HasValue && model.OnlineAccountId > 0)
+                {
+                    try
+                    {
+                        var transactionDescription = $"Vendor Bill Credit - Bill #{model.BillNumber} - {model.Description}";
+                        await _vendorService.ProcessOnlinePaymentTransactionAsync(
+                            model.OnlineAccountId.Value,
+                            id,
+                            model.PaidAmount,
+                            transactionDescription,
+                            userId,
+                            currentDateTime
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing online payment for Bill ID: {BillId}", id);
+                    }
+                }
+
+                if (isAjaxRequest)
+                    return Json(new { success = true, message = "Vendor bill updated successfully!", billId = id });
+                TempData["SuccessMessage"] = "Vendor bill updated successfully!";
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating vendor bill {BillId}", id);
-                
                 bool isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
                 if (isAjaxRequest)
-                {
                     return Json(new { success = false, message = "Error updating vendor bill: " + ex.Message });
-                }
-                
                 TempData["ErrorMessage"] = "Error updating vendor bill.";
                 return RedirectToAction(nameof(Index));
             }
@@ -1123,8 +1234,17 @@ namespace IMS.Controllers
                 // Get user ID from session
                 var userIdStr = HttpContext.Session.GetString("UserId");
                 long userId = long.Parse(userIdStr ?? "1"); // Default to 1 if not found
+
+                // Get existing bill to check payment method before reversing online payment
+                var existingBill = await _vendorBillsService.GetVendorBillByIdAsync(id);
+                if (existingBill?.PaymentMethod == "Online")
+                {
+                    await _vendorBillsService.ReverseOnlinePaymentTransactionByBillIdAsync(id, userId);
+                }
+                await _vendorBillsService.DeletePaymentByBillIdAsync(id);
+                await _vendorBillsService.DeleteStockTransactionByBillIdAsync(id);
                 
-                // Call service to delete the bill (this will restore stock and mark transactions as deleted)
+                // Call service to delete the bill (restore stock and mark transactions as deleted)
                 var result = await _vendorBillsService.DeleteVendorBillAsync(id, userId);
                 
                 if (result)
@@ -1172,7 +1292,7 @@ namespace IMS.Controllers
                     {
                         if (!item.IsSmallestUnit)
                         {
-                            //var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
+                            ////var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
 
 
                             var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
@@ -1191,6 +1311,10 @@ namespace IMS.Controllers
                             }
 
 
+                        }
+                        else
+                        {
+                            item.PrintQuantity = (decimal)item.Quantity;
                         }
 
 
@@ -1296,6 +1420,92 @@ namespace IMS.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error exporting vendor bills to Excel"); TempData["ErrorMessage"] = "An error occurred while exporting to Excel."; return RedirectToAction(nameof(Index)); }
         }
 
+        /// <summary>Generate PO Details Report in Excel (Code, Product, Item Level Discount, Unit Sale Price, Qty, Total Discount, Payable), bill-wise with Total Payable. Uses same filters as Vendor Bills Management.</summary>
+        [HttpGet]
+        public async Task<IActionResult> ExportPODetailsReportExcel(long? vendorId = null, long? billNumber = null, DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
+        {
+            try
+            {
+                var filters = new VendorBillsFilters { VendorId = vendorId, BillNumber = billNumber, BillDateFrom = billDateFrom, BillDateTo = billDateTo, Description = string.IsNullOrWhiteSpace(description) ? null : description };
+                var list = await _vendorBillsService.GetPODetailsReportForExportAsync(filters);
+
+                string[] headers = { "Code", "Product", "Item Level Discount", "Unit Sale Price", "Qty", "Total Discount", "Payable" };
+                const int colCount = 7;
+                int row = 1;
+
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("PO Details Report");
+
+                worksheet.Cell(row, 1).Value = "PO Details Report";
+                worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                row += 2;
+
+                var culture = new System.Globalization.CultureInfo("ur-PK");
+                var items = list ?? new List<PODetailReportItem>();
+                long? currentBillId = null;
+                decimal billTotalPayable = 0;
+
+                foreach (var item in items)
+                {
+                    if (item.PurchaseOrderIdFk != currentBillId)
+                    {
+                        if (currentBillId.HasValue)
+                        {
+                            worksheet.Cell(row, 1).Value = "Total Payable";
+                            worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                            worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                            worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                            row++;
+                        }
+                        billTotalPayable = 0;
+                        currentBillId = item.PurchaseOrderIdFk;
+                        var billLabel = item.BillNumber.HasValue ? $"Bill # {item.BillNumber} (PO Id: {item.PurchaseOrderIdFk})" : $"PO Id: {item.PurchaseOrderIdFk}";
+                        worksheet.Cell(row, 1).Value = billLabel;
+                        worksheet.Range(row, 1, row, colCount).Merge().Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightBlue;
+                        row++;
+                        for (int c = 0; c < headers.Length; c++)
+                            worksheet.Cell(row, c + 1).Value = headers[c];
+                        worksheet.Range(row, 1, row, colCount).Style.Font.Bold = true;
+                        worksheet.Range(row, 1, row, colCount).Style.Fill.BackgroundColor = XLColor.LightGray;
+                        row++;
+                    }
+
+                    billTotalPayable += item.PayableAmount;
+                    worksheet.Cell(row, 1).Value = item.Code ?? "";
+                    worksheet.Cell(row, 2).Value = item.ProductName ?? "";
+                    worksheet.Cell(row, 3).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 4).Value = item.UnitPrice.ToString("N2", culture);
+                    worksheet.Cell(row, 5).Value = item.Quantity;
+                    worksheet.Cell(row, 6).Value = item.LineDiscountAmount.ToString("N2", culture);
+                    worksheet.Cell(row, 7).Value = item.PayableAmount.ToString("N2", culture);
+                    row++;
+                }
+
+                if (currentBillId.HasValue)
+                {
+                    worksheet.Cell(row, 1).Value = "Total Payable";
+                    worksheet.Range(row, 1, row, colCount - 1).Merge().Style.Font.Bold = true;
+                    worksheet.Cell(row, colCount).Value = billTotalPayable.ToString("N2", culture);
+                    worksheet.Cell(row, colCount).Style.Font.Bold = true;
+                    row++;
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"PODetailsReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting PO details report to Excel");
+                TempData["ErrorMessage"] = "An error occurred while generating the PO details report.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> ExportPdf(long? vendorId = null, long? billNumber = null, DateTime? billDateFrom = null, DateTime? billDateTo = null, string? description = null)
         {
@@ -1321,5 +1531,51 @@ namespace IMS.Controllers
             }
             catch (Exception ex) { _logger.LogError(ex, "Error exporting vendor bills to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
         }
+
+        /// <summary>Save vendor opening balance (creates an opening balance bill for the vendor).</summary>
+        [HttpPost]
+        [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
+        public async Task<JsonResult> SaveVendorOpenBalance([FromBody] VendorOpenBalanceRequest request)
+        {
+            try
+            {
+                if (request == null || request.VendorId <= 0)
+                    return Json(new { success = false, message = "Invalid vendor." });
+                //if (string.IsNullOrWhiteSpace(request.Type) || (request.Type != "Payable" && request.Type != "Receivable"))
+                //    return Json(new { success = false, message = "Type must be Payable or Receivable." });
+                if (request.OpeningBalance < 0)
+                    return Json(new { success = false, message = "Opening balance cannot be negative." });
+                if (request.OpeningBalance == 0)
+                    return Json(new { success = false, message = "Opening balance cannot be empty." });
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long createdBy = long.TryParse(userIdStr, out var uid) ? uid : 1;
+
+                DateTime? balanceDate = null;
+                if (!string.IsNullOrWhiteSpace(request.BalanceDate) && DateTime.TryParse(request.BalanceDate, out var parsedDate))
+                    balanceDate = parsedDate;
+
+                long billId = await _vendorService.AddOpeningBalanceVendorBillAsync(
+                    request.VendorId,
+                    request.Type,
+                    request.OpeningBalance,
+                    createdBy,
+                    balanceDate);
+                return Json(new { success = true, message = "Opening balance saved.", billId = billId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving vendor opening balance");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+    }
+
+    public class VendorOpenBalanceRequest
+    {
+        public long VendorId { get; set; }
+        public string Type { get; set; } = ""; // "Payable" or "Receivable"
+        public decimal OpeningBalance { get; set; }
+        public string? BalanceDate { get; set; } // ISO date from UI (e.g. "yyyy-MM-dd")
     }
 }

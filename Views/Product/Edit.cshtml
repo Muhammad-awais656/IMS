@@ -1,4 +1,4 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
 @model ProductViewModel;
 
 <div class="card shadow-sm">
@@ -146,9 +146,10 @@
                             {
                                 @foreach (var item in Model.productRanges)
                                 {
-                                    <tr data-size-id="@item.ProductRangeId" data-measuring-unit-id="@item.MeasuringUnitIdFk" 
+                                    <tr data-size-id="@item.ProductRangeId" data-measuring-unit-id="@item.MeasuringUnitIdFk"
+                                        data-measuring-unit-text="@(item.MeasuringUnitAbbreviation ?? item.MeasuringUnitName)"
                                         data-range-from="@item.RangeFrom" data-range-to="@item.RangeTo" data-unit-price="@item.UnitPrice">
-                                        <td>@item.MeasuringUnitIdFk</td>
+                                        <td>@(item.MeasuringUnitAbbreviation ?? item.MeasuringUnitName ?? item.MeasuringUnitIdFk.ToString())</td>
                                         <td>@item.RangeFrom.ToString("0.##")</td>
                                         <td>@item.RangeTo.ToString("0.##")</td>
                                         <td>@item.UnitPrice.ToString("0.##")</td>
@@ -346,6 +347,7 @@
                 
                 var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
                 var measuringUnitId = measuringUnitCombo ? measuringUnitCombo.value() : $("#addSizeForm input[name='MeasuringUnitIdFk']").val();
+                var measuringUnitText = measuringUnitCombo ? (measuringUnitCombo.text() || "").trim() : "";
                 var rangeFrom = $("#addSizeForm input[name='RangeFrom']").val();
                 var rangeTo = $("#addSizeForm input[name='RangeTo']").val();
                 var unitPrice = $("#addSizeForm input[name='UnitPrice']").val();
@@ -374,10 +376,10 @@
 
                 if (editingSizeId) {
                     // Update existing size
-                    updateSizeInTable(editingSizeId, measuringUnitId, rangeFrom, rangeTo, unitPrice);
+                    updateSizeInTable(editingSizeId, measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice);
                 } else {
                     // Add new size
-                    addSizeToTable(measuringUnitId, rangeFrom, rangeTo, unitPrice);
+                    addSizeToTable(measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice);
                 }
                 
                 // Clear form and close modal
@@ -394,19 +396,20 @@
                 return num.toFixed(2).replace(/\.?0+$/, '');
             }
 
-            // Add size to table
-            function addSizeToTable(measuringUnitId, rangeFrom, rangeTo, unitPrice) {
+            // Add size to table (measuringUnitText = display name e.g. kg, Bori)
+            function addSizeToTable(measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice) {
                 sizeCounter++;
-                // Convert to numbers to ensure proper data types
                 var measuringUnitIdNum = parseInt(measuringUnitId);
                 var rangeFromNum = parseFloat(rangeFrom);
                 var rangeToNum = parseFloat(rangeTo);
                 var unitPriceNum = parseFloat(unitPrice);
+                var displayMu = (measuringUnitText && measuringUnitText.length > 0) ? measuringUnitText : measuringUnitIdNum;
+                var escapedMu = (typeof displayMu === 'string') ? displayMu.replace(/"/g, '&quot;') : displayMu;
                 
                 var row = `
-                    <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" 
+                    <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" data-measuring-unit-text="${escapedMu}"
                         data-range-from="${rangeFromNum}" data-range-to="${rangeToNum}" data-unit-price="${unitPriceNum}">
-                        <td>${measuringUnitIdNum}</td>
+                        <td>${displayMu}</td>
                         <td>${formatDecimal(rangeFromNum)}</td>
                         <td>${formatDecimal(rangeToNum)}</td>
                         <td>${formatDecimal(unitPriceNum)}</td>
@@ -419,35 +422,35 @@
                 $("#sizesTableBody").append(row);
             }
 
-            // Update size in table
-            function updateSizeInTable(sizeId, measuringUnitId, rangeFrom, rangeTo, unitPrice) {
+            // Update size in table (measuringUnitText = display name e.g. kg, Bori)
+            function updateSizeInTable(sizeId, measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice) {
                 var measuringUnitIdNum = parseInt(measuringUnitId);
                 var rangeFromNum = parseFloat(rangeFrom);
                 var rangeToNum = parseFloat(rangeTo);
                 var unitPriceNum = parseFloat(unitPrice);
+                var displayMu = (measuringUnitText && measuringUnitText.length > 0) ? measuringUnitText : measuringUnitIdNum;
                 
                 var $row = $(`tr[data-size-id="${sizeId}"]`);
                 
-                // Clear cached data to force refresh
                 $row.removeData("measuring-unit-id");
+                $row.removeData("measuring-unit-text");
                 $row.removeData("range-from");
                 $row.removeData("range-to");
                 $row.removeData("unit-price");
                 
-                // Update both attributes and data (using data() to update cache, attr() for DOM)
                 $row.attr("data-measuring-unit-id", measuringUnitIdNum);
+                $row.attr("data-measuring-unit-text", displayMu);
                 $row.attr("data-range-from", rangeFromNum);
                 $row.attr("data-range-to", rangeToNum);
                 $row.attr("data-unit-price", unitPriceNum);
                 
-                // Also update using data() to update the cache
                 $row.data("measuring-unit-id", measuringUnitIdNum);
+                $row.data("measuring-unit-text", displayMu);
                 $row.data("range-from", rangeFromNum);
                 $row.data("range-to", rangeToNum);
                 $row.data("unit-price", unitPriceNum);
                 
-                // Update visible table cells with formatted decimals
-                $row.find("td:eq(0)").text(measuringUnitIdNum);
+                $row.find("td:eq(0)").text(displayMu);
                 $row.find("td:eq(1)").text(formatDecimal(rangeFromNum));
                 $row.find("td:eq(2)").text(formatDecimal(rangeToNum));
                 $row.find("td:eq(3)").text(formatDecimal(unitPriceNum));

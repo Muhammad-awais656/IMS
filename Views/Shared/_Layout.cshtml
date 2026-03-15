@@ -328,8 +328,8 @@
             @* Admin *@
             @if (role == "Admin")
             {
-                <div class="menu-item has-submenu" data-tooltip="Admin">
-                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user-tie"></i><span>Admin <i class="fa-solid fa-angle-down"></i></span></a>
+                <div class="menu-item has-submenu" data-tooltip="User Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user-tie"></i><span>User Management <i class="fa-solid fa-angle-down"></i></span></a>
                     <div class="submenu">
                         <a asp-controller="User" asp-action="GetAllUsers"><i class="fa-solid fa-people-group"></i><span>Users</span></a>
                     </div>
@@ -363,7 +363,7 @@
                 <div class="submenu">
                     <a asp-controller="Employee" asp-action="Index"><i class="fa-solid fa-people-group"></i><span>Employees</span></a>
                     <a asp-controller="Employee" asp-action="EmployeeLedger"><i class="fa-solid fa-people-group"></i><span>Employees Ledger</span></a>
-                    @* <a asp-controller="Employee" asp-action="AddLedgerEntry"><i class="fa-solid fa-people-group"></i><span>Add Employee Ledger </span></a> *@
+                    
                 </div>
             </div>
 
@@ -384,7 +384,7 @@
                 <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-sack-dollar"></i><span>Expense <i class="fa-solid fa-angle-down"></i></span></a>
                 <div class="submenu">
                     <a asp-controller="Expense" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>Expenses</span></a>
-                    <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i><span>Personal Payments</span></a>
+                    <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i><span>Bank Payments</span></a>
                 </div>
             </div>
 
@@ -394,14 +394,16 @@
                     <a asp-controller="Report" asp-action="DailyStockPositionReport"><i class="fa-solid fa-boxes"></i><span>Daily Stock Position</span></a>
                     <a asp-controller="Report" asp-action="ProductWiseSalesReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Sales Report</span></a>
                     <a asp-controller="Report" asp-action="ProductWisePurchaseReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Purchase Report</span></a>
+                    <a asp-controller="Report" asp-action="CustomerLedgerReport"><i class="fa-solid fa-book"></i><span>Customer Ledger Report</span></a>
+                    <a asp-controller="Report" asp-action="VendorLedgerReport"><i class="fa-solid fa-book"></i><span>Vendor Ledger Report</span></a>
                     <a asp-controller="Report" asp-action="GeneralExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span>General Expenses Report</span></a>
                     <a asp-controller="Report" asp-action="PurchaseOrderProductExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span> Direct Product Expenses Report</span></a>
                    
-                    <a asp-controller="Report" asp-action="SalesReport"><i class="fa-solid fa-address-book"></i><span>Sales Report</span></a>
+                    @* <a asp-controller="Report" asp-action="SalesReport"><i class="fa-solid fa-address-book"></i><span>Sales Report</span></a>
                     <a asp-controller="Report" asp-action="PurchaseReport"><i class="fa-solid fa-shopping-cart"></i><span>Purchase Report</span></a>
                     <a asp-controller="Report" asp-action="ProfitLossReport"><i class="fa-solid fa-chart-line"></i><span>Profit/Loss Report</span></a>
                     <a asp-controller="Report" asp-action="DailyStockReport"><i class="fa-solid fa-boxes"></i><span>Daily Stock Report</span></a>
-                    <a asp-controller="Report" asp-action="BankCreditDebitReport"><i class="fa-solid fa-university"></i><span>Bank Credit / Debit Report</span></a>
+                    <a asp-controller="Report" asp-action="BankCreditDebitReport"><i class="fa-solid fa-university"></i><span>Bank Credit / Debit Report</span></a> *@
                 </div>
             </div>
 

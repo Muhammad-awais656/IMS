@@ -30,12 +30,13 @@ namespace IMS.Controllers
         private readonly IAdminLablesService _adminLablesService;
         private readonly IVendor _vendorService;
         private readonly IAdminMeasuringUnitService _adminMeasuringUnitService;
+        private readonly IStockService _stockservice;
 
         public ProductController(IProductService productService,ILogger<ProductController> logger,ICategoryService categoryService
             , IAdminMeasuringUnitTypesService adminMeasuringUnitTypesService, 
             IAdminLablesService adminLablesService,
             IVendor vendor,
-            IAdminMeasuringUnitService adminMeasuringUnitService)
+            IAdminMeasuringUnitService adminMeasuringUnitService,IStockService stockService)
         {
                 _logger = logger;
                 _productService = productService;
@@ -44,6 +45,7 @@ namespace IMS.Controllers
             _adminLablesService = adminLablesService;
             _vendorService = vendor;
             _adminMeasuringUnitService = adminMeasuringUnitService;
+            _stockservice = stockService;
         }
         
         public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null )
@@ -211,6 +213,18 @@ namespace IMS.Controllers
                     {
                         // Get the created product ID
                         var createdProduct = await _productService.GetProductByCodeAsync(model.ProductCode);
+                     
+                        await _stockservice.CreateStockAsync( new StockMaster
+                        {
+                            ProductIdFk = createdProduct.ProductId,
+                            AvailableQuantity = 0,
+                            Comment = "Initial stock entry",
+                            CreatedBy = userId,
+                            CreatedDate = DateTimeHelper.Now,
+                            ModifiedBy = userId,
+                            ModifiedDate = DateTimeHelper.Now
+                        });
+
                         if (createdProduct != null && model.productRanges != null && model.productRanges.Any())
                         {
                             // Save all product ranges
@@ -489,10 +503,11 @@ namespace IMS.Controllers
                 var enabledMeasuringUnits = measuringUnits.Where(mu => mu.IsEnabled).ToList();
                 _logger.LogInformation("Found {Count} enabled measuring units for type {MeasuringUnitTypeId}", enabledMeasuringUnits.Count, measuringUnitTypeId);
                 
+                // Use abbreviation (e.g. kg, Bori) for display when available; fallback to name
                 var result = enabledMeasuringUnits.Select(mu => new
                 {
                     value = mu.MeasuringUnitId.ToString(),
-                    text = mu.MeasuringUnitName
+                    text = !string.IsNullOrWhiteSpace(mu.MeasuringUnitAbbreviation) ? mu.MeasuringUnitAbbreviation : (mu.MeasuringUnitName ?? "")
                 }).ToList();
                 
                 _logger.LogInformation("Returning {Count} enabled measuring units: {Result}", result.Count, string.Join(", ", result.Select(r => $"{r.text}({r.value})")));

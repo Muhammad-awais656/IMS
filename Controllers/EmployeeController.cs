@@ -487,9 +487,9 @@ emp.MaritalStatus
    
 
         [HttpGet]
-        public async Task<ActionResult> EmployeeLedger(long? employeeId = null, int pageNumber = 1, int? pageSize = null)
+        public async Task<ActionResult> EmployeeLedger(long? employeeId = null, int pageNumber = 1, int? pageSize = null, DateTime? fromDate = null, DateTime? toDate = null)
         {
-            var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync();
+            var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync(fromDate, toDate);
             var list = ledger ?? new List<EmployeeLedgerReportVM>();
 
             // Filter by selected employee when employeeId is provided
@@ -519,6 +519,8 @@ emp.MaritalStatus
                 CurrentPage = pageNumber
             };
             ViewData["employeeId"] = employeeId?.ToString() ?? "";
+            ViewData["fromDate"] = fromDate.HasValue ? fromDate.Value.ToString("yyyy-MM-dd") : "";
+            ViewData["toDate"] = toDate.HasValue ? toDate.Value.ToString("yyyy-MM-dd") : "";
             ViewBag.Employees = new SelectList(
                 await _employeeService.GetAllEmployeesAsync(),
                 "EmployeeId",
@@ -526,6 +528,204 @@ emp.MaritalStatus
                 employeeId);
             return View(viewModel);
         }
+
+        public async Task<IActionResult> ExportEmployeeLedgerExcel(long? employeeId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync(fromDate, toDate);
+            var list = ledger ?? new List<EmployeeLedgerReportVM>();
+            if (employeeId.HasValue && employeeId.Value > 0)
+                list = list.Where(x => x.EmployeeId_FK == employeeId.Value).ToList();
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Employee Ledger");
+
+            worksheet.Cell(1, 1).Value = "Employee Name";
+            worksheet.Cell(1, 2).Value = "Date";
+            worksheet.Cell(1, 3).Value = "Description";
+            worksheet.Cell(1, 4).Value = "Debit";
+            worksheet.Cell(1, 5).Value = "Credit";
+            worksheet.Cell(1, 6).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 6);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            int row = 2;
+            foreach (var item in list)
+            {
+                worksheet.Cell(row, 1).Value = item.EmployeeName ?? "";
+                worksheet.Cell(row, 2).Value = item.VoucherDate.ToString("dd-MMM-yyyy");
+                worksheet.Cell(row, 3).Value = item.VoucherTypeName ?? "";
+                worksheet.Cell(row, 4).Value = item.DebitAmount;
+                worksheet.Cell(row, 5).Value = item.CreditAmount;
+                worksheet.Cell(row, 6).Value = item.RunningBalance;
+                row++;
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"EmployeeLedger_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+        }
+
+        public async Task<IActionResult> ExportEmployeeLedgerPdf(long? employeeId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var ledger = await _employeeService.GetAllEmployeeLedgerReportAsync(fromDate, toDate);
+            var list = ledger ?? new List<EmployeeLedgerReportVM>();
+            if (employeeId.HasValue && employeeId.Value > 0)
+                list = list.Where(x => x.EmployeeId_FK == employeeId.Value).ToList();
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            document.Add(new Paragraph("Employee Ledger Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(6);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 2.5f, 1.5f, 2f, 1.5f, 1.5f, 1.5f });
+            string[] headers = { "Employee Name", "Date", "Description", "Debit", "Credit", "Balance" };
+            foreach (var header in headers)
+            {
+                var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(cell);
+            }
+
+            foreach (var item in list)
+            {
+                table.AddCell(item.EmployeeName ?? "");
+                table.AddCell(item.VoucherDate.ToString("dd-MMM-yyyy"));
+                table.AddCell(item.VoucherTypeName ?? "");
+                table.AddCell(item.DebitAmount > 0 ? item.DebitAmount.ToString("N2") : "-");
+                table.AddCell(item.CreditAmount > 0 ? item.CreditAmount.ToString("N2") : "-");
+                table.AddCell(item.RunningBalance.ToString("N2"));
+            }
+
+            document.Add(table);
+            document.Close();
+
+            string filename = $"EmployeeLedger_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        [HttpGet]
+        public async Task<ActionResult> ViewLedgerEntry(int id)
+        {
+            var entry = await _employeeService.GetEmployeeLedgerEntryByIdAsync(id);
+            if (entry == null)
+            {
+                TempData["ErrorMessage"] = "Ledger entry not found.";
+                return RedirectToAction("EmployeeLedger");
+            }
+            ViewBag.EmployeeName = (await _employeeService.GetAllEmployeesAsync()).FirstOrDefault(e => e.EmployeeId == entry.EmployeeId)?.EmployeeName ?? "";
+            var voucherType = await _employeeService.GetVoucherTypeByIdAsync(entry.VoucherTypeId);
+            ViewBag.VoucherTypeName = voucherType?.VoucherTypeName ?? "";
+            ViewBag.Nature = voucherType?.Nature ?? "";
+            return View(entry);
+        }
+
+        [HttpGet]
+        public async Task<ActionResult> EditLedgerEntry(int id)
+        {
+            var entry = await _employeeService.GetEmployeeLedgerEntryByIdAsync(id);
+            if (entry == null)
+            {
+                TempData["ErrorMessage"] = "Ledger entry not found.";
+                return RedirectToAction("EmployeeLedger");
+            }
+            ViewBag.Employees = new SelectList(await _employeeService.GetAllEmployeesAsync(), "EmployeeId", "EmployeeName", entry.EmployeeId);
+            ViewBag.VoucherTypes = new SelectList(await _employeeService.GetAllVoucherTypesAsync(), "VoucherTypeId", "VoucherTypeName", entry.VoucherTypeId);
+            return View(entry);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> EditLedgerEntry(EmployeeLedgerEntryVM model)
+        {
+            if (model.LedgerId == null || model.LedgerId <= 0)
+            {
+                TempData["ErrorMessage"] = "Invalid ledger entry.";
+                return RedirectToAction("EmployeeLedger");
+            }
+            if (ModelState.IsValid)
+            {
+                var voucherType = await _employeeService.GetVoucherTypeByIdAsync(model.VoucherTypeId);
+                if (voucherType == null)
+                {
+                    TempData["ErrorMessage"] = "Invalid voucher type.";
+                    ViewBag.Employees = new SelectList(await _employeeService.GetAllEmployeesAsync(), "EmployeeId", "EmployeeName", model.EmployeeId);
+                    ViewBag.VoucherTypes = new SelectList(await _employeeService.GetAllVoucherTypesAsync(), "VoucherTypeId", "VoucherTypeName", model.VoucherTypeId);
+                    return View(model);
+                }
+                if (model.Amount <= 0)
+                {
+                    TempData["ErrorMessage"] = "Amount must be greater than zero.";
+                    ViewBag.Employees = new SelectList(await _employeeService.GetAllEmployeesAsync(), "EmployeeId", "EmployeeName", model.EmployeeId);
+                    ViewBag.VoucherTypes = new SelectList(await _employeeService.GetAllVoucherTypesAsync(), "VoucherTypeId", "VoucherTypeName", model.VoucherTypeId);
+                    return View(model);
+                }
+                var ledger = new EmployeeLedger
+                {
+                    LedgerId = model.LedgerId.Value,
+                    EmployeeId = model.EmployeeId,
+                    VoucherTypeId = model.VoucherTypeId,
+                    VoucherDate = model.VoucherDate,
+                    ReferenceNo = string.IsNullOrWhiteSpace(model.ReferenceNo) ? null : model.ReferenceNo,
+                    DebitAmount = voucherType.Nature == "D" ? model.Amount : 0,
+                    CreditAmount = voucherType.Nature == "C" ? model.Amount : 0,
+                    Remarks = string.IsNullOrWhiteSpace(model.Remarks) ? null : model.Remarks
+                };
+                var updated = await _employeeService.UpdateEmployeeLedgerAsync(ledger);
+                if (updated)
+                {
+                    TempData["Success"] = "Ledger entry updated successfully.";
+                    return RedirectToAction("EmployeeLedger", new { employeeId = model.EmployeeId });
+                }
+                TempData["ErrorMessage"] = "Failed to update ledger entry.";
+            }
+            ViewBag.Employees = new SelectList(await _employeeService.GetAllEmployeesAsync(), "EmployeeId", "EmployeeName", model.EmployeeId);
+            ViewBag.VoucherTypes = new SelectList(await _employeeService.GetAllVoucherTypesAsync(), "VoucherTypeId", "VoucherTypeName", model.VoucherTypeId);
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<ActionResult> DeleteLedgerEntry(int id)
+        {
+            var entry = await _employeeService.GetEmployeeLedgerEntryByIdAsync(id);
+            if (entry == null)
+            {
+                TempData["ErrorMessage"] = "Ledger entry not found.";
+                return RedirectToAction("EmployeeLedger");
+            }
+            ViewBag.EmployeeName = (await _employeeService.GetAllEmployeesAsync()).FirstOrDefault(e => e.EmployeeId == entry.EmployeeId)?.EmployeeName ?? "";
+            var voucherType = await _employeeService.GetVoucherTypeByIdAsync(entry.VoucherTypeId);
+            ViewBag.VoucherTypeName = voucherType?.VoucherTypeName ?? "";
+            return View(entry);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [ActionName("DeleteLedgerEntry")]
+        public async Task<ActionResult> DeleteLedgerEntryConfirmed(int id)
+        {
+            var deleted = await _employeeService.DeleteEmployeeLedgerAsync(id);
+            if (deleted)
+            {
+                TempData["Success"] = "Ledger entry deleted successfully.";
+                return RedirectToAction("EmployeeLedger");
+            }
+            TempData["ErrorMessage"] = "Failed to delete ledger entry.";
+            return RedirectToAction("EmployeeLedger");
+        }
+
         [HttpGet]
         public async Task<ActionResult> AddLedgerEntry(long employeeId)
         {

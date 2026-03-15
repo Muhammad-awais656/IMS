@@ -1,4 +1,4 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 
 
 namespace IMS.Models
@@ -185,6 +185,62 @@ namespace IMS.Models
         public DateTime? ToDate { get; set; }
         public long? PersonalPaymentId { get; set; }
         public string? TransactionType { get; set; }
+    }
+
+    /// <summary>Customer-wise ledger: Debit = (TotalAmount - DiscountAmount) from Sales, Credit = PaymentAmount from Payments.</summary>
+    public class CustomerLedgerReportViewModel
+    {
+        public List<CustomerLedgerReportItem> LedgerList { get; set; } = new List<CustomerLedgerReportItem>();
+        public CustomerLedgerReportFilters Filters { get; set; } = new CustomerLedgerReportFilters();
+        public string? CustomerName { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal ClosingBalance { get; set; }
+    }
+
+    public class CustomerLedgerReportItem
+    {
+        public DateTime Date { get; set; }
+        public string? CustomerName { get; set; }
+        public string? GLAccount { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    public class CustomerLedgerReportFilters
+    {
+        public long? CustomerId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+    }
+
+    /// <summary>Vendor-wise ledger: Debit = (TotalAmount - DiscountAmount) from PurchaseOrders, Credit = PaymentAmount from BillPayments.</summary>
+    public class VendorLedgerReportViewModel
+    {
+        public List<VendorLedgerReportItem> LedgerList { get; set; } = new List<VendorLedgerReportItem>();
+        public VendorLedgerReportFilters Filters { get; set; } = new VendorLedgerReportFilters();
+        public string? VendorName { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal ClosingBalance { get; set; }
+    }
+
+    public class VendorLedgerReportItem
+    {
+        public DateTime Date { get; set; }
+        public string? VendorName { get; set; }
+        public string? GLAccount { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    public class VendorLedgerReportFilters
+    {
+        public long? VendorId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
     }
 
     public class PurchaseReportViewModel

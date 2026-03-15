@@ -526,8 +526,10 @@ namespace IMS.Services
                                 return new VendorBillViewModel
                                 {
                                     BillId = reader.GetInt64("PurchaseOrderId"),
-                                    VendorId = reader.GetInt64("SupplierId_FK"),
-                                    VendorName = reader.GetString("VendorName"),
+                                    VendorId = reader.IsDBNull("SupplierId_FK") || reader.GetInt64("SupplierId_FK")==0 ? null :  reader.GetInt64("SupplierId_FK"),
+                                    CustomerId = reader.IsDBNull("CustomerId_FK") || reader.GetInt64("CustomerId_FK")==0 ? null :  reader.GetInt64("CustomerId_FK"),
+                                    VendorName = reader.IsDBNull("VendorName") ? "" : reader.GetString("VendorName"),
+                                    CustomerName = reader.IsDBNull("CustomerName") ? "" : reader.GetString("CustomerName"),
                                     BillNumber = reader.GetInt64("BillNumber"),
                                     BillDate = reader.GetDateTime("PurchaseOrderDate"),
                                     TotalAmount = reader.GetDecimal("TotalAmount"),
@@ -625,7 +627,8 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetBillDetailsByBillId", connection))
+                    // Use same SP as delete flow so we get the correct bill's line items (filter by PurchaseOrderId)
+                    using (var command = new SqlCommand("GetBillDetailsByPurchaseOrderIdFK", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pBillId", billId);
@@ -633,44 +636,37 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                var productCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? "" : reader.GetString("ProductCode");
-                                var rangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal("RangeFrom");
-                                var rangeTo = reader.IsDBNull(reader.GetOrdinal("RangeTo")) ? 0 : reader.GetDecimal("RangeTo");
-                                var productSize = "";
-                                if (rangeFrom > 0 || rangeTo > 0)
-                                {
-                                    productSize = rangeFrom.ToString("0.##") + " - " + rangeTo.ToString("0.##");
-                                }
-                                
+                                var productCode = "";
+                                try { productCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? "" : reader.GetString("ProductCode"); } catch { }
+                                var rangeFrom = 0m;
+                                var rangeTo = 0m;
+                                try { rangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal("RangeFrom"); } catch { }
+                                try { rangeTo = reader.IsDBNull(reader.GetOrdinal("RangeTo")) ? 0 : reader.GetDecimal("RangeTo"); } catch { }
+                                var productSize = (rangeFrom > 0 || rangeTo > 0) ? rangeFrom.ToString("0.##") + " - " + rangeTo.ToString("0.##") : "";
                                 var measuringUnitAbbreviation = "";
-                                try
-                                {
-                                    if (!reader.IsDBNull(reader.GetOrdinal("MeasuringUnitAbbreviation")))
-                                    {
-                                        measuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation");
-                                    }
-                                }
-                                catch
-                                {
-                                    measuringUnitAbbreviation = "";
-                                }
-                                
+                                try { if (!reader.IsDBNull(reader.GetOrdinal("MeasuringUnitAbbreviation"))) measuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation"); } catch { }
+                                var measuringUnitId = 0L;
+                                try { measuringUnitId = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitId")) ? 0 : reader.GetInt64("MeasuringUnitId"); } catch { }
+                                var isSmallestUnit = false;
+                                try { isSmallestUnit = !reader.IsDBNull(reader.GetOrdinal("IsSmallestUnit")) && reader.GetBoolean("IsSmallestUnit"); } catch { }
+                                var purchasePrice = 0m;
+                                try { if (!reader.IsDBNull(reader.GetOrdinal("PurchasePrice"))) purchasePrice = reader.GetDecimal("PurchasePrice"); } catch { }
                                 billItems.Add(new BillItemViewModel
                                 {
                                     BillItemId = reader.GetInt64("PurchaseOrderId_FK"),
                                     ProductId = reader.GetInt64("PrductId_FK"),
                                     ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    BillPrice = purchasePrice,
                                     Quantity = reader.GetInt64("Quantity"),
                                     DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
-                                    ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
+                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? "" : reader.GetString("ProductName"),
                                     ProductCode = productCode,
                                     ProductSize = productSize,
                                     MeasuringUnitAbbreviation = measuringUnitAbbreviation,
-                                    MeasuringUnitId = reader.IsDBNull("MeasuringUnitId") ? 0 : reader.GetInt64("MeasuringUnitId"),
-                                    IsSmallestUnit = reader.IsDBNull("IsSmallestUnit") ? false : reader.GetBoolean("IsSmallestUnit")
-
+                                    MeasuringUnitId = measuringUnitId,
+                                    IsSmallestUnit = isSmallestUnit
                                 });
                             }
                         }
@@ -1005,154 +1001,154 @@ namespace IMS.Services
 
                             // Step 4.5: Handle online payment records if payment method is Online
                             // Get bill information to check payment method
-                            string? paymentMethod = null;
-                            long? onlineAccountId = null;
-                            using (var billCommand = new SqlCommand("GetBillByBillId", connection, transaction))
-                            {
-                                billCommand.CommandType = CommandType.StoredProcedure;
-                                billCommand.Parameters.AddWithValue("@pBillId", billId);
-                                using (var reader = await billCommand.ExecuteReaderAsync())
-                                {
-                                    if (await reader.ReadAsync())
-                                    {
-                                        try
-                                        {
-                                            if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
-                                            {
-                                                paymentMethod = reader.GetString("PaymentMethod");
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            paymentMethod = null;
-                                        }
+                            //string? paymentMethod = null;
+                            //long? onlineAccountId = null;
+                            //using (var billCommand = new SqlCommand("GetBillByBillId", connection, transaction))
+                            //{
+                            //    billCommand.CommandType = CommandType.StoredProcedure;
+                            //    billCommand.Parameters.AddWithValue("@pBillId", billId);
+                            //    using (var reader = await billCommand.ExecuteReaderAsync())
+                            //    {
+                            //        if (await reader.ReadAsync())
+                            //        {
+                            //            try
+                            //            {
+                            //                if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
+                            //                {
+                            //                    paymentMethod = reader.GetString("PaymentMethod");
+                            //                }
+                            //            }
+                            //            catch
+                            //            {
+                            //                paymentMethod = null;
+                            //            }
                                         
-                                        try
-                                        {
-                                            if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
-                                            {
-                                                onlineAccountId = reader.GetInt64("OnlineAccountId");
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            onlineAccountId = null;
-                                        }
-                                    }
-                                }
-                            }
+                            //            try
+                            //            {
+                            //                if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
+                            //                {
+                            //                    onlineAccountId = reader.GetInt64("OnlineAccountId");
+                            //                }
+                            //            }
+                            //            catch
+                            //            {
+                            //                onlineAccountId = null;
+                            //            }
+                            //        }
+                            //    }
+                            //}
 
-                            if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger.LogInformation("Vendor bill {BillId} has Online payment method, updating PersonalPaymentPurchaseDetail and PersonalPayments", billId);
+                            //if (paymentMethod != null && paymentMethod.Equals("Online", StringComparison.OrdinalIgnoreCase))
+                            //{
+                            //    _logger.LogInformation("Vendor bill {BillId} has Online payment method, updating PersonalPaymentPurchaseDetail and PersonalPayments", billId);
 
-                                // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentPurchaseDetail for this bill
-                                var personalPaymentIds = new List<long>();
-                                using (var command = new SqlCommand(@"
-                                    SELECT DISTINCT PersonalPaymentId 
-                                    FROM PersonalPaymentPurchaseDetail 
-                                    WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@BillId", billId);
-                                    using (var reader = await command.ExecuteReaderAsync())
-                                    {
-                                        while (await reader.ReadAsync())
-                                        {
-                                            if (!reader.IsDBNull("PersonalPaymentId"))
-                                            {
-                                                personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
-                                            }
-                                        }
-                                    }
-                                }
+                            //    // Step 4.5.1: Get PersonalPaymentIds from PersonalPaymentPurchaseDetail for this bill
+                            //    var personalPaymentIds = new List<long>();
+                            //    using (var command = new SqlCommand(@"
+                            //        SELECT DISTINCT PersonalPaymentId 
+                            //        FROM PersonalPaymentPurchaseDetail 
+                            //        WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@BillId", billId);
+                            //        using (var reader = await command.ExecuteReaderAsync())
+                            //        {
+                            //            while (await reader.ReadAsync())
+                            //            {
+                            //                if (!reader.IsDBNull("PersonalPaymentId"))
+                            //                {
+                            //                    personalPaymentIds.Add(reader.GetInt64("PersonalPaymentId"));
+                            //                }
+                            //            }
+                            //        }
+                            //    }
 
-                                // Also add the OnlineAccountId from the bill if it exists
-                                if (onlineAccountId.HasValue && onlineAccountId.Value > 0 && !personalPaymentIds.Contains(onlineAccountId.Value))
-                                {
-                                    personalPaymentIds.Add(onlineAccountId.Value);
-                                }
+                            //    // Also add the OnlineAccountId from the bill if it exists
+                            //    if (onlineAccountId.HasValue && onlineAccountId.Value > 0 && !personalPaymentIds.Contains(onlineAccountId.Value))
+                            //    {
+                            //        personalPaymentIds.Add(onlineAccountId.Value);
+                            //    }
 
-                                // Step 4.5.2: Update PersonalPaymentPurchaseDetail - Set IsActive = 0 where PurchaseOrderId = billId
-                                using (var command = new SqlCommand(@"
-                                    UPDATE PersonalPaymentPurchaseDetail 
-                                    SET IsActive = 0, ModifiedDate = GETDATE() 
-                                    WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@BillId", billId);
-                                    var detailsAffected = await command.ExecuteNonQueryAsync();
-                                    _logger.LogInformation("Updated {Count} PersonalPaymentPurchaseDetail records (IsActive = 0) for bill {BillId}", detailsAffected, billId);
-                                }
+                            //    // Step 4.5.2: Update PersonalPaymentPurchaseDetail - Set IsActive = 0 where PurchaseOrderId = billId
+                            //    using (var command = new SqlCommand(@"
+                            //        UPDATE PersonalPaymentPurchaseDetail 
+                            //        SET IsActive = 0, ModifiedDate = GETDATE() 
+                            //        WHERE PurchaseId = @BillId AND IsActive = 1", connection, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@BillId", billId);
+                            //        var detailsAffected = await command.ExecuteNonQueryAsync();
+                            //        _logger.LogInformation("Updated {Count} PersonalPaymentPurchaseDetail records (IsActive = 0) for bill {BillId}", detailsAffected, billId);
+                            //    }
 
-                                // Step 4.5.3: Calculate total amount from PersonalPaymentPurchaseDetail and update CreditAmount in PersonalPayments
-                                if (personalPaymentIds.Count > 0)
-                                {
-                                    // Calculate total amount per PersonalPaymentId from PersonalPaymentPurchaseDetail
-                                    var paymentAmounts = new Dictionary<long, decimal>();
-                                    using (var command = new SqlCommand(@"
-                                        SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
-                                        FROM PersonalPaymentPurchaseDetail 
-                                        WHERE PurchaseId = @BillId AND IsActive = 0
-                                        GROUP BY PersonalPaymentId", connection, transaction))
-                                    {
-                                        command.Parameters.AddWithValue("@BillId", billId);
-                                        using (var reader = await command.ExecuteReaderAsync())
-                                        {
-                                            while (await reader.ReadAsync())
-                                            {
-                                                if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
-                                                {
-                                                    var ppId = reader.GetInt64("PersonalPaymentId");
-                                                    var totalAmount = reader.GetDecimal("TotalAmount");
-                                                    paymentAmounts[ppId] = totalAmount;
-                                                }
-                                            }
-                                        }
-                                    }
+                            //    // Step 4.5.3: Calculate total amount from PersonalPaymentPurchaseDetail and update CreditAmount in PersonalPayments
+                            //    if (personalPaymentIds.Count > 0)
+                            //    {
+                            //        // Calculate total amount per PersonalPaymentId from PersonalPaymentPurchaseDetail
+                            //        var paymentAmounts = new Dictionary<long, decimal>();
+                            //        using (var command = new SqlCommand(@"
+                            //            SELECT PersonalPaymentId, SUM(Amount) as TotalAmount
+                            //            FROM PersonalPaymentPurchaseDetail 
+                            //            WHERE PurchaseId = @BillId AND IsActive = 0
+                            //            GROUP BY PersonalPaymentId", connection, transaction))
+                            //        {
+                            //            command.Parameters.AddWithValue("@BillId", billId);
+                            //            using (var reader = await command.ExecuteReaderAsync())
+                            //            {
+                            //                while (await reader.ReadAsync())
+                            //                {
+                            //                    if (!reader.IsDBNull("PersonalPaymentId") && !reader.IsDBNull("TotalAmount"))
+                            //                    {
+                            //                        var ppId = reader.GetInt64("PersonalPaymentId");
+                            //                        var totalAmount = reader.GetDecimal("TotalAmount");
+                            //                        paymentAmounts[ppId] = totalAmount;
+                            //                    }
+                            //                }
+                            //            }
+                            //        }
 
-                                    // Update PersonalPayments - Decrease CreditAmount by the calculated total amount
-                                    foreach (var ppId in personalPaymentIds)
-                                    {
-                                        // Get current CreditAmount for this PersonalPayment
-                                        decimal currentCreditAmount = 0;
-                                        using (var getCommand = new SqlCommand(@"
-                                            SELECT CreditAmount 
-                                            FROM PersonalPayments 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            var result = await getCommand.ExecuteScalarAsync();
-                                            if (result != null && result != DBNull.Value)
-                                            {
-                                                currentCreditAmount = Convert.ToDecimal(result);
-                                            }
-                                        }
+                            //        // Update PersonalPayments - Decrease CreditAmount by the calculated total amount
+                            //        foreach (var ppId in personalPaymentIds)
+                            //        {
+                            //            // Get current CreditAmount for this PersonalPayment
+                            //            decimal currentCreditAmount = 0;
+                            //            using (var getCommand = new SqlCommand(@"
+                            //                SELECT CreditAmount 
+                            //                FROM PersonalPayments 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                getCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                var result = await getCommand.ExecuteScalarAsync();
+                            //                if (result != null && result != DBNull.Value)
+                            //                {
+                            //                    currentCreditAmount = Convert.ToDecimal(result);
+                            //                }
+                            //            }
 
-                                        // Calculate new CreditAmount (subtract the total amount from PersonalPaymentPurchaseDetail)
-                                        decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
-                                        decimal newCreditAmount = currentCreditAmount + amountToSubtract;
+                            //            // Calculate new CreditAmount (subtract the total amount from PersonalPaymentPurchaseDetail)
+                            //            decimal amountToSubtract = paymentAmounts.ContainsKey(ppId) ? paymentAmounts[ppId] : 0;
+                            //            decimal newCreditAmount = currentCreditAmount + amountToSubtract;
                                         
-                                        // Ensure CreditAmount doesn't go negative
-                                        if (newCreditAmount < 0) newCreditAmount = 0;
+                            //            // Ensure CreditAmount doesn't go negative
+                            //            if (newCreditAmount < 0) newCreditAmount = 0;
 
-                                        // Update PersonalPayments with new CreditAmount
-                                        using (var updateCommand = new SqlCommand(@"
-                                            UPDATE PersonalPayments 
-                                            SET CreditAmount = @NewCreditAmount, ModifiedDate = GETDATE() 
-                                            WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
-                                        {
-                                            updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
-                                            updateCommand.Parameters.AddWithValue("@NewCreditAmount", newCreditAmount);
-                                            var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
-                                            _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for bill {BillId}: CreditAmount decreased by {AmountToSubtract} (from {OldCreditAmount} to {NewCreditAmount}), Rows affected: {RowsAffected}", 
-                                                ppId, billId, amountToSubtract, currentCreditAmount, newCreditAmount, paymentsAffected);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("No PersonalPaymentIds found for bill {BillId} with Online payment method", billId);
-                                }
-                            }
+                            //            // Update PersonalPayments with new CreditAmount
+                            //            using (var updateCommand = new SqlCommand(@"
+                            //                UPDATE PersonalPayments 
+                            //                SET CreditAmount = @NewCreditAmount, ModifiedDate = GETDATE() 
+                            //                WHERE PersonalPaymentId = @PersonalPaymentId", connection, transaction))
+                            //            {
+                            //                updateCommand.Parameters.AddWithValue("@PersonalPaymentId", ppId);
+                            //                updateCommand.Parameters.AddWithValue("@NewCreditAmount", newCreditAmount);
+                            //                var paymentsAffected = await updateCommand.ExecuteNonQueryAsync();
+                            //                _logger.LogInformation("Updated PersonalPayment {PersonalPaymentId} for bill {BillId}: CreditAmount decreased by {AmountToSubtract} (from {OldCreditAmount} to {NewCreditAmount}), Rows affected: {RowsAffected}", 
+                            //                    ppId, billId, amountToSubtract, currentCreditAmount, newCreditAmount, paymentsAffected);
+                            //            }
+                            //        }
+                            //    }
+                            //    else
+                            //    {
+                            //        _logger.LogWarning("No PersonalPaymentIds found for bill {BillId} with Online payment method", billId);
+                            //    }
+                            //}
 
                             // Step 5: Mark the bill as deleted (soft delete)
                                 using (var command = new SqlCommand(@"
@@ -1190,6 +1186,148 @@ namespace IMS.Services
             {
                 _logger.LogError(ex, "Error deleting vendor bill with ID: {BillId}", billId);
                 throw;
+            }
+        }
+
+        /// <summary>Revert stock for a vendor bill (decrease available/total that was added when bill was created). Used before Edit.</summary>
+        public async Task RevertStockForVendorBillAsync(long billId, long modifiedBy)
+        {
+            var billItems = await GetVendorBillItemsAsync(billId);
+            var modifiedDate = DateTimeHelper.Now;
+            foreach (var item in billItems)
+            {
+                var prodMaster = await _vendorService.GetStockByProductIdAsync(item.ProductId);
+                if (prodMaster != null)
+                {
+                    var newAvailable = prodMaster.AvailableQuantity - (decimal)item.Quantity;
+                    var newTotal = prodMaster.TotalQuantity - (decimal)item.Quantity;
+                    if (newAvailable < 0) newAvailable = 0;
+                    if (newTotal < 0) newTotal = 0;
+                    _vendorService.UpdateStock(prodMaster.StockMasterId, item.ProductId, newAvailable, newTotal, prodMaster.UsedQuantity, modifiedBy, modifiedDate);
+                    _logger.LogInformation("Stock reverted for product {ProductId} bill {BillId}: decreased by {Quantity}", item.ProductId, billId, item.Quantity);
+                }
+            }
+        }
+
+        public async Task<int> DeleteBillDetailsByBillIdAsync(long billId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("DeleteBillDetailByBillId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
+                        return await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting bill details by bill ID {BillId}", billId);
+                throw;
+            }
+        }
+
+        public async Task<int> DeletePaymentByBillIdAsync(long billId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("DeletePaymentByBillId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
+                        return await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting payments by bill ID {BillId}", billId);
+                throw;
+            }
+        }
+
+        public async Task<int> DeleteStockTransactionByBillIdAsync(long billId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("DeleteStockTransactionByBillId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
+                        return await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting stock transactions by bill ID {BillId}", billId);
+                throw;
+            }
+        }
+
+        public async Task<int> ReverseOnlinePaymentTransactionByBillIdAsync(long billId, long modifiedBy)
+        {
+            int returnValue = 0;
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("ReverseOnlinePaymentTransactionByBillId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
+                        command.Parameters.AddWithValue("@pModifiedBy", modifiedBy);
+                        var returnValueParam = new SqlParameter("@pReturnValue", SqlDbType.Int) { Direction = ParameterDirection.Output };
+                        command.Parameters.Add(returnValueParam);
+                        await command.ExecuteNonQueryAsync();
+                        if (returnValueParam.Value != null && returnValueParam.Value != DBNull.Value)
+                            returnValue = Convert.ToInt32(returnValueParam.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reversing online payment transaction by bill ID {BillId}", billId);
+                throw;
+            }
+            return returnValue;
+        }
+
+        public async Task UpdateVendorBillHeaderAsync(long billId, VendorBillGenerationViewModel model)
+        {
+            using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+            {
+                await connection.OpenAsync();
+                using (var command = new SqlCommand("UpdateBill", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.Parameters.AddWithValue("@pBillId", billId);
+                    command.Parameters.AddWithValue("@pTotalAmount", model.TotalAmount);
+                    command.Parameters.AddWithValue("@pTotalReceivedAmount", model.PaidAmount);
+                    command.Parameters.AddWithValue("@pTotalDueAmount", model.DueAmount);
+                    command.Parameters.AddWithValue("@pSupplierId_FK", model.VendorId ?? 0);
+                    command.Parameters.AddWithValue("@pCustomerId_FK", model.CustomerId ?? 0);
+                    command.Parameters.AddWithValue("@pModifiedDate", model.ModifiedDate == default ? DateTimeHelper.Now : model.ModifiedDate);
+                    command.Parameters.AddWithValue("@pModifiedBy", model.ModifiedBy);
+                    command.Parameters.AddWithValue("@pDiscountAmount", model.DiscountAmount);
+                    command.Parameters.AddWithValue("@pBillNumber", model.BillNumber);
+                    command.Parameters.AddWithValue("@pBillDescription", model.Description ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@pBillDate", model.BillDate);
+                    command.Parameters.AddWithValue("@PaymentMethod", model.PaymentMethod ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@onlineAccountId", model.OnlineAccountId ?? (object)DBNull.Value);
+                    await command.ExecuteNonQueryAsync();
+                }
             }
         }
 
@@ -1274,6 +1412,126 @@ namespace IMS.Services
                 _logger.LogError(ex, "Error getting active bill numbers for supplier {SupplierId}", supplierId);
                 throw;
             }
+        }
+
+        public async Task<List<PODetailReportItem>> GetPODetailsReportForExportAsync(VendorBillsFilters? filters)
+        {
+            var list = new List<PODetailReportItem>();
+            var sql = @"SELECT poi.PurchaseOrderItemId, poi.PurchaseOrderId_FK, poi.PrductId_FK, poi.UnitPrice, poi.Quantity, poi.PurchasePrice, poi.LineDiscountAmount, poi.PayableAmount, poi.ProductRangeId_FK,
+                p.ProductName, po.BillNumber, mu.MeasuringUnitAbbreviation AS Code
+                FROM PurchaseOrderItems poi
+                INNER JOIN PurchaseOrders po ON po.PurchaseOrderId = poi.PurchaseOrderId_FK AND (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                LEFT JOIN Products p ON p.ProductId = poi.PrductId_FK
+                LEFT JOIN ProductRange pr ON poi.ProductRangeId_FK = pr.ProductRangeId
+                LEFT JOIN AdminMeasuringUnits mu ON pr.MeasuringUnitId_FK = mu.MeasuringUnitId
+                WHERE 1=1";
+            var parameters = new List<SqlParameter>();
+            if (filters?.VendorId != null)
+            {
+                sql += " AND po.SupplierId_FK = @pVendorId";
+                parameters.Add(new SqlParameter("@pVendorId", filters.VendorId.Value));
+            }
+            if (filters?.BillNumber != null)
+            {
+                sql += " AND po.BillNumber = @pBillNumber";
+                parameters.Add(new SqlParameter("@pBillNumber", filters.BillNumber.Value));
+            }
+            if (filters?.BillDateFrom != null)
+            {
+                sql += " AND CAST(po.PurchaseOrderDate AS DATE) >= @pBillDateFrom";
+                parameters.Add(new SqlParameter("@pBillDateFrom", filters.BillDateFrom.Value.Date));
+            }
+            if (filters?.BillDateTo != null)
+            {
+                sql += " AND CAST(po.PurchaseOrderDate AS DATE) <= @pBillDateTo";
+                parameters.Add(new SqlParameter("@pBillDateTo", filters.BillDateTo.Value.Date));
+            }
+            if (!string.IsNullOrWhiteSpace(filters?.Description))
+            {
+                sql += " AND po.PurchaseOrderDescription LIKE @pDescription";
+                parameters.Add(new SqlParameter("@pDescription", "%" + filters.Description.Trim() + "%"));
+            }
+            sql += " ORDER BY poi.PurchaseOrderId_FK, poi.PurchaseOrderItemId";
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var cmd = new SqlCommand(sql, connection))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var item = new PODetailReportItem
+                                {
+                                    PurchaseOrderItemId = reader.GetInt64(reader.GetOrdinal("PurchaseOrderItemId")),
+                                    PurchaseOrderIdFk = reader.GetInt64(reader.GetOrdinal("PurchaseOrderId_FK")),
+                                    PrductIdFk = reader.GetInt64(reader.GetOrdinal("PrductId_FK")),
+                                    Code = SafeGetStringNull(reader, "Code"),
+                                    UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                                    Quantity = reader.GetInt64(reader.GetOrdinal("Quantity")),
+                                    PurchasePrice = reader.GetDecimal(reader.GetOrdinal("PurchasePrice")),
+                                    LineDiscountAmount = reader.GetDecimal(reader.GetOrdinal("LineDiscountAmount")),
+                                    PayableAmount = reader.GetDecimal(reader.GetOrdinal("PayableAmount")),
+                                    ProductRangeIdFk = SafeGetInt64Null(reader, "ProductRangeId_FK"),
+                                    ProductName = SafeGetStringNull(reader, "ProductName"),
+                                    BillNumber = SafeGetInt64Null(reader, "BillNumber")
+                                };
+                                list.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting PO details report for export");
+                throw;
+            }
+            return list;
+        }
+
+        private static long? SafeGetInt64Null(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetInt64(ord);
+            }
+            catch { return null; }
+        }
+
+        private static DateTime? SafeGetDateTimeNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetDateTime(ord);
+            }
+            catch { return null; }
+        }
+
+        private static string? SafeGetStringNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetString(ord);
+            }
+            catch { return null; }
+        }
+
+        private static bool? SafeGetBoolNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ord = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ord) ? null : reader.GetBoolean(ord);
+            }
+            catch { return null; }
         }
     }
 }

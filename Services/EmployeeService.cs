@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -493,7 +493,7 @@ namespace IMS.Services
 
             return result;
         }
-        public async Task<List<EmployeeLedgerReportVM>> GetAllEmployeeLedgerReportAsync()
+        public async Task<List<EmployeeLedgerReportVM>> GetAllEmployeeLedgerReportAsync(DateTime? fromDate = null, DateTime? toDate = null)
         {
             var result = new List<EmployeeLedgerReportVM>();
 
@@ -503,9 +503,10 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    using (var command = new SqlCommand(@"
+                    var sql = @"
                 SELECT 
-
+                    L.LedgerId,
+                    L.VoucherTypeId,
                     L.VoucherDate,
                     VT.VoucherTypeName,
                     L.ReferenceNo,
@@ -514,18 +515,19 @@ namespace IMS.Services
                     SUM(L.DebitAmount - L.CreditAmount)
                         OVER (ORDER BY L.VoucherDate, L.LedgerId) AS RunningBalance,
                     L.Remarks,
-                     LTRIM(RTRIM(
-        ISNULL(emp.FirstName, '') + ' ' + ISNULL(emp.LastName, '')
-    )) AS EmployeeName,
-L.EmployeeId_FK
+                    LTRIM(RTRIM(ISNULL(emp.FirstName, '') + ' ' + ISNULL(emp.LastName, ''))) AS EmployeeName,
+                    L.EmployeeId_FK
                 FROM EmployeeLedger L
-                INNER JOIN EmployeeVoucherTypes VT
-                    ON VT.VoucherTypeId = L.VoucherTypeId
-                Left JOIN Employees emp on emp.EmployeeId= L.EmployeeId_FK
-                ORDER BY L.VoucherDate, L.LedgerId", connection))
+                INNER JOIN EmployeeVoucherTypes VT ON VT.VoucherTypeId = L.VoucherTypeId
+                LEFT JOIN Employees emp ON emp.EmployeeId = L.EmployeeId_FK
+                WHERE (@FromDate IS NULL OR L.VoucherDate >= @FromDate)
+                  AND (@ToDate IS NULL OR CAST(L.VoucherDate AS DATE) <= @ToDate)
+                ORDER BY L.VoucherDate, L.LedgerId";
+                    using (var command = new SqlCommand(sql, connection))
                     {
                         command.CommandType = CommandType.Text;
-                        //command.Parameters.AddWithValue("@EmployeeId", employeeId);
+                        command.Parameters.AddWithValue("@FromDate", (object?)fromDate ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@ToDate", (object?)toDate ?? DBNull.Value);
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -533,28 +535,127 @@ L.EmployeeId_FK
                             {
                                 result.Add(new EmployeeLedgerReportVM
                                 {
-                                    VoucherDate = reader.GetDateTime(0),
-                                    VoucherTypeName = reader.GetString(1),
-                                    ReferenceNo = reader.IsDBNull(2) ? null : reader.GetString(2),
-                                    DebitAmount = reader.GetDecimal(3),
-                                    CreditAmount = reader.GetDecimal(4),
-                                    RunningBalance = reader.GetDecimal(5),
-                                    Remarks = reader.IsDBNull(6) ? null : reader.GetString(6),
-                                    EmployeeName = reader.GetString(7),
-                                    EmployeeId_FK = reader.GetInt64(8)
+                                    LedgerId = reader.GetInt64(0),
+                                    VoucherTypeId = reader.GetInt32(1),
+                                    VoucherDate = reader.GetDateTime(2),
+                                    VoucherTypeName = reader.GetString(3),
+                                    ReferenceNo = reader.IsDBNull(4) ? null : reader.GetString(4),
+                                    DebitAmount = reader.GetDecimal(5),
+                                    CreditAmount = reader.GetDecimal(6),
+                                    RunningBalance = reader.GetDecimal(7),
+                                    Remarks = reader.IsDBNull(8) ? null : reader.GetString(8),
+                                    EmployeeName = reader.GetString(9),
+                                    EmployeeId_FK = reader.GetInt64(10)
                                 });
                             }
                         }
                     }
                 }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 throw;
             }
 
             return result;
         }
+
+        public async Task<EmployeeLedgerEntryVM?> GetEmployeeLedgerEntryByIdAsync(int ledgerId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        SELECT L.LedgerId, L.EmployeeId_FK, L.VoucherTypeId, L.VoucherDate, L.ReferenceNo, L.DebitAmount, L.CreditAmount, L.Remarks
+                        FROM EmployeeLedger L
+                        WHERE L.LedgerId = @LedgerId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@LedgerId", ledgerId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var debit = reader.GetDecimal(5);
+                                var credit = reader.GetDecimal(6);
+                                var amount = debit > 0 ? debit : credit;
+                                return new EmployeeLedgerEntryVM
+                                {
+                                    LedgerId = reader.GetInt64(0),
+                                    EmployeeId = reader.GetInt64(1),
+                                    VoucherTypeId = reader.GetInt32(2),
+                                    VoucherDate = reader.GetDateTime(3),
+                                    ReferenceNo = reader.IsDBNull(4) ? null : reader.GetString(4),
+                                    Amount = amount,
+                                    Remarks = reader.IsDBNull(7) ? null : reader.GetString(7)
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public async Task<bool> UpdateEmployeeLedgerAsync(EmployeeLedger ledger)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(@"
+                        UPDATE EmployeeLedger SET
+                            EmployeeId_FK = @EmployeeId,
+                            VoucherTypeId = @VoucherTypeId,
+                            VoucherDate = @VoucherDate,
+                            ReferenceNo = @ReferenceNo,
+                            DebitAmount = @DebitAmount,
+                            CreditAmount = @CreditAmount,
+                            Remarks = @Remarks
+                        WHERE LedgerId = @LedgerId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@LedgerId", ledger.LedgerId);
+                        command.Parameters.AddWithValue("@EmployeeId", ledger.EmployeeId);
+                        command.Parameters.AddWithValue("@VoucherTypeId", ledger.VoucherTypeId);
+                        command.Parameters.AddWithValue("@VoucherDate", ledger.VoucherDate);
+                        command.Parameters.AddWithValue("@ReferenceNo", (object?)ledger.ReferenceNo ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@DebitAmount", ledger.DebitAmount);
+                        command.Parameters.AddWithValue("@CreditAmount", ledger.CreditAmount);
+                        command.Parameters.AddWithValue("@Remarks", (object?)ledger.Remarks ?? DBNull.Value);
+                        var rows = await command.ExecuteNonQueryAsync();
+                        return rows > 0;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public async Task<bool> DeleteEmployeeLedgerAsync(int ledgerId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("DELETE FROM EmployeeLedger WHERE LedgerId = @LedgerId", connection))
+                    {
+                        command.CommandType = CommandType.Text;
+                        command.Parameters.AddWithValue("@LedgerId", ledgerId);
+                        var rows = await command.ExecuteNonQueryAsync();
+                        return rows > 0;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
         public async Task<decimal> GetEmployeeBalanceAsync(long employeeId)
         {
             try

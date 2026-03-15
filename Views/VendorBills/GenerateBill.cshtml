@@ -22,7 +22,7 @@
     </div>
 
     <div class="card-body">
-        <form asp-action="@(ViewBag.IsEdit == true ? "Edit" : "GenerateBill")" asp-controller="VendorBills" method="post" id="generateBillForm">
+        <form asp-action="@(ViewBag.IsEdit == true ? "Edit" : "GenerateBill")" asp-controller="VendorBills" asp-route-id="@(ViewBag.IsEdit == true ? Model.BillId : null)" method="post" id="generateBillForm">
             @Html.AntiForgeryToken()
             <!-- Hidden field to track which button was clicked -->
             <input type="hidden" id="actionType" name="actionType" value="" />
@@ -352,7 +352,8 @@
             }
         }
 
-            // Customer Selection Combobox
+            // Customer Selection Combobox (set initial value when editing a customer bill)
+            var initialCustomerValue = $("#customerSelect").val();
             $("#customerSelect").kendoComboBox({
                 dataSource: {
                     transport: {
@@ -368,6 +369,7 @@
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
+                value: initialCustomerValue || undefined,
                 change: function() {
                     // Clear vendor when customer is selected
                     const vendorCombo = $("#vendorSelect").data("kendoComboBox");
@@ -377,6 +379,9 @@
                     loadPreviousDueAmount();
                 }
             });
+            if (initialCustomerValue) {
+                setTimeout(function() { loadPreviousDueAmount(); }, 500);
+            }
         function loadPreviousDueAmount() {
                    const customerCombo = $("#customerSelect").data("kendoComboBox");
                    const customerId = customerCombo ? customerCombo.value() : null;
@@ -665,18 +670,14 @@
                     // Restore stock when editing (removing from table temporarily)
                     updateAvailableStockAfterRemove(baseUnitQuantity);
 
-                    // Populate the form fields
+                    // Populate product, then load sizes and select correct size (async); callback fills rest of form
                     const productCb = $("#productSelect").data("kendoComboBox");
-                    const sizeCb = $("#productSizeSelect").data("kendoComboBox");
                     productCb.value(item.productId);
                     currentProductId = item.productId;
-                    loadProductSizes(item.productId);
-                    setTimeout(function(){
-                        sizeCb.value(item.productRangeId);
-
-                        // Get the selected size item to populate selectedProductSize
-                        const sizeData = sizeCb.dataSource.data();
-                        const selectedSize = sizeData.find(s => (s.value == item.productRangeId || s.productRangeId == item.productRangeId));
+                    loadProductSizes(item.productId, item.productRangeId, function() {
+                        const sizeCb = $("#productSizeSelect").data("kendoComboBox");
+                        const sizeData = sizeCb ? sizeCb.dataSource.data() : [];
+                        const selectedSize = sizeData.find(function(s) { return String(s.value) === String(item.productRangeId) || String(s.productRangeId) === String(item.productRangeId); });
 
                         if (selectedSize) {
                             selectedProductSize = {
@@ -691,49 +692,35 @@
 
                             // Convert base unit quantity to product size unit for display
                             if (selectedProductSize.measuringUnitId && baseUnitQuantity !== item.quantity) {
-                                fetch(`/VendorBills/GetAvailableStock?productId=${item.productId}`)
-                                    .then(response => response.json())
-                                    .then(data => {
+                                fetch("/VendorBills/GetAvailableStock?productId=" + item.productId)
+                                    .then(function(response) { return response.json(); })
+                                    .then(function(data) {
                                         if (data.success && data.baseUnitId) {
-                                            const productBaseUnitId = data.baseUnitId;
-                                            const productSizeUnitId = selectedProductSize.measuringUnitId;
-
+                                            var productBaseUnitId = data.baseUnitId;
+                                            var productSizeUnitId = selectedProductSize.measuringUnitId;
                                             if (productSizeUnitId == productBaseUnitId) {
-                                                // Same unit, use base unit quantity
                                                 $("#quantity").val(parseFloat(baseUnitQuantity).toFixed(3));
                                             } else {
-                                                // Convert base unit quantity to product size unit for display
-                                                fetch(`/VendorBills/ConvertUnitAndGetStock?productId=${item.productId}&fromUnitId=${productBaseUnitId}&toUnitId=${productSizeUnitId}&stockInBaseUnit=${baseUnitQuantity}`)
-                                                    .then(response => response.json())
-                                                    .then(conversionData => {
+                                                fetch("/VendorBills/ConvertUnitAndGetStock?productId=" + item.productId + "&fromUnitId=" + productBaseUnitId + "&toUnitId=" + productSizeUnitId + "&stockInBaseUnit=" + baseUnitQuantity)
+                                                    .then(function(r) { return r.json(); })
+                                                    .then(function(conversionData) {
                                                         if (conversionData.success) {
-                                                            const displayQty = conversionData.convertedStock;
-                                                            $("#quantity").val(displayQty.toFixed(3));
+                                                            $("#quantity").val(parseFloat(conversionData.convertedStock).toFixed(3));
                                                         } else {
-                                                            // Fallback: use display quantity if available, otherwise base unit
                                                             $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                                                         }
                                                     })
-                                                    .catch(error => {
-                                                        console.error('Error converting quantity for edit:', error);
-                                                        $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
-                                                    });
+                                                    .catch(function() { $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3)); });
                                             }
                                         } else {
-                                            // No base unit found, use display quantity or base unit
                                             $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                                         }
                                     })
-                                    .catch(error => {
-                                        console.error('Error getting base unit for edit:', error);
-                                        $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
-                                    });
+                                    .catch(function() { $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3)); });
                             } else {
-                                // Use display quantity or base unit
                                 $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                             }
                         } else {
-                            // Fallback if size not found
                             selectedProductSize = {
                                 productRangeId: item.productRangeId,
                                 measuringUnitId: item.measuringUnitId || null,
@@ -746,19 +733,16 @@
                             $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                         }
 
-                        console.log("Selected product size set from edit:", selectedProductSize);
-
-                        // Load stock in product size unit
-                        if (selectedProductSize.measuringUnitId) {
+                        if (selectedProductSize && selectedProductSize.measuringUnitId) {
                             loadAvailableStockInProductSizeUnit(item.productId, selectedProductSize.measuringUnitId);
                         }
-                    }, 500);
-
-                    $("#unitPrice").val(item.unitPrice);
-                    $("#purchasePrice").val(item.purchasePrice);
-                    $("#discountAmount").val(item.lineDiscountAmount / (item.quantity || 1)); // Convert back to per-unit discount
-                    $("#payableAmount").val(item.payableAmount);
-                    $("#addToTable").text("Update Item");
+                        $("#unitPrice").val(item.unitPrice);
+                        $("#purchasePrice").val(item.purchasePrice);
+                        $("#discountAmount").val((item.quantity || 1) > 0 ? (item.lineDiscountAmount / (item.quantity || 1)).toFixed(2) : "0");
+                        $("#payableAmount").val(item.payableAmount);
+                        calculatePayableAmount();
+                        $("#addToTable").text("Update Item");
+                    });
                 }
             });
 
@@ -870,18 +854,34 @@
             loadNextBillNumber(vendorId);
                 }
 
-        function loadProductSizes(productId) {
+        function loadProductSizes(productId, productRangeIdToSelect, onSizesLoadedCallback) {
             // Use VendorBills endpoint for product sizes
             $.get("/VendorBills/GetProductSizes", { productId: productId })
                 .done(function(data) {
                     var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
-                    // Ensure proper Kendo DataSource binding
+                    if (!productSizeComboBox) return;
                     var ds = new kendo.data.DataSource({ data: data });
                     productSizeComboBox.setDataSource(ds);
                     productSizeComboBox.refresh();
+                    // When editing a row: select the correct size once data is loaded, then run callback
+                    if (productRangeIdToSelect != null && productRangeIdToSelect !== '') {
+                        var sizeData = (data || []).find(function(s) {
+                            return String(s.value) === String(productRangeIdToSelect) || String(s.productRangeId) === String(productRangeIdToSelect);
+                        });
+                        if (sizeData) {
+                            productSizeComboBox.value(sizeData.value || sizeData.productRangeId);
+                            productSizeComboBox.trigger("change");
+                        }
+                        if (typeof onSizesLoadedCallback === 'function') {
+                            setTimeout(onSizesLoadedCallback, 100);
+                        }
+                    }
                 })
                 .fail(function() {
                     console.error("Error loading product sizes");
+                    if (productRangeIdToSelect != null && typeof onSizesLoadedCallback === 'function') {
+                        setTimeout(onSizesLoadedCallback, 50);
+                    }
                 });
         }
 
@@ -1181,15 +1181,13 @@
 
         function calculateDueAmount() {
             var totalAmount = parseFloat($("#totalAmount").val()) || 0;
-            var discountAmountTotal = parseFloat($("#discountAmountTotal").val()) || 0;
             var payNow = parseFloat($("#payNow").val()) || 0;
 
-            // Calculate due amount for current bill only (not including previous dues)
-            var netTotal = totalAmount - discountAmountTotal;
-            var dueAmount = netTotal - payNow;
+            // Match Add Sale: Due Amount = Total Amount - Pay Now (received); sync Paid Amount with Pay Now
+            var dueAmount = Math.max(0, totalAmount - payNow);
 
             $("#dueAmount").val(dueAmount.toFixed(2));
-            $("#receivedAmount").val(payNow);
+            $("#receivedAmount").val(payNow.toFixed(2));
         }
 
         function calculateTotals() {
@@ -1462,10 +1460,9 @@
                 row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.purchasePrice, 2) + "</td>");
-                // Display quantity with unit abbreviation and decimal precision
+                // Qty column: show quantity only (no unit), same as Add Sale
                 var displayQuantity = (item.quantity || 0).toFixed(3);
-                var quantityDisplay = measuringUnit !== "N/A" ? displayQuantity + " " + measuringUnit : displayQuantity;
-                row.append("<td>" + quantityDisplay + "</td>");
+                row.append("<td>" + displayQuantity + "</td>");
                 row.append("<td>" + safeToFixed(item.lineDiscountAmount, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.payableAmount, 2) + "</td>");
                 row.append("<td>"
@@ -1796,7 +1793,8 @@
             var discountAmountTotal = parseFloat($("#discountAmountTotal").val()) || 0;
             var payNow = parseFloat($("#payNow").val()) || 0;
 
-            var billAmount = totalAmount - discountAmountTotal;
+            // var billAmount = totalAmount - discountAmountTotal;
+            var billAmount = totalAmount;
             $("#billAmount").val(billAmount.toFixed(2));
         }
 
@@ -2099,15 +2097,24 @@
                 }, 400);
             }
 
-            // Populate basic form fields
+            // Populate basic form fields - vendor
             if ($("#vendorSelect").val()) {
                 var vendorCombo = $("#vendorSelect").data("kendoComboBox");
                 if (vendorCombo) {
                     vendorCombo.value($("#vendorSelect").val());
-                    // Load vendor data after setting value
                     setTimeout(function() {
-                        // loadVendorData($("#vendorSelect").val());
                         loadVendorPreviousDueAmount();
+                    }, 500);
+                }
+            }
+
+            // Populate customer dropdown and previous due when editing a customer bill
+            if ($("#customerSelect").val()) {
+                var customerCombo = $("#customerSelect").data("kendoComboBox");
+                if (customerCombo) {
+                    customerCombo.value($("#customerSelect").val());
+                    setTimeout(function() {
+                        loadPreviousDueAmount();
                     }, 500);
                 }
             }

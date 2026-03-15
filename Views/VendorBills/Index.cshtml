@@ -112,6 +112,9 @@
                                         <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
                                             <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
                                         </a>
+                                        <a href="#" id="exportPODetailsReportBtn" class="btn btn-info btn-sm">
+                                            <i class="fa fa-file-excel me-1"></i> Generate PO Details Report
+                                        </a>
                                     </div>
                                    @*  <div class="d-flex gap-2">
                                         <button type="button" class="btn btn-info btn-enhanced px-4 py-2">
@@ -719,6 +722,14 @@
             if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
             var url = '@Url.Action("ExportPdf", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
             exportWithLoader(url, 'VendorBills_export.pdf', 'Preparing PDF export... Please wait.');
+        });
+        document.getElementById("exportPODetailsReportBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getVendorBillsExportParams();
+            var params = new URLSearchParams();
+            if (p.vendorId) params.set('vendorId', p.vendorId); if (p.billNumber) params.set('billNumber', p.billNumber); if (p.billDateFrom) params.set('billDateFrom', p.billDateFrom); if (p.billDateTo) params.set('billDateTo', p.billDateTo); if (p.description) params.set('description', p.description);
+            var url = '@Url.Action("ExportPODetailsReportExcel", "VendorBills")' + (params.toString() ? '?' + params.toString() : '');
+            exportWithLoader(url, 'PODetailsReport.xlsx', 'Generating PO Details Report... Please wait.');
         });
     </script>
 }

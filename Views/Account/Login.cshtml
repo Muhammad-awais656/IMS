@@ -1,4 +1,4 @@
-﻿@model IMS.Models.LoginViewModel;
+@model IMS.Models.LoginViewModel;
 
 @{
     ViewData["Title"] = "Login";
@@ -39,7 +39,13 @@
                 <label asp-for="Password" class="form-label" style="font-weight:bold">
                     <i class="fa fa-lock"></i> Password
                 </label>
-                <input asp-for="Password" type="password" class="form-control" placeholder="Enter your password" />
+                <div class="input-group">
+                    <input asp-for="Password" type="password" class="form-control" id="loginPassword" placeholder="Enter your password" />
+                    <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Show password" aria-label="Show password">
+                        <i class="fa fa-eye" id="togglePasswordIcon"></i>
+                        <span class="d-none d-sm-inline ms-1" id="togglePasswordText"></span>
+                    </button>
+                </div>
                 <span asp-validation-for="Password" class="text-danger"></span>
             </div>
 
@@ -71,3 +77,31 @@
 {
     <div class="alert alert-danger mt-2">@ViewBag.Error</div>
 }
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var passwordInput = document.getElementById('loginPassword');
+        var toggleBtn = document.getElementById('togglePassword');
+        var toggleIcon = document.getElementById('togglePasswordIcon');
+        var toggleText = document.getElementById('togglePasswordText');
+        if (passwordInput && toggleBtn) {
+            toggleBtn.addEventListener('click', function () {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                    toggleBtn.setAttribute('title', 'Hide password');
+                    toggleBtn.setAttribute('aria-label', 'Hide password');
+                    if (toggleText) toggleText.textContent = '';
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                    toggleBtn.setAttribute('title', 'Show password');
+                    toggleBtn.setAttribute('aria-label', 'Show password');
+                    if (toggleText) toggleText.textContent = '';
+                }
+            });
+        }
+    });
+</script>

@@ -21,6 +21,8 @@ namespace IMS.Common_Interfaces
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
             string paymentMethod = null, long? onlineAccountId = null);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);
+        /// <summary>Inserts an opening balance sale row (BillNumber=0, SaleDescription='opening Balance', PaymentMethod='Pay Later').</summary>
+        Task<long> AddOpeningBalanceSaleAsync(long customerId, string typePayableOrReceivable, decimal openingBalance, long createdBy, DateTime? balanceDate = null);
         long AddSaleDetails(long saleId, long productId, decimal unitPrice, decimal quantity, decimal salePrice,
             decimal lineDiscountAmount, decimal payableAmount, long productRangeId, DateTime currentdate, long userId, string paymentMethod, long? accountId, out int returnValue);
       
@@ -33,6 +35,9 @@ namespace IMS.Common_Interfaces
         // Edit Sale functionality methods
         Task<List<SaleDetailViewModel>> GetSaleDetailsBySaleIdAsync(long saleId);
         Task<int> DeleteSaleDetailsBySaleIdAsync(long saleId);
+        Task<int> DeletePaymentBySaleIdAsync(long saleId);
+        Task<int> DeleteStockTransactionBySaleIdAsync(long saleId);
+        Task<int> ReverseOnlinePaymentTransactionBySaleIdAsync(long saleId, long modifiedBy);
         Task<int> UpdatePaymentsBySaleIdAsync(long saleId);
 
         Task<int> TransactionDeleteAndStockUpdate(long saleId);
@@ -43,5 +48,8 @@ namespace IMS.Common_Interfaces
         
         // Print Receipt methods
         Task<SalePrintViewModel> GetSaleForPrintAsync(long saleId);
+
+        /// <summary>Gets sale detail report data for Excel export (SaleDetails + ProductName + Code). Respects SalesFilters when provided.</summary>
+        Task<List<SaleDetailReportItem>> GetSaleDetailReportForExportAsync(SalesFilters? filters);
     }
 }
