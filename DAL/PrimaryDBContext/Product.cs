@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -39,6 +39,10 @@ public partial class Product
 
     [Display(Name = "Is Enabled")]
     public byte IsEnabled { get; set; }
+
+    [StringLength(300)]
+    [Display(Name = "Urdu Name")]
+    public string? UrduName { get; set; }
 
     public long CategoryIdFk { get; set; }
 

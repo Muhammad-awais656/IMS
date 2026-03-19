@@ -1642,9 +1642,9 @@ namespace IMS.Controllers
 
                 if (salePrint == null)
                 {
-                    return NotFound();
+                    return NotFound();      
                 }
-                
+               
                 ViewBag.MerchantCopy = merchantCopy;
                 return View(salePrint);
             }

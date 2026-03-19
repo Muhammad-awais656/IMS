@@ -52,6 +52,8 @@ namespace IMS.Models
         public long ProductId { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
+        /// <summary>Urdu name for product when available (from DB column UrduName).</summary>
+        public string? ProductUrduName { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal BillPrice { get; set; }
         public decimal Quantity { get; set; }
@@ -62,6 +64,7 @@ namespace IMS.Models
         public long MeasuringUnitId { get; set; }
         public string ProductSize { get; set; } = string.Empty;
         public string? MeasuringUnitAbbreviation { get; set; }
+        public string? UrduNameMU { get; set; }
         public bool IsSmallestUnit { get; set; }
     }
 }

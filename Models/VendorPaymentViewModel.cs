@@ -47,6 +47,10 @@ namespace IMS.Models
         public long? CustomerId { get; set; }
         public string VendorName { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
+        /// <summary>Urdu name for vendor when available (from DB column UrduName).</summary>
+        public string? VendorUrduName { get; set; }
+        /// <summary>Urdu name for customer when available (from DB column UrduName).</summary>
+        public string? CustomerUrduName { get; set; }
         public DateTime BillDate { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }

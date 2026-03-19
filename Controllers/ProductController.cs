@@ -189,6 +189,7 @@ namespace IMS.Controllers
                     var product = new Product
                     {
                         ProductName = model.ProductName,
+                        UrduName = string.IsNullOrWhiteSpace(model.UrduName) ? null : model.UrduName,
                         ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,
@@ -285,6 +286,7 @@ namespace IMS.Controllers
             {
                 ProductId = unit.ProductList.ProductId,
                 ProductName = unit.ProductList.ProductName,
+                UrduName = unit.ProductList.UrduName,
                 ProductCode = unit.ProductList.ProductCode,
                 ProductDescription = unit.ProductList.ProductDescription,
                 Location = unit.ProductList.Location,
@@ -378,6 +380,7 @@ namespace IMS.Controllers
                     {
                         ProductId = model.ProductId,
                         ProductName = model.ProductName,
+                        UrduName = string.IsNullOrWhiteSpace(model.UrduName) ? null : model.UrduName,
                         ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? null : model.ProductCode,
                         CategoryIdFk = model.CategoryId ?? 0,
                         LabelIdFk = model.LabelId ?? 0,

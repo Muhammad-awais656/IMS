@@ -7,6 +7,20 @@
 
 <link href="~/css/product-management.css" rel="stylesheet" />
 <link href="~/css/user-management.css" rel="stylesheet" />
+<style>
+    @@font-face {
+        font-family: 'Jameel Noori Nastaleeq';
+        src: url('/fonts/download/Jameel Noori Nastaleeq.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+    }
+    .urdu-cell {
+        font-family: 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Traditional Arabic', Tahoma, serif;
+        direction: rtl;
+        text-align: right;
+        unicode-bidi: embed;
+    }
+</style>
 
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
@@ -108,14 +122,12 @@
                     <tr>
                         <th> Customer Id </th>
                         <th>Customer Name</th>
+                        <th>Urdu Name</th>
                         <th>Contact Number</th>
                         <th>Email</th>
                         <th>Address</th>
                         <th>Enabled</th>
-                   
                         <th>Actions</th>
-
-
                     </tr>
                 </thead>
                 <tbody>
@@ -126,6 +138,7 @@
                             <tr>
                                 <td>@Html.DisplayFor(modelItem => item.CustomerId)</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
+                                <td class="urdu-cell" lang="ur">@(item.CustomerUrduName ?? "—")</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerContactNumber)</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerEmail)</td>
                                 <td>@Html.DisplayFor(modelitem => item.CustomerAddress)</td>
@@ -160,7 +173,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="6" class="text-center">No Record found.</td>
+                            <td colspan="8" class="text-center">No Record found.</td>
                         </tr>
                     }
                 </tbody>

@@ -1293,9 +1293,12 @@ namespace IMS.Controllers
                         if (!item.IsSmallestUnit)
                         {
                             ////var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-
-
-                            var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
+                            decimal? conversionResult=null;
+                            if (item.MeasuringUnitId > 0  && res!=null && res.MeasuringUnitId >0 )
+                            {
+                                 conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
+                            }
+                            
 
                             if (conversionResult.HasValue)
                             {
@@ -1325,6 +1328,8 @@ namespace IMS.Controllers
 
 
                 _logger.LogInformation("Found {ItemCount} bill items for BillId: {BillId}", billItems?.Count ?? 0, id);
+
+                await _vendorBillsService.EnrichVendorBillPrintWithUrduNamesAsync(vendorBill, billItems ?? new List<BillItemViewModel>());
                 
                 var printModel = new
                 {

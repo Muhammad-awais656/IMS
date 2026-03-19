@@ -117,6 +117,8 @@ namespace IMS.Models
         public decimal TotalDueAmount { get; set; }
         public long CustomerIdFk { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        /// <summary>Urdu name for customer/vendor when available (from DB column UrduName).</summary>
+        public string? CustomerUrduName { get; set; }
         public string? SaleDescription { get; set; }
         public List<SaleDetailPrintViewModel> SaleDetails { get; set; } = new List<SaleDetailPrintViewModel>();
     }
@@ -126,6 +128,8 @@ namespace IMS.Models
         public long ProductId { get; set; }
         public long MeasuringUnitId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        /// <summary>Urdu name for product when available (from DB column UrduName).</summary>
+        public string? ProductUrduName { get; set; }
         public decimal UnitPrice { get; set; }
         public long Quantity { get; set; }
         public decimal PrintQuantity { get; set; }
@@ -134,6 +138,7 @@ namespace IMS.Models
         public decimal PayableAmount { get; set; }
         public long ProductRangeId { get; set; }
         public string? MeasuringUnitAbbreviation { get; set; }
+        public string? UrduNameMU { get; set; }
         public bool IsSmallestUnit { get; set; }
     }
 

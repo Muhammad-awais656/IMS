@@ -45,6 +45,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pIsDeleted", vendor?.IsDeleted != null ? vendor?.IsDeleted: DBNull.Value);
                         command.Parameters.AddWithValue("@pCreatedBy", vendor?.CreatedBy != null ? vendor.CreatedBy : DBNull.Value);
                         command.Parameters.AddWithValue("@pModifiedBy", vendor?.ModifiedBy != null ? vendor.ModifiedBy : DBNull.Value);
+                        command.Parameters.AddWithValue("@UrduName", string.IsNullOrEmpty(vendor?.VendorUrduName) ? string.Empty : vendor.VendorUrduName);
                         
                         var VEndorIdParam = new SqlParameter("@pSupplierId", SqlDbType.BigInt)
                         {
@@ -120,20 +121,34 @@ namespace IMS.Services
                             {
                                 if (await reader.ReadAsync())
                                 {
-                                    return new AdminSupplier
+                                    var sid = reader.GetOrdinal("SupplierId");
+                                    var sname = reader.GetOrdinal("SupplierName");
+                                    var sdesc = reader.GetOrdinal("SupplierDescription");
+                                    var sphone = reader.GetOrdinal("SupplierPhoneNumber");
+                                    var semail = reader.GetOrdinal("SupplierEmail");
+                                    var saddr = reader.GetOrdinal("SupplierAddress");
+                                    var isDel = reader.GetOrdinal("IsDeleted");
+                                    var cBy = reader.GetOrdinal("CreatedBy");
+                                    var cDate = reader.GetOrdinal("CreatedDate");
+                                    var mBy = reader.GetOrdinal("ModifiedBy");
+                                    var mDate = reader.GetOrdinal("ModifiedDate");
+                                    var urduName = reader.GetOrdinal("UrduName");
+
+
+                                    supplier = new AdminSupplier
                                     {
-                                        SupplierId = reader.GetInt64(reader.GetOrdinal("SupplierId")),
-                                        SupplierName=reader.GetString(reader.GetOrdinal("SupplierName")),
-                                        SupplierDescription =reader.GetString(reader.GetOrdinal("SupplierDescription")),
-                                        SupplierPhoneNumber=reader.GetString(reader.GetOrdinal("SupplierPhoneNumber")),
-                                        //SupplierNtn = reader.GetString(reader.GetOrdinal("SupplierNTN")),
-                                        SupplierEmail=reader.GetString(reader.GetOrdinal("SupplierEmail")),
-                                        SupplierAddress=reader.GetString(reader.GetOrdinal("SupplierAddress")),
-                                        IsDeleted=reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
-                                        CreatedBy=reader.GetInt64(reader.GetOrdinal("CreatedBy")),
-                                        CreatedDate= reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                                        ModifiedBy= reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
-                                        ModifiedDate= reader.GetDateTime(reader.GetOrdinal("ModifiedDate"))
+                                        SupplierId = reader.IsDBNull(sid) ? 0 : reader.GetInt64(sid),
+                                        SupplierName = reader.IsDBNull(sname) ? "" : reader.GetString(sname),
+                                        SupplierDescription = reader.IsDBNull(sdesc) ? null : reader.GetString(sdesc),
+                                        SupplierPhoneNumber = reader.IsDBNull(sphone) ? null : reader.GetString(sphone),
+                                        SupplierEmail = reader.IsDBNull(semail) ? null : reader.GetString(semail),
+                                        SupplierAddress = reader.IsDBNull(saddr) ? null : reader.GetString(saddr),
+                                        IsDeleted = reader.IsDBNull(isDel) ? false : reader.GetBoolean(isDel),
+                                        CreatedBy = reader.IsDBNull(cBy) ? 0 : reader.GetInt64(cBy),
+                                        CreatedDate = reader.IsDBNull(cDate) ? default : reader.GetDateTime(cDate),
+                                        ModifiedBy = reader.IsDBNull(mBy) ? 0 : reader.GetInt64(mBy),
+                                        ModifiedDate = reader.IsDBNull(mDate) ? default : reader.GetDateTime(mDate),
+                                        VendorUrduName = reader.IsDBNull(urduName) ? default : reader.GetString(urduName)
                                     };
                                 }
                             }
@@ -169,15 +184,17 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@PageNo", pageNumber);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
-                        command.Parameters.AddWithValue("@pSupplierName", (object)SupplierName ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@pContactNumber", (object)contactNo ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@pNTN", (object)NTN ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@pSupplierName", string.IsNullOrEmpty(SupplierName) ? DBNull.Value: SupplierName);
+                        command.Parameters.AddWithValue("@pContactNumber", string.IsNullOrEmpty(contactNo) ? DBNull.Value : contactNo);
+                        command.Parameters.AddWithValue("@pNTN", string.IsNullOrEmpty(NTN) ? DBNull.Value : NTN);
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
 
                             while (await reader.ReadAsync())
                             {
+                                string urduName = null;
+                                try { var uIdx = reader.GetOrdinal("UrduName"); if (!reader.IsDBNull(uIdx)) urduName = reader.GetString(uIdx); } catch { }
                                 vendor.Add(new AdminSupplier
                                 {
                                     SupplierId = reader.GetInt64(reader.GetOrdinal("SupplierId")),
@@ -185,8 +202,9 @@ namespace IMS.Services
                                     SupplierPhoneNumber = reader.IsDBNull(reader.GetOrdinal("SupplierPhoneNumber")) ? null : reader.GetString(reader.GetOrdinal("SupplierPhoneNumber")),
                                     SupplierNtn = reader.IsDBNull(reader.GetOrdinal("SupplierNTN")) ? string.Empty : reader.GetString(reader.GetOrdinal("SupplierNtn")),
                                     SupplierEmail = reader.IsDBNull(reader.GetOrdinal("SupplierEmail")) ? null : reader.GetString(reader.GetOrdinal("SupplierEmail")),
-                                    SupplierAddress = reader.GetString(reader.GetOrdinal("SupplierAddress")),
-                                    IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted"))
+                                    SupplierAddress = reader.IsDBNull(reader.GetOrdinal("SupplierAddress")) ? string.Empty : reader.GetString(reader.GetOrdinal("SupplierAddress")),
+                                    VendorUrduName = urduName ?? string.Empty,
+                                    IsDeleted = reader.IsDBNull(reader.GetOrdinal("IsDeleted")) ? false : reader.GetBoolean(reader.GetOrdinal("IsDeleted"))
                                 });
                             }
                             // Move to second result set for total count
@@ -298,8 +316,9 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSupplierPhoneNumber", customer.SupplierPhoneNumber);
                         command.Parameters.AddWithValue("@pSupplierNTN", string.Empty);
                         command.Parameters.AddWithValue("@pSupplierEmail", customer.SupplierEmail);
-                        command.Parameters.AddWithValue("@pSupplierAddress", customer.SupplierAddress);
+                        command.Parameters.AddWithValue("@pSupplierAddress",string.IsNullOrEmpty( customer.SupplierAddress) ? DBNull.Value : customer.SupplierAddress);
                         command.Parameters.AddWithValue("@pIsDeleted", customer.IsDeleted);
+                        command.Parameters.AddWithValue("@UrduName", string.IsNullOrEmpty( customer.VendorUrduName) ? DBNull.Value : customer.VendorUrduName);
                        
                         command.Parameters.AddWithValue("@pModifiedDate", customer?.ModifiedDate == default(DateTime) ? DBNull.Value : customer?.ModifiedDate);
                         command.Parameters.AddWithValue("@pModifiedBy", customer?.ModifiedBy);

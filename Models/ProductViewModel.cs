@@ -1,4 +1,4 @@
-﻿using IMS.CommonUtilities;
+using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using System.ComponentModel.DataAnnotations;
 
@@ -26,6 +26,10 @@ namespace IMS.Models
         [Required(ErrorMessage = "Product name is required")]
         [StringLength(200, ErrorMessage = "Product name cannot exceed 200 characters")]
         public string? ProductName { get; set; }
+
+        [StringLength(300, ErrorMessage = "Urdu name cannot exceed 300 characters")]
+        [Display(Name = "Urdu Name")]
+        public string? UrduName { get; set; }
         
         [StringLength(50, ErrorMessage = "Product code cannot exceed 50 characters")]
         public string? ProductCode { get; set; }

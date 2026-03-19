@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IMS.DAL.PrimaryDBContext;
 
@@ -8,6 +9,9 @@ public partial class Customer
     public long CustomerId { get; set; }
 
     public string CustomerName { get; set; } = null!;
+
+    [Column("UrduName")]
+    public string? CustomerUrduName { get; set; }
 
     public string? CustomerContactNumber { get; set; }
 

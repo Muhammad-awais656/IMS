@@ -1947,7 +1947,11 @@ function SetExpenseTypesKendoDDSource(id, placeholder, data) {
 };
 
 
-
+function allowOnlyUrdu(input) {
+    // Urdu Unicode range
+    const urduRegex = /[^\u0600-\u06FF\s]/g;
+    input.value = input.value.replace(urduRegex, '');
+}
 
 
 //function LoadKendoMultiselectWithCheckBox(id, placeholder, url, callback = null) {
