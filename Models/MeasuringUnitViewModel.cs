@@ -1,4 +1,4 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 
 namespace IMS.Models
 {
@@ -20,9 +20,11 @@ namespace IMS.Models
     {
         public long MeasuringUnitId { get; set; }
         public string? MeasuringUnitName { get; set; }
+        public string? UrduName { get; set; }
         public string? MeasuringUnitDescription { get; set; }
         public string? MeasuringUnitTypeName { get; set; } // from AdminMeasuringUnitTypes
         public bool IsEnabled { get; set; }
+        public bool IsSmallestUnit { get; set; }
     }
 
 }

@@ -484,8 +484,10 @@ namespace IMS.Services
 
         public async Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId)
         {
+            var vendorBillViewModel = new VendorBillViewModel();
             try
             {
+               
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
@@ -497,49 +499,46 @@ namespace IMS.Services
                         {
                             if (await reader.ReadAsync())
                             {
-                                var paymentMethod = "";
-                                try
+                                var ordPurchaseOrderId = reader.GetOrdinal("PurchaseOrderId");
+                                var ordSupplierIdFk = reader.GetOrdinal("SupplierId_FK");
+                                var ordCustomerIdFk = reader.GetOrdinal("CustomerId_FK");
+                                var ordVendorName = reader.GetOrdinal("VendorName");
+                                var ordCustomerName = reader.GetOrdinal("CustomerName");
+                                var ordBillNumber = reader.GetOrdinal("BillNumber");
+                                var ordPurchaseOrderDate = reader.GetOrdinal("PurchaseOrderDate");
+                                var ordTotalAmount = reader.GetOrdinal("TotalAmount");
+                                var ordDiscountAmount = reader.GetOrdinal("DiscountAmount");
+                                var ordTotalReceivedAmount = reader.GetOrdinal("TotalReceivedAmount");
+                                var ordTotalDueAmount = reader.GetOrdinal("TotalDueAmount");
+                                var ordPurchaseOrderDescription = reader.GetOrdinal("PurchaseOrderDescription");
+                                var ordPaymentMethod = reader.GetOrdinal("PaymentMethod");
+                                var ordOnlineAccountId = reader.GetOrdinal("OnlineAccountId");
+
+                                var vendorIdVal = reader.IsDBNull(ordSupplierIdFk) ? 0L : reader.GetInt64(ordSupplierIdFk);
+                                var customerIdVal = reader.IsDBNull(ordCustomerIdFk) ? 0L : reader.GetInt64(ordCustomerIdFk);
+
+                                vendorBillViewModel= new VendorBillViewModel
                                 {
-                                    if (!reader.IsDBNull(reader.GetOrdinal("PaymentMethod")))
-                                    {
-                                        paymentMethod = reader.GetString("PaymentMethod");
-                                    }
-                                }
-                                catch
-                                {
-                                    paymentMethod = "";
-                                }
-                                
-                                long? onlineAccountId = null;
-                                try
-                                {
-                                    if (!reader.IsDBNull(reader.GetOrdinal("OnlineAccountId")))
-                                    {
-                                        onlineAccountId = reader.GetInt64("OnlineAccountId");
-                                    }
-                                }
-                                catch
-                                {
-                                    onlineAccountId = null;
-                                }
-                                
-                                return new VendorBillViewModel
-                                {
-                                    BillId = reader.GetInt64("PurchaseOrderId"),
-                                    VendorId = reader.IsDBNull("SupplierId_FK") || reader.GetInt64("SupplierId_FK")==0 ? null :  reader.GetInt64("SupplierId_FK"),
-                                    CustomerId = reader.IsDBNull("CustomerId_FK") || reader.GetInt64("CustomerId_FK")==0 ? null :  reader.GetInt64("CustomerId_FK"),
-                                    VendorName = reader.IsDBNull("VendorName") ? "" : reader.GetString("VendorName"),
-                                    CustomerName = reader.IsDBNull("CustomerName") ? "" : reader.GetString("CustomerName"),
-                                    BillNumber = reader.GetInt64("BillNumber"),
-                                    BillDate = reader.GetDateTime("PurchaseOrderDate"),
-                                    TotalAmount = reader.GetDecimal("TotalAmount"),
-                                    DiscountAmount = reader.GetDecimal("DiscountAmount"),
-                                    PaidAmount = reader.GetDecimal("TotalReceivedAmount"),
-                                    DueAmount = reader.GetDecimal("TotalDueAmount"),
-                                    Description = reader.IsDBNull("PurchaseOrderDescription") ? "" : reader.GetString("PurchaseOrderDescription"),
-                                    PaymentMethod = paymentMethod,
-                                    OnlineAccountId = onlineAccountId
+                                    BillId = reader.IsDBNull(ordPurchaseOrderId) ? 0 : reader.GetInt64(ordPurchaseOrderId),
+                                    VendorId = vendorIdVal == 0 ? null : vendorIdVal,
+                                    CustomerId = customerIdVal == 0 ? null : customerIdVal,
+                                    VendorName = reader.IsDBNull(ordVendorName) ? "" : reader.GetString(ordVendorName),
+                                    CustomerName = reader.IsDBNull(ordCustomerName) ? "" : reader.GetString(ordCustomerName),
+                                    BillNumber = reader.IsDBNull(ordBillNumber) ? 0 : reader.GetInt64(ordBillNumber),
+                                    BillDate = reader.IsDBNull(ordPurchaseOrderDate) ? default : reader.GetDateTime(ordPurchaseOrderDate),
+                                    TotalAmount = reader.IsDBNull(ordTotalAmount) ? 0m : reader.GetDecimal(ordTotalAmount),
+                                    DiscountAmount = reader.IsDBNull(ordDiscountAmount) ? 0m : reader.GetDecimal(ordDiscountAmount),
+                                    PaidAmount = reader.IsDBNull(ordTotalReceivedAmount) ? 0m : reader.GetDecimal(ordTotalReceivedAmount),
+                                    DueAmount = reader.IsDBNull(ordTotalDueAmount) ? 0m : reader.GetDecimal(ordTotalDueAmount),
+                                    Description = reader.IsDBNull(ordPurchaseOrderDescription) ? "" : reader.GetString(ordPurchaseOrderDescription),
+                                    PaymentMethod = reader.IsDBNull(ordPaymentMethod) ? "" : reader.GetString(ordPaymentMethod),
+                                    OnlineAccountId = reader.IsDBNull(ordOnlineAccountId) ? null : reader.GetInt64(ordOnlineAccountId),
+                                    VendorUrduName = reader.IsDBNull(reader.GetOrdinal("VendorUrduName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorUrduName")),
+                                    CustomerUrduName = reader.IsDBNull(reader.GetOrdinal("CustomerUrduName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerUrduName")),
+
                                 };
+
+                                
                             }
                         }
                     }
@@ -550,7 +549,89 @@ namespace IMS.Services
                 _logger.LogError(ex, "Error getting vendor bill by ID {BillId}", billId);
                 throw;
             }
-            return null;
+            return vendorBillViewModel;
+        }
+        public async Task<VendorBillViewModel?> GetVendorBillByIdForPrintAsync(long billId)
+        {
+            var vendorBillViewModel = new VendorBillViewModel();
+            try
+            {
+               
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("GetBillByBillId", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@pBillId", billId);
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var ordPurchaseOrderId = reader.GetOrdinal("PurchaseOrderId");
+                                var ordSupplierIdFk = reader.GetOrdinal("SupplierId_FK");
+                                var ordCustomerIdFk = reader.GetOrdinal("CustomerId_FK");
+                                var ordVendorName = reader.GetOrdinal("VendorName");
+                                var ordCustomerName = reader.GetOrdinal("CustomerName");
+                                var ordBillNumber = reader.GetOrdinal("BillNumber");
+                                var ordPurchaseOrderDate = reader.GetOrdinal("PurchaseOrderDate");
+                                var ordTotalAmount = reader.GetOrdinal("TotalAmount");
+                                var ordDiscountAmount = reader.GetOrdinal("DiscountAmount");
+                                var ordTotalReceivedAmount = reader.GetOrdinal("TotalReceivedAmount");
+                                var ordTotalDueAmount = reader.GetOrdinal("TotalDueAmount");
+                                var ordPurchaseOrderDescription = reader.GetOrdinal("PurchaseOrderDescription");
+                                var ordPaymentMethod = reader.GetOrdinal("PaymentMethod");
+                                var ordOnlineAccountId = reader.GetOrdinal("OnlineAccountId");
+
+                                var vendorIdVal = reader.IsDBNull(ordSupplierIdFk) ? 0L : reader.GetInt64(ordSupplierIdFk);
+                                var customerIdVal = reader.IsDBNull(ordCustomerIdFk) ? 0L : reader.GetInt64(ordCustomerIdFk);
+
+                                vendorBillViewModel= new VendorBillViewModel
+                                {
+                                    BillId = reader.IsDBNull(ordPurchaseOrderId) ? 0 : reader.GetInt64(ordPurchaseOrderId),
+                                    VendorId = vendorIdVal == 0 ? null : vendorIdVal,
+                                    CustomerId = customerIdVal == 0 ? null : customerIdVal,
+                                    //VendorName = reader.IsDBNull(ordVendorName) ? "" : reader.GetString(ordVendorName),
+                                   // CustomerName = reader.IsDBNull(ordCustomerName) ? "" : reader.GetString(ordCustomerName),
+                                    BillNumber = reader.IsDBNull(ordBillNumber) ? 0 : reader.GetInt64(ordBillNumber),
+                                    BillDate = reader.IsDBNull(ordPurchaseOrderDate) ? default : reader.GetDateTime(ordPurchaseOrderDate),
+                                    TotalAmount = reader.IsDBNull(ordTotalAmount) ? 0m : reader.GetDecimal(ordTotalAmount),
+                                    DiscountAmount = reader.IsDBNull(ordDiscountAmount) ? 0m : reader.GetDecimal(ordDiscountAmount),
+                                    PaidAmount = reader.IsDBNull(ordTotalReceivedAmount) ? 0m : reader.GetDecimal(ordTotalReceivedAmount),
+                                    DueAmount = reader.IsDBNull(ordTotalDueAmount) ? 0m : reader.GetDecimal(ordTotalDueAmount),
+                                    Description = reader.IsDBNull(ordPurchaseOrderDescription) ? "" : reader.GetString(ordPurchaseOrderDescription),
+                                    PaymentMethod = reader.IsDBNull(ordPaymentMethod) ? "" : reader.GetString(ordPaymentMethod),
+                                    OnlineAccountId = reader.IsDBNull(ordOnlineAccountId) ? null : reader.GetInt64(ordOnlineAccountId),
+                                   
+                                };
+
+                                // Get customer or vendor name
+                                string customerOrVendorName = string.Empty;
+                                string customerOrVendorNameUrdu = string.Empty;
+                                
+                                if (vendorIdVal > 0)
+                                {
+                                    customerOrVendorName = reader.IsDBNull(ordVendorName) ? string.Empty : reader.GetString(ordVendorName);
+                                    customerOrVendorNameUrdu = reader.IsDBNull(reader.GetOrdinal("VendorUrduName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorUrduName"));
+                                }
+                                else if (customerIdVal > 0)
+                                {
+                                    customerOrVendorName = reader.IsDBNull(ordCustomerName) ? string.Empty : reader.GetString(ordCustomerName);
+                                    customerOrVendorNameUrdu = reader.IsDBNull(reader.GetOrdinal("CustomerUrduName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerUrduName"));
+                                }
+                                vendorBillViewModel.VendorName = customerOrVendorName;
+                                vendorBillViewModel.VendorUrduName = customerOrVendorNameUrdu;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting vendor bill by ID {BillId}", billId);
+                throw;
+            }
+            return vendorBillViewModel;
         }
 
 
@@ -662,6 +743,7 @@ namespace IMS.Services
                                     DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? "" : reader.GetString("ProductName"),
+                                    UrduNameMU = reader.IsDBNull(reader.GetOrdinal("UrduNameMU")) ? "" : reader.GetString("UrduNameMU"),
                                     ProductCode = productCode,
                                     ProductSize = productSize,
                                     MeasuringUnitAbbreviation = measuringUnitAbbreviation,
@@ -1532,6 +1614,71 @@ namespace IMS.Services
                 return reader.IsDBNull(ord) ? null : reader.GetBoolean(ord);
             }
             catch { return null; }
+        }
+
+        public async Task EnrichVendorBillPrintWithUrduNamesAsync(VendorBillViewModel bill, List<BillItemViewModel> billItems)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    if (bill.VendorId.HasValue && bill.VendorId > 0)
+                    {
+                        try
+                        {
+                            using (var cmd = new SqlCommand("SELECT UrduName FROM AdminSuppliers WHERE SupplierId = @id", connection))
+                            {
+                                cmd.Parameters.AddWithValue("@id", bill.VendorId.Value);
+                                var o = await cmd.ExecuteScalarAsync();
+                                if (o != null && o != DBNull.Value && !string.IsNullOrWhiteSpace(o.ToString()))
+                                    bill.VendorUrduName = o.ToString();
+                            }
+                        }
+                        catch { /* column may not exist */ }
+                    }
+                    if (bill.CustomerId.HasValue && bill.CustomerId > 0)
+                    {
+                        try
+                        {
+                            using (var cmd = new SqlCommand("SELECT UrduName FROM Customers WHERE CustomerId = @id", connection))
+                            {
+                                cmd.Parameters.AddWithValue("@id", bill.CustomerId.Value);
+                                var o = await cmd.ExecuteScalarAsync();
+                                if (o != null && o != DBNull.Value && !string.IsNullOrWhiteSpace(o.ToString()))
+                                    bill.CustomerUrduName = o.ToString();
+                            }
+                        }
+                        catch { }
+                    }
+                    if (billItems != null && billItems.Count > 0)
+                    {
+                        try
+                        {
+                            var productIds = billItems.Select(i => i.ProductId).Distinct().ToList();
+                            var idList = string.Join(",", productIds);
+                            using (var cmd = new SqlCommand($"SELECT ProductId, UrduName FROM Products WHERE ProductId IN ({idList})", connection))
+                            using (var rdr = await cmd.ExecuteReaderAsync())
+                            {
+                                var urduMap = new Dictionary<long, string>();
+                                while (await rdr.ReadAsync())
+                                {
+                                    if (!rdr.IsDBNull(1) && !string.IsNullOrWhiteSpace(rdr.GetString(1)))
+                                        urduMap[rdr.GetInt64(0)] = rdr.GetString(1);
+                                }
+                                foreach (var item in billItems)
+                                    if (urduMap.TryGetValue(item.ProductId, out var un))
+                                        item.ProductUrduName = un;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "EnrichVendorBillPrintWithUrduNamesAsync failed (Urdu columns may not exist)");
+            }
         }
     }
 }

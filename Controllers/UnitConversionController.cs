@@ -332,6 +332,39 @@ namespace IMS.Controllers
                 return Json(new List<object>());
             }
         }
+        // AJAX endpoint to get measuring units for Kendo UI ComboBox
+        [HttpGet]
+        public async Task<IActionResult> GetSmallestMeasuringUnit()
+        {
+            try
+            {
+                // Use the same method that the Index page uses to get all units
+                // Get first page with large page size to get all enabled units
+                var viewModel = await _unitConversionService.GetSmallestMeasuringUnitAsync();
+                
+                
+                // Filter to only enabled units and sort by name
+                var enabledMeasuringUnits = viewModel.IsEnabled ? new List<AdminMeasuringUnit> { viewModel } : new List<AdminMeasuringUnit>();
+
+             
+                
+                var result = enabledMeasuringUnits.Select(mu => new
+                {
+                    value = mu.MeasuringUnitId.ToString(),
+                    text = mu.MeasuringUnitName,
+                    measuringUnitAbbreviation = mu.MeasuringUnitAbbreviation ?? ""
+                }).ToList();
+                
+                _logger.LogInformation("Returning {Count} measuring units for dropdown", result.Count);
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting measuring units for Kendo combobox: {Message}", ex.Message);
+                return Json(new List<object>());
+            }
+        }
     }
 }
 

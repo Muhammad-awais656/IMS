@@ -17,9 +17,11 @@ namespace IMS.Controllers
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
         private readonly IAdminMeasuringUnitService _measuringUnitService;
-        public MeasuringUnitController(IAdminMeasuringUnitService adminMeasuringUnitService,ILogger<MeasuringUnitController> logger) { 
+        private readonly IUnitConversionService _unitConversionService;
+        public MeasuringUnitController(IAdminMeasuringUnitService adminMeasuringUnitService,ILogger<MeasuringUnitController> logger, IUnitConversionService unitConversionService) { 
         
             _measuringUnitService = adminMeasuringUnitService;
+            _unitConversionService = unitConversionService;
             _logger = logger;
         }
         // GET: MeasuringUnitController
@@ -54,9 +56,11 @@ namespace IMS.Controllers
                              {
                                  MeasuringUnitId = mu.MeasuringUnitId,
                                  MeasuringUnitName = mu.MeasuringUnitName,
+                                 UrduName = mu.UrduName,
                                  MeasuringUnitDescription = mu.MeasuringUnitDescription,
                                  MeasuringUnitTypeName = mut.MeasuringUnitTypeName,
-                                 IsEnabled = mu.IsEnabled
+                                 IsEnabled = mu.IsEnabled,
+                                 IsSmallestUnit = mu.IsSmallestUnit
                              }).ToList()
                 };
                 viewModel.Items = model.Items;
@@ -104,7 +108,16 @@ namespace IMS.Controllers
                     long userId = long.Parse(userIdStr);
                     adminMeasuringUnit.CreatedBy = userId;
                     adminMeasuringUnit.CreatedDate = DateTimeHelper.Now;
-                    
+                    var existingUnit = new AdminMeasuringUnit();
+                    if (adminMeasuringUnit.IsSmallestUnit)
+                    {
+                        existingUnit= await  _unitConversionService.GetSmallestMeasuringUnitAsync();
+                    }
+                    if (existingUnit != null && existingUnit.MeasuringUnitId != 0 && adminMeasuringUnit.IsSmallestUnit)
+                    {
+                        TempData["ErrorMessage"] = "A smallest measuring unit already exists. Please uncheck 'Is Smallest Unit' or edit the existing smallest unit.";
+                        return View(adminMeasuringUnit);
+                    }
                     var result = await _measuringUnitService.CreateAdminMeasuringUnitAsync(adminMeasuringUnit);
                     if (result)
                     {
@@ -181,6 +194,16 @@ namespace IMS.Controllers
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr);
                     adminMeasuringUnit.ModifiedBy = userId;
+                    var existingUnit = new AdminMeasuringUnit();
+                    if (adminMeasuringUnit.IsSmallestUnit)
+                    {
+                        existingUnit = await _unitConversionService.GetSmallestMeasuringUnitAsync();
+                    }
+                    if (existingUnit != null && existingUnit.MeasuringUnitId != 0 && adminMeasuringUnit.IsSmallestUnit)
+                    {
+                        TempData["ErrorMessage"] = "A smallest measuring unit already exists. Please uncheck 'Is Smallest Unit' or edit the existing smallest unit.";
+                        return View(adminMeasuringUnit);
+                    }
                     var response = await _measuringUnitService.UpdateAdminMeasuringUnitAsync(adminMeasuringUnit);
                     if (response != 0)
                     {

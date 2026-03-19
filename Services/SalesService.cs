@@ -796,7 +796,7 @@ namespace IMS.Services
                     // Get sale information - handle both customer and vendor sales
                     var saleSql = @"SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
                                           s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SupplierId_FK, s.SaleDescription,
-                                          c.CustomerName, sup.SupplierName
+                                          c.CustomerName, sup.SupplierName,c.UrduName as CustomerUrduName,sup.UrduName as VendorUrduName   
                                    FROM Sales s
                                    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
                                    LEFT JOIN AdminSuppliers sup ON s.SupplierId_FK = sup.SupplierId
@@ -810,30 +810,78 @@ namespace IMS.Services
                         {
                             if (await reader.ReadAsync())
                             {
-                                salePrint.SaleId = reader.GetInt64("SaleId");
-                                salePrint.BillNumber = reader.GetInt64("BillNumber");
-                                salePrint.SaleDate = reader.GetDateTime("SaleDate");
-                                salePrint.TotalAmount = reader.GetDecimal("TotalAmount");
-                                salePrint.DiscountAmount = reader.GetDecimal("DiscountAmount");
-                                salePrint.TotalReceivedAmount = reader.GetDecimal("TotalReceivedAmount");
-                                salePrint.TotalDueAmount = reader.GetDecimal("TotalDueAmount");
-                                salePrint.CustomerIdFk = reader.IsDBNull("CustomerId_FK") ? 0 : reader.GetInt64("CustomerId_FK");
-                                
+                                var ordSaleId = reader.GetOrdinal("SaleId");
+                                var ordBillNumber = reader.GetOrdinal("BillNumber");
+                                var ordSaleDate = reader.GetOrdinal("SaleDate");
+                                var ordTotalAmount = reader.GetOrdinal("TotalAmount");
+                                var ordDiscountAmount = reader.GetOrdinal("DiscountAmount");
+                                var ordTotalReceivedAmount = reader.GetOrdinal("TotalReceivedAmount");
+                                var ordTotalDueAmount = reader.GetOrdinal("TotalDueAmount");
+                                var ordCustomerIdFk = reader.GetOrdinal("CustomerId_FK");
+                                var ordSupplierIdFk = reader.GetOrdinal("SupplierId_FK");
+                                var ordSupplierName = reader.GetOrdinal("SupplierName");
+                                var ordCustomerName = reader.GetOrdinal("CustomerName");
+                                var ordSaleDescription = reader.GetOrdinal("SaleDescription");
+                                var customerUrduName = reader.GetOrdinal("CustomerUrduName");
+                                var vendorUrduName = reader.GetOrdinal("VendorUrduName");
+
+                                salePrint.SaleId = reader.IsDBNull(ordSaleId) ? 0 : reader.GetInt64(ordSaleId);
+                                salePrint.BillNumber = reader.IsDBNull(ordBillNumber) ? 0 : reader.GetInt64(ordBillNumber);
+                                salePrint.SaleDate = reader.IsDBNull(ordSaleDate) ? default : reader.GetDateTime(ordSaleDate);
+                                salePrint.TotalAmount = reader.IsDBNull(ordTotalAmount) ? 0m : reader.GetDecimal(ordTotalAmount);
+                                salePrint.DiscountAmount = reader.IsDBNull(ordDiscountAmount) ? 0m : reader.GetDecimal(ordDiscountAmount);
+                                salePrint.TotalReceivedAmount = reader.IsDBNull(ordTotalReceivedAmount) ? 0m : reader.GetDecimal(ordTotalReceivedAmount);
+                                salePrint.TotalDueAmount = reader.IsDBNull(ordTotalDueAmount) ? 0m : reader.GetDecimal(ordTotalDueAmount);
+                                salePrint.CustomerIdFk = reader.IsDBNull(ordCustomerIdFk) ? 0 : reader.GetInt64(ordCustomerIdFk);
+
                                 // Get customer or vendor name
                                 string customerOrVendorName = "Unknown";
-                                if (!reader.IsDBNull("SupplierId_FK") && reader.GetInt64("SupplierId_FK") > 0)
+                                string customerOrVendorNameUrdu = string.Empty;
+                                var supplierIdVal = reader.IsDBNull(ordSupplierIdFk) ? 0L : reader.GetInt64(ordSupplierIdFk);
+                                if (supplierIdVal > 0)
                                 {
-                                    // This is a vendor sale
-                                    customerOrVendorName = reader.IsDBNull("SupplierName") ? "Unknown Vendor" : reader.GetString("SupplierName");
+                                    customerOrVendorName = reader.IsDBNull(ordSupplierName) ? "Unknown Vendor" : reader.GetString(ordSupplierName);
+                                    customerOrVendorNameUrdu = reader.IsDBNull(vendorUrduName) ? string.Empty : reader.GetString(vendorUrduName);
                                 }
-                                else if (!reader.IsDBNull("CustomerName"))
+                                else if (!reader.IsDBNull(ordCustomerName))
                                 {
-                                    // This is a customer sale
-                                    customerOrVendorName = reader.GetString("CustomerName");
+                                    customerOrVendorName = reader.GetString(ordCustomerName);
+                                    customerOrVendorNameUrdu = !reader.IsDBNull(customerUrduName) ? reader.GetString(customerUrduName):string.Empty;
                                 }
-                                
+
                                 salePrint.CustomerName = customerOrVendorName;
-                                salePrint.SaleDescription = reader.IsDBNull("SaleDescription") ? null : reader.GetString("SaleDescription");
+                                salePrint.CustomerUrduName = customerOrVendorNameUrdu;
+                                salePrint.SaleDescription = reader.IsDBNull(ordSaleDescription) ? null : reader.GetString(ordSaleDescription);
+                                var supplierIdFk = supplierIdVal;
+                                // Optional: load Urdu names (run Scripts/AddUrduNameColumns.sql to add columns)
+                                if (salePrint.CustomerIdFk > 0)
+                                {
+                                    try
+                                    {
+                                        using (var cmdUrdu = new SqlCommand("SELECT UrduName FROM Customers WHERE CustomerId = @cid", connection))
+                                        {
+                                            cmdUrdu.Parameters.AddWithValue("@cid", salePrint.CustomerIdFk);
+                                            var o = await cmdUrdu.ExecuteScalarAsync();
+                                            if (o != null && o != DBNull.Value && !string.IsNullOrWhiteSpace(o.ToString()))
+                                                salePrint.CustomerUrduName = o.ToString();
+                                        }
+                                    }
+                                    catch { /* column may not exist */ }
+                                }
+                                if (supplierIdFk > 0 && salePrint.CustomerUrduName == null)
+                                {
+                                    try
+                                    {
+                                        using (var cmdUrdu = new SqlCommand("SELECT UrduName FROM AdminSuppliers WHERE SupplierId = @sid", connection))
+                                        {
+                                            cmdUrdu.Parameters.AddWithValue("@sid", supplierIdFk);
+                                            var o = await cmdUrdu.ExecuteScalarAsync();
+                                            if (o != null && o != DBNull.Value && !string.IsNullOrWhiteSpace(o.ToString()))
+                                                salePrint.CustomerUrduName = o.ToString();
+                                        }
+                                    }
+                                    catch { }
+                                }
                             }
                         }
                     }
@@ -841,7 +889,7 @@ namespace IMS.Services
                     // Get sale details with product names and measuring unit
                     var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
                                              sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
-                                             p.ProductName, mu.MeasuringUnitAbbreviation,mu.MeasuringUnitId,mu.IsSmallestUnit
+                                             p.ProductName, mu.MeasuringUnitAbbreviation,mu.MeasuringUnitId,mu.IsSmallestUnit,mu.UrduName as UrduNameMU
                                       FROM SaleDetails sd
                                       LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
                                       LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
@@ -854,38 +902,65 @@ namespace IMS.Services
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
+                            var ordPrductIdFk = reader.GetOrdinal("PrductId_FK");
+                            var ordProductName = reader.GetOrdinal("ProductName");
+                            var ordUnitPrice = reader.GetOrdinal("UnitPrice");
+                            var ordQuantity = reader.GetOrdinal("Quantity");
+                            var ordSalePrice = reader.GetOrdinal("SalePrice");
+                            var ordLineDiscountAmount = reader.GetOrdinal("LineDiscountAmount");
+                            var ordPayableAmount = reader.GetOrdinal("PayableAmount");
+                            var ordProductRangeIdFk = reader.GetOrdinal("ProductRangeId_FK");
+                            var ordMeasuringUnitAbbreviation = reader.GetOrdinal("MeasuringUnitAbbreviation");
+                            var ordIsSmallestUnit = reader.GetOrdinal("IsSmallestUnit");
+                            var ordMeasuringUnitId = reader.GetOrdinal("MeasuringUnitId");
+                            var UrduNameMU = reader.GetOrdinal("UrduNameMU");
+
                             while (await reader.ReadAsync())
                             {
-                                var measuringUnitAbbreviation = "";
-                                try
-                                {
-                                    if (!reader.IsDBNull(reader.GetOrdinal("MeasuringUnitAbbreviation")))
-                                    {
-                                        measuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation");
-                                    }
-                                }
-                                catch
-                                {
-                                    measuringUnitAbbreviation = "";
-                                }
-                                
+                                var measuringUnitAbbreviation = reader.IsDBNull(ordMeasuringUnitAbbreviation) ? "" : reader.GetString(ordMeasuringUnitAbbreviation);
+                                var productId = reader.IsDBNull(ordPrductIdFk) ? 0L : reader.GetInt64(ordPrductIdFk);
                                 salePrint.SaleDetails.Add(new SaleDetailPrintViewModel
                                 {
-                                    ProductId = reader.GetInt64("PrductId_FK"),
-                                    ProductName = reader.IsDBNull("ProductName") ? "Unknown Product" : reader.GetString("ProductName"),
-                                    UnitPrice = reader.GetDecimal("UnitPrice"),
-                                    Quantity = reader.GetInt64("Quantity"),
-                                    SalePrice = reader.GetDecimal("SalePrice"),
-                                    LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
-                                    PayableAmount = reader.GetDecimal("PayableAmount"),
-                                    ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
+                                    ProductId = productId,
+                                    ProductName = reader.IsDBNull(ordProductName) ? "Unknown Product" : reader.GetString(ordProductName),
+                                    ProductUrduName = null, // set below if UrduName column exists
+                                    UnitPrice = reader.IsDBNull(ordUnitPrice) ? 0m : reader.GetDecimal(ordUnitPrice),
+                                    Quantity = reader.IsDBNull(ordQuantity) ? 0L : reader.GetInt64(ordQuantity),
+                                    SalePrice = reader.IsDBNull(ordSalePrice) ? 0m : reader.GetDecimal(ordSalePrice),
+                                    LineDiscountAmount = reader.IsDBNull(ordLineDiscountAmount) ? 0m : reader.GetDecimal(ordLineDiscountAmount),
+                                    PayableAmount = reader.IsDBNull(ordPayableAmount) ? 0m : reader.GetDecimal(ordPayableAmount),
+                                    ProductRangeId = reader.IsDBNull(ordProductRangeIdFk) ? 0L : reader.GetInt64(ordProductRangeIdFk),
                                     MeasuringUnitAbbreviation = measuringUnitAbbreviation,
-                                    IsSmallestUnit = reader.IsDBNull("IsSmallestUnit") ? false : reader.GetBoolean("IsSmallestUnit"),
-                                    MeasuringUnitId = reader.GetInt64("MeasuringUnitId")
-
+                                    IsSmallestUnit = reader.IsDBNull(ordIsSmallestUnit) ? false : reader.GetBoolean(ordIsSmallestUnit),
+                                    MeasuringUnitId = reader.IsDBNull(ordMeasuringUnitId) ? 0L : reader.GetInt64(ordMeasuringUnitId),
+                                    UrduNameMU = reader.IsDBNull(UrduNameMU) ? string.Empty : reader.GetString(UrduNameMU),
                                 });
                             }
                         }
+                    }
+
+                    // Optional: fill product Urdu names (requires Products.UrduName column from AddUrduNameColumns.sql)
+                    var productIds = salePrint.SaleDetails.Select(d => d.ProductId).Distinct().ToList();
+                    if (productIds.Any())
+                    {
+                        try
+                        {
+                            var idList = string.Join(",", productIds);
+                            using (var cmdP = new SqlCommand($"SELECT ProductId, UrduName FROM Products WHERE ProductId IN ({idList})", connection))
+                            using (var rdrP = await cmdP.ExecuteReaderAsync())
+                            {
+                                var urduMap = new Dictionary<long, string>();
+                                while (await rdrP.ReadAsync())
+                                {
+                                    if (!rdrP.IsDBNull(1) && !string.IsNullOrWhiteSpace(rdrP.GetString(1)))
+                                        urduMap[rdrP.GetInt64(0)] = rdrP.GetString(1);
+                                }
+                                foreach (var d in salePrint.SaleDetails)
+                                    if (urduMap.TryGetValue(d.ProductId, out var un))
+                                        d.ProductUrduName = un;
+                            }
+                        }
+                        catch { /* UrduName column may not exist */ }
                     }
                 }
             }

@@ -1,4 +1,4 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
 @model Customer;
 
 <div class="card shadow-sm">
@@ -22,6 +22,16 @@
                            placeholder="Enter customer name" 
                            required />
                     <span asp-validation-for="CustomerName" class="text-danger small"></span>
+                </div>
+
+                <!-- Urdu Name -->
+                <div class="col-md-6 mb-4">
+                    <label asp-for="CustomerUrduName" class="form-label fw-semibold">
+                        <i class="fa fa-language me-1 text-primary"></i>Urdu Name (optional)
+                    </label>
+                    <input asp-for="CustomerUrduName" class="form-control form-control-lg" 
+                           placeholder="اردو نام" lang="ur" oninput="allowOnlyUrdu(this)" dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif;" />
+                    <span asp-validation-for="CustomerUrduName" class="text-danger small"></span>
                 </div>
 
                 <!-- Contact Number -->

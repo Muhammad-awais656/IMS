@@ -1,304 +1,197 @@
 @model dynamic
 @{
-    Layout = null; // Disable main layout for clean print
+    Layout = null;
     int srNo = 1;
+    var bill = Model.Bill as IMS.Models.VendorBillViewModel;
+    var billItems = Model.BillItems as List<IMS.Models.BillItemViewModel>;
+    var displayName = "";
+    if (bill != null)
+    {
+        if (bill.VendorId.HasValue && bill.VendorId > 0)
+            displayName = !string.IsNullOrWhiteSpace(bill.VendorUrduName) ? bill.VendorUrduName : bill.VendorName;
+        else if (bill.CustomerId.HasValue && bill.CustomerId > 0)
+            displayName = !string.IsNullOrWhiteSpace(bill.CustomerUrduName) ? bill.CustomerUrduName : bill.CustomerName;
+        else
+            displayName = bill.VendorName ?? bill.CustomerName ?? "";
+    }
+    var isCredit = bill != null && bill.DueAmount > 0;
 }
-
 <!DOCTYPE html>
-<html>
+<html lang="ur" dir="rtl">
 <head>
-    <meta charset="utf-8" />
-    <title>Purchase Order Receipt - @Model.Bill.BillId</title>
+    <meta charset="utf-8" />    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Purchase Receipt - Bill #@(bill?.BillNumber ?? 0)</title>
     <style>
-        /* ===== Print Settings ===== */
-        @@media print {
-            @@page {
-                size: 80mm auto;  /* standard 80mm thermal printer width */
-                margin: 0;
-            }
-            body {
-                margin: 0;
-                padding: 0;
-                font-family: 'Courier New', monospace;
-                font-size: 14px;
-                font-weight: 900;
-                line-height: 1.3;
-                width: 80mm;
-            }
-            .no-print {
-                display: none;
-            }
-        }
-
-        /* ===== Receipt Styling ===== */
+        @@page { size: A4; margin: 15mm; }
+        * { box-sizing: border-box; }
         body {
-            background: #fff;
-            width: 80mm;
+            font-family: 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Jameel Noori Nastaleeq', 'Traditional Arabic', Tahoma, serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            max-width: 210mm;
             margin: 0 auto;
             padding: 10px;
-            font-family: 'Courier New', monospace;
+            direction: rtl;
         }
-
-        .receipt-header {
-            text-align: center;
-            border-bottom: 1px dashed #000;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
+        .ltr { direction: ltr; text-align: left; }
+        .receipt { border: 1px solid #333; padding: 12px; min-height: 270mm; }
+        .receipt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+        .contact-block { font-size: 12pt; line-height: 1.5; }
+        .contact-block .contact-name { font-weight: bold; margin-bottom: 2px; font-size: 14pt; }
+        .contact-block .contact-phone { font-weight: bold; }
+        .contact-block.contact-right { text-align: right; }
+        .contact-block.contact-left { text-align: left; }
+        .header-center { text-align: center; margin-bottom: 8px; }
+        .business-name { font-size: 28pt; font-weight: bold; margin: 0; color: #0066cc; }
+        .tagline { font-size: 13pt; color: #000; margin: 4px 0 2px; text-align: center; font-family: inherit; }
+        .address { font-size: 13pt; color: #000; margin: 4px 0; text-align: center; font-family: inherit; }
+        hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+        .info-row { display: flex; justify-content: space-between; margin: 6px 0; flex-wrap: wrap; gap: 8px; }
+        .info-item { display: flex; align-items: center; gap: 6px; }
+        .info-label { font-weight: bold; }
+        .payment-type { margin: 6px 0; font-size: 10pt; }
+        table.items { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        table.items th, table.items td { border: 1px solid #333; padding: 6px 8px; }
+        table.items th { background: #f0f0f0; font-weight: bold; }
+        table.items .num { text-align: center; width: 40px; }
+        table.items .desc { }
+        table.items .qty { text-align: center; width: 125px; }
+        table.items .rate { text-align: left; width: 120px; }
+        table.items .amt { text-align: left; width: 125px; }
+        .total-row { margin-top: 10px; font-weight: bold; font-size: 12pt; }
+        table.items tfoot td { border: 1px solid #333; padding: 6px 8px; background: #f8f8f8; }
+        .total-summary-lines { margin-top: 8px; font-weight: bold; font-size: 12pt; line-height: 1.8; }
+        .signature-line { margin-top: 20px; padding-top: 8px; border-top: 1px solid #333; }
+        .footer-note { text-align: left; font-size: 9pt; margin-top: 12px; color: #555; }
+        @@media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+            .receipt { border: none; box-shadow: none; }
         }
-
-        .receipt-header h2 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .receipt-header p {
-            margin: 2px 0;
-            font-size: 14px;
-        }
-
-        .receipt-info {
-            margin-bottom: 10px;
-        }
-
-        .receipt-info p {
-            margin: 2px 0;
-            font-size: 14px;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-        }
-
-        .table th,
-        .table td {
-            text-align: left;
-            font-size: 13px;
-            padding: 2px 0;
-            border-bottom: 1px dotted #ccc;
-        }
-
-        .table th {
-            border-bottom: 1px dashed #000;
-            font-weight: bold;
-        }
-
-        .table td:last-child,
-        .table th:last-child {
-            text-align: right;
-        }
-
-        .total {
-            border-top: 1px dashed #000;
-            padding-top: 5px;
-            margin-top: 10px;
-        }
-
-        .total p {
-            margin: 2px 0;
-            font-size: 14px;
-        }
-
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .text-bold { font-weight: bold; }
-
-        .footer {
-            text-align: center;
-            border-top: 1px dashed #000;
-            padding-top: 5px;
-            font-size: 10px;
-            margin-top: 10px;
-        }
-
-        .btn {
-            display: inline-block;
-            background: #007bff;
-            color: #fff;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            text-decoration: none;
-            margin: 5px;
-        }
-
-        .btn:hover {
-            background: #0056b3;
-        }
-
-        .btn-print {
-            background: #28a745;
-        }
-
-        .btn-print:hover {
-            background: #1e7e34;
-        }
-
-        .receipt-details {
-            margin-bottom: 10px;
-        }
-
-        .receipt-details p {
-            margin: 1px 0;
-            font-size: 11px;
-        }
+        .no-print { margin-top: 12px; }
+        .btn { display: inline-block; padding: 8px 14px; margin: 4px; background: #007bff; color: #fff; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #0056b3; }
+        .btn-print { background: #28a745; }
+        .btn-print:hover { background: #1e7e34; }
     </style>
 </head>
 <body>
     <div class="receipt">
         <div class="receipt-header">
-            <h2>Purchase Order</h2>
-            <p>Your Trusted Business Partner</p>
+            <div class="contact-block contact-right">
+                <div class="contact-name">اسد محمود</div>
+                <div class="contact-phone ltr">@(ViewBag.PhoneAsad1 ?? "0321-4438351")</div>
+                <div class="contact-phone ltr">@(ViewBag.PhoneAsad2 ?? "0319-4838351")</div>
+            </div>
+            <div class="header-center" style="flex: 1;">
+                <h1 class="business-name">@(ViewBag.BusinessName ?? "ایم ظهور ٹریڈرز")</h1>
+            </div>
+            <div class="contact-block contact-left">
+                <div class="contact-name">ندیم محمود</div>
+                <div class="contact-phone ltr">@(ViewBag.PhoneNadeem1 ?? "0321-4438350")</div>
+                <div class="contact-phone ltr">@(ViewBag.PhoneNadeem2 ?? "0300-9483508")</div>
+            </div>
         </div>
-
-        <div class="receipt-info">
-            <p><strong>Vendor:</strong> @Model.Bill.VendorName</p>
-            <p><strong>Bill #:</strong> @Model.Bill.BillNumber</p>
-            <p><strong>Date:</strong> @Model.Bill.BillDate.ToString("dd-MM-yyyy hh:mm tt")</p>
-            @if (!string.IsNullOrEmpty(Model.Bill.Description))
-            {
-                <p><strong>Description:</strong> @Model.Bill.Description</p>
-            }
-            @if (ViewBag.MerchantCopy == true)
-            {
-                <p><strong>Merchant Copy</strong></p>
-            }
-            else
-            {
-                <p><strong>Vendor Copy</strong></p>
-            }
+        <p class="tagline">@(ViewBag.BusinessTagline ?? "ڈیلر  : کھل، چوکر ، سوڑی، دانہ، بیج، کوری کھل وغیرہ تھوک و پر چون دستیاب ہے")</p>
+        <p class="address">@(ViewBag.Address ?? "چھوٹا ساندہ بس سٹاپ مین بند روڈ لاہور") @(ViewBag.Landline ?? "37148045,37147571-042")</p>
+        <hr />
+        <div class="info-row">
+            <div class="info-item"><span class="info-label">نمبر:</span><span class="ltr">@(bill?.BillNumber ?? 0)</span></div>
+            <div class="info-item"><span class="info-label">نام :</span><span>@displayName</span></div>
+            <div class="info-item"><span class="info-label">تاریخ:</span><span class="ltr">@(bill?.BillDate.ToString("dd-MMM-yyyy") ?? "")</span></div>
         </div>
-
-        <table class="table">
+        <div class="payment-type">
+            <span class="info-label">ادھار / نقد:</span> @(isCredit ? "ادھار" : "نقد")
+            @if (ViewBag.MerchantCopy == true) { <span> (مرچنٹ کاپی)</span> }
+            else { <span> (وینڈر کاپی)</span> }
+        </div>
+        <hr />
+        <table class="items">
             <thead>
                 <tr>
-                    <th>Sr#</th>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Total</th>
+                    <th class="num">#</th>
+                    <th class="desc">تفصیل</th>
+                    <th class="qty">تعداد</th>
+                    <th class="rate">نرخ</th>
+                    <th class="amt">قیمت</th>
                 </tr>
             </thead>
             <tbody>
-                @if (Model.BillItems != null && Model.BillItems.Count > 0)
+                @if (billItems != null && billItems.Any())
                 {
-                    @foreach (var item in Model.BillItems)
+                    @foreach (var item in billItems)
                     {
-
-                        var lineLevelTotal = @item.UnitPrice * @item.PrintQuantity;
-                        var quantityWithUnit = @item.PrintQuantity.ToString("N2");
-                        if (!string.IsNullOrEmpty(@item.MeasuringUnitAbbreviation))
-                        {
-                            quantityWithUnit += " " + @item.MeasuringUnitAbbreviation;
-                        }
+                        var lineTotal = item.UnitPrice * item.PrintQuantity;
+                        var qtyWithUnit = item.PrintQuantity.ToString("N2");
+                        var displayMU = !string.IsNullOrWhiteSpace(item.UrduNameMU) ? item.UrduNameMU : item.MeasuringUnitAbbreviation;
+                        if (!string.IsNullOrEmpty(item.MeasuringUnitAbbreviation)) { qtyWithUnit += " " + displayMU; }
+                        var descText = !string.IsNullOrWhiteSpace(item.ProductUrduName) ? item.ProductUrduName : item.ProductName;
                         <tr>
-                            <td>@srNo</td>
-                            <td>@item.ProductName</td>
-                            <td>@quantityWithUnit</td>
-                            <td>@item.UnitPrice.ToString("N2")</td>
-                            <td>@lineLevelTotal.ToString("N2")</td>
+                            <td class="num ltr">@srNo</td>
+                            <td class="desc">@descText</td>
+                            <td class="qty ltr">@qtyWithUnit</td>
+                            <td class="rate ltr">@item.UnitPrice.ToString("N2")</td>
+                            <td class="amt ltr">@lineTotal.ToString("N2")</td>
                         </tr>
                         srNo++;
                     }
                 }
                 else
                 {
-                    <tr>
-                        <td colspan="5" class="text-center">No items found</td>
-                    </tr>
+                    <tr><td colspan="5" class="ltr" style="text-align:center;">No items</td></tr>
                 }
             </tbody>
+            <tfoot>
+                @{
+
+                    var total = bill?.TotalAmount + bill?.DiscountAmount;
+                }
+                <tr>
+                    <td colspan="4" style="text-align: right;">میزان (کل):</td>
+                    <td class="amt ltr">@(total?.ToString("N2") ?? "0.00")</td>
+                </tr>
+            </tfoot>
         </table>
-
-        <div class="total">
-            <p><strong>Sub Total:</strong> <span class="text-right">@Model.Bill.TotalAmount.ToString("N2")</span></p>
-            @if (Model.Bill.DiscountAmount > 0)
-            {
-                <p><strong>Discount:</strong> <span class="text-right">@Model.Bill.DiscountAmount.ToString("N2")</span></p>
-            }
-            <p><strong>Total Amount:</strong> <span class="text-right">@Model.Bill.TotalPayableAmount.ToString("N2")</span></p>
-            @if (Model.Bill.PaidAmount > 0)
-            {
-                <p><strong>Paid Amount:</strong> <span class="text-right">@Model.Bill.PaidAmount.ToString("N2")</span></p>
-            }
-            @if (Model.Bill.DueAmount > 0)
-            {
-                <p><strong>Total Balance:</strong> <span class="text-right">@Model.Bill.DueAmount.ToString("N2")</span></p>
-            }
-            else if (Model.Bill.PaidAmount > 0)
-            {
-                <p><strong>Balance:</strong> <span class="text-right">Fully Paid</span></p>
-            }
+        <div class="total-summary-lines">
+            <div><span>ٹوٹل:</span> <span class="ltr">@bill?.TotalAmount.ToString("N2")</span></div>
+            @if (bill != null && bill.DiscountAmount > 0) { <div><span>رعایت:</span> <span class="ltr">@bill.DiscountAmount.ToString("N2")</span></div> }
+            <div><span>ادا شدہ:</span> <span class="ltr">@(bill?.PaidAmount.ToString("N2") ?? "0.00")</span></div>
+            @if (bill != null && bill.DueAmount > 0) { <div><span>بقایا:</span> <span class="ltr">@bill.DueAmount.ToString("N2")</span></div> }
         </div>
-        <p><strong>Generated By:</strong> @User.Identity.Name</p>
-        @if (ViewBag.MerchantCopy == true)
-        {
-            <p><strong>Merchant Copy</strong></p>
-        }
-        else
-        {
-            <p><strong>Vendor Copy</strong></p>
-        }
-        <div class="footer">
-            <p>Thank you for your business!</p>
-            <p>Visit us again soon</p>
-            <p>Powered By AJ CORE Technologies</p>
+        <div class="signature-line">
+            <span class="info-label">دستخط:</span> _______________________
         </div>
+        <p class="footer-note ltr">بھول چوک لین دین | Generated by: @User.Identity?.Name</p>
     </div>
-
-    <div class="text-center no-print" style="margin-top:10px;">
-        <button class="btn btn-print" onclick="window.print()">🖨️ Print Receipt</button>
+    <div class="no-print text-center">
+        <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
         @if (ViewBag.MerchantCopy == true)
-        {
-            <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false })" class="btn">👤 Vendor Copy</a>
-        }
+        { <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = bill?.BillId, merchantCopy = false })" class="btn">👤 Vendor Copy</a> }
         else
-        {
-            <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true })" class="btn">🏪 Merchant Copy</a>
-        }
+        { <a href="@Url.Action("PrintReceipt", "VendorBills", new { id = bill?.BillId, merchantCopy = true })" class="btn">🏪 Merchant Copy</a> }
         <a href="@Url.Action("Index", "VendorBills")" class="btn">📋 Back to Bills</a>
     </div>
-
     <script>
-        // Auto-print when page loads if coming from Save and Print
-        window.onload = function() {
-            // Check if this is a print request
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('print') === 'true') {
+        (function() {
+            var p = new URLSearchParams(window.location.search).get('print');
+            if (p === 'true') setTimeout(function() { window.print(); }, 500);
+        })();
+        @if (ViewBag.AutoPrint == true && bill != null)
+        {
+            var bid = bill.BillId;
+            <text>
+            setTimeout(function() {
+                var vendorUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = bid, merchantCopy = false, autoPrint = false })' + '?print=true';
+                window.open(vendorUrl, '_blank');
                 setTimeout(function() {
-                    window.print();
-                }, 500);
-            }
-            
-            // Handle auto-print for both copies
-            @if (ViewBag.AutoPrint == true)
-            {
-                <text>
-                // Auto-print both vendor and merchant copies in separate tabs
-                setTimeout(function() {
-                    // Open vendor copy in new tab and print
-                    const vendorUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = false, autoPrint = false })' + '?print=true';
-                    const vendorWindow = window.open(vendorUrl, '_blank');
-                    
-                    // Open merchant copy in another new tab after a delay
-                    setTimeout(function() {
-                        const merchantUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = Model.Bill.BillId, merchantCopy = true, autoPrint = false })' + '?print=true';
-                        const merchantWindow = window.open(merchantUrl, '_blank');
-                        
-                        // Show notification
-                        if (typeof showSuccessMessage === 'function') {
-                            showSuccessMessage('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
-                        } else {
-                            alert('Both Vendor Copy and Merchant Copy have been opened in separate tabs!');
-                        }
-                    }, 1000);
-                }, 500);
-                </text>
-            }
-        };
+                    var merchantUrl = '@Url.Action("PrintReceipt", "VendorBills", new { id = bid, merchantCopy = true, autoPrint = false })' + '?print=true';
+                    window.open(merchantUrl, '_blank');
+                }, 1000);
+            }, 500);
+            </text>
+        }
     </script>
 </body>
 </html>

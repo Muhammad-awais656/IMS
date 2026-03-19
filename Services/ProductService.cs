@@ -32,6 +32,7 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductName", product.ProductName);
                         command.Parameters.AddWithValue("@pProductDescription", product.ProductDescription ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@UrduName", product.UrduName ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSizeId_FK", product.SizeIdFk);
                         command.Parameters.AddWithValue("@pLabelId_FK", product.LabelIdFk);
                         command.Parameters.AddWithValue("@pUnitPrice", product.UnitPrice);
@@ -177,6 +178,7 @@ namespace IMS.Services
                                     ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     ProductDescription = reader.IsDBNull(reader.GetOrdinal("ProductDescription")) ? null : reader.GetString(reader.GetOrdinal("ProductDescription")),
+                                    UrduName = reader.IsDBNull(reader.GetOrdinal("UrduName")) ? null : reader.GetString(reader.GetOrdinal("UrduName")),
                                     Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
                                     Price = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                     CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
@@ -297,8 +299,10 @@ namespace IMS.Services
                                         IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled")),
                                         CategoryIdFk = reader.IsDBNull(reader.GetOrdinal("CategoryId_FK")) ? 0 : reader.GetInt64(reader.GetOrdinal("CategoryId_FK")),
                                         MeasuringUnitTypeIdFk = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitTypeId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
-                                        SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK"))
+                                        SupplierIdFk = reader.IsDBNull(reader.GetOrdinal("SupplierId_FK")) ? (long?)null : reader.GetInt64(reader.GetOrdinal("SupplierId_FK")),
+                                        UrduName = null
                                     };
+                                    try { var uIdx = reader.GetOrdinal("UrduName"); if (!reader.IsDBNull(uIdx)) productList.UrduName = reader.GetString(uIdx); } catch { }
                                     if (!reader.IsDBNull(reader.GetOrdinal("ProductId_FK")))
                                     {
                                         // Safely get ProductRangeId if column exists
@@ -408,6 +412,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@MeasuringUnitTypeId_FK", product.MeasuringUnitTypeIdFk ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@SupplierId_FK", product.SupplierIdFk ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pLocation", product.Location ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@UrduName", product.UrduName ?? (object)DBNull.Value);
 
                         var expenseTypeidParam = new SqlParameter("@RowsAffected", SqlDbType.BigInt)
                         {

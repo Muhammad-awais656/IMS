@@ -29,6 +29,18 @@
                         <span asp-validation-for="ProductName" class="text-danger small"></span>
                     </div>
 
+                    <!-- Urdu Name -->
+                    <div class="col-12 mb-4">
+                        <div class="form-floating">
+                            <input asp-for="UrduName" class="form-control form-control-lg" 
+                                   placeholder="اردو نام (اختیاری)" lang="ur" oninput="allowOnlyUrdu(this)" dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif;" />
+                            <label asp-for="UrduName" class="fw-semibold">
+                                <i class="fa fa-language me-1 text-primary"></i>Urdu Name (optional)
+                            </label>
+                        </div>
+                        <span asp-validation-for="UrduName" class="text-danger small"></span>
+                    </div>
+
                     <!-- Product Code -->
                     <div class="col-12 mb-4">
                         <div class="form-floating">

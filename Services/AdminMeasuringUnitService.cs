@@ -1,4 +1,4 @@
-﻿using IMS.Common_Interfaces;
+using IMS.Common_Interfaces;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
@@ -88,6 +88,7 @@ namespace IMS.Services
 
                         command.Parameters.AddWithValue("@pCreatedDate", adminMeasuringUnit?.CreatedDate == default(DateTime) ? DBNull.Value : adminMeasuringUnit?.CreatedDate);
                         command.Parameters.AddWithValue("@pCreatedBy", adminMeasuringUnit?.CreatedBy != null ? adminMeasuringUnit.CreatedBy : DBNull.Value);
+                        command.Parameters.AddWithValue("@UrduName", !string.IsNullOrEmpty(adminMeasuringUnit?.UrduName) ? adminMeasuringUnit.UrduName : DBNull.Value);
 
 
                         var unitTypeyIdParam = new SqlParameter("@pMeasuringUnitId", SqlDbType.BigInt)
@@ -168,18 +169,20 @@ namespace IMS.Services
                                         MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
                                         MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
                                         MeasuringUnitDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
+                                        UrduName = reader.IsDBNull(reader.GetOrdinal("UrduName")) ? null : reader.GetString(reader.GetOrdinal("UrduName")),
                                         MeasuringUnitAbbreviation = reader.GetString(reader.GetOrdinal("MeasuringUnitAbbreviation")),
                                         MeasuringUnitTypeIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK")),
-                                        
+
                                         CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                         ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
                                         ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
-                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled"))
+                                        IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled")),
+                                        IsSmallestUnit = reader.IsDBNull(reader.GetOrdinal("IsSmallestUnit")) ? false : reader.GetBoolean(reader.GetOrdinal("IsSmallestUnit"))
                                     };
+                                    }
                                 }
                             }
-                        }
                         catch
                         {
 
@@ -224,17 +227,21 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
+                                string urduName = null;
+                                try { var uIdx = reader.GetOrdinal("UrduName"); if (!reader.IsDBNull(uIdx)) urduName = reader.GetString(uIdx); } catch { }
                                 // Main Measuring Unit
                                 adminMeasuringUnits.Add(new AdminMeasuringUnit
                                 {
                                     MeasuringUnitId = reader.GetInt64(reader.GetOrdinal("MeasuringUnitId")),
                                     MeasuringUnitName = reader.GetString(reader.GetOrdinal("MeasuringUnitName")),
+                                    UrduName = urduName,
                                     MeasuringUnitDescription = reader.IsDBNull(reader.GetOrdinal("MeasuringUnitDescription")) ? null : reader.GetString(reader.GetOrdinal("MeasuringUnitDescription")),
                                     CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
                                     CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
                                     ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
                                     ModifiedBy = reader.GetInt64(reader.GetOrdinal("ModifiedBy")),
                                     IsEnabled = reader.GetBoolean(reader.GetOrdinal("IsEnabled")),
+                                    IsSmallestUnit = reader.IsDBNull(reader.GetOrdinal("IsSmallestUnit")) ? false: reader.GetBoolean(reader.GetOrdinal("IsSmallestUnit")),
                                     MeasuringUnitTypeIdFk = reader.GetInt64(reader.GetOrdinal("MeasuringUnitTypeId_FK"))
                                 });
 
@@ -401,6 +408,7 @@ namespace IMS.Services
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pMeasuringUnitName", adminMeasuringUnit.MeasuringUnitName);
                         command.Parameters.AddWithValue("@pMeasuringUnitDescription", adminMeasuringUnit.MeasuringUnitDescription ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@UrduName", (object?)adminMeasuringUnit.UrduName ?? DBNull.Value);
                         command.Parameters.AddWithValue("@pMeasuringUnitTypeId_FK", adminMeasuringUnit.MeasuringUnitTypeIdFk);
                         command.Parameters.AddWithValue("@pIsSmallestUnit", adminMeasuringUnit?.IsSmallestUnit==null ? 0: adminMeasuringUnit.IsSmallestUnit);
                         command.Parameters.AddWithValue("@pMeasuringUnitAbbreviation", adminMeasuringUnit?.MeasuringUnitAbbreviation);

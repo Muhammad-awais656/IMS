@@ -1,4 +1,4 @@
-﻿@using IMS.DAL.PrimaryDBContext
+@using IMS.DAL.PrimaryDBContext
 @model AdminSupplier;
 
 
@@ -17,6 +17,13 @@
                         </label>
                         <input asp-for="SupplierName" class="form-control" />
                         <span asp-validation-for="SupplierName" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="VendorUrduName" class="form-label fw-semibold">
+                            <i class="fa fa-language me-1 text-primary"></i>Urdu Name (optional)
+                        </label>
+                        <input asp-for="VendorUrduName" class="form-control" placeholder="اردو نام" lang="ur" oninput="allowOnlyUrdu(this)" dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif;" />
+                        <span asp-validation-for="VendorUrduName" class="text-danger"></span>
                     </div>
                     <div class="col-md-6 mb-4">
                         <label asp-for="SupplierPhoneNumber" class="form-label fw-semibold fw-semibold">

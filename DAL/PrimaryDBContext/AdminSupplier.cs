@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IMS.DAL.PrimaryDBContext;
 
@@ -8,6 +9,9 @@ public partial class AdminSupplier
     public long SupplierId { get; set; }
 
     public string SupplierName { get; set; } = null!;
+
+    [Column("UrduName")]
+    public string? VendorUrduName { get; set; }
 
     public string? SupplierDescription { get; set; }
 

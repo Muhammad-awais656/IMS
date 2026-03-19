@@ -3,6 +3,7 @@ using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using IMS.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NuGet.Protocol.Core.Types;
@@ -20,12 +21,15 @@ namespace IMS.Controllers
     {
         private readonly ILogger<CustomerController> _logger;
         private readonly ICustomer _customerService;
+        private readonly IWebHostEnvironment _webHostEnvironment;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 };
-        public CustomerController(ICustomer repository, ILogger<CustomerController> logger)
+
+        public CustomerController(ICustomer repository, ILogger<CustomerController> logger, IWebHostEnvironment webHostEnvironment)
         {
             _customerService = repository;
             _logger = logger;
+            _webHostEnvironment = webHostEnvironment;
         }
         // GET: CustomerController
         public async Task<ActionResult> Index(CustomerViewModel model, int pageNumber = 1, int? pageSize = null, string sidx = "Id", string sord = "asc", bool _search = false)
@@ -300,12 +304,13 @@ namespace IMS.Controllers
 
                 worksheet.Cell(1, 1).Value = "Customer Id";
                 worksheet.Cell(1, 2).Value = "Customer Name";
-                worksheet.Cell(1, 3).Value = "Contact Number";
-                worksheet.Cell(1, 4).Value = "Email";
-                worksheet.Cell(1, 5).Value = "Address";
-                worksheet.Cell(1, 6).Value = "Enabled";
+                worksheet.Cell(1, 3).Value = "Urdu Name";
+                worksheet.Cell(1, 4).Value = "Contact Number";
+                worksheet.Cell(1, 5).Value = "Email";
+                worksheet.Cell(1, 6).Value = "Address";
+                worksheet.Cell(1, 7).Value = "Enabled";
 
-                var headerRange = worksheet.Range(1, 1, 1, 6);
+                var headerRange = worksheet.Range(1, 1, 1, 7);
                 headerRange.Style.Font.Bold = true;
                 headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -314,10 +319,11 @@ namespace IMS.Controllers
                 {
                     worksheet.Cell(row, 1).Value = item.CustomerId;
                     worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
-                    worksheet.Cell(row, 3).Value = item.CustomerContactNumber ?? "";
-                    worksheet.Cell(row, 4).Value = item.CustomerEmail ?? "";
-                    worksheet.Cell(row, 5).Value = item.CustomerAddress ?? "";
-                    worksheet.Cell(row, 6).Value = item.IsEnabled ? "Yes" : "No";
+                    worksheet.Cell(row, 3).Value = item.CustomerUrduName ?? "";
+                    worksheet.Cell(row, 4).Value = item.CustomerContactNumber ?? "";
+                    worksheet.Cell(row, 5).Value = item.CustomerEmail ?? "";
+                    worksheet.Cell(row, 6).Value = item.CustomerAddress ?? "";
+                    worksheet.Cell(row, 7).Value = item.IsEnabled ? "Yes" : "No";
                     row++;
                 }
 
@@ -349,6 +355,43 @@ namespace IMS.Controllers
                 const int exportPageSize = 100000;
                 var model = await _customerService.GetCustomers(1, exportPageSize, customerName, phoneNumber, email);
 
+                // Unicode font so Customer Name and Urdu Name render in PDF (default Helvetica does not support Urdu)
+                Font unicodeFont = null;
+                // 1) Try Arial Unicode MS (Windows) - no spaces in path, reliable for Urdu
+                try
+                {
+                    var arialUni = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts", "arialuni.ttf");
+                    if (System.IO.File.Exists(arialUni))
+                    {
+                        var bf = BaseFont.CreateFont(arialUni, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                        unicodeFont = new Font(bf, 8, Font.NORMAL, BaseColor.BLACK);
+                    }
+                }
+                catch (Exception fontEx)
+                {
+                    _logger.LogWarning(fontEx, "Arial Unicode font for PDF export not available.");
+                }
+                // 2) Try Jameel Noori Nastaleeq from wwwroot (load from bytes to avoid path-with-spaces issues)
+                if (unicodeFont == null)
+                {
+                    try
+                    {
+                        var fontPath = System.IO.Path.Combine(_webHostEnvironment.ContentRootPath, "wwwroot", "fonts", "download", "Jameel Noori Nastaleeq.ttf");
+                        if (System.IO.File.Exists(fontPath))
+                        {
+                            var fontBytes = System.IO.File.ReadAllBytes(fontPath);
+                            var bf = BaseFont.CreateFont("JameelNooriNastaleeq.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+                            unicodeFont = new Font(bf, 8, Font.NORMAL, BaseColor.BLACK);
+                        }
+                    }
+                    catch (Exception fontEx)
+                    {
+                        _logger.LogWarning(fontEx, "Jameel Noori Nastaleeq font for PDF export not available.");
+                    }
+                }
+                if (unicodeFont == null)
+                    unicodeFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+
                 using var stream = new MemoryStream();
                 var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
                 PdfWriter.GetInstance(document, stream);
@@ -357,11 +400,11 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Customer Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n"));
 
-                var table = new PdfPTable(6);
+                var table = new PdfPTable(7);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 1f, 2.5f, 1.5f, 2f, 2.5f, 0.8f });
+                table.SetWidths(new float[] { 1f, 2.5f, 2f, 1.5f, 2f, 2.5f, 0.8f });
 
-                string[] headers = { "Customer Id", "Customer Name", "Contact Number", "Email", "Address", "Enabled" };
+                string[] headers = { "Customer Id", "Customer Name", "Urdu Name", "Contact Number", "Email", "Address", "Enabled" };
                 foreach (var header in headers)
                 {
                     var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
@@ -375,12 +418,13 @@ namespace IMS.Controllers
 
                 foreach (var c in model.Customers ?? new List<Customer>())
                 {
-                    table.AddCell(c.CustomerId.ToString());
-                    table.AddCell(c.CustomerName ?? "");
-                    table.AddCell(c.CustomerContactNumber ?? "");
-                    table.AddCell(c.CustomerEmail ?? "");
-                    table.AddCell(c.CustomerAddress ?? "");
-                    table.AddCell(c.IsEnabled ? "Yes" : "No");
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerId.ToString(), unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerName ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerUrduName ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerContactNumber ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerEmail ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.CustomerAddress ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.IsEnabled ? "Yes" : "No", unicodeFont)));
                 }
 
                 document.Add(table);

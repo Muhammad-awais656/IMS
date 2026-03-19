@@ -24,6 +24,7 @@ namespace IMS.Common_Interfaces
         
         // Edit functionality methods
         Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId);
+        Task<VendorBillViewModel?> GetVendorBillByIdForPrintAsync(long billId);
         Task<BillPayment> GetVendorBillByPaymentIdAsync(long paymentId);
         Task<List<BillItemViewModel>> GetVendorBillItemsAsync(long billId);
         Task<bool> UpdateVendorBillAsync(long billId, VendorBillGenerationViewModel model);
@@ -50,5 +51,8 @@ namespace IMS.Common_Interfaces
 
         /// <summary>Gets PO details report for Excel export (bill-wise). Respects VendorBillsFilters when provided.</summary>
         Task<List<PODetailReportItem>> GetPODetailsReportForExportAsync(VendorBillsFilters? filters);
+
+        /// <summary>Fills UrduName on bill (vendor/customer) and ProductUrduName on items when DB columns exist (Scripts/AddUrduNameColumns.sql).</summary>
+        Task EnrichVendorBillPrintWithUrduNamesAsync(VendorBillViewModel bill, List<BillItemViewModel> billItems);
     }
 }

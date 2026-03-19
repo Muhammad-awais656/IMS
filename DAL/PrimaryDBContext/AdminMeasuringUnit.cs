@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -28,6 +28,10 @@ public partial class AdminMeasuringUnit
     [StringLength(10, ErrorMessage = "Abbreviation cannot exceed 10 characters")]
     [Display(Name = "Abbreviation")]
     public string MeasuringUnitAbbreviation { get; set; } = null!;
+
+    [StringLength(300)]
+    [Display(Name = "Urdu Name")]
+    public string? UrduName { get; set; }
 
     [Display(Name = "Enabled")]
     public bool IsEnabled { get; set; }

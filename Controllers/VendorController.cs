@@ -3,6 +3,7 @@ using IMS.CommonUtilities;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using IMS.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -21,12 +22,15 @@ namespace IMS.Controllers
     {
         private readonly ILogger<VendorController> _logger;
         private readonly IVendor _vndorservice;
+        private readonly IWebHostEnvironment _webHostEnvironment;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 };
-        public VendorController(IVendor repository, ILogger<VendorController> logger)
+
+        public VendorController(IVendor repository, ILogger<VendorController> logger, IWebHostEnvironment webHostEnvironment)
         {
             _vndorservice = repository;
             _logger = logger;
+            _webHostEnvironment = webHostEnvironment;
         }
         // GET: CustomerController
         public async Task<ActionResult> Index(int pageNumber = 1, int? pageSize = null, string sidx = "Id", string sord = "asc", bool _search = false, string? Name = null, string? phoneNumber = null,string? NTN = null)
@@ -248,12 +252,12 @@ namespace IMS.Controllers
                 var model = await _vndorservice.GetAllVendors(1, exportPageSize, name, phoneNumber, ntn);
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Vendors");
-                worksheet.Cell(1, 1).Value = "Vendor Id"; worksheet.Cell(1, 2).Value = "Vendor Name"; worksheet.Cell(1, 3).Value = "Phone"; worksheet.Cell(1, 4).Value = "Email"; worksheet.Cell(1, 5).Value = "Address";
-                var headerRange = worksheet.Range(1, 1, 1, 5); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                worksheet.Cell(1, 1).Value = "Vendor Id"; worksheet.Cell(1, 2).Value = "Vendor Name"; worksheet.Cell(1, 3).Value = "Urdu Name"; worksheet.Cell(1, 4).Value = "Phone"; worksheet.Cell(1, 5).Value = "Email"; worksheet.Cell(1, 6).Value = "Address";
+                var headerRange = worksheet.Range(1, 1, 1, 6); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
                 int row = 2;
                 foreach (var item in model.VendorList ?? new List<AdminSupplier>())
                 {
-                    worksheet.Cell(row, 1).Value = item.SupplierId; worksheet.Cell(row, 2).Value = item.SupplierName ?? ""; worksheet.Cell(row, 3).Value = item.SupplierPhoneNumber ?? ""; worksheet.Cell(row, 4).Value = item.SupplierEmail ?? ""; worksheet.Cell(row, 5).Value = item.SupplierAddress ?? "";
+                    worksheet.Cell(row, 1).Value = item.SupplierId; worksheet.Cell(row, 2).Value = item.SupplierName ?? ""; worksheet.Cell(row, 3).Value = item.VendorUrduName ?? ""; worksheet.Cell(row, 4).Value = item.SupplierPhoneNumber ?? ""; worksheet.Cell(row, 5).Value = item.SupplierEmail ?? ""; worksheet.Cell(row, 6).Value = item.SupplierAddress ?? "";
                     row++;
                 }
                 worksheet.Columns().AdjustToContents();
@@ -271,17 +275,57 @@ namespace IMS.Controllers
             {
                 const int exportPageSize = 100000;
                 var model = await _vndorservice.GetAllVendors(1, exportPageSize, name, phoneNumber, ntn);
+
+                Font unicodeFont = null;
+                try
+                {
+                    var arialUni = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts", "arialuni.ttf");
+                    if (System.IO.File.Exists(arialUni))
+                    {
+                        var bf = BaseFont.CreateFont(arialUni, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                        unicodeFont = new Font(bf, 8, Font.NORMAL, BaseColor.BLACK);
+                    }
+                }
+                catch (Exception fontEx) { _logger.LogWarning(fontEx, "Arial Unicode font for PDF export not available."); }
+                if (unicodeFont == null)
+                {
+                    try
+                    {
+                        var fontPath = System.IO.Path.Combine(_webHostEnvironment.ContentRootPath, "wwwroot", "fonts", "download", "Jameel Noori Nastaleeq.ttf");
+                        if (System.IO.File.Exists(fontPath))
+                        {
+                            var fontBytes = System.IO.File.ReadAllBytes(fontPath);
+                            var bf = BaseFont.CreateFont("JameelNooriNastaleeq.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+                            unicodeFont = new Font(bf, 8, Font.NORMAL, BaseColor.BLACK);
+                        }
+                    }
+                    catch (Exception fontEx) { _logger.LogWarning(fontEx, "Jameel Noori Nastaleeq font for PDF export not available."); }
+                }
+                if (unicodeFont == null)
+                    unicodeFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+
                 using var stream = new MemoryStream();
                 var document = new Document(PageSize.A4.Rotate(), 15f, 15f, 15f, 15f);
-                PdfWriter.GetInstance(document, stream); document.Open();
+                PdfWriter.GetInstance(document, stream);
+                document.Open();
                 document.Add(new Paragraph("Supplier/Vendor Management Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n"));
-                var table = new PdfPTable(5); table.WidthPercentage = 100; table.SetWidths(new float[] { 1f, 2.5f, 1.5f, 2f, 2.5f });
-                foreach (var h in new[] { "Vendor Id", "Vendor Name", "Phone", "Email", "Address" })
+                var table = new PdfPTable(6);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 1f, 2.5f, 2f, 1.5f, 2f, 2.5f });
+                foreach (var h in new[] { "Vendor Id", "Vendor Name", "Urdu Name", "Phone", "Email", "Address" })
                 { var cell = new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8))) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = BaseColor.LIGHT_GRAY }; table.AddCell(cell); }
                 foreach (var c in model.VendorList ?? new List<AdminSupplier>())
-                { table.AddCell(c.SupplierId.ToString()); table.AddCell(c.SupplierName ?? ""); table.AddCell(c.SupplierPhoneNumber ?? ""); table.AddCell(c.SupplierEmail ?? ""); table.AddCell(c.SupplierAddress ?? ""); }
-                document.Add(table); document.Close();
+                {
+                    table.AddCell(new PdfPCell(new Phrase(c.SupplierId.ToString(), unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.SupplierName ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.VendorUrduName ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.SupplierPhoneNumber ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.SupplierEmail ?? "", unicodeFont)));
+                    table.AddCell(new PdfPCell(new Phrase(c.SupplierAddress ?? "", unicodeFont)));
+                }
+                document.Add(table);
+                document.Close();
                 return File(stream.ToArray(), "application/pdf", $"Vendors_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf");
             }
             catch (Exception ex) { _logger.LogError(ex, "Error exporting vendors to PDF"); TempData["ErrorMessage"] = "An error occurred while exporting to PDF."; return RedirectToAction(nameof(Index)); }
