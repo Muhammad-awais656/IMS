@@ -93,12 +93,18 @@ builder.Services.AddScoped<IUserPermissionsService, UserPermissionsService>();
 builder.Services.AddScoped<IIdentityUserSyncService, IdentityUserSyncService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
+// Session + auth cookie share the same idle window: after this many minutes with no HTTP requests, session data is cleared and the user must sign in again (sliding cookie).
+var idleTimeoutMinutes = Math.Max(1, builder.Configuration.GetValue("Application:IdleTimeoutMinutes", 30));
+var idleTimeout = TimeSpan.FromMinutes(idleTimeoutMinutes);
+
+builder.Services.AddDistributedMemoryCache();
+
 // Register services by Awais
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.IdleTimeout = idleTimeout;
     options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;    // true after test
+    options.Cookie.IsEssential = true;
 });
 
 // Configure cookie authentication
@@ -128,16 +134,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Home/AccessDenied";
     options.Cookie.Name = "IMS_Auth";
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+    options.ExpireTimeSpan = idleTimeout;
     options.SlidingExpiration = true;
 });
 builder.Services.AddScoped<IDbContextFactory, AppDbContextFactory>();
 builder.Services.AddAuthorization();
-builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 //builder.Services.AddScoped<DbContextResolver>();
-
-builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
