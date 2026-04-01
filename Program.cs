@@ -3,7 +3,9 @@ using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Middlewares;
+using IMS.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -13,6 +15,8 @@ using System.Globalization;
 using Microsoft.Extensions.Localization;
 using IMS.Services;
 using Serilog;
+using StringEncrptandDecryptorApp;
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +28,7 @@ var policy = new AuthorizationPolicyBuilder()
     .Build();
 
     options.Filters.Add(new AuthorizeFilter(policy));
+    options.Filters.Add<IMS.Filters.PrivilegeMenuFilter>();
 });
 // Read configuration from appsettings.json
 Log.Logger = new LoggerConfiguration()
@@ -37,9 +42,19 @@ builder.Host.UseSerilog(); // Replace default logging
 // Self by awais
 
 // For Primary DB Shop
-//builder.Services.AddDbContext<IMS.DAL.PrimaryDBContext.AppDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("ShopConnectionString"), sqlOptions =>
-//    sqlOptions.EnableRetryOnFailure()));
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    var raw = builder.Configuration.GetConnectionString("ShopConnectionString");
+    if (string.IsNullOrWhiteSpace(raw))
+        throw new InvalidOperationException("ShopConnectionString is missing.");
+    var enc = new EncryptionHelper();
+    var b = new SqlConnectionStringBuilder(raw)
+    {
+        UserID = enc.Decrypt(new SqlConnectionStringBuilder(raw).UserID),
+        Password = enc.Decrypt(new SqlConnectionStringBuilder(raw).Password)
+    };
+    options.UseSqlServer(b.ConnectionString, sqlOptions => sqlOptions.EnableRetryOnFailure());
+});
 
 //// For Secondary DB Factory
 //builder.Services.AddDbContext<FactoryDbContext>(options =>
@@ -70,6 +85,12 @@ builder.Services.AddScoped<IPersonalPaymentService, PersonalPaymentService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IModernReceiptService, ModernReceiptService>();
 builder.Services.AddScoped<IViewRenderService, ViewRenderService>();
+builder.Services.AddScoped<IBranchService, BranchService>();
+builder.Services.AddScoped<ILoginBranchesService, LoginBranchesService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IPrivilegeAuthorizationService, PrivilegeAuthorizationService>();
+builder.Services.AddScoped<IUserPermissionsService, UserPermissionsService>();
+builder.Services.AddScoped<IIdentityUserSyncService, IdentityUserSyncService>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Register services by Awais
@@ -88,11 +109,20 @@ builder.Services.AddSession(options =>
 //        options.AccessDeniedPath = "/Home/AccessDenied";
 //    });
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = "CookieAuth";
-})
-.AddCookie("CookieAuth", options =>
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredLength = 6;
+        options.User.RequireUniqueEmail = false;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
@@ -111,6 +141,32 @@ builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
+
+// Add missing AspNetUsers columns (ApplicationUser) + AspNetUserBranches if needed — fixes login SqlException until EF migration is applied.
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var schemaLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("IdentitySchemaBootstrapper");
+    await IdentitySchemaBootstrapper.EnsureAsync(db, schemaLogger);
+}
+catch (Exception ex)
+{
+    var log = app.Services.GetService<ILoggerFactory>()?.CreateLogger("IdentitySchemaBootstrapper");
+    log?.LogError(ex, "Identity schema bootstrap failed.");
+}
+
+// First-time Identity admin (only when AspNetUsers is empty). Set IdentitySeed:Enabled = false after use.
+try
+{
+    var seedLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("IdentityDataSeeder");
+    await IdentityDataSeeder.SeedAsync(app.Services, app.Configuration, seedLogger);
+}
+catch (Exception ex)
+{
+    var log = app.Services.GetService<ILoggerFactory>()?.CreateLogger("IdentityDataSeeder");
+    log?.LogError(ex, "Identity seed failed.");
+}
 
 //var supportedCultures = new[]
 //{

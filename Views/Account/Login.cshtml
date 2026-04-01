@@ -1,5 +1,5 @@
-@model IMS.Models.LoginViewModel;
-
+@model IMS.Models.LoginViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "Login";
     Layout = "~/Views/Shared/_SecondLayout.cshtml"; // Or your layout path
@@ -7,8 +7,8 @@
 @* <link href="~/css/dist/bootstrap.min.css" rel="stylesheet" />
 <link href="~/css/dist/all.min.css" rel="stylesheet" /> *@
 <!-- Bootstrap & FontAwesome -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" /> 
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
 <script src="~/lib/bootstrap/dist/js/bootstrap.js"></script>
 
@@ -21,14 +21,20 @@
     <div class="card login-card p-4" style="width: 100%; max-width: 400px;">
         <div class="text-center login-header mb-4">
             @* <img src="~/images/IMTradersLogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" /> *@
-            <img src="~/images/zahoortraderslogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" />
+            @* <img src="~/images/zahoortraderslogo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" /> *@
+           
+              @*   <video autoplay loop muted playsinline width="180" height="80" controls="controls">
+                    <source src="~/images/point%20of%20service.mp4" type="video/mp4" />
+                </video>  *@
             <h3 class="mb-1" style="color:deeppink; font-family: serif;font-style: italic;">IMS Login</h3>
             <small style="font-weight:bold;color:darkblue;font-style:oblique;">Inventory Management System</small>
+            <img src="~/images/logo.png" alt="Logo" class="img-fluid mb-2" style="max-height: auto;" />
+           
         </div>
 
         <form asp-action="Login" method="post">
             <div class="mb-3">
-                <label asp-for="Username" class="form-label" style="font-weight:bold">
+                <label asp-for="Username" class="form-label" style="font-weight:bold;color: brown; ">
                     <i class="fa fa-user"></i> Username
                 </label>
                 <input asp-for="Username" class="form-control" placeholder="Enter your username" />
@@ -36,29 +42,37 @@
             </div>
 
             <div class="mb-3">
-                <label asp-for="Password" class="form-label" style="font-weight:bold">
+                <label asp-for="Password" class="form-label" style="font-weight:bold;color: brown;">
                     <i class="fa fa-lock"></i> Password
                 </label>
-                <div class="input-group">
-                    <input asp-for="Password" type="password" class="form-control" id="loginPassword" placeholder="Enter your password" />
-                    <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Show password" aria-label="Show password">
+
+                <div class="position-relative">
+                    <input asp-for="Password"
+                           type="password"
+                           class="form-control"
+                           id="loginPassword"
+                           placeholder="Enter your password" />
+
+                    <!-- Eye icon inside the input -->
+                    <button type="button"
+                            class="btn position-absolute top-50 end-0 translate-middle-y me-3 border-0 bg-transparent"
+                            id="togglePassword"
+                            style="padding: 0; height: auto; width: auto; z-index: 10;">
                         <i class="fa fa-eye" id="togglePasswordIcon"></i>
-                        <span class="d-none d-sm-inline ms-1" id="togglePasswordText"></span>
                     </button>
                 </div>
+
                 <span asp-validation-for="Password" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
-                <label asp-for="Domain" class="form-label" style="font-weight:bold">
-                    <i class="fa fa-database"></i> Domain
+                <label asp-for="BranchId" class="form-label" style="font-weight:bold;color: brown;">
+                    <i class="fa fa-code-branch"></i> Branch
                 </label>
-                <select asp-for="Domain" class="form-select">
-                   @*  <option value="">-- Select Domain --</option> *@
-                    <option value="Shop">Shop</option>
-             @*        <option value="Factory">Factory</option> *@
+                <select asp-for="BranchId" class="form-select" asp-items="@(Model.Branches?.Select(b => new SelectListItem { Value = b.BranchId.ToString(), Text = b.BranchName ?? b.BranchCode ?? b.BranchId.ToString() }) ?? Enumerable.Empty<SelectListItem>())">
+                    <option value="">-- Select Branch --</option>
                 </select>
-                <span asp-validation-for="Domain" class="text-danger"></span>
+                <span asp-validation-for="BranchId" class="text-danger"></span>
             </div>
 
             <div class="d-grid">
@@ -67,7 +81,7 @@
                 </button>
             </div>
             <div class="mb-3">
-                <p style="text-align:center; color:white;font-weight:bolder;margin:auto;">Powered By AJ CORE Technologies</p>
+                <p style="text-align:center; color:burlywood;font-weight:bolder;margin:auto;">Powered By AJ CORE Technologies</p>
             </div>
         </form>
     </div>

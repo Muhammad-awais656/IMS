@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing.Printing;
+using System.Linq;
 
 namespace IMS.Controllers
 {
@@ -18,14 +19,19 @@ namespace IMS.Controllers
         
         //public string domain = string.Empty;
         private readonly IUserService _userService;
+        private readonly IBranchService _branchService;
+        private readonly IRoleService _roleService;
+        private readonly IIdentityUserSyncService _identityUserSyncService;
         private readonly ILogger<UserController> _logger;
         private const int DefaultPageSize = 5; // Default page size
         private static readonly int[] AllowedPageSizes = { 5, 10, 25 }; // Allowed page sizes
 
-
-        public UserController(IUserService userService, ILogger<UserController> logger)
+        public UserController(IUserService userService, IBranchService branchService, IRoleService roleService, IIdentityUserSyncService identityUserSyncService, ILogger<UserController> logger)
         {
             _userService = userService;
+            _branchService = branchService;
+            _roleService = roleService;
+            _identityUserSyncService = identityUserSyncService;
             _logger = logger;
         }
 
@@ -62,44 +68,55 @@ namespace IMS.Controllers
             return View(viewModel);
         }
         // GET: UserController/Details/5
-        public ActionResult Details(int id)
+        public async Task<IActionResult> Details(long id)
         {
-            return View();
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+                return NotFound();
+            return View(user);
         }
 
         // GET: UserController/Create
-        public ActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            var branches = await _branchService.GetAllActiveBranchesAsync();
+            ViewBag.Branches = branches;
+            ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(User user)
+        public async Task<IActionResult> Create(User user, string? BranchIds)
         {
             try
             {
+                var branchIds = ParseBranchIds(BranchIds);
+                if (branchIds.Count == 0)
+                {
+                    TempData["ErrorMessage"] = "Please select at least one branch.";
+                    ViewBag.Branches = await _branchService.GetAllActiveBranchesAsync();
+                    ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
+                    return View(user);
+                }
                 if (ModelState.IsValid)
                 {
-
-                    var result = await _userService.CreateUserAsync(user);
+                    var result = await _userService.CreateUserAsync(user, branchIds);
                     if (result)
                     {
+                        await _identityUserSyncService.SyncFromLegacyUserAsync(user, branchIds);
                         TempData["Success"] = AlertMessages.RecordAdded;
                         return RedirectToAction(nameof(GetAllUsers));
                     }
-                    else
-                    {
-                        TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
-                        return View(user);
-                    }
+                    TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
                 }
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View(user);
             }
+            ViewBag.Branches = await _branchService.GetAllActiveBranchesAsync();
+            ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
             return View(user);
         }
 
@@ -108,61 +125,71 @@ namespace IMS.Controllers
         {
             var user = await _userService.GetUserByIdAsync(id);
             if (user == null)
-            {
                 return NotFound();
-            }
+            var branches = await _branchService.GetAllActiveBranchesAsync();
+            ViewBag.Branches = branches;
+            ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
+            ViewBag.UserBranchIds = await _userService.GetUserBranchIdsAsync(id);
             return View(user);
         }
 
         // POST: UserController/Edit/5
-        // POST: /Users/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(long id, User user)
+        public async Task<IActionResult> Edit(long id, User user, string? BranchIds)
         {
             if (id != user.UserId)
-            {
                 return BadRequest();
+
+            var branchIds = ParseBranchIds(BranchIds);
+            if (branchIds.Count == 0)
+            {
+                TempData["ErrorMessage"] = "Please select at least one branch.";
+                ViewBag.Branches = await _branchService.GetAllActiveBranchesAsync();
+                ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
+                ViewBag.UserBranchIds = await _userService.GetUserBranchIdsAsync(id);
+                return View(user);
             }
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    // Handle password: only update if provided
                     if (string.IsNullOrEmpty(user.UserPassword))
                     {
                         var existingUser = await _userService.GetUserByIdAsync(id);
-                        user.UserPassword = existingUser.UserPassword; // Retain existing password
+                        if (existingUser != null)
+                            user.UserPassword = existingUser.UserPassword;
                     }
-                    else
+                    var response = await _userService.UpdateUserAsync(user, branchIds);
+                    if (response != 0)
                     {
-                        // In production, hash the password here
-                        // user.UserPassword = HashPassword(user.UserPassword);
-                    }
-                    var response = await _userService.UpdateUserAsync(user);
-                    if (response!=0)
-                    {
+                        await _identityUserSyncService.SyncFromLegacyUserAsync(user, branchIds);
                         TempData["Success"] = AlertMessages.RecordUpdated;
                         return RedirectToAction(nameof(GetAllUsers));
                     }
-                    else
-                    {
-                        TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
-                        return View(user);
-                    }
-
+                    TempData["ErrorMessage"] = AlertMessages.RecordNotUpdated;
                 }
                 catch (DbUpdateConcurrencyException)
                 {
                     if (await _userService.GetUserByIdAsync(id) == null)
-                    {
                         return NotFound();
-                    }
                     throw;
                 }
             }
+            ViewBag.Branches = await _branchService.GetAllActiveBranchesAsync();
+            ViewBag.Roles = await _roleService.GetActiveRolesForDropdownAsync();
+            ViewBag.UserBranchIds = branchIds;
             return View(user);
+        }
+
+        private static List<int> ParseBranchIds(string? branchIds)
+        {
+            if (string.IsNullOrWhiteSpace(branchIds)) return new List<int>();
+            return branchIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.TryParse(s, out var n) ? n : 0)
+                .Where(n => n > 0)
+                .ToList();
         }
 
         // GET: UserController/Delete/5
@@ -186,6 +213,7 @@ namespace IMS.Controllers
                var res= await _userService.DeleteUserAsync(id);
                 if (res!=0)
                 {
+                    await _identityUserSyncService.DeleteByLegacyUserIdAsync(id);
                     TempData["Success"] = AlertMessages.RecordDeleted;
                     return RedirectToAction(nameof(GetAllUsers));
                 }

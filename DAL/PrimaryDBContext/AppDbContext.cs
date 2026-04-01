@@ -1,11 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using IMS.Authorization;
 using IMS.Enums;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace IMS.DAL.PrimaryDBContext;
 
-public partial class AppDbContext : DbContext
+public partial class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     private readonly IConfiguration _configuration;
     private readonly string _connectionString;
@@ -43,6 +46,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<BillPayment> BillPayments { get; set; }
 
+    public virtual DbSet<Branch> Branches { get; set; }
+
     public virtual DbSet<Customer> Customers { get; set; }
 
     public virtual DbSet<Employee> Employees { get; set; }
@@ -77,17 +82,48 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<UserBranch> UserBranches { get; set; }
+
+    public virtual DbSet<IdentityUserBranch> IdentityUserBranches { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlServer(_connectionString);    
+        if (!optionsBuilder.IsConfigured && !string.IsNullOrWhiteSpace(_connectionString))
+            optionsBuilder.UseSqlServer(_connectionString);
     }
 
         
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.UseCollation("Latin1_General_CI_AS");
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("AspNetUsers");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.IsAdmin).HasDefaultValue(false);
+            entity.Property(e => e.CreatedDate).HasColumnType("datetime2");
+            entity.Property(e => e.ModifiedDate).HasColumnType("datetime2");
+        });
+
+        modelBuilder.Entity<IdentityRole>(entity =>
+        {
+            entity.ToTable("AspNetRoles");
+        });
+        modelBuilder.Entity<IdentityUserRole<string>>(entity => { entity.ToTable("AspNetUserRoles"); });
+        modelBuilder.Entity<IdentityUserClaim<string>>(entity => { entity.ToTable("AspNetUserClaims"); });
+        modelBuilder.Entity<IdentityUserLogin<string>>(entity => { entity.ToTable("AspNetUserLogins"); });
+        modelBuilder.Entity<IdentityRoleClaim<string>>(entity => { entity.ToTable("AspNetRoleClaims"); });
+        modelBuilder.Entity<IdentityUserToken<string>>(entity => { entity.ToTable("AspNetUserTokens"); });
+
+        modelBuilder.Entity<IdentityUserBranch>(entity =>
+        {
+            entity.ToTable("AspNetUserBranches");
+            entity.HasKey(e => new { e.UserId, e.BranchId });
+            entity.HasOne(e => e.User).WithMany(u => u.Branches).HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Branch>().WithMany().HasForeignKey(e => e.BranchId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<AdminCategory>(entity =>
         {
@@ -239,6 +275,21 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.PaymentDate).HasColumnType("datetime");
             entity.Property(e => e.SupplierIdFk).HasColumnName("SupplierId_FK");
+        });
+
+        modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.HasKey(e => e.BranchId);
+
+            entity.ToTable("Branches");
+
+            entity.Property(e => e.BranchCode).HasMaxLength(150);
+            entity.Property(e => e.BranchName).HasMaxLength(150);
+            entity.Property(e => e.Address).HasMaxLength(250);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedDate).HasColumnType("datetime");
+            entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
         });
 
         modelBuilder.Entity<Customer>(entity =>
@@ -443,6 +494,14 @@ public partial class AppDbContext : DbContext
 
             entity.Property(e => e.UserName).HasMaxLength(100);
             entity.Property(e => e.UserPassword).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<UserBranch>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.BranchId });
+            entity.ToTable("UserBranches");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Branch).WithMany().HasForeignKey(e => e.BranchId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UnitConversion>(entity =>

@@ -1,4 +1,4 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 using Microsoft.Data.SqlClient;
 using StringEncrptandDecryptorApp;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
@@ -10,7 +10,11 @@ namespace IMS.DAL
     {
         // Uncomment the following line if you want to create a DbContext instance means Code First approach
         //AppDbContext CreateDbContext();
-        public  string DBConnectionString();
+        string DBConnectionString();
+        /// <summary>
+        /// Returns decrypted connection string for the default database (Shop). Used for login page to load branches when session is not yet set.
+        /// </summary>
+        string GetDefaultConnectionString();
     }
 
     public class AppDbContextFactory : IDbContextFactory
@@ -74,5 +78,24 @@ namespace IMS.DAL
             return DecrptedConnectionString;
         }
 
+        /// <inheritdoc />
+        public string GetDefaultConnectionString()
+        {
+            var connectionString = _configuration.GetConnectionString("ShopConnectionString");
+            if (string.IsNullOrEmpty(connectionString))
+                throw new InvalidOperationException("Shop connection string is not configured.");
+            var encryptionHelper = new EncryptionHelper();
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            var userId = builder.UserID;
+            var password = builder.Password;
+            var decryptedUserId = encryptionHelper.Decrypt(userId);
+            var decryptedPassword = encryptionHelper.Decrypt(password);
+            var decryptedBuilder = new SqlConnectionStringBuilder(connectionString)
+            {
+                UserID = decryptedUserId,
+                Password = decryptedPassword
+            };
+            return decryptedBuilder.ConnectionString;
+        }
     }
 }

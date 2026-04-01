@@ -1,0 +1,257 @@
+@{
+    ViewData["Title"] = "User Permissions";
+}
+@Html.AntiForgeryToken()
+<link href="~/css/user-management.css" rel="stylesheet" />
+<style>
+    .user-permissions-layout { display: flex; gap: 1rem; min-height: 70vh; }
+    .user-permissions-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
+    .user-permissions-panel.module-access { flex: 1.4; }
+    .user-permissions-panel h6 { margin: 0; padding: 12px 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; font-weight: 600; }
+    .user-permissions-search { padding: 10px 16px; border-bottom: 1px solid #eee; }
+    .user-permissions-search input { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #ced4da; border-radius: 6px; }
+    .user-permissions-search .search-wrap { position: relative; }
+    .user-permissions-search .search-wrap i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #6c757d; }
+    .user-list { overflow-y: auto; flex: 1; padding: 8px; }
+    .user-list .user-item { padding: 10px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 2px; }
+    .user-list .user-item:hover { background: #e9ecef; }
+    .user-list .user-item.selected { background: #0d6efd; color: #fff; }
+    .module-access-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; }
+    .module-access-header h6 { margin: 0; border: none; padding: 0; background: none; }
+    .module-access-list { overflow-y: auto; flex: 1; padding: 16px; }
+    .perm-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .perm-item .perm-label { font-weight: 500; }
+    .perm-item .perm-label.level-0 { font-weight: 700; }
+    .perm-item .perm-label.level-1 { padding-left: 16px; }
+    .perm-item .perm-label.level-2 { padding-left: 32px; font-weight: 400; }
+    .perm-item .perm-label.level-3 { padding-left: 48px; font-weight: 400; }
+    .btn-submit-permissions { background: #198754; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 500; }
+    .btn-submit-permissions:hover { background: #157347; color: #fff; }
+</style>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">Users & Permissions</h2>
+    </div>
+    <div class="card-body p-3">
+        <div class="user-permissions-layout">
+            <div class="user-permissions-panel">
+                <h6>Users</h6>
+                <div class="user-permissions-search">
+                    <div class="search-wrap">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="searchUserLeft" placeholder="Search User.." />
+                    </div>
+                </div>
+                <div class="user-list" id="userListLeft"></div>
+            </div>
+            <div class="user-permissions-panel">
+                <div class="module-access-header" style="border-bottom: 1px solid #dee2e6;">
+                    <h6>Replicate Permissions Of</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnReplicate">Replicate</button>
+                </div>
+                <div class="user-permissions-search">
+                    <div class="search-wrap">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="searchUserRight" placeholder="Search User.." />
+                    </div>
+                </div>
+                <div class="user-list" id="userListReplicate"></div>
+            </div>
+            <div class="user-permissions-panel module-access">
+                <div class="module-access-header">
+                    <h6>Module Access</h6>
+                    <button type="button" class="btn btn-submit-permissions" id="btnSubmitPermissions">Submit</button>
+                </div>
+                <div class="module-access-list" id="moduleAccessList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var users = [];
+            var featureTree = [];
+            var selectedUserId = null;
+            var selectedReplicateUserId = null;
+            var permissionByFeature = {};
+
+            function loadUsers() {
+                fetch('@Url.Action("GetUsers", "UserPermissions")')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        users = data || [];
+                        renderUserList('userListLeft', 'searchUserLeft', users, function (u) { return u.userId; }, setSelectedUser);
+                        renderUserList('userListReplicate', 'searchUserRight', users, function (u) { return u.userId; }, setSelectedReplicateUser);
+                    });
+            }
+
+            function renderUserList(containerId, searchId, list, getKey, onSelect) {
+                var search = document.getElementById(searchId).value.toLowerCase();
+                var filtered = list.filter(function (u) {
+                    var name = (u.userName || '').toLowerCase();
+                    return name.indexOf(search) !== -1;
+                });
+                var container = document.getElementById(containerId);
+                var selectedKey = containerId === 'userListLeft' ? selectedUserId : selectedReplicateUserId;
+                container.innerHTML = filtered.map(function (u) {
+                    var key = getKey(u);
+                    var cls = key === selectedKey ? 'user-item selected' : 'user-item';
+                    var name = u.userName || u.UserName || '';
+                    return '<div class="' + cls + '" data-user-id="' + key + '">' + name + '</div>';
+                }).join('');
+                container.querySelectorAll('.user-item').forEach(function (el) {
+                    el.addEventListener('click', function () {
+                        var id = parseInt(el.getAttribute('data-user-id'), 10);
+                        var u = list.find(function (x) { return getKey(x) === id; }) || list.find(function (x) { return (x.userId || x.UserId) === id; });
+                        if (u) onSelect(u);
+                    });
+                });
+            }
+
+            function setSelectedUser(user) {
+                selectedUserId = user.userId || user.UserId;
+                document.querySelectorAll('#userListLeft .user-item').forEach(function (el) {
+                    el.classList.toggle('selected', parseInt(el.getAttribute('data-user-id'), 10) === selectedUserId);
+                });
+                loadUserPermissions(selectedUserId);
+            }
+
+            function setSelectedReplicateUser(user) {
+                selectedReplicateUserId = user.userId || user.UserId;
+                document.querySelectorAll('#userListReplicate .user-item').forEach(function (el) {
+                    el.classList.toggle('selected', parseInt(el.getAttribute('data-user-id'), 10) === selectedReplicateUserId);
+                });
+            }
+
+            function loadFeatureHierarchy() {
+                fetch('@Url.Action("GetFeatureHierarchy", "UserPermissions")')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        featureTree = data || [];
+                        if (selectedUserId) loadUserPermissions(selectedUserId);
+                        else renderModuleAccess(featureTree, {});
+                    });
+            }
+
+            function loadUserPermissions(userId) {
+                if (!userId) { renderModuleAccess(featureTree, {}); return; }
+                fetch('@Url.Action("GetUserPermissions", "UserPermissions")?userId=' + userId)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var map = {};
+                        (data || []).forEach(function (p) {
+                            var fid = p.featureId || p.FeatureId;
+                            map[fid] = { canView: p.canView || p.CanView, canModify: p.canModify || p.CanModify };
+                        });
+                        permissionByFeature = map;
+                        renderModuleAccess(featureTree, map);
+                    });
+            }
+
+            function renderModuleAccess(nodes, permMap) {
+                function render(nodes, level) {
+                    if (!nodes || !nodes.length) return '';
+                    level = level || 0;
+                    var html = '';
+                    nodes.forEach(function (n) {
+                        var fid = n.featureId || n.FeatureId;
+                        var p = permMap[fid] || {};
+                        var checked = !!(p.canView || p.CanView || p.canModify || p.CanModify);
+                        html += '<div class="perm-item">';
+                        html += '<span class="perm-label level-' + Math.min(level, 3) + '">' + (n.featureLabel || n.FeatureLabel || n.featureName || n.FeatureName || '') + '</span>';
+                        html += '<div class="form-check form-switch mb-0">';
+                        html += '<input class="form-check-input perm-toggle" type="checkbox" data-feature-id="' + fid + '" ' + (checked ? 'checked' : '') + ' />';
+                        html += '</div>';
+                        html += '</div>';
+                        var children = n.children || n.Children;
+                        if (children && children.length) html += render(children, level + 1);
+                    });
+                    return html;
+                }
+                var listEl = document.getElementById('moduleAccessList');
+                listEl.innerHTML = render(nodes, 0);
+                listEl.querySelectorAll('.perm-toggle').forEach(function (cb) {
+                    cb.addEventListener('change', function () {
+                        var fid = parseInt(cb.getAttribute('data-feature-id'), 10);
+                        permissionByFeature[fid] = permissionByFeature[fid] || { canView: false, canModify: false };
+                        permissionByFeature[fid].canView = cb.checked;
+                        permissionByFeature[fid].canModify = cb.checked;
+                    });
+                });
+            }
+
+            function collectPermissions() {
+                var list = [];
+                document.querySelectorAll('.perm-toggle').forEach(function (cb) {
+                    var fid = parseInt(cb.getAttribute('data-feature-id'), 10);
+                    var on = cb.checked;
+                    list.push({ featureId: fid, canView: on, canModify: on });
+                });
+                return list;
+            }
+
+            document.getElementById('searchUserLeft').addEventListener('input', function () {
+                renderUserList('userListLeft', 'searchUserLeft', users, function (u) { return u.userId; }, function (u) { setSelectedUser(u); });
+            });
+            document.getElementById('searchUserRight').addEventListener('input', function () {
+                renderUserList('userListReplicate', 'searchUserRight', users, function (u) { return u.userId; }, function (u) { setSelectedReplicateUser(u); });
+            });
+
+            document.getElementById('btnSubmitPermissions').addEventListener('click', function () {
+                if (!selectedUserId) {
+                    toastr.warning('Please select a user (left panel) to save permissions.');
+                    return;
+                }
+                var permissions = collectPermissions();
+                var btn = this;
+                btn.disabled = true;
+                fetch('@Url.Action("SavePermissions", "UserPermissions")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
+                    body: JSON.stringify({ userId: selectedUserId, permissions: permissions })
+                })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('Save failed');
+                        return r.text();
+                    })
+                    .then(function () {
+                        toastr.success('Permissions saved successfully.');
+                        // alert('Permissions saved successfully.');
+                        loadUserPermissions(selectedUserId);
+                    })
+                    .catch(function () { toastr.error('Failed to save permissions.'); })
+                    .finally(function () { btn.disabled = false; });
+            });
+
+            document.getElementById('btnReplicate').addEventListener('click', function () {
+                if (!selectedUserId || !selectedReplicateUserId) {
+                    toastr.warning('Select a user on the left and a user in the middle to replicate permissions.');
+                    return;
+                }
+                var btn = this;
+                btn.disabled = true;
+                fetch('@Url.Action("ReplicatePermissions", "UserPermissions")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
+                    body: JSON.stringify({ sourceUserId: selectedReplicateUserId, targetUserId: selectedUserId })
+                })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('Replicate failed');
+                        return r.text();
+                    })
+                    .then(function () {
+                        toastr.success('Permissions replicated successfully.');
+                        loadUserPermissions(selectedUserId);
+                    })
+                    .catch(function () { toastr.error('Failed to replicate permissions.'); })
+                    .finally(function () { btn.disabled = false; });
+            });
+
+            loadUsers();
+            loadFeatureHierarchy();
+        })();
+    </script>
+}

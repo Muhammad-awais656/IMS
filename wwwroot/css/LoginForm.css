@@ -1,7 +1,7 @@
 ﻿
 body {
     /*background: linear-gradient(135deg, #74ebd5, #9face6);*/
-    background-image: url('../images/backgroundimage.jpg');
+    background-image: url('../images/bg.jpg');
     min-height: 100vh;
     margin: 0;
     font-family: 'Segoe UI', sans-serif;
@@ -9,7 +9,7 @@ body {
 
 .login-card {
     
-    background-color: lightblue;
+    background-color:cornsilk;
     border-radius: 15px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
