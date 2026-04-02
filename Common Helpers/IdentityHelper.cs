@@ -9,7 +9,7 @@ using System.Data;
 
 namespace IMS.Common_Helpers
 {
-    public  class IdentityHelper
+    public class IdentityHelper
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILoginBranchesService _loginBranchesService;
@@ -36,46 +36,45 @@ namespace IMS.Common_Helpers
             return user?.Id;
         }
 
-      
 
-public async Task<bool> IsAuthenticatedUser(string userName, string password, int branchId)
-    {
-        try
+        public async Task<bool> IsAuthenticatedUser(string userName, string password, int branchId)
         {
-            await using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
-            await connection.OpenAsync();
-
-            await using var command = new SqlCommand("sp_AuthenticateUser", connection)
+            try
             {
-                CommandType = CommandType.StoredProcedure,
-                CommandTimeout = 30
-            };
+                await using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
 
-            //Strongly typed parameters (BEST PRACTICE)
-            command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = userName;
-            command.Parameters.Add("@Password", SqlDbType.NVarChar, 100).Value = password;
-            command.Parameters.Add("@BranchId", SqlDbType.Int).Value = branchId;
+                await using var command = new SqlCommand("sp_AuthenticateUser", connection)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    CommandTimeout = 30
+                };
 
-            //Output parameter
-            var isValidParam = new SqlParameter("@IsValid", SqlDbType.Bit)
+                //Strongly typed parameters (BEST PRACTICE)
+                command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = userName;
+                command.Parameters.Add("@Password", SqlDbType.NVarChar, 100).Value = password;
+                command.Parameters.Add("@BranchId", SqlDbType.Int).Value = branchId;
+
+                //Output parameter
+                var isValidParam = new SqlParameter("@IsValid", SqlDbType.Bit)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                command.Parameters.Add(isValidParam);
+
+                await command.ExecuteNonQueryAsync();
+
+                return isValidParam.Value != DBNull.Value && (bool)isValidParam.Value;
+            }
+            catch
             {
-                Direction = ParameterDirection.Output
-            };
-            command.Parameters.Add(isValidParam);
+                // Log error properly (important)
+                // _logger.LogError(ex, "Error in IsAuthenticatedUser");
 
-            await command.ExecuteNonQueryAsync();
-
-            return isValidParam.Value != DBNull.Value && (bool)isValidParam.Value;
+                throw; // or return false depending on your design
+            }
         }
-        catch (Exception ex)
-        {
-            // Log error properly (important)
-            // _logger.LogError(ex, "Error in IsAuthenticatedUser");
 
-            throw; // or return false depending on your design
-        }
+
     }
-
-
-}
 }

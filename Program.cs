@@ -4,6 +4,7 @@ using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Middlewares;
 using IMS.Authorization;
+using IMS.Common_Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
@@ -91,6 +92,7 @@ builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IPrivilegeAuthorizationService, PrivilegeAuthorizationService>();
 builder.Services.AddScoped<IUserPermissionsService, UserPermissionsService>();
 builder.Services.AddScoped<IIdentityUserSyncService, IdentityUserSyncService>();
+builder.Services.AddScoped<IdentityHelper>();
 builder.Services.AddLogging(logging => logging.AddConsole());
 
 // Session + auth cookie share the same idle window: after this many minutes with no HTTP requests, session data is cleared and the user must sign in again (sliding cookie).
@@ -206,26 +208,25 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-// Middleware to store the current user's username in session
+// Middleware to store the current user's username in session (LoadAsync required before session access in middleware)
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity != null && context.User.Identity.IsAuthenticated)
+    if (context.User.Identity?.IsAuthenticated == true &&
+        !string.IsNullOrEmpty(context.User.Identity.Name))
     {
+        await context.Session.LoadAsync();
         var userName = context.User.Identity.Name;
         var domain = context.User.Claims.FirstOrDefault(c => c.Type == "Domain")?.Value;
         var role = context.User.Claims.FirstOrDefault(c => c.Type == "IsAdmin")?.Value;
-        var UsrId = context.User.Claims.FirstOrDefault(c=>c.Type=="UserId")?.Value;
+        var usrId = context.User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
 
-        if (!string.IsNullOrEmpty(userName))
-        {
-            context.Session.SetString("UserName", userName);
-            context.Session.SetString("Domain", domain ?? string.Empty);
-            context.Session.SetString("IsAdmin", role?? string.Empty);
-            context.Session.SetString("UserId", UsrId ?? string.Empty);
-        }
+        context.Session.SetString("UserName", userName);
+        context.Session.SetString("Domain", domain ?? string.Empty);
+        context.Session.SetString("IsAdmin", role ?? string.Empty);
+        context.Session.SetString("UserId", usrId ?? string.Empty);
     }
 
-    await next.Invoke();
+    await next();
 });
 
 app.MapControllerRoute(
