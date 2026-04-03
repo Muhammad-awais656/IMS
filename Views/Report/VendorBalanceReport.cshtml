@@ -1,0 +1,211 @@
+@model IMS.Models.VendorBalanceReportViewModel
+@{
+    ViewBag.Title = "Vendor Balance Report";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-scale-balanced me-2"></i>
+                <h4 class="mb-0">Vendor Balance Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportVendorBalanceExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportVendorBalancePdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="VendorBalanceReport" asp-controller="Report" method="get">
+                    <input type="hidden" name="Filters.VendorId" id="vendorBalanceVendorIdHidden" value="@(Model.Filters?.VendorId?.ToString() ?? "")" />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-building me-1 text-primary"></i>Vendor
+                            </label>
+                            <input id="vendorBalanceVendorSelect" style="width: 100%;" />
+                            <small class="text-muted">Leave empty for all active vendors</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>As of date
+                            </label>
+                            <input type="date" name="Filters.AsOfDate"
+                                   value="@(Model.Filters?.AsOfDate.HasValue == true ? Model.Filters.AsOfDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
+                                   class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="VendorBalanceReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.BalanceList != null && Model.BalanceList.Any() && !string.IsNullOrEmpty(Model.ScopeLabel))
+        {
+            <div class="row mb-3">
+                <div class="col-12">
+                    <h5 class="text-primary">
+                        <i class="fa fa-building me-2"></i>@Model.ScopeLabel
+                    </h5>
+                    <p class="text-muted small mb-0">Balances include all purchase orders and vendor bill payments up to and including the selected date (same basis as Vendor Ledger, without debit/credit detail).</p>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card @(Model.TotalBalance >= 0 ? "bg-primary" : "bg-warning") text-white">
+                        <div class="card-body py-2">
+                            <h6 class="card-title mb-0">Total balance (sum of rows)</h6>
+                            <h5 class="mb-0">@(Model.TotalBalance == 0 ? "0.00" : Model.TotalBalance > 0 ? Model.TotalBalance.ToString("N2") : "(" + (-Model.TotalBalance).ToString("N2") + ")")</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fa fa-table me-2"></i>Balances
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="printArea">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th><i class="fa fa-calendar me-1"></i>As of date</th>
+                                <th><i class="fa fa-building me-1"></i>Vendor</th>
+                                <th class="text-end"><i class="fa fa-balance-scale me-1"></i>Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.BalanceList != null && Model.BalanceList.Any())
+                            {
+                                @foreach (var item in Model.BalanceList)
+                                {
+                                    <tr>
+                                        <td>@item.AsOfDate.ToString("dd-MMM-yyyy")</td>
+                                        <td>@(item.VendorName ?? "-")</td>
+                                        <td class="text-end fw-bold" style="color: green;">
+                                            @(item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")")
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No data</h5>
+                                            <p class="text-muted mb-0">Click Search to load balances (leave vendor empty for all).</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function getExportParams() {
+                var vendorId = document.getElementById("vendorBalanceVendorIdHidden") ? document.getElementById("vendorBalanceVendorIdHidden").value || "" : "";
+                var asOfInput = document.querySelector("input[name='Filters.AsOfDate']");
+                var asOfDate = asOfInput ? asOfInput.value || "" : "";
+                if (typeof $ !== 'undefined') {
+                    var combo = $("#vendorBalanceVendorSelect").data("kendoComboBox");
+                    if (combo) vendorId = combo.value() || "";
+                }
+                var params = new URLSearchParams();
+                if (vendorId) params.append("vendorId", vendorId);
+                if (asOfDate) params.append("asOfDate", asOfDate);
+                return params;
+            }
+
+            if (typeof $ !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                var $select = $("#vendorBalanceVendorSelect");
+                if ($select.length) {
+                    var existingCombo = $select.data("kendoComboBox");
+                    if (existingCombo) existingCombo.destroy();
+                    $select.kendoComboBox({
+                        placeholder: "All Vendors",
+                        filter: "contains",
+                        suggest: true,
+                        minLength: 1,
+                        dataTextField: "text",
+                        dataValueField: "value",
+                        dataSource: {
+                            transport: {
+                                read: {
+                                    url: "@Url.Action("GetVendors", "Vendor")",
+                                    dataType: "json"
+                                }
+                            }
+                        },
+                        value: "@(Model.Filters?.VendorId?.ToString() ?? "")",
+                        change: function () {
+                            var val = this.value();
+                            $("#vendorBalanceVendorIdHidden").val(val || "");
+                        }
+                    });
+                    $("#filterForm").on("submit", function () {
+                        var combo = $("#vendorBalanceVendorSelect").data("kendoComboBox");
+                        if (combo) $("#vendorBalanceVendorIdHidden").val(combo.value() || "");
+                    });
+                }
+            }
+
+            var excelBtn = document.getElementById("exportVendorBalanceExcelBtn");
+            if (excelBtn) {
+                excelBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var params = getExportParams();
+                    var url = "@Url.Action("ExportVendorBalanceExcel", "Report")" + (params.toString() ? "?" + params.toString() : "");
+                    if (typeof exportWithLoader === "function")
+                        exportWithLoader(url, "VendorBalanceReport_export.xlsx", "Preparing Excel export... Please wait.");
+                    else
+                        window.location.href = url;
+                });
+            }
+            var pdfBtn = document.getElementById("exportVendorBalancePdfBtn");
+            if (pdfBtn) {
+                pdfBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var params = getExportParams();
+                    var url = "@Url.Action("ExportVendorBalancePdf", "Report")" + (params.toString() ? "?" + params.toString() : "");
+                    if (typeof exportWithLoader === "function")
+                        exportWithLoader(url, "VendorBalanceReport_export.pdf", "Preparing PDF export... Please wait.");
+                    else
+                        window.location.href = url;
+                });
+            }
+        });
+    </script>
+}

@@ -2619,6 +2619,260 @@ namespace IMS.Controllers
             return File(stream.ToArray(), "application/pdf", filename);
         }
 
+        public async Task<IActionResult> CustomerBalanceReport(CustomerBalanceReportViewModel model)
+        {
+            try
+            {
+                if (model == null)
+                    model = new CustomerBalanceReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new CustomerBalanceReportFilters();
+
+                if (!Request.Query.ContainsKey("Filters.AsOfDate") && !model.Filters.AsOfDate.HasValue)
+                    model.Filters.AsOfDate = DateTimeHelper.Now.Date;
+
+                var filters = model.Filters;
+                model = await _reportService.GetCustomerBalanceReport(filters);
+                model.Filters = filters;
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                    model = new CustomerBalanceReportViewModel();
+            }
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportCustomerBalanceExcel(long? customerId = null, DateTime? asOfDate = null)
+        {
+            var filters = new CustomerBalanceReportFilters
+            {
+                CustomerId = customerId,
+                AsOfDate = asOfDate ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetCustomerBalanceReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Customer Balance Report");
+            worksheet.Cell(1, 1).Value = "As of Date";
+            worksheet.Cell(1, 2).Value = "Customer";
+            worksheet.Cell(1, 3).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 3);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            var rows = model.BalanceList ?? new List<CustomerBalanceReportItem>();
+            int row = 2;
+            foreach (var item in rows)
+            {
+                worksheet.Cell(row, 1).Value = item.AsOfDate.ToString("dd-MMM-yyyy");
+                worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
+                worksheet.Cell(row, 3).Value = item.Balance;
+                row++;
+            }
+            row++;
+            worksheet.Cell(row, 2).Value = "Total (sum of balances):";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 3).Value = model.TotalBalance;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"CustomerBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportCustomerBalancePdf(long? customerId = null, DateTime? asOfDate = null)
+        {
+            var filters = new CustomerBalanceReportFilters
+            {
+                CustomerId = customerId,
+                AsOfDate = asOfDate ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetCustomerBalanceReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 40f, 40f, 40f, 40f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            document.Add(new Paragraph("Customer Balance Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+            if (!string.IsNullOrEmpty(model.ScopeLabel))
+                document.Add(new Paragraph(model.ScopeLabel, FontFactory.GetFont(FontFactory.HELVETICA, 11)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(3);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 2f, 3f, 2f });
+            foreach (var h in new[] { "As of Date", "Customer", "Balance" })
+            {
+                table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                });
+            }
+
+            foreach (var item in model.BalanceList ?? new List<CustomerBalanceReportItem>())
+            {
+                table.AddCell(new PdfPCell(new Phrase(item.AsOfDate.ToString("dd-MMM-yyyy"), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(item.CustomerName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                var bal = item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")";
+                table.AddCell(new PdfPCell(new Phrase(bal, FontFactory.GetFont(FontFactory.HELVETICA, 9))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+            }
+
+            var totalLabel = new PdfPCell(new Phrase("Total (sum of balances)", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                Colspan = 2,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(totalLabel);
+            var tb = model.TotalBalance;
+            var totalStr = tb == 0 ? "-" : tb > 0 ? tb.ToString("N2") : "(" + (-tb).ToString("N2") + ")";
+            table.AddCell(new PdfPCell(new Phrase(totalStr, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            });
+
+            document.Add(table);
+            document.Close();
+            string filename = $"CustomerBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        public async Task<IActionResult> VendorBalanceReport(VendorBalanceReportViewModel model)
+        {
+            try
+            {
+                if (model == null)
+                    model = new VendorBalanceReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new VendorBalanceReportFilters();
+
+                if (!Request.Query.ContainsKey("Filters.AsOfDate") && !model.Filters.AsOfDate.HasValue)
+                    model.Filters.AsOfDate = DateTimeHelper.Now.Date;
+
+                var filters = model.Filters;
+                model = await _reportService.GetVendorBalanceReport(filters);
+                model.Filters = filters;
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                if (model == null)
+                    model = new VendorBalanceReportViewModel();
+            }
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportVendorBalanceExcel(long? vendorId = null, DateTime? asOfDate = null)
+        {
+            var filters = new VendorBalanceReportFilters
+            {
+                VendorId = vendorId,
+                AsOfDate = asOfDate ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetVendorBalanceReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Vendor Balance Report");
+            worksheet.Cell(1, 1).Value = "As of Date";
+            worksheet.Cell(1, 2).Value = "Vendor";
+            worksheet.Cell(1, 3).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 3);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            var rows = model.BalanceList ?? new List<VendorBalanceReportItem>();
+            int row = 2;
+            foreach (var item in rows)
+            {
+                worksheet.Cell(row, 1).Value = item.AsOfDate.ToString("dd-MMM-yyyy");
+                worksheet.Cell(row, 2).Value = item.VendorName ?? "";
+                worksheet.Cell(row, 3).Value = item.Balance;
+                row++;
+            }
+            row++;
+            worksheet.Cell(row, 2).Value = "Total (sum of balances):";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 3).Value = model.TotalBalance;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"VendorBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportVendorBalancePdf(long? vendorId = null, DateTime? asOfDate = null)
+        {
+            var filters = new VendorBalanceReportFilters
+            {
+                VendorId = vendorId,
+                AsOfDate = asOfDate ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetVendorBalanceReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 40f, 40f, 40f, 40f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            document.Add(new Paragraph("Vendor Balance Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+            if (!string.IsNullOrEmpty(model.ScopeLabel))
+                document.Add(new Paragraph(model.ScopeLabel, FontFactory.GetFont(FontFactory.HELVETICA, 11)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(3);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 2f, 3f, 2f });
+            foreach (var h in new[] { "As of Date", "Vendor", "Balance" })
+            {
+                table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                });
+            }
+
+            foreach (var item in model.BalanceList ?? new List<VendorBalanceReportItem>())
+            {
+                table.AddCell(new PdfPCell(new Phrase(item.AsOfDate.ToString("dd-MMM-yyyy"), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(item.VendorName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                var bal = item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")";
+                table.AddCell(new PdfPCell(new Phrase(bal, FontFactory.GetFont(FontFactory.HELVETICA, 9))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+            }
+
+            var totalLabel = new PdfPCell(new Phrase("Total (sum of balances)", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                Colspan = 2,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(totalLabel);
+            var tb = model.TotalBalance;
+            var totalStr = tb == 0 ? "-" : tb > 0 ? tb.ToString("N2") : "(" + (-tb).ToString("N2") + ")";
+            table.AddCell(new PdfPCell(new Phrase(totalStr, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            });
+
+            document.Add(table);
+            document.Close();
+            string filename = $"VendorBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
         public async Task<IActionResult> ExportBankCreditDebitExcel(int pageNumber = 1, int? pageSize = null, long? accountId = null, DateTime? fromDate = null, DateTime? toDate = null, string? transactionType = null)
         {
             int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;

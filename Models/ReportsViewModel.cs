@@ -243,6 +243,54 @@ namespace IMS.Models
         public DateTime? ToDate { get; set; }
     }
 
+    /// <summary>Customer balances as of a single date (sales minus payments); no debit/credit detail.</summary>
+    public class CustomerBalanceReportViewModel
+    {
+        public List<CustomerBalanceReportItem> BalanceList { get; set; } = new List<CustomerBalanceReportItem>();
+        public CustomerBalanceReportFilters Filters { get; set; } = new CustomerBalanceReportFilters();
+        /// <summary>Display label e.g. "All Customers" or selected customer name.</summary>
+        public string? ScopeLabel { get; set; }
+        /// <summary>Sum of per-row balances (net receivable across listed customers).</summary>
+        public decimal TotalBalance { get; set; }
+    }
+
+    public class CustomerBalanceReportItem
+    {
+        public long CustomerId { get; set; }
+        public string? CustomerName { get; set; }
+        public DateTime AsOfDate { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    public class CustomerBalanceReportFilters
+    {
+        public long? CustomerId { get; set; }
+        public DateTime? AsOfDate { get; set; }
+    }
+
+    /// <summary>Vendor balances as of a single date (purchases minus bill payments); no debit/credit detail.</summary>
+    public class VendorBalanceReportViewModel
+    {
+        public List<VendorBalanceReportItem> BalanceList { get; set; } = new List<VendorBalanceReportItem>();
+        public VendorBalanceReportFilters Filters { get; set; } = new VendorBalanceReportFilters();
+        public string? ScopeLabel { get; set; }
+        public decimal TotalBalance { get; set; }
+    }
+
+    public class VendorBalanceReportItem
+    {
+        public long VendorId { get; set; }
+        public string? VendorName { get; set; }
+        public DateTime AsOfDate { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    public class VendorBalanceReportFilters
+    {
+        public long? VendorId { get; set; }
+        public DateTime? AsOfDate { get; set; }
+    }
+
     public class PurchaseReportViewModel
     {
         public List<PurchaseReportItem> PurchaseList { get; set; }

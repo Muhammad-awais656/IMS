@@ -21,5 +21,7 @@ namespace IMS.Common_Interfaces
         Task<DailyStockPositionReportViewModel> GetDailyStockPositionReport(DailyStockPositionReportFilters? filters);
         Task<CustomerLedgerReportViewModel> GetCustomerLedgerReport(CustomerLedgerReportFilters? filters);
         Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters);
+        Task<CustomerBalanceReportViewModel> GetCustomerBalanceReport(CustomerBalanceReportFilters? filters);
+        Task<VendorBalanceReportViewModel> GetVendorBalanceReport(VendorBalanceReportFilters? filters);
     }
 }

@@ -6,6 +6,7 @@ using IMS.Models;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
+using System.Linq;
 
 
 namespace IMS.Services
@@ -2557,6 +2558,198 @@ namespace IMS.Services
                     TotalDebit = 0,
                     TotalCredit = 0,
                     ClosingBalance = 0
+                };
+            }
+        }
+
+        public async Task<CustomerBalanceReportViewModel> GetCustomerBalanceReport(CustomerBalanceReportFilters? filters)
+        {
+            if (filters == null)
+                filters = new CustomerBalanceReportFilters();
+            var asOf = filters.AsOfDate?.Date ?? DateTimeHelper.Now.Date;
+            var asOfEnd = asOf.AddDays(1).AddSeconds(-1);
+            var hasCustomerFilter = filters.CustomerId.HasValue && filters.CustomerId.Value > 0;
+            string? scopeLabel = hasCustomerFilter ? null : "All Customers";
+
+            var list = new List<CustomerBalanceReportItem>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    var sql = @"
+                        SELECT c.CustomerId, c.CustomerName,
+                               ISNULL(d.DebitTotal, 0) - ISNULL(pay.CreditTotal, 0) AS Balance
+                        FROM Customers c
+                        LEFT JOIN (
+                            SELECT s.CustomerId_FK AS CustomerId,
+                                   SUM(s.TotalAmount - ISNULL(s.DiscountAmount, 0)) AS DebitTotal
+                            FROM Sales s
+                            WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                              AND s.SaleDate <= @AsOfEnd
+                            GROUP BY s.CustomerId_FK
+                        ) d ON c.CustomerId = d.CustomerId
+                        LEFT JOIN (
+                            SELECT p.CustomerId,
+                                   SUM(p.PaymentAmount) AS CreditTotal
+                            FROM Payments p
+                            WHERE p.PaymentDate <= @AsOfEnd
+                            GROUP BY p.CustomerId
+                        ) pay ON c.CustomerId = pay.CustomerId
+                        WHERE (
+                            (@HasCustomer = 1 AND c.CustomerId = @CustomerId)
+                            OR (@HasCustomer = 0 AND c.IsEnabled = 1)
+                          )
+                        ORDER BY c.CustomerName";
+                    using (var cmd = new SqlCommand(sql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
+                        cmd.Parameters.AddWithValue("@HasCustomer", hasCustomerFilter ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@CustomerId", hasCustomerFilter ? (object)filters.CustomerId!.Value : DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new CustomerBalanceReportItem
+                                {
+                                    CustomerId = reader.GetInt64(reader.GetOrdinal("CustomerId")),
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    AsOfDate = asOf,
+                                    Balance = reader.GetDecimal(reader.GetOrdinal("Balance"))
+                                });
+                            }
+                        }
+                    }
+
+                    if (hasCustomerFilter && list.Count == 0)
+                    {
+                        using (var cmd = new SqlCommand("SELECT CustomerName FROM Customers WHERE CustomerId = @CustomerId", connection))
+                        {
+                            cmd.Parameters.AddWithValue("@CustomerId", filters.CustomerId!.Value);
+                            var nameObj = await cmd.ExecuteScalarAsync();
+                            if (nameObj != null && nameObj != DBNull.Value)
+                                scopeLabel = nameObj.ToString();
+                        }
+                    }
+                    else if (hasCustomerFilter && list.Count > 0)
+                        scopeLabel = list[0].CustomerName;
+                    else if (!hasCustomerFilter)
+                        scopeLabel = "All Customers";
+                }
+
+                return new CustomerBalanceReportViewModel
+                {
+                    BalanceList = list,
+                    Filters = filters,
+                    ScopeLabel = scopeLabel,
+                    TotalBalance = list.Sum(x => x.Balance)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCustomerBalanceReport error");
+                return new CustomerBalanceReportViewModel
+                {
+                    BalanceList = new List<CustomerBalanceReportItem>(),
+                    Filters = filters,
+                    ScopeLabel = scopeLabel,
+                    TotalBalance = 0
+                };
+            }
+        }
+
+        public async Task<VendorBalanceReportViewModel> GetVendorBalanceReport(VendorBalanceReportFilters? filters)
+        {
+            if (filters == null)
+                filters = new VendorBalanceReportFilters();
+            var asOf = filters.AsOfDate?.Date ?? DateTimeHelper.Now.Date;
+            var asOfEnd = asOf.AddDays(1).AddSeconds(-1);
+            var hasVendorFilter = filters.VendorId.HasValue && filters.VendorId.Value > 0;
+            string? scopeLabel = null;
+
+            var list = new List<VendorBalanceReportItem>();
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    var sql = @"
+                        SELECT v.SupplierId AS VendorId, v.SupplierName AS VendorName,
+                               ISNULL(po.DebitTotal, 0) - ISNULL(bp.CreditTotal, 0) AS Balance
+                        FROM AdminSuppliers v
+                        LEFT JOIN (
+                            SELECT po.SupplierId_FK AS SupplierId,
+                                   SUM(po.TotalAmount - ISNULL(po.DiscountAmount, 0)) AS DebitTotal
+                            FROM PurchaseOrders po
+                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                              AND po.PurchaseOrderDate <= @AsOfEnd
+                            GROUP BY po.SupplierId_FK
+                        ) po ON v.SupplierId = po.SupplierId
+                        LEFT JOIN (
+                            SELECT p.SupplierId_FK AS SupplierId,
+                                   SUM(p.PaymentAmount) AS CreditTotal
+                            FROM BillPayments p
+                            WHERE p.PaymentDate <= @AsOfEnd
+                            GROUP BY p.SupplierId_FK
+                        ) bp ON v.SupplierId = bp.SupplierId
+                        WHERE (
+                            (@HasVendor = 1 AND v.SupplierId = @VendorId)
+                            OR (@HasVendor = 0 AND v.IsDeleted = 0)
+                          )
+                        ORDER BY v.SupplierName";
+                    using (var cmd = new SqlCommand(sql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
+                        cmd.Parameters.AddWithValue("@HasVendor", hasVendorFilter ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@VendorId", hasVendorFilter ? (object)filters.VendorId!.Value : DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new VendorBalanceReportItem
+                                {
+                                    VendorId = reader.GetInt64(reader.GetOrdinal("VendorId")),
+                                    VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    AsOfDate = asOf,
+                                    Balance = reader.GetDecimal(reader.GetOrdinal("Balance"))
+                                });
+                            }
+                        }
+                    }
+
+                    if (hasVendorFilter && list.Count == 0)
+                    {
+                        using (var cmd = new SqlCommand("SELECT SupplierName FROM AdminSuppliers WHERE SupplierId = @VendorId", connection))
+                        {
+                            cmd.Parameters.AddWithValue("@VendorId", filters.VendorId!.Value);
+                            var nameObj = await cmd.ExecuteScalarAsync();
+                            if (nameObj != null && nameObj != DBNull.Value)
+                                scopeLabel = nameObj.ToString();
+                        }
+                    }
+                    else if (hasVendorFilter && list.Count > 0)
+                        scopeLabel = list[0].VendorName;
+                    else if (!hasVendorFilter)
+                        scopeLabel = "All Vendors";
+                }
+
+                return new VendorBalanceReportViewModel
+                {
+                    BalanceList = list,
+                    Filters = filters,
+                    ScopeLabel = scopeLabel,
+                    TotalBalance = list.Sum(x => x.Balance)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetVendorBalanceReport error");
+                return new VendorBalanceReportViewModel
+                {
+                    BalanceList = new List<VendorBalanceReportItem>(),
+                    Filters = filters,
+                    ScopeLabel = scopeLabel,
+                    TotalBalance = 0
                 };
             }
         }
