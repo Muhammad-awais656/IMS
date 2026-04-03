@@ -128,16 +128,17 @@ namespace IMS.Controllers
             // Add header
             worksheet.Cell(1, 1).Value = "Sale ID";
             worksheet.Cell(1, 2).Value = "Customer Name";
-            worksheet.Cell(1, 3).Value = "Bill #";
-            worksheet.Cell(1, 4).Value = "Sale Date";
-            worksheet.Cell(1, 5).Value = "Total Amount";
-            worksheet.Cell(1, 6).Value = "Discount";
-            worksheet.Cell(1, 7).Value = "Paid Amount";
-            worksheet.Cell(1, 8).Value = "Total Payable";
-            worksheet.Cell(1, 9).Value = "Description";
+            worksheet.Cell(1, 3).Value = "Customer Urdu";
+            worksheet.Cell(1, 4).Value = "Bill #";
+            worksheet.Cell(1, 5).Value = "Sale Date";
+            worksheet.Cell(1, 6).Value = "Total Amount";
+            worksheet.Cell(1, 7).Value = "Discount";
+            worksheet.Cell(1, 8).Value = "Paid Amount";
+            worksheet.Cell(1, 9).Value = "Total Payable";
+            worksheet.Cell(1, 10).Value = "Description";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 9);
+            var headerRange = worksheet.Range(1, 1, 1, 10);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -146,29 +147,30 @@ namespace IMS.Controllers
             foreach (var item in model.SalesList)
             {
                 worksheet.Cell(row, 1).Value = item.SaleId;
-                worksheet.Cell(row, 2).Value = item.CustomerName;
-                worksheet.Cell(row, 3).Value = item.BillNumber;
-                worksheet.Cell(row, 4).Value = item.SaleDate.ToString("dd-MMM-yyyy");
-                worksheet.Cell(row, 5).Value = item.TotalAmount;
-                worksheet.Cell(row, 6).Value = item.DiscountAmount;
-                worksheet.Cell(row, 7).Value = item.TotalReceivedAmount;
-                worksheet.Cell(row, 8).Value = item.TotalDueAmount;
-                worksheet.Cell(row, 9).Value = item.SaleDescription ?? "";
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.CustomerName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.CustomerUrduName);
+                worksheet.Cell(row, 4).Value = item.BillNumber;
+                worksheet.Cell(row, 5).Value = item.SaleDate.ToString("dd-MMM-yyyy");
+                worksheet.Cell(row, 6).Value = item.TotalAmount;
+                worksheet.Cell(row, 7).Value = item.DiscountAmount;
+                worksheet.Cell(row, 8).Value = item.TotalReceivedAmount;
+                worksheet.Cell(row, 9).Value = item.TotalDueAmount;
+                worksheet.Cell(row, 10).Value = item.SaleDescription ?? "";
                 row++;
             }
 
             // Add summary row
             row++;
-            worksheet.Cell(row, 4).Value = "TOTAL:";
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalAmount;
+            worksheet.Cell(row, 5).Value = "TOTAL:";
             worksheet.Cell(row, 5).Style.Font.Bold = true;
-            worksheet.Cell(row, 6).Value = model.TotalDiscountAmount;
+            worksheet.Cell(row, 6).Value = model.TotalAmount;
             worksheet.Cell(row, 6).Style.Font.Bold = true;
-            worksheet.Cell(row, 7).Value = model.TotalReceivedAmount;
+            worksheet.Cell(row, 7).Value = model.TotalDiscountAmount;
             worksheet.Cell(row, 7).Style.Font.Bold = true;
-            worksheet.Cell(row, 8).Value = model.TotalDueAmount;
+            worksheet.Cell(row, 8).Value = model.TotalReceivedAmount;
             worksheet.Cell(row, 8).Style.Font.Bold = true;
+            worksheet.Cell(row, 9).Value = model.TotalDueAmount;
+            worksheet.Cell(row, 9).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -214,13 +216,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Sales Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 9 columns
-                PdfPTable table = new PdfPTable(9);
+                // Table with 10 columns
+                PdfPTable table = new PdfPTable(10);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 1.2f, 2.5f, 1.5f, 2f, 2f, 2f, 2f, 2f, 3f });
+                table.SetWidths(new float[] { 1f, 2f, 2f, 1.2f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 2.5f });
 
                 // Header row
-                string[] headers = { "Sale Id", "Customer", "Bill #", "Sale Date",
+                string[] headers = { "Sale Id", "Customer", "Customer Urdu", "Bill #", "Sale Date",
                              "Total Amount", "Discount", "Paid Amount", "Total Payable", "Description" };
 
                 foreach (var header in headers)
@@ -238,7 +240,8 @@ namespace IMS.Controllers
                 foreach (var s in model.SalesList)
                 {
                     table.AddCell(s.SaleId.ToString());
-                    table.AddCell(s.CustomerName ?? "");
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(s.CustomerName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(s.CustomerUrduName));
                     table.AddCell(s.BillNumber.ToString());
                     table.AddCell(s.SaleDate.ToString("dd-MMM-yyyy"));
                     table.AddCell(s.TotalAmount.ToString("N2"));
@@ -251,7 +254,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 4,
+                    Colspan = 5,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -357,15 +360,16 @@ namespace IMS.Controllers
             
             // Add header
             worksheet.Cell(1, 1).Value = "Product Name";
-            worksheet.Cell(1, 2).Value = "Product Code";
-            worksheet.Cell(1, 3).Value = "Quantity Sold";
-            worksheet.Cell(1, 4).Value = "Total Sales Amount";
-            worksheet.Cell(1, 5).Value = "Total Purchase Cost";
-            worksheet.Cell(1, 6).Value = "Profit/Loss";
-            worksheet.Cell(1, 7).Value = "Profit/Loss %";
+            worksheet.Cell(1, 2).Value = "Urdu Name";
+            worksheet.Cell(1, 3).Value = "Product Code";
+            worksheet.Cell(1, 4).Value = "Quantity Sold";
+            worksheet.Cell(1, 5).Value = "Total Sales Amount";
+            worksheet.Cell(1, 6).Value = "Total Purchase Cost";
+            worksheet.Cell(1, 7).Value = "Profit/Loss";
+            worksheet.Cell(1, 8).Value = "Profit/Loss %";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 7);
+            var headerRange = worksheet.Range(1, 1, 1, 8);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -373,26 +377,27 @@ namespace IMS.Controllers
             int row = 2;
             foreach (var item in model.ProfitLossList)
             {
-                worksheet.Cell(row, 1).Value = item.ProductName;
-                worksheet.Cell(row, 2).Value = item.ProductCode;
-                worksheet.Cell(row, 3).Value = item.TotalQuantitySold;
-                worksheet.Cell(row, 4).Value = item.TotalSalesAmount;
-                worksheet.Cell(row, 5).Value = item.TotalPurchaseCost;
-                worksheet.Cell(row, 6).Value = item.ProfitLoss;
-                worksheet.Cell(row, 7).Value = item.ProfitLossPercentage;
+                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                worksheet.Cell(row, 3).Value = item.ProductCode;
+                worksheet.Cell(row, 4).Value = item.TotalQuantitySold;
+                worksheet.Cell(row, 5).Value = item.TotalSalesAmount;
+                worksheet.Cell(row, 6).Value = item.TotalPurchaseCost;
+                worksheet.Cell(row, 7).Value = item.ProfitLoss;
+                worksheet.Cell(row, 8).Value = item.ProfitLossPercentage;
                 row++;
             }
 
             // Add summary row
             row++;
-            worksheet.Cell(row, 3).Value = "TOTAL:";
-            worksheet.Cell(row, 3).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalSalesAmount;
+            worksheet.Cell(row, 4).Value = "TOTAL:";
             worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalPurchaseCost;
+            worksheet.Cell(row, 5).Value = model.TotalSalesAmount;
             worksheet.Cell(row, 5).Style.Font.Bold = true;
-            worksheet.Cell(row, 6).Value = model.TotalProfitLoss;
+            worksheet.Cell(row, 6).Value = model.TotalPurchaseCost;
             worksheet.Cell(row, 6).Style.Font.Bold = true;
+            worksheet.Cell(row, 7).Value = model.TotalProfitLoss;
+            worksheet.Cell(row, 7).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -433,13 +438,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Product Wise Profit/Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 7 columns
-                PdfPTable table = new PdfPTable(7);
+                // Table with 8 columns
+                PdfPTable table = new PdfPTable(8);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 3f, 2f, 1.5f, 2f, 2f, 2f, 1.5f });
+                table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.8f, 1.8f, 1.8f, 1.2f });
 
                 // Header row
-                string[] headers = { "Product Name", "Product Code", "Qty Sold", "Sales Amount", "Purchase Cost", "Profit/Loss", "P/L %" };
+                string[] headers = { "Product Name", "Urdu Name", "Product Code", "Qty Sold", "Sales Amount", "Purchase Cost", "Profit/Loss", "P/L %" };
 
                 foreach (var header in headers)
                 {
@@ -455,7 +460,8 @@ namespace IMS.Controllers
                 // Data rows
                 foreach (var item in model.ProfitLossList)
                 {
-                    table.AddCell(item.ProductName ?? "");
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                     table.AddCell(item.ProductCode ?? "");
                     table.AddCell(item.TotalQuantitySold.ToString());
                     table.AddCell(item.TotalSalesAmount.ToString("N2"));
@@ -475,7 +481,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 3,
+                    Colspan = 4,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -575,16 +581,17 @@ namespace IMS.Controllers
             
             // Add header
             worksheet.Cell(1, 1).Value = "Product Name";
-            worksheet.Cell(1, 2).Value = "Product Code";
-            worksheet.Cell(1, 3).Value = "Total Quantity";
-            worksheet.Cell(1, 4).Value = "Used Quantity";
-            worksheet.Cell(1, 5).Value = "Available Quantity";
-            worksheet.Cell(1, 6).Value = "Unit Price";
-            worksheet.Cell(1, 7).Value = "Stock Value";
-            worksheet.Cell(1, 8).Value = "Stock Location";
+            worksheet.Cell(1, 2).Value = "Urdu Name";
+            worksheet.Cell(1, 3).Value = "Product Code";
+            worksheet.Cell(1, 4).Value = "Total Quantity";
+            worksheet.Cell(1, 5).Value = "Used Quantity";
+            worksheet.Cell(1, 6).Value = "Available Quantity";
+            worksheet.Cell(1, 7).Value = "Unit Price";
+            worksheet.Cell(1, 8).Value = "Stock Value";
+            worksheet.Cell(1, 9).Value = "Stock Location";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 8);
+            var headerRange = worksheet.Range(1, 1, 1, 9);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -592,29 +599,30 @@ namespace IMS.Controllers
             int row = 2;
             foreach (var item in model.StockList)
             {
-                worksheet.Cell(row, 1).Value = item.ProductName;
-                worksheet.Cell(row, 2).Value = item.ProductCode;
-                worksheet.Cell(row, 3).Value = item.TotalQuantity;
-                worksheet.Cell(row, 4).Value = item.UsedQuantity;
-                worksheet.Cell(row, 5).Value = item.AvailableQuantity;
-                worksheet.Cell(row, 6).Value = item.UnitPrice;
-                worksheet.Cell(row, 7).Value = item.StockValue;
-                worksheet.Cell(row, 8).Value = item.StockLocation;
+                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                worksheet.Cell(row, 3).Value = item.ProductCode;
+                worksheet.Cell(row, 4).Value = item.TotalQuantity;
+                worksheet.Cell(row, 5).Value = item.UsedQuantity;
+                worksheet.Cell(row, 6).Value = item.AvailableQuantity;
+                worksheet.Cell(row, 7).Value = item.UnitPrice;
+                worksheet.Cell(row, 8).Value = item.StockValue;
+                worksheet.Cell(row, 9).Value = item.StockLocation;
                 row++;
             }
 
             // Add summary row
             row++;
-            worksheet.Cell(row, 2).Value = "TOTAL:";
-            worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalQuantity;
+            worksheet.Cell(row, 3).Value = "TOTAL:";
             worksheet.Cell(row, 3).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalUsedQuantity;
+            worksheet.Cell(row, 4).Value = model.TotalQuantity;
             worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalAvailableQuantity;
+            worksheet.Cell(row, 5).Value = model.TotalUsedQuantity;
             worksheet.Cell(row, 5).Style.Font.Bold = true;
-            worksheet.Cell(row, 7).Value = model.TotalStockValue;
-            worksheet.Cell(row, 7).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.TotalAvailableQuantity;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
+            worksheet.Cell(row, 8).Value = model.TotalStockValue;
+            worksheet.Cell(row, 8).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -654,13 +662,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Daily Stock Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 8 columns
-                PdfPTable table = new PdfPTable(8);
+                // Table with 9 columns
+                PdfPTable table = new PdfPTable(9);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 3f, 2f, 1.5f, 1.5f, 1.5f, 1.5f, 2f, 2f });
+                table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.2f, 1.2f, 1.2f, 1.5f, 1.5f });
 
                 // Header row
-                string[] headers = { "Product Name", "Product Code", "Total Qty", "Used Qty", "Available Qty", "Unit Price", "Stock Value", "Location" };
+                string[] headers = { "Product Name", "Urdu Name", "Product Code", "Total Qty", "Used Qty", "Available Qty", "Unit Price", "Stock Value", "Location" };
 
                 foreach (var header in headers)
                 {
@@ -676,7 +684,8 @@ namespace IMS.Controllers
                 // Data rows
                 foreach (var item in model.StockList)
                 {
-                    table.AddCell(item.ProductName ?? "");
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                     table.AddCell(item.ProductCode ?? "");
                     table.AddCell(item.TotalQuantity.ToString("N2"));
                     table.AddCell(item.UsedQuantity.ToString("N2"));
@@ -689,7 +698,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 2,
+                    Colspan = 3,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -797,16 +806,19 @@ namespace IMS.Controllers
             // Add header
             worksheet.Cell(1, 1).Value = "Purchase ID";
             worksheet.Cell(1, 2).Value = "Vendor Name";
-            worksheet.Cell(1, 3).Value = "Bill #";
-            worksheet.Cell(1, 4).Value = "Purchase Date";
-            worksheet.Cell(1, 5).Value = "Total Amount";
-            worksheet.Cell(1, 6).Value = "Discount";
-            worksheet.Cell(1, 7).Value = "Paid Amount";
-            worksheet.Cell(1, 8).Value = "Due Amount";
-            worksheet.Cell(1, 9).Value = "Description";
+            worksheet.Cell(1, 3).Value = "Vendor Urdu";
+            worksheet.Cell(1, 4).Value = "Customer Name";
+            worksheet.Cell(1, 5).Value = "Customer Urdu";
+            worksheet.Cell(1, 6).Value = "Bill #";
+            worksheet.Cell(1, 7).Value = "Purchase Date";
+            worksheet.Cell(1, 8).Value = "Total Amount";
+            worksheet.Cell(1, 9).Value = "Discount";
+            worksheet.Cell(1, 10).Value = "Paid Amount";
+            worksheet.Cell(1, 11).Value = "Due Amount";
+            worksheet.Cell(1, 12).Value = "Description";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 9);
+            var headerRange = worksheet.Range(1, 1, 1, 12);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -815,29 +827,32 @@ namespace IMS.Controllers
             foreach (var item in model.PurchaseList)
             {
                 worksheet.Cell(row, 1).Value = item.PurchaseOrderId;
-                worksheet.Cell(row, 2).Value = item.VendorName;
-                worksheet.Cell(row, 3).Value = item.BillNumber;
-                worksheet.Cell(row, 4).Value = item.PurchaseDate.ToString("dd-MMM-yyyy");
-                worksheet.Cell(row, 5).Value = item.TotalAmount;
-                worksheet.Cell(row, 6).Value = item.DiscountAmount;
-                worksheet.Cell(row, 7).Value = item.PaidAmount;
-                worksheet.Cell(row, 8).Value = item.DueAmount;
-                worksheet.Cell(row, 9).Value = item.PurchaseDescription ?? "";
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.VendorName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.VendorUrduName);
+                worksheet.Cell(row, 4).Value = NameDisplayHelper.EnglishNameCell(item.CustomerName);
+                worksheet.Cell(row, 5).Value = NameDisplayHelper.UrduNameCell(item.CustomerUrduName);
+                worksheet.Cell(row, 6).Value = item.BillNumber;
+                worksheet.Cell(row, 7).Value = item.PurchaseDate.ToString("dd-MMM-yyyy");
+                worksheet.Cell(row, 8).Value = item.TotalAmount;
+                worksheet.Cell(row, 9).Value = item.DiscountAmount;
+                worksheet.Cell(row, 10).Value = item.PaidAmount;
+                worksheet.Cell(row, 11).Value = item.DueAmount;
+                worksheet.Cell(row, 12).Value = item.PurchaseDescription ?? "";
                 row++;
             }
 
             // Add summary row
             row++;
-            worksheet.Cell(row, 4).Value = "TOTAL:";
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalAmount;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
-            worksheet.Cell(row, 6).Value = model.TotalDiscountAmount;
-            worksheet.Cell(row, 6).Style.Font.Bold = true;
-            worksheet.Cell(row, 7).Value = model.TotalPaidAmount;
+            worksheet.Cell(row, 7).Value = "TOTAL:";
             worksheet.Cell(row, 7).Style.Font.Bold = true;
-            worksheet.Cell(row, 8).Value = model.TotalDueAmount;
+            worksheet.Cell(row, 8).Value = model.TotalAmount;
             worksheet.Cell(row, 8).Style.Font.Bold = true;
+            worksheet.Cell(row, 9).Value = model.TotalDiscountAmount;
+            worksheet.Cell(row, 9).Style.Font.Bold = true;
+            worksheet.Cell(row, 10).Value = model.TotalPaidAmount;
+            worksheet.Cell(row, 10).Style.Font.Bold = true;
+            worksheet.Cell(row, 11).Value = model.TotalDueAmount;
+            worksheet.Cell(row, 11).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -878,13 +893,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Purchase Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 9 columns
-                PdfPTable table = new PdfPTable(9);
+                // Table with 12 columns
+                PdfPTable table = new PdfPTable(12);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 1.2f, 2.5f, 1.5f, 2f, 2f, 2f, 2f, 2f, 3f });
+                table.SetWidths(new float[] { 0.9f, 1.5f, 1.5f, 1.5f, 1.5f, 1f, 1.5f, 1.3f, 1.3f, 1.3f, 1.3f, 1.8f });
 
                 // Header row
-                string[] headers = { "Purchase Id", "Vendor", "Bill #", "Purchase Date",
+                string[] headers = { "Purchase Id", "Vendor", "Vendor Urdu", "Customer", "Customer Urdu", "Bill #", "Purchase Date",
                              "Total Amount", "Discount", "Paid Amount", "Due Amount", "Description" };
 
                 foreach (var header in headers)
@@ -902,7 +917,10 @@ namespace IMS.Controllers
                 foreach (var p in model.PurchaseList)
                 {
                     table.AddCell(p.PurchaseOrderId.ToString());
-                    table.AddCell(p.VendorName ?? "");
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(p.VendorName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(p.VendorUrduName));
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(p.CustomerName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(p.CustomerUrduName));
                     table.AddCell(p.BillNumber.ToString());
                     table.AddCell(p.PurchaseDate.ToString("dd-MMM-yyyy"));
                     table.AddCell(p.TotalAmount.ToString("N2"));
@@ -915,7 +933,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 4,
+                    Colspan = 7,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -925,7 +943,6 @@ namespace IMS.Controllers
                 table.AddCell(new PdfPCell(new Phrase(model.TotalDiscountAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
                 table.AddCell(new PdfPCell(new Phrase(model.TotalPaidAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
                 table.AddCell(new PdfPCell(new Phrase(model.TotalDueAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
-                table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
                 table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
 
                 document.Add(table);
@@ -1011,14 +1028,15 @@ namespace IMS.Controllers
             
             // Add header
             worksheet.Cell(1, 1).Value = "Date";
-            worksheet.Cell(1, 2).Value = "Description";
-            worksheet.Cell(1, 3).Value = "Weight";
-            worksheet.Cell(1, 4).Value = "Qty";
-            worksheet.Cell(1, 5).Value = "Rate";
-            worksheet.Cell(1, 6).Value = "Amount";
+            worksheet.Cell(1, 2).Value = "Product Name";
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Weight";
+            worksheet.Cell(1, 5).Value = "Qty";
+            worksheet.Cell(1, 6).Value = "Rate";
+            worksheet.Cell(1, 7).Value = "Amount";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 6);
+            var headerRange = worksheet.Range(1, 1, 1, 7);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -1030,14 +1048,16 @@ namespace IMS.Controllers
                 {
                     // Total row - bold and different background
                     worksheet.Cell(row, 1).Value = "";
-                    worksheet.Cell(row, 2).Value = $"Total Sales {item.ProductName}";
+                    worksheet.Cell(row, 2).Value = $"Total — {NameDisplayHelper.EnglishNameCell(item.ProductName)}";
                     worksheet.Cell(row, 2).Style.Font.Bold = true;
-                    worksheet.Cell(row, 3).Value = item.Weight;
-                    worksheet.Cell(row, 4).Value = item.Qty;
-                    worksheet.Cell(row, 5).Value = item.Rate;
-                    worksheet.Cell(row, 6).Value = item.Amount;
+                    worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                    worksheet.Cell(row, 3).Style.Font.Bold = true;
+                    worksheet.Cell(row, 4).Value = item.Weight;
+                    worksheet.Cell(row, 5).Value = item.Qty;
+                    worksheet.Cell(row, 6).Value = item.Rate;
+                    worksheet.Cell(row, 7).Value = item.Amount;
                     
-                    var totalRange = worksheet.Range(row, 1, row, 6);
+                    var totalRange = worksheet.Range(row, 1, row, 7);
                     totalRange.Style.Font.Bold = true;
                     totalRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
                 }
@@ -1045,11 +1065,12 @@ namespace IMS.Controllers
                 {
                     // Regular row
                     worksheet.Cell(row, 1).Value = item.SaleDate != DateTime.MinValue ? item.SaleDate.ToString("dd-MMM-yyyy") : "";
-                    worksheet.Cell(row, 2).Value = item.ProductName;
-                    worksheet.Cell(row, 3).Value = item.Weight > 0 ? item.Weight : (double?)null;
-                    worksheet.Cell(row, 4).Value = item.Qty > 0 ? item.Qty : (long?)null;
-                    worksheet.Cell(row, 5).Value = item.Rate > 0 ? item.Rate : (double?)null;
-                    worksheet.Cell(row, 6).Value = item.Amount;
+                    worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                    worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                    worksheet.Cell(row, 4).Value = item.Weight > 0 ? item.Weight : (double?)null;
+                    worksheet.Cell(row, 5).Value = item.Qty > 0 ? item.Qty : (long?)null;
+                    worksheet.Cell(row, 6).Value = item.Rate > 0 ? item.Rate : (double?)null;
+                    worksheet.Cell(row, 7).Value = item.Amount;
                 }
                 row++;
             }
@@ -1059,15 +1080,16 @@ namespace IMS.Controllers
             worksheet.Cell(row, 1).Value = "TOTAL:";
             worksheet.Cell(row, 1).Style.Font.Bold = true;
             worksheet.Cell(row, 2).Value = "";
-            worksheet.Cell(row, 3).Value = model.TotalWeight;
-            worksheet.Cell(row, 3).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalQty;
+            worksheet.Cell(row, 3).Value = "";
+            worksheet.Cell(row, 4).Value = model.TotalWeight;
             worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = "";
-            worksheet.Cell(row, 6).Value = model.TotalAmount;
-            worksheet.Cell(row, 6).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalQty;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = "";
+            worksheet.Cell(row, 7).Value = model.TotalAmount;
+            worksheet.Cell(row, 7).Style.Font.Bold = true;
             
-            var summaryRange = worksheet.Range(row, 1, row, 6);
+            var summaryRange = worksheet.Range(row, 1, row, 7);
             summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             worksheet.Columns().AdjustToContents();
@@ -1104,13 +1126,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Product Wise Sales Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 6 columns
-                PdfPTable table = new PdfPTable(6);
+                // Table with 7 columns
+                PdfPTable table = new PdfPTable(7);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 2f, 3f, 1.5f, 1.5f, 1.5f, 2f });
+                table.SetWidths(new float[] { 1.8f, 2.5f, 2.5f, 1.2f, 1.2f, 1.2f, 1.8f });
 
                 // Header row
-                string[] headers = { "Date", "Description", "Weight", "Qty", "Rate", "Amount" };
+                string[] headers = { "Date", "Product Name", "Urdu Name", "Weight", "Qty", "Rate", "Amount" };
 
                 foreach (var header in headers)
                 {
@@ -1128,19 +1150,9 @@ namespace IMS.Controllers
                 {
                     if (item.IsTotalRow)
                     {
-                        // Total row - bold and different background
-                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
-                        table.AddCell(totalCell1);
-                        
-                        var totalCell2 = new PdfPCell(new Phrase($"Total Sales {item.ProductName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
-                        table.AddCell(totalCell2);
-                        
+                        table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase($"Total — {NameDisplayHelper.EnglishNameCell(item.ProductName)}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.ProductUrduName), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Weight.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Qty.ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Rate.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
@@ -1148,9 +1160,9 @@ namespace IMS.Controllers
                     }
                     else
                     {
-                        // Regular row
                         table.AddCell(item.SaleDate != DateTime.MinValue ? item.SaleDate.ToString("dd-MMM-yyyy") : "");
-                        table.AddCell(item.ProductName ?? "");
+                        table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                        table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                         table.AddCell(item.Weight > 0 ? item.Weight.ToString("N2") : "");
                         table.AddCell(item.Qty > 0 ? item.Qty.ToString() : "");
                         table.AddCell(item.Rate > 0 ? item.Rate.ToString("N2") : "");
@@ -1161,7 +1173,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell1 = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 2,
+                    Colspan = 3,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -1259,14 +1271,15 @@ namespace IMS.Controllers
             
             // Add header
             worksheet.Cell(1, 1).Value = "Date";
-            worksheet.Cell(1, 2).Value = "Description";
-            worksheet.Cell(1, 3).Value = "Weight";
-            worksheet.Cell(1, 4).Value = "Qty";
-            worksheet.Cell(1, 5).Value = "Rate";
-            worksheet.Cell(1, 6).Value = "Amount";
+            worksheet.Cell(1, 2).Value = "Product Name";
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Weight";
+            worksheet.Cell(1, 5).Value = "Qty";
+            worksheet.Cell(1, 6).Value = "Rate";
+            worksheet.Cell(1, 7).Value = "Amount";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 6);
+            var headerRange = worksheet.Range(1, 1, 1, 7);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -1278,14 +1291,16 @@ namespace IMS.Controllers
                 {
                     // Total row - bold and different background
                     worksheet.Cell(row, 1).Value = "";
-                    worksheet.Cell(row, 2).Value = $"Total Purchase {item.ProductName}";
+                    worksheet.Cell(row, 2).Value = $"Total — {NameDisplayHelper.EnglishNameCell(item.ProductName)}";
                     worksheet.Cell(row, 2).Style.Font.Bold = true;
-                    worksheet.Cell(row, 3).Value = item.Weight;
-                    worksheet.Cell(row, 4).Value = item.Qty;
-                    worksheet.Cell(row, 5).Value = item.Rate;
-                    worksheet.Cell(row, 6).Value = item.Amount;
+                    worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                    worksheet.Cell(row, 3).Style.Font.Bold = true;
+                    worksheet.Cell(row, 4).Value = item.Weight;
+                    worksheet.Cell(row, 5).Value = item.Qty;
+                    worksheet.Cell(row, 6).Value = item.Rate;
+                    worksheet.Cell(row, 7).Value = item.Amount;
                     
-                    var totalRange = worksheet.Range(row, 1, row, 6);
+                    var totalRange = worksheet.Range(row, 1, row, 7);
                     totalRange.Style.Font.Bold = true;
                     totalRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
                 }
@@ -1293,11 +1308,12 @@ namespace IMS.Controllers
                 {
                     // Regular row
                     worksheet.Cell(row, 1).Value = item.PurchaseDate != DateTime.MinValue ? item.PurchaseDate.ToString("dd-MMM-yyyy") : "";
-                    worksheet.Cell(row, 2).Value = item.ProductName;
-                    worksheet.Cell(row, 3).Value = item.Weight > 0 ? item.Weight : (double?)null;
-                    worksheet.Cell(row, 4).Value = item.Qty > 0 ? item.Qty : (long?)null;
-                    worksheet.Cell(row, 5).Value = item.Rate > 0 ? item.Rate : (double?)null;
-                    worksheet.Cell(row, 6).Value = item.Amount;
+                    worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                    worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                    worksheet.Cell(row, 4).Value = item.Weight > 0 ? item.Weight : (double?)null;
+                    worksheet.Cell(row, 5).Value = item.Qty > 0 ? item.Qty : (long?)null;
+                    worksheet.Cell(row, 6).Value = item.Rate > 0 ? item.Rate : (double?)null;
+                    worksheet.Cell(row, 7).Value = item.Amount;
                 }
                 row++;
             }
@@ -1307,15 +1323,16 @@ namespace IMS.Controllers
             worksheet.Cell(row, 1).Value = "TOTAL:";
             worksheet.Cell(row, 1).Style.Font.Bold = true;
             worksheet.Cell(row, 2).Value = "";
-            worksheet.Cell(row, 3).Value = model.TotalWeight;
-            worksheet.Cell(row, 3).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalQty;
+            worksheet.Cell(row, 3).Value = "";
+            worksheet.Cell(row, 4).Value = model.TotalWeight;
             worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = "";
-            worksheet.Cell(row, 6).Value = model.TotalAmount;
-            worksheet.Cell(row, 6).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalQty;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = "";
+            worksheet.Cell(row, 7).Value = model.TotalAmount;
+            worksheet.Cell(row, 7).Style.Font.Bold = true;
             
-            var summaryRange = worksheet.Range(row, 1, row, 6);
+            var summaryRange = worksheet.Range(row, 1, row, 7);
             summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             worksheet.Columns().AdjustToContents();
@@ -1352,13 +1369,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph("Product Wise Purchase Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 6 columns
-                PdfPTable table = new PdfPTable(6);
+                // Table with 7 columns
+                PdfPTable table = new PdfPTable(7);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 2f, 3f, 1.5f, 1.5f, 1.5f, 2f });
+                table.SetWidths(new float[] { 1.8f, 2.5f, 2.5f, 1.2f, 1.2f, 1.2f, 1.8f });
 
                 // Header row
-                string[] headers = { "Date", "Description", "Weight", "Qty", "Rate", "Amount" };
+                string[] headers = { "Date", "Product Name", "Urdu Name", "Weight", "Qty", "Rate", "Amount" };
 
                 foreach (var header in headers)
                 {
@@ -1376,19 +1393,9 @@ namespace IMS.Controllers
                 {
                     if (item.IsTotalRow)
                     {
-                        // Total row - bold and different background
-                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
-                        table.AddCell(totalCell1);
-                        
-                        var totalCell2 = new PdfPCell(new Phrase($"Total Purchase {item.ProductName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
-                        table.AddCell(totalCell2);
-                        
+                        table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase($"Total — {NameDisplayHelper.EnglishNameCell(item.ProductName)}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.ProductUrduName), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Weight.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Qty.ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Rate.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
@@ -1396,9 +1403,9 @@ namespace IMS.Controllers
                     }
                     else
                     {
-                        // Regular row
                         table.AddCell(item.PurchaseDate != DateTime.MinValue ? item.PurchaseDate.ToString("dd-MMM-yyyy") : "");
-                        table.AddCell(item.ProductName ?? "");
+                        table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                        table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                         table.AddCell(item.Weight > 0 ? item.Weight.ToString("N2") : "");
                         table.AddCell(item.Qty > 0 ? item.Qty.ToString() : "");
                         table.AddCell(item.Rate > 0 ? item.Rate.ToString("N2") : "");
@@ -1409,7 +1416,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell1 = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 2,
+                    Colspan = 3,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -1617,21 +1624,22 @@ namespace IMS.Controllers
             worksheet.Cell(1, 1).Style.Font.Bold = true;
             worksheet.Cell(1, 1).Style.Font.FontSize = 14;
             worksheet.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range(1, 1, 1, 5).Merge();
+            worksheet.Range(1, 1, 1, 6).Merge();
             
             worksheet.Cell(2, 1).Value = $"Date: {filters.ReportDate.Value.ToString("dd-MMM-yyyy")}";
             worksheet.Cell(2, 1).Style.Font.Bold = true;
-            worksheet.Range(2, 1, 2, 5).Merge();
+            worksheet.Range(2, 1, 2, 6).Merge();
             
             // Column headers
-            worksheet.Cell(3, 1).Value = "Particulars";
-            worksheet.Cell(3, 2).Value = "Purchase";
-            worksheet.Cell(3, 3).Value = "Sales";
-            worksheet.Cell(3, 4).Value = "Closing";
-            worksheet.Cell(3, 5).Value = "Bags";
+            worksheet.Cell(3, 1).Value = "Product Name";
+            worksheet.Cell(3, 2).Value = "Urdu Name";
+            worksheet.Cell(3, 3).Value = "Purchase";
+            worksheet.Cell(3, 4).Value = "Sales";
+            worksheet.Cell(3, 5).Value = "Closing";
+            worksheet.Cell(3, 6).Value = "Bags";
             
             // Style header
-            var headerRange = worksheet.Range(3, 1, 3, 5);
+            var headerRange = worksheet.Range(3, 1, 3, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
             headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -1640,11 +1648,12 @@ namespace IMS.Controllers
             int row = 4;
             foreach (var item in model.StockPositionList)
             {
-                worksheet.Cell(row, 1).Value = item.ProductName;
-                worksheet.Cell(row, 2).Value = item.PurchaseQuantity > 0 ? item.PurchaseQuantity : (double?)null;
-                worksheet.Cell(row, 3).Value = item.SalesQuantity > 0 ? item.SalesQuantity : (double?)null;
-                worksheet.Cell(row, 4).Value = item.ClosingStock;
-                worksheet.Cell(row, 5).Value = item.Bags > 0 ? item.Bags : (long?)null;
+                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                worksheet.Cell(row, 3).Value = item.PurchaseQuantity > 0 ? item.PurchaseQuantity : (double?)null;
+                worksheet.Cell(row, 4).Value = item.SalesQuantity > 0 ? item.SalesQuantity : (double?)null;
+                worksheet.Cell(row, 5).Value = item.ClosingStock;
+                worksheet.Cell(row, 6).Value = item.Bags > 0 ? item.Bags : (long?)null;
                 row++;
             }
 
@@ -1652,16 +1661,16 @@ namespace IMS.Controllers
             row++;
             worksheet.Cell(row, 1).Value = "TOTAL:";
             worksheet.Cell(row, 1).Style.Font.Bold = true;
-            worksheet.Cell(row, 2).Value = model.TotalPurchase;
-            worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalSales;
+            worksheet.Cell(row, 3).Value = model.TotalPurchase;
             worksheet.Cell(row, 3).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalClosing;
+            worksheet.Cell(row, 4).Value = model.TotalSales;
             worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalBags;
+            worksheet.Cell(row, 5).Value = model.TotalClosing;
             worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.TotalBags;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
             
-            var summaryRange = worksheet.Range(row, 1, row, 5);
+            var summaryRange = worksheet.Range(row, 1, row, 6);
             summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             worksheet.Columns().AdjustToContents();
@@ -1700,13 +1709,13 @@ namespace IMS.Controllers
                 document.Add(datePara);
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 5 columns
-                PdfPTable table = new PdfPTable(5);
+                // Table with 6 columns
+                PdfPTable table = new PdfPTable(6);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 3f, 2f, 2f, 2f, 1.5f });
+                table.SetWidths(new float[] { 2.5f, 2.5f, 2f, 2f, 2f, 1.5f });
 
                 // Header row
-                string[] headers = { "Particulars", "Purchase", "Sales", "Closing", "Bags" };
+                string[] headers = { "Product Name", "Urdu Name", "Purchase", "Sales", "Closing", "Bags" };
 
                 foreach (var header in headers)
                 {
@@ -1722,7 +1731,8 @@ namespace IMS.Controllers
                 // Data rows
                 foreach (var item in model.StockPositionList)
                 {
-                    table.AddCell(item.ProductName ?? "");
+                    table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                    table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                     table.AddCell(item.PurchaseQuantity > 0 ? item.PurchaseQuantity.ToString("N2") : "");
                     table.AddCell(item.SalesQuantity > 0 ? item.SalesQuantity.ToString("N2") : "");
                     table.AddCell(item.ClosingStock.ToString("N2"));
@@ -1732,6 +1742,7 @@ namespace IMS.Controllers
                 // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
+                    Colspan = 2,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -1969,11 +1980,12 @@ namespace IMS.Controllers
             worksheet.Cell(1, 1).Value = "Date";
             worksheet.Cell(1, 2).Value = "Expense Type";
             worksheet.Cell(1, 3).Value = "Product Name";
-            worksheet.Cell(1, 4).Value = "Expense Detail";
-            worksheet.Cell(1, 5).Value = "Amount";
+            worksheet.Cell(1, 4).Value = "Urdu Name";
+            worksheet.Cell(1, 5).Value = "Expense Detail";
+            worksheet.Cell(1, 6).Value = "Amount";
             
             // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 5);
+            var headerRange = worksheet.Range(1, 1, 1, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -1989,10 +2001,11 @@ namespace IMS.Controllers
                     worksheet.Cell(row, 2).Style.Font.Bold = true;
                     worksheet.Cell(row, 3).Value = "";
                     worksheet.Cell(row, 4).Value = "";
-                    worksheet.Cell(row, 5).Value = item.Amount;
-                    worksheet.Cell(row, 5).Style.Font.Bold = true;
+                    worksheet.Cell(row, 5).Value = "";
+                    worksheet.Cell(row, 6).Value = item.Amount;
+                    worksheet.Cell(row, 6).Style.Font.Bold = true;
                     
-                    var totalRange = worksheet.Range(row, 1, row, 5);
+                    var totalRange = worksheet.Range(row, 1, row, 6);
                     totalRange.Style.Font.Bold = true;
                     totalRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
                 }
@@ -2001,9 +2014,10 @@ namespace IMS.Controllers
                     // Regular row
                     worksheet.Cell(row, 1).Value = item.ExpenseDate != DateTime.MinValue ? item.ExpenseDate.ToString("dd-MMM-yyyy") : "";
                     worksheet.Cell(row, 2).Value = item.ExpenseTypeName;
-                    worksheet.Cell(row, 3).Value = item.ProductName;
-                    worksheet.Cell(row, 4).Value = item.ExpenseDetail;
-                    worksheet.Cell(row, 5).Value = item.Amount;
+                    worksheet.Cell(row, 3).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                    worksheet.Cell(row, 4).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                    worksheet.Cell(row, 5).Value = item.ExpenseDetail;
+                    worksheet.Cell(row, 6).Value = item.Amount;
                 }
                 row++;
             }
@@ -2012,10 +2026,10 @@ namespace IMS.Controllers
             row++;
             worksheet.Cell(row, 2).Value = "TOTAL:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalAmount;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.TotalAmount;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
             
-            var summaryRange = worksheet.Range(row, 1, row, 5);
+            var summaryRange = worksheet.Range(row, 1, row, 6);
             summaryRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
             worksheet.Columns().AdjustToContents();
@@ -2054,13 +2068,13 @@ namespace IMS.Controllers
                 document.Add(new Paragraph(reportTitle, titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
-                // Table with 5 columns
-                PdfPTable table = new PdfPTable(5);
+                // Table with 6 columns
+                PdfPTable table = new PdfPTable(6);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 2f, 2.5f, 2.5f, 3f, 2f });
+                table.SetWidths(new float[] { 1.8f, 2f, 2.2f, 2.2f, 2.8f, 1.8f });
 
                 // Header row
-                string[] headers = { "Date", "Expense Type", "Product Name", "Expense Detail", "Amount" };
+                string[] headers = { "Date", "Expense Type", "Product Name", "Urdu Name", "Expense Detail", "Amount" };
 
                 foreach (var header in headers)
                 {
@@ -2078,36 +2092,29 @@ namespace IMS.Controllers
                 {
                     if (item.IsTotalRow)
                     {
-                        // Total row - bold and different background
-                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
+                        var totalCell1 = new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE };
                         table.AddCell(totalCell1);
-                        
-                        var totalCell2 = new PdfPCell(new Phrase($"Total - {item.ExpenseTypeName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-                        {
-                            BackgroundColor = BaseColor.BLUE
-                        };
+                        var totalCell2 = new PdfPCell(new Phrase($"Total - {item.ExpenseTypeName}", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE };
                         table.AddCell(totalCell2);
-                        
+                        table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
+                        table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                         table.AddCell(new PdfPCell(new Phrase(item.Amount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9))) { BackgroundColor = BaseColor.BLUE });
                     }
                     else
                     {
-                        // Regular row
                         table.AddCell(item.ExpenseDate != DateTime.MinValue ? item.ExpenseDate.ToString("dd-MMM-yyyy") : "");
                         table.AddCell(item.ExpenseTypeName ?? "");
+                        table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                        table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
                         table.AddCell(item.ExpenseDetail ?? "");
                         table.AddCell(item.Amount.ToString("N2"));
                     }
                 }
 
-                // Summary row
                 var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
                 {
-                    Colspan = 3,
+                    Colspan = 5,
                     HorizontalAlignment = Element.ALIGN_RIGHT,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
@@ -2253,11 +2260,12 @@ namespace IMS.Controllers
             var worksheet = workbook.Worksheets.Add("Customer Ledger Report");
 
             worksheet.Cell(1, 1).Value = "Date";
-            worksheet.Cell(1, 2).Value = "GL Account (Customer)";
-            worksheet.Cell(1, 3).Value = "Debit";
-            worksheet.Cell(1, 4).Value = "Credit";
-            worksheet.Cell(1, 5).Value = "Balance";
-            var headerRange = worksheet.Range(1, 1, 1, 5);
+            worksheet.Cell(1, 2).Value = "Customer Name";
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Debit";
+            worksheet.Cell(1, 5).Value = "Credit";
+            worksheet.Cell(1, 6).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -2275,31 +2283,32 @@ namespace IMS.Controllers
                     var cust = item.CustomerName ?? "";
                     if (cust != prevCustomer) { prevCustomer = cust; colorIndex++; }
                     var fillColor = excelCustomerColors[colorIndex % excelCustomerColors.Length];
-                    worksheet.Range(row, 1, row, 5).Style.Fill.BackgroundColor = fillColor;
+                    worksheet.Range(row, 1, row, 6).Style.Fill.BackgroundColor = fillColor;
                 }
                 worksheet.Cell(row, 1).Value = item.Date.ToString("dd-MMM-yy");
-                worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
-                worksheet.Cell(row, 3).Value = item.Debit;
-                worksheet.Cell(row, 4).Value = item.Credit;
-                worksheet.Cell(row, 5).Value = item.Balance;
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.CustomerName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.CustomerUrduName);
+                worksheet.Cell(row, 4).Value = item.Debit;
+                worksheet.Cell(row, 5).Value = item.Credit;
+                worksheet.Cell(row, 6).Value = item.Balance;
                 row++;
             }
 
             row++;
             worksheet.Cell(row, 2).Value = "Total Debit:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalDebit;
-            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalDebit;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
             row++;
             worksheet.Cell(row, 2).Value = "Total Credit:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalCredit;
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalCredit;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
             row++;
             worksheet.Cell(row, 2).Value = "Closing Balance:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.ClosingBalance;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.ClosingBalance;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -2329,13 +2338,16 @@ namespace IMS.Controllers
             var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
             document.Add(new Paragraph("Customer Ledger Report", titleFont) { Alignment = Element.ALIGN_CENTER });
             if (!string.IsNullOrEmpty(model.CustomerName))
-                document.Add(new Paragraph(model.CustomerName, FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            {
+                document.Add(new Paragraph(NameDisplayHelper.EnglishNameCell(model.CustomerName, ""), FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph(NameDisplayHelper.UrduNameCell(model.CustomerUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            }
             document.Add(new Paragraph("\n"));
 
-            var table = new PdfPTable(5);
+            var table = new PdfPTable(6);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 1.5f, 3f, 2f, 2f, 2f });
-            string[] headers = { "Date", "GL Account (Customer)", "Debit", "Credit", "Balance" };
+            table.SetWidths(new float[] { 1.5f, 2.5f, 2.5f, 2f, 2f, 2f });
+            string[] headers = { "Date", "Customer Name", "Urdu Name", "Debit", "Credit", "Balance" };
             foreach (var header in headers)
             {
                 var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
@@ -2370,13 +2382,15 @@ namespace IMS.Controllers
                     rowBg = pdfCustomerColors[colorIndexPdf % pdfCustomerColors.Length];
                 }
                 var dateCell = new PdfPCell(new Phrase(item.Date.ToString("dd-MMM-yy"), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
-                var nameCell = new PdfPCell(new Phrase(item.CustomerName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var nameCell = new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.CustomerName), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var urduCell = new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.CustomerUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var debitCell = new PdfPCell(new Phrase(item.Debit > 0 ? item.Debit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var creditCell = new PdfPCell(new Phrase(item.Credit > 0 ? item.Credit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var balanceCell = new PdfPCell(new Phrase(item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
-                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
+                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; urduCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
                 table.AddCell(dateCell);
                 table.AddCell(nameCell);
+                table.AddCell(urduCell);
                 table.AddCell(debitCell);
                 table.AddCell(creditCell);
                 table.AddCell(balanceCell);
@@ -2384,7 +2398,7 @@ namespace IMS.Controllers
 
             var totalLabelCell = new PdfPCell(new Phrase("Total Debit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
             {
-                Colspan = 2,
+                Colspan = 3,
                 HorizontalAlignment = Element.ALIGN_RIGHT,
                 BackgroundColor = BaseColor.LIGHT_GRAY
             };
@@ -2395,7 +2409,7 @@ namespace IMS.Controllers
 
             var creditLabelCell = new PdfPCell(new Phrase("Total Credit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
             {
-                Colspan = 2,
+                Colspan = 3,
                 HorizontalAlignment = Element.ALIGN_RIGHT,
                 BackgroundColor = BaseColor.LIGHT_GRAY
             };
@@ -2406,7 +2420,7 @@ namespace IMS.Controllers
 
             var balanceLabelCell = new PdfPCell(new Phrase("Closing Balance", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
             {
-                Colspan = 2,
+                Colspan = 3,
                 HorizontalAlignment = Element.ALIGN_RIGHT,
                 BackgroundColor = BaseColor.LIGHT_GRAY
             };
@@ -2468,11 +2482,12 @@ namespace IMS.Controllers
             var worksheet = workbook.Worksheets.Add("Vendor Ledger Report");
 
             worksheet.Cell(1, 1).Value = "Date";
-            worksheet.Cell(1, 2).Value = "GL Account (Vendor)";
-            worksheet.Cell(1, 3).Value = "Debit";
-            worksheet.Cell(1, 4).Value = "Credit";
-            worksheet.Cell(1, 5).Value = "Balance";
-            var headerRange = worksheet.Range(1, 1, 1, 5);
+            worksheet.Cell(1, 2).Value = "Vendor Name";
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Debit";
+            worksheet.Cell(1, 5).Value = "Credit";
+            worksheet.Cell(1, 6).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -2490,31 +2505,32 @@ namespace IMS.Controllers
                     var v = item.VendorName ?? "";
                     if (v != prevVendor) { prevVendor = v; colorIndex++; }
                     var fillColor = excelColors[colorIndex % excelColors.Length];
-                    worksheet.Range(row, 1, row, 5).Style.Fill.BackgroundColor = fillColor;
+                    worksheet.Range(row, 1, row, 6).Style.Fill.BackgroundColor = fillColor;
                 }
                 worksheet.Cell(row, 1).Value = item.Date.ToString("dd-MMM-yy");
-                worksheet.Cell(row, 2).Value = item.VendorName ?? "";
-                worksheet.Cell(row, 3).Value = item.Debit;
-                worksheet.Cell(row, 4).Value = item.Credit;
-                worksheet.Cell(row, 5).Value = item.Balance;
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.VendorName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.VendorUrduName);
+                worksheet.Cell(row, 4).Value = item.Debit;
+                worksheet.Cell(row, 5).Value = item.Credit;
+                worksheet.Cell(row, 6).Value = item.Balance;
                 row++;
             }
 
             row++;
             worksheet.Cell(row, 2).Value = "Total Debit:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalDebit;
-            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalDebit;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
             row++;
             worksheet.Cell(row, 2).Value = "Total Credit:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 4).Value = model.TotalCredit;
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalCredit;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
             row++;
             worksheet.Cell(row, 2).Value = "Closing Balance:";
             worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.ClosingBalance;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.ClosingBalance;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -2541,13 +2557,16 @@ namespace IMS.Controllers
 
             document.Add(new Paragraph("Vendor Ledger Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
             if (!string.IsNullOrEmpty(model.VendorName))
-                document.Add(new Paragraph(model.VendorName, FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            {
+                document.Add(new Paragraph(NameDisplayHelper.EnglishNameCell(model.VendorName, ""), FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph(NameDisplayHelper.UrduNameCell(model.VendorUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 12)) { Alignment = Element.ALIGN_CENTER });
+            }
             document.Add(new Paragraph("\n"));
 
-            var table = new PdfPTable(5);
+            var table = new PdfPTable(6);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 1.5f, 3f, 2f, 2f, 2f });
-            string[] headers = { "Date", "GL Account (Vendor)", "Debit", "Credit", "Balance" };
+            table.SetWidths(new float[] { 1.5f, 2.5f, 2.5f, 2f, 2f, 2f });
+            string[] headers = { "Date", "Vendor Name", "Urdu Name", "Debit", "Credit", "Balance" };
             foreach (var header in headers)
             {
                 var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
@@ -2582,31 +2601,33 @@ namespace IMS.Controllers
                     rowBg = pdfColors[colorIndexPdf % pdfColors.Length];
                 }
                 var dateCell = new PdfPCell(new Phrase(item.Date.ToString("dd-MMM-yy"), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
-                var nameCell = new PdfPCell(new Phrase(item.VendorName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var nameCell = new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.VendorName), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
+                var urduCell = new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.VendorUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var debitCell = new PdfPCell(new Phrase(item.Debit > 0 ? item.Debit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var creditCell = new PdfPCell(new Phrase(item.Credit > 0 ? item.Credit.ToString("N2") : "-", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
                 var balanceCell = new PdfPCell(new Phrase(item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")", FontFactory.GetFont(FontFactory.HELVETICA, 9)));
-                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
+                if (rowBg != null) { dateCell.BackgroundColor = rowBg; nameCell.BackgroundColor = rowBg; urduCell.BackgroundColor = rowBg; debitCell.BackgroundColor = rowBg; creditCell.BackgroundColor = rowBg; balanceCell.BackgroundColor = rowBg; }
                 table.AddCell(dateCell);
                 table.AddCell(nameCell);
+                table.AddCell(urduCell);
                 table.AddCell(debitCell);
                 table.AddCell(creditCell);
                 table.AddCell(balanceCell);
             }
 
-            var totalLabelCell = new PdfPCell(new Phrase("Total Debit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            var totalLabelCell = new PdfPCell(new Phrase("Total Debit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 3, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
             table.AddCell(totalLabelCell);
             table.AddCell(new PdfPCell(new Phrase(model.TotalDebit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
 
-            var creditLabelCell = new PdfPCell(new Phrase("Total Credit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            var creditLabelCell = new PdfPCell(new Phrase("Total Credit", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 3, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
             table.AddCell(creditLabelCell);
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase(model.TotalCredit.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
 
-            var balanceLabelCell = new PdfPCell(new Phrase("Closing Balance", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 2, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
+            var balanceLabelCell = new PdfPCell(new Phrase("Closing Balance", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { Colspan = 3, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = BaseColor.LIGHT_GRAY };
             table.AddCell(balanceLabelCell);
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
@@ -2657,8 +2678,9 @@ namespace IMS.Controllers
             var worksheet = workbook.Worksheets.Add("Customer Balance Report");
             worksheet.Cell(1, 1).Value = "As of Date";
             worksheet.Cell(1, 2).Value = "Customer";
-            worksheet.Cell(1, 3).Value = "Balance";
-            var headerRange = worksheet.Range(1, 1, 1, 3);
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 4);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -2667,15 +2689,16 @@ namespace IMS.Controllers
             foreach (var item in rows)
             {
                 worksheet.Cell(row, 1).Value = item.AsOfDate.ToString("dd-MMM-yyyy");
-                worksheet.Cell(row, 2).Value = item.CustomerName ?? "";
-                worksheet.Cell(row, 3).Value = item.Balance;
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.CustomerName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.CustomerUrduName);
+                worksheet.Cell(row, 4).Value = item.Balance;
                 row++;
             }
             row++;
-            worksheet.Cell(row, 2).Value = "Total (sum of balances):";
-            worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalBalance;
+            worksheet.Cell(row, 3).Value = "Total (sum of balances):";
             worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalBalance;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
             using var stream = new MemoryStream();
@@ -2705,10 +2728,10 @@ namespace IMS.Controllers
                 document.Add(new Paragraph(model.ScopeLabel, FontFactory.GetFont(FontFactory.HELVETICA, 11)) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph("\n"));
 
-            var table = new PdfPTable(3);
+            var table = new PdfPTable(4);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 2f, 3f, 2f });
-            foreach (var h in new[] { "As of Date", "Customer", "Balance" })
+            table.SetWidths(new float[] { 2f, 2.5f, 2.5f, 2f });
+            foreach (var h in new[] { "As of Date", "Customer", "Urdu Name", "Balance" })
             {
                 table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
                 {
@@ -2720,14 +2743,15 @@ namespace IMS.Controllers
             foreach (var item in model.BalanceList ?? new List<CustomerBalanceReportItem>())
             {
                 table.AddCell(new PdfPCell(new Phrase(item.AsOfDate.ToString("dd-MMM-yyyy"), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
-                table.AddCell(new PdfPCell(new Phrase(item.CustomerName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.CustomerName), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.CustomerUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
                 var bal = item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")";
                 table.AddCell(new PdfPCell(new Phrase(bal, FontFactory.GetFont(FontFactory.HELVETICA, 9))) { HorizontalAlignment = Element.ALIGN_RIGHT });
             }
 
             var totalLabel = new PdfPCell(new Phrase("Total (sum of balances)", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
             {
-                Colspan = 2,
+                Colspan = 3,
                 HorizontalAlignment = Element.ALIGN_RIGHT,
                 BackgroundColor = BaseColor.LIGHT_GRAY
             };
@@ -2784,8 +2808,9 @@ namespace IMS.Controllers
             var worksheet = workbook.Worksheets.Add("Vendor Balance Report");
             worksheet.Cell(1, 1).Value = "As of Date";
             worksheet.Cell(1, 2).Value = "Vendor";
-            worksheet.Cell(1, 3).Value = "Balance";
-            var headerRange = worksheet.Range(1, 1, 1, 3);
+            worksheet.Cell(1, 3).Value = "Urdu Name";
+            worksheet.Cell(1, 4).Value = "Balance";
+            var headerRange = worksheet.Range(1, 1, 1, 4);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -2794,15 +2819,16 @@ namespace IMS.Controllers
             foreach (var item in rows)
             {
                 worksheet.Cell(row, 1).Value = item.AsOfDate.ToString("dd-MMM-yyyy");
-                worksheet.Cell(row, 2).Value = item.VendorName ?? "";
-                worksheet.Cell(row, 3).Value = item.Balance;
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.VendorName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.UrduNameCell(item.VendorUrduName);
+                worksheet.Cell(row, 4).Value = item.Balance;
                 row++;
             }
             row++;
-            worksheet.Cell(row, 2).Value = "Total (sum of balances):";
-            worksheet.Cell(row, 2).Style.Font.Bold = true;
-            worksheet.Cell(row, 3).Value = model.TotalBalance;
+            worksheet.Cell(row, 3).Value = "Total (sum of balances):";
             worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalBalance;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
             using var stream = new MemoryStream();
@@ -2832,10 +2858,10 @@ namespace IMS.Controllers
                 document.Add(new Paragraph(model.ScopeLabel, FontFactory.GetFont(FontFactory.HELVETICA, 11)) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph("\n"));
 
-            var table = new PdfPTable(3);
+            var table = new PdfPTable(4);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 2f, 3f, 2f });
-            foreach (var h in new[] { "As of Date", "Vendor", "Balance" })
+            table.SetWidths(new float[] { 2f, 2.5f, 2.5f, 2f });
+            foreach (var h in new[] { "As of Date", "Vendor", "Urdu Name", "Balance" })
             {
                 table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
                 {
@@ -2847,14 +2873,15 @@ namespace IMS.Controllers
             foreach (var item in model.BalanceList ?? new List<VendorBalanceReportItem>())
             {
                 table.AddCell(new PdfPCell(new Phrase(item.AsOfDate.ToString("dd-MMM-yyyy"), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
-                table.AddCell(new PdfPCell(new Phrase(item.VendorName ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.VendorName), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.UrduNameCell(item.VendorUrduName), FontFactory.GetFont(FontFactory.HELVETICA, 9))));
                 var bal = item.Balance == 0 ? "-" : item.Balance > 0 ? item.Balance.ToString("N2") : "(" + (-item.Balance).ToString("N2") + ")";
                 table.AddCell(new PdfPCell(new Phrase(bal, FontFactory.GetFont(FontFactory.HELVETICA, 9))) { HorizontalAlignment = Element.ALIGN_RIGHT });
             }
 
             var totalLabel = new PdfPCell(new Phrase("Total (sum of balances)", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
             {
-                Colspan = 2,
+                Colspan = 3,
                 HorizontalAlignment = Element.ALIGN_RIGHT,
                 BackgroundColor = BaseColor.LIGHT_GRAY
             };

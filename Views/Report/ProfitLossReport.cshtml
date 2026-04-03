@@ -125,6 +125,7 @@
                         <thead class="table-dark">
                             <tr>
                                 <th><i class="fa fa-hashtag me-1"></i>Product Name</th>
+                                <th><i class="fa fa-language me-1"></i>Urdu Name</th>
                                 <th><i class="fa fa-barcode me-1"></i>Product Code</th>
                                 <th><i class="fa fa-shopping-cart me-1"></i>Quantity Sold</th>
                                 <th><i class="fa fa-dollar-sign me-1"></i>Total Sales Amount</th>
@@ -139,7 +140,8 @@
                                 @foreach (var item in Model.ProfitLossList)
                                 {
                                     <tr>
-                                        <td><strong>@Html.DisplayFor(modelItem => item.ProductName)</strong></td>
+                                        <td><strong>@NameDisplayHelper.EnglishNameCell(item.ProductName)</strong></td>
+                                        <td class="name-urdu-display" dir="auto"><strong>@NameDisplayHelper.UrduNameCell(item.ProductUrduName)</strong></td>
                                         <td><code>@Html.DisplayFor(modelitem => item.ProductCode)</code></td>
                                         <td>@Html.DisplayFor(modelitem => item.TotalQuantitySold)</td>
                                         <td><strong class="text-success">@item.TotalSalesAmount.ToString("N2")</strong></td>
@@ -160,7 +162,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">
+                                    <td colspan="8" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Profit/Loss Data Found</h5>

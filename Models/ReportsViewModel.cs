@@ -23,6 +23,7 @@ namespace IMS.Models
         public long SaleId { get; set; }
         public string CustomerName { get; set; }
         public string SupplierName { get; set; }
+        public string? CustomerUrduName { get; set; }
 
         public long BillNumber { get; set; }
         public long CustomerIdFk { get; set; }
@@ -70,6 +71,7 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductName { get; set; }
+        public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; }
         public long TotalQuantitySold { get; set; }
         public decimal TotalSalesAmount { get; set; }
@@ -105,6 +107,7 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductName { get; set; }
+        public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal UsedQuantity { get; set; }
@@ -134,6 +137,7 @@ namespace IMS.Models
     {
         public long ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public decimal PurchaseQuantity { get; set; }
         public decimal SalesQuantity { get; set; }
@@ -193,6 +197,8 @@ namespace IMS.Models
         public List<CustomerLedgerReportItem> LedgerList { get; set; } = new List<CustomerLedgerReportItem>();
         public CustomerLedgerReportFilters Filters { get; set; } = new CustomerLedgerReportFilters();
         public string? CustomerName { get; set; }
+        /// <summary>Urdu for selected customer (header) when filtering by one customer.</summary>
+        public string? CustomerUrduName { get; set; }
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public decimal ClosingBalance { get; set; }
@@ -202,6 +208,7 @@ namespace IMS.Models
     {
         public DateTime Date { get; set; }
         public string? CustomerName { get; set; }
+        public string? CustomerUrduName { get; set; }
         public string? GLAccount { get; set; }
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
@@ -221,6 +228,8 @@ namespace IMS.Models
         public List<VendorLedgerReportItem> LedgerList { get; set; } = new List<VendorLedgerReportItem>();
         public VendorLedgerReportFilters Filters { get; set; } = new VendorLedgerReportFilters();
         public string? VendorName { get; set; }
+        /// <summary>Urdu for selected vendor (header) when filtering by one vendor.</summary>
+        public string? VendorUrduName { get; set; }
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public decimal ClosingBalance { get; set; }
@@ -230,6 +239,7 @@ namespace IMS.Models
     {
         public DateTime Date { get; set; }
         public string? VendorName { get; set; }
+        public string? VendorUrduName { get; set; }
         public string? GLAccount { get; set; }
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
@@ -258,6 +268,7 @@ namespace IMS.Models
     {
         public long CustomerId { get; set; }
         public string? CustomerName { get; set; }
+        public string? CustomerUrduName { get; set; }
         public DateTime AsOfDate { get; set; }
         public decimal Balance { get; set; }
     }
@@ -281,6 +292,7 @@ namespace IMS.Models
     {
         public long VendorId { get; set; }
         public string? VendorName { get; set; }
+        public string? VendorUrduName { get; set; }
         public DateTime AsOfDate { get; set; }
         public decimal Balance { get; set; }
     }
@@ -311,7 +323,9 @@ namespace IMS.Models
     {
         public long PurchaseOrderId { get; set; }
         public string VendorName { get; set; }
+        public string? VendorUrduName { get; set; }
         public string CustomerName { get; set; }
+        public string? CustomerUrduName { get; set; }
         public long BillNumber { get; set; }
         public long VendorIdFk { get; set; }
         public DateTime PurchaseDate { get; set; }
@@ -349,6 +363,7 @@ namespace IMS.Models
         public DateTime SaleDate { get; set; }
         public long ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public decimal Weight { get; set; }
         public long Qty { get; set; }
@@ -384,6 +399,7 @@ namespace IMS.Models
         public DateTime PurchaseDate { get; set; }
         public long ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public decimal Weight { get; set; }
         public long Qty { get; set; }
@@ -421,6 +437,7 @@ namespace IMS.Models
         public decimal Amount { get; set; }
         public bool IsTotalRow { get; set; } = false; // To identify total rows for each expense type
         public string ProductName { get; set; } = string.Empty;
+        public string? ProductUrduName { get; set; }
     }
 
     public class GeneralExpensesReportFilters

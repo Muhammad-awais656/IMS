@@ -131,6 +131,7 @@
                             <tr>
                                 <th><i class="fa fa-hashtag me-1"></i>Sale ID</th>
                                 <th><i class="fa fa-user me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-language me-1"></i>Urdu Name</th>
                                 <th><i class="fa fa-user me-1"></i>Supplier Name</th>
                                 <th><i class="fa fa-file-text me-1"></i>Bill #</th>
                                 <th><i class="fa fa-calendar me-1"></i>Sale Date</th>
@@ -148,7 +149,8 @@
                                 {
                                     <tr>
                                         <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.SaleId)</span></td>
-                                        <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(item.CustomerName)</td>
+                                        <td class="name-urdu-display" dir="auto">@NameDisplayHelper.UrduNameCell(item.CustomerUrduName)</td>
                                         <td>@Html.DisplayFor(modelitem => item.SupplierName)</td>
                                         <td><code>@Html.DisplayFor(modelitem => item.BillNumber)</code></td>
                                         <td>@item.SaleDate.ToString("dd/MM/yyyy")</td>
@@ -163,7 +165,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center py-4">
+                                    <td colspan="11" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Sales Data Found</h5>

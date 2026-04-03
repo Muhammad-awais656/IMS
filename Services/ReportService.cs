@@ -5,6 +5,7 @@ using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
@@ -300,6 +301,35 @@ namespace IMS.Services
                         }
                     }
 
+                    if (sale.Count > 0)
+                    {
+                        var custIds = sale.Where(x => x.CustomerIdFk > 0).Select(x => x.CustomerIdFk).Distinct().ToList();
+                        if (custIds.Count > 0)
+                        {
+                            var ph = string.Join(",", custIds.Select((_, i) => "@cu" + i));
+                            using (var urduCmd = new SqlCommand($"SELECT CustomerId, UrduName FROM Customers WHERE CustomerId IN ({ph})", connection))
+                            {
+                                for (var i = 0; i < custIds.Count; i++)
+                                    urduCmd.Parameters.AddWithValue("@cu" + i, custIds[i]);
+                                using (var ur = await urduCmd.ExecuteReaderAsync())
+                                {
+                                    var urduMap = new Dictionary<long, string?>();
+                                    while (await ur.ReadAsync())
+                                    {
+                                        var cid = ur.GetInt64(0);
+                                        var un = ur.IsDBNull(1) ? null : ur.GetString(1);
+                                        urduMap[cid] = string.IsNullOrWhiteSpace(un) ? null : un;
+                                    }
+                                    foreach (var row in sale)
+                                    {
+                                        if (urduMap.TryGetValue(row.CustomerIdFk, out var u))
+                                            row.CustomerUrduName = u;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                 }
 
 
@@ -351,6 +381,7 @@ namespace IMS.Services
                                 sd.PrductId_FK AS ProductId,
                                 p.ProductName,
                                 p.ProductCode,
+                                MAX(ISNULL(p.UrduName, '')) AS ProductUrduName,
                                 SUM(sd.Quantity) AS TotalQuantitySold,
                                 SUM(sd.PayableAmount) AS TotalSalesAmount
                             FROM SaleDetails sd
@@ -378,6 +409,7 @@ namespace IMS.Services
                             sd.ProductId,
                             sd.ProductName,
                             ISNULL(sd.ProductCode, '') AS ProductCode,
+                            NULLIF(sd.ProductUrduName, '') AS ProductUrduName,
                             sd.TotalQuantitySold,
                             sd.TotalSalesAmount,
                             ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0) AS TotalPurchaseCost,
@@ -446,10 +478,20 @@ namespace IMS.Services
                             // Read product-wise data
                             while (await reader.ReadAsync())
                             {
+                                string? pu = null;
+                                try
+                                {
+                                    var o = reader.GetOrdinal("ProductUrduName");
+                                    if (!reader.IsDBNull(o))
+                                        pu = reader.GetString(o);
+                                }
+                                catch { }
+                                if (string.IsNullOrWhiteSpace(pu)) pu = null;
                                 profitLossList.Add(new ProfitLossReportItem
                                 {
                                     ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = pu,
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     TotalQuantitySold = reader.IsDBNull(reader.GetOrdinal("TotalQuantitySold")) ? 0 : reader.GetInt64(reader.GetOrdinal("TotalQuantitySold")),
                                     TotalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount")),
@@ -622,6 +664,35 @@ namespace IMS.Services
                             }
                         }
                     }
+
+                    if (profitLossList.Count > 0)
+                    {
+                        var pids = profitLossList.Select(x => x.ProductId).Where(id => id > 0).Distinct().ToList();
+                        if (pids.Count > 0)
+                        {
+                            var ph = string.Join(",", pids.Select((_, i) => "@pl" + i));
+                            using (var urduCmd = new SqlCommand($"SELECT ProductId, UrduName FROM Products WHERE ProductId IN ({ph})", connection))
+                            {
+                                for (var i = 0; i < pids.Count; i++)
+                                    urduCmd.Parameters.AddWithValue("@pl" + i, pids[i]);
+                                using (var ur = await urduCmd.ExecuteReaderAsync())
+                                {
+                                    var map = new Dictionary<long, string?>();
+                                    while (await ur.ReadAsync())
+                                    {
+                                        var pid = ur.GetInt64(0);
+                                        var un = ur.IsDBNull(1) ? null : ur.GetString(1);
+                                        map[pid] = string.IsNullOrWhiteSpace(un) ? null : un;
+                                    }
+                                    foreach (var row in profitLossList)
+                                    {
+                                        if (map.TryGetValue(row.ProductId, out var u))
+                                            row.ProductUrduName = u;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -662,6 +733,7 @@ namespace IMS.Services
                         SELECT 
                             p.ProductId,
                             p.ProductName,
+                            p.UrduName AS ProductUrduName,
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
@@ -721,6 +793,7 @@ namespace IMS.Services
                                 {
                                     ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName")) ? null : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     TotalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity")),
                                     UsedQuantity = reader.IsDBNull(reader.GetOrdinal("UsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
@@ -792,6 +865,7 @@ namespace IMS.Services
                         SELECT 
                             p.ProductId,
                             p.ProductName,
+                            p.UrduName AS ProductUrduName,
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
@@ -842,6 +916,7 @@ namespace IMS.Services
                                 {
                                     ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName")) ? null : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
                                     TotalQuantity = reader.IsDBNull(reader.GetOrdinal("TotalQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalQuantity")),
                                     UsedQuantity = reader.IsDBNull(reader.GetOrdinal("UsedQuantity")) ? 0m : reader.GetDecimal(reader.GetOrdinal("UsedQuantity")),
@@ -1149,7 +1224,9 @@ namespace IMS.Services
                         SELECT 
                             po.PurchaseOrderId,
                             ISNULL(s.SupplierName, '') AS VendorName,
+                            s.UrduName AS VendorUrduName,
                             ISNULL(c.CustomerName, '') AS CustomerName,
+                            c.UrduName AS CustomerUrduName,
 
                             po.BillNumber,
                             po.SupplierId_FK AS VendorIdFk,
@@ -1205,7 +1282,9 @@ namespace IMS.Services
                                 {
                                     PurchaseOrderId = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PurchaseOrderId")),
                                     VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    VendorUrduName = reader.IsDBNull(reader.GetOrdinal("VendorUrduName")) ? null : reader.GetString(reader.GetOrdinal("VendorUrduName")),
                                     CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    CustomerUrduName = reader.IsDBNull(reader.GetOrdinal("CustomerUrduName")) ? null : reader.GetString(reader.GetOrdinal("CustomerUrduName")),
                                     BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
                                     VendorIdFk = reader.IsDBNull(reader.GetOrdinal("VendorIdFk")) ? 0 : reader.GetInt64(reader.GetOrdinal("VendorIdFk")),
                                     PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),
@@ -1278,6 +1357,9 @@ namespace IMS.Services
                         SELECT 
                             po.PurchaseOrderId,
                             ISNULL(s.SupplierName, '') AS VendorName,
+                            s.UrduName AS VendorUrduName,
+                            ISNULL(c.CustomerName, '') AS CustomerName,
+                            c.UrduName AS CustomerUrduName,
                             po.BillNumber,
                             po.SupplierId_FK AS VendorIdFk,
                             po.PurchaseOrderDate AS PurchaseDate,
@@ -1287,7 +1369,8 @@ namespace IMS.Services
                             po.TotalDueAmount AS DueAmount,
                             ISNULL(po.PurchaseOrderDescription, '') AS PurchaseDescription
                         FROM PurchaseOrders po
-                        LEFT JOIN Suppliers s ON po.SupplierId_FK = s.SupplierId
+                        LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
+                        LEFT JOIN Customers c ON c.CustomerId = po.CustomerId_FK
                         WHERE po.IsDeleted = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
@@ -1320,6 +1403,9 @@ namespace IMS.Services
                                 {
                                     PurchaseOrderId = reader.IsDBNull(reader.GetOrdinal("PurchaseOrderId")) ? 0 : reader.GetInt64(reader.GetOrdinal("PurchaseOrderId")),
                                     VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? string.Empty : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    VendorUrduName = reader.IsDBNull(reader.GetOrdinal("VendorUrduName")) ? null : reader.GetString(reader.GetOrdinal("VendorUrduName")),
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? string.Empty : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    CustomerUrduName = reader.IsDBNull(reader.GetOrdinal("CustomerUrduName")) ? null : reader.GetString(reader.GetOrdinal("CustomerUrduName")),
                                     BillNumber = reader.IsDBNull(reader.GetOrdinal("BillNumber")) ? 0 : reader.GetInt64(reader.GetOrdinal("BillNumber")),
                                     VendorIdFk = reader.IsDBNull(reader.GetOrdinal("VendorIdFk")) ? 0 : reader.GetInt64(reader.GetOrdinal("VendorIdFk")),
                                     PurchaseDate = reader.IsDBNull(reader.GetOrdinal("PurchaseDate")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("PurchaseDate")),
@@ -1383,6 +1469,7 @@ namespace IMS.Services
                                 CAST(s.SaleDate AS DATE) AS SaleDate,
                                 sd.PrductId_FK AS ProductId,
                                 p.ProductName,
+                                MAX(ISNULL(p.UrduName, '')) AS ProductUrduName,
                                 ISNULL(p.ProductCode, '') AS ProductCode,
                                 SUM(CAST(sd.Quantity AS DECIMAL(18, 3))) AS Weight,
                                 SUM(sd.Quantity) AS Qty,
@@ -1415,6 +1502,7 @@ namespace IMS.Services
                             ds.SaleDate,
                             ds.ProductId,
                             ds.ProductName,
+                            NULLIF(ds.ProductUrduName, '') AS ProductUrduName,
                             ds.ProductCode,
                             ds.Weight,
                             ds.Qty,
@@ -1482,6 +1570,9 @@ namespace IMS.Services
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName"))
+                                        ? null
+                                        : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductCode")),
@@ -1543,6 +1634,7 @@ namespace IMS.Services
                             SaleDate = DateTime.MinValue,
                             ProductId = group.Key,
                             ProductName = productSales.First().ProductName,
+                            ProductUrduName = productSales.First().ProductUrduName,
                             ProductCode = productSales.First().ProductCode,
                             Weight = productSales.Sum(s => s.Weight),
                             Qty = productSales.Sum(s => s.Qty),
@@ -1599,6 +1691,7 @@ namespace IMS.Services
                                 CAST(po.PurchaseOrderDate AS DATE) AS PurchaseDate,
                                 poi.PrductId_FK AS ProductId,
                                 p.ProductName,
+                                MAX(ISNULL(p.UrduName, '')) AS ProductUrduName,
                                 ISNULL(p.ProductCode, '') AS ProductCode,
                                 SUM(CAST(poi.Quantity AS DECIMAL(18, 3))) AS Weight,
                                 SUM(poi.Quantity) AS Qty,
@@ -1631,6 +1724,7 @@ namespace IMS.Services
                             dp.PurchaseDate,
                             dp.ProductId,
                             dp.ProductName,
+                            NULLIF(dp.ProductUrduName, '') AS ProductUrduName,
                             dp.ProductCode,
                             dp.Weight,
                             dp.Qty,
@@ -1698,6 +1792,9 @@ namespace IMS.Services
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName"))
+                                        ? null
+                                        : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductCode")),
@@ -1759,6 +1856,7 @@ namespace IMS.Services
                             PurchaseDate = DateTime.MinValue,
                             ProductId = group.Key,
                             ProductName = productPurchases.First().ProductName,
+                            ProductUrduName = productPurchases.First().ProductUrduName,
                             ProductCode = productPurchases.First().ProductCode,
                             Weight = productPurchases.Sum(p => p.Weight),
                             Qty = productPurchases.Sum(p => p.Qty),
@@ -1843,6 +1941,7 @@ namespace IMS.Services
                         SELECT 
                             p.ProductId,
                             p.ProductName,
+                            p.UrduName AS ProductUrduName,
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
                             ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
@@ -1886,6 +1985,9 @@ namespace IMS.Services
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName"))
+                                        ? null
+                                        : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductCode")),
@@ -2105,6 +2207,7 @@ namespace IMS.Services
                                 e.ExpenseTypeId_FK AS ExpenseTypeId,
                                 ISNULL(et.ExpenseTypeName, '') AS ExpenseTypeName,
                                 ISNULL(p.ProductName, '') AS ProductName,
+                                MAX(ISNULL(p.UrduName, '')) AS ProductUrduName,
                                 MAX(e.ExpenseDetail) AS ExpenseDetail,
                                 SUM(e.Amount) AS Amount
                             FROM Expenses e
@@ -2121,6 +2224,7 @@ namespace IMS.Services
                             de.ExpenseTypeId,
                             de.ExpenseTypeName,
                             de.ProductName,
+                            NULLIF(de.ProductUrduName, '') AS ProductUrduName,
                             de.ExpenseDetail,
                             de.Amount,
                             0 AS IsTotalRow
@@ -2180,6 +2284,9 @@ namespace IMS.Services
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ProductName")),
+                                    ProductUrduName = reader.IsDBNull(reader.GetOrdinal("ProductUrduName"))
+                                        ? null
+                                        : reader.GetString(reader.GetOrdinal("ProductUrduName")),
                                     ExpenseDetail = reader.IsDBNull(reader.GetOrdinal("ExpenseDetail"))
                                         ? string.Empty
                                         : reader.GetString(reader.GetOrdinal("ExpenseDetail")),
@@ -2257,8 +2364,9 @@ namespace IMS.Services
 
         public async Task<CustomerLedgerReportViewModel> GetCustomerLedgerReport(CustomerLedgerReportFilters? filters)
         {
-            var ledgerRows = new List<(DateTime Date, string? CustomerName, string? GLAccount, decimal Debit, decimal Credit)>();
+            var ledgerRows = new List<(DateTime Date, string? CustomerName, string? CustomerUrduName, string? GLAccount, decimal Debit, decimal Credit)>();
             string? customerName = null;
+            string? customerHeaderUrdu = null;
             decimal totalDebit = 0;
             decimal totalCredit = 0;
             if (filters == null)
@@ -2277,6 +2385,7 @@ namespace IMS.Services
                     // Sales: Debit = (TotalAmount - DiscountAmount), include CustomerName
                     var salesSql = @"
                         SELECT s.SaleDate AS [Date], ISNULL(c.CustomerName, '') AS CustomerName,
+                               c.UrduName AS CustomerUrduName,
                                (s.TotalAmount - ISNULL(s.DiscountAmount,0)) AS DebitAmount,
                                ISNULL(s.SaleDescription, '') AS GLAccount, s.BillNumber
                         FROM Sales s
@@ -2298,11 +2407,20 @@ namespace IMS.Services
                                 var date = reader.GetDateTime(reader.GetOrdinal("Date"));
                                 var cName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName"));
                                 if (string.IsNullOrWhiteSpace(cName)) cName = null;
+                                string? cUrdu = null;
+                                try
+                                {
+                                    var uOrd = reader.GetOrdinal("CustomerUrduName");
+                                    if (!reader.IsDBNull(uOrd))
+                                        cUrdu = reader.GetString(uOrd);
+                                }
+                                catch { /* column optional */ }
+                                if (string.IsNullOrWhiteSpace(cUrdu)) cUrdu = null;
                                 var debit = reader.GetDecimal(reader.GetOrdinal("DebitAmount"));
                                 var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? "" : reader.GetString(reader.GetOrdinal("GLAccount"));
                                 if (string.IsNullOrWhiteSpace(gl) && !reader.IsDBNull(reader.GetOrdinal("BillNumber")))
                                     gl = "Bill #" + reader.GetInt64(reader.GetOrdinal("BillNumber"));
-                                ledgerRows.Add((date, cName, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
+                                ledgerRows.Add((date, cName, cUrdu, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
                                 totalDebit += debit;
                             }
                         }
@@ -2311,6 +2429,7 @@ namespace IMS.Services
                     // Payments: Credit = PaymentAmount, include CustomerName
                     var paymentsSql = @"
                         SELECT p.PaymentDate AS [Date], ISNULL(c.CustomerName, '') AS CustomerName,
+                               c.UrduName AS CustomerUrduName,
                                p.PaymentAmount AS CreditAmount, ISNULL(p.Description, '') AS GLAccount
                         FROM Payments p
                         LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
@@ -2330,10 +2449,19 @@ namespace IMS.Services
                                 var date = reader.GetDateTime(reader.GetOrdinal("Date"));
                                 var cName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName"));
                                 if (string.IsNullOrWhiteSpace(cName)) cName = null;
+                                string? cUrduP = null;
+                                try
+                                {
+                                    var uOrd = reader.GetOrdinal("CustomerUrduName");
+                                    if (!reader.IsDBNull(uOrd))
+                                        cUrduP = reader.GetString(uOrd);
+                                }
+                                catch { }
+                                if (string.IsNullOrWhiteSpace(cUrduP)) cUrduP = null;
                                 var credit = reader.GetDecimal(reader.GetOrdinal("CreditAmount"));
                                 var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? null : reader.GetString(reader.GetOrdinal("GLAccount"));
                                 if (string.IsNullOrWhiteSpace(gl)) gl = null;
-                                ledgerRows.Add((date, cName, gl, 0, credit));
+                                ledgerRows.Add((date, cName, cUrduP, gl, 0, credit));
                                 totalCredit += credit;
                             }
                         }
@@ -2341,12 +2469,18 @@ namespace IMS.Services
 
                     if (hasCustomerFilter)
                     {
-                        using (var cmd = new SqlCommand("SELECT CustomerName FROM Customers WHERE CustomerId = @CustomerId", connection))
+                        using (var cmd = new SqlCommand("SELECT CustomerName, UrduName FROM Customers WHERE CustomerId = @CustomerId", connection))
                         {
                             cmd.Parameters.AddWithValue("@CustomerId", filters.CustomerId!.Value);
-                            var nameObj = await cmd.ExecuteScalarAsync();
-                            if (nameObj != null && nameObj != DBNull.Value)
-                                customerName = nameObj.ToString();
+                            using (var r = await cmd.ExecuteReaderAsync())
+                            {
+                                if (await r.ReadAsync())
+                                {
+                                    customerName = r.IsDBNull(0) ? null : r.GetString(0);
+                                    var u = r.FieldCount > 1 && !r.IsDBNull(1) ? r.GetString(1) : null;
+                                    customerHeaderUrdu = string.IsNullOrWhiteSpace(u) ? null : u;
+                                }
+                            }
                         }
                     }
                     else
@@ -2375,6 +2509,7 @@ namespace IMS.Services
                     {
                         Date = row.Date,
                         CustomerName = row.CustomerName,
+                        CustomerUrduName = row.CustomerUrduName,
                         GLAccount = row.GLAccount,
                         Debit = row.Debit,
                         Credit = row.Credit,
@@ -2387,6 +2522,7 @@ namespace IMS.Services
                     LedgerList = ledgerList,
                     Filters = filters,
                     CustomerName = customerName,
+                    CustomerUrduName = customerHeaderUrdu,
                     TotalDebit = totalDebit,
                     TotalCredit = totalCredit,
                     ClosingBalance = totalDebit - totalCredit
@@ -2400,6 +2536,7 @@ namespace IMS.Services
                     LedgerList = new List<CustomerLedgerReportItem>(),
                     Filters = filters,
                     CustomerName = null,
+                    CustomerUrduName = null,
                     TotalDebit = 0,
                     TotalCredit = 0,
                     ClosingBalance = 0
@@ -2409,8 +2546,9 @@ namespace IMS.Services
 
         public async Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters)
         {
-            var ledgerRows = new List<(DateTime Date, string? VendorName, string? GLAccount, decimal Debit, decimal Credit)>();
+            var ledgerRows = new List<(DateTime Date, string? VendorName, string? VendorUrduName, string? GLAccount, decimal Debit, decimal Credit)>();
             string? vendorName = null;
+            string? vendorHeaderUrdu = null;
             decimal totalDebit = 0;
             decimal totalCredit = 0;
             if (filters == null)
@@ -2429,6 +2567,7 @@ namespace IMS.Services
                     // PurchaseOrders: Debit = (TotalAmount - DiscountAmount), include VendorName
                     var purchasesSql = @"
                         SELECT po.PurchaseOrderDate AS [Date], ISNULL(s.SupplierName, '') AS VendorName,
+                               s.UrduName AS VendorUrduName,
                                (po.TotalAmount - ISNULL(po.DiscountAmount, 0)) AS DebitAmount,
                                ISNULL(po.PurchaseOrderDescription, '') AS GLAccount, po.BillNumber
                         FROM PurchaseOrders po
@@ -2450,6 +2589,15 @@ namespace IMS.Services
                                 var date = reader.GetDateTime(reader.GetOrdinal("Date"));
                                 var vName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName"));
                                 if (string.IsNullOrWhiteSpace(vName)) vName = null;
+                                string? vUrdu = null;
+                                try
+                                {
+                                    var uOrd = reader.GetOrdinal("VendorUrduName");
+                                    if (!reader.IsDBNull(uOrd))
+                                        vUrdu = reader.GetString(uOrd);
+                                }
+                                catch { }
+                                if (string.IsNullOrWhiteSpace(vUrdu)) vUrdu = null;
                                 var debit = reader.GetDecimal(reader.GetOrdinal("DebitAmount"));
                                 var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? "" : reader.GetString(reader.GetOrdinal("GLAccount"));
                                 if (string.IsNullOrWhiteSpace(gl))
@@ -2457,7 +2605,7 @@ namespace IMS.Services
                                     if (!reader.IsDBNull(reader.GetOrdinal("BillNumber")))
                                         gl = "Bill #" + reader.GetInt64(reader.GetOrdinal("BillNumber"));
                                 }
-                                ledgerRows.Add((date, vName, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
+                                ledgerRows.Add((date, vName, vUrdu, string.IsNullOrWhiteSpace(gl) ? null : gl, debit, 0));
                                 totalDebit += debit;
                             }
                         }
@@ -2466,6 +2614,7 @@ namespace IMS.Services
                     // BillPayments: Credit = PaymentAmount, include VendorName
                     var paymentsSql = @"
                         SELECT p.PaymentDate AS [Date], ISNULL(s.SupplierName, '') AS VendorName,
+                               s.UrduName AS VendorUrduName,
                                p.PaymentAmount AS CreditAmount, ISNULL(p.Description, '') AS GLAccount
                         FROM BillPayments p
                         LEFT JOIN AdminSuppliers s ON p.SupplierId_FK = s.SupplierId
@@ -2485,10 +2634,19 @@ namespace IMS.Services
                                 var date = reader.GetDateTime(reader.GetOrdinal("Date"));
                                 var vName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName"));
                                 if (string.IsNullOrWhiteSpace(vName)) vName = null;
+                                string? vUrduP = null;
+                                try
+                                {
+                                    var uOrd = reader.GetOrdinal("VendorUrduName");
+                                    if (!reader.IsDBNull(uOrd))
+                                        vUrduP = reader.GetString(uOrd);
+                                }
+                                catch { }
+                                if (string.IsNullOrWhiteSpace(vUrduP)) vUrduP = null;
                                 var credit = reader.GetDecimal(reader.GetOrdinal("CreditAmount"));
                                 var gl = reader.IsDBNull(reader.GetOrdinal("GLAccount")) ? null : reader.GetString(reader.GetOrdinal("GLAccount"));
                                 if (string.IsNullOrWhiteSpace(gl)) gl = null;
-                                ledgerRows.Add((date, vName, gl, 0, credit));
+                                ledgerRows.Add((date, vName, vUrduP, gl, 0, credit));
                                 totalCredit += credit;
                             }
                         }
@@ -2496,12 +2654,18 @@ namespace IMS.Services
 
                     if (hasVendorFilter)
                     {
-                        using (var cmd = new SqlCommand("SELECT SupplierName FROM AdminSuppliers WHERE SupplierId = @VendorId", connection))
+                        using (var cmd = new SqlCommand("SELECT SupplierName, UrduName FROM AdminSuppliers WHERE SupplierId = @VendorId", connection))
                         {
                             cmd.Parameters.AddWithValue("@VendorId", filters.VendorId!.Value);
-                            var nameObj = await cmd.ExecuteScalarAsync();
-                            if (nameObj != null && nameObj != DBNull.Value)
-                                vendorName = nameObj.ToString();
+                            using (var r = await cmd.ExecuteReaderAsync())
+                            {
+                                if (await r.ReadAsync())
+                                {
+                                    vendorName = r.IsDBNull(0) ? null : r.GetString(0);
+                                    var u = r.FieldCount > 1 && !r.IsDBNull(1) ? r.GetString(1) : null;
+                                    vendorHeaderUrdu = string.IsNullOrWhiteSpace(u) ? null : u;
+                                }
+                            }
                         }
                     }
                     else
@@ -2530,6 +2694,7 @@ namespace IMS.Services
                     {
                         Date = row.Date,
                         VendorName = row.VendorName,
+                        VendorUrduName = row.VendorUrduName,
                         GLAccount = row.GLAccount,
                         Debit = row.Debit,
                         Credit = row.Credit,
@@ -2542,6 +2707,7 @@ namespace IMS.Services
                     LedgerList = ledgerList,
                     Filters = filters,
                     VendorName = vendorName,
+                    VendorUrduName = vendorHeaderUrdu,
                     TotalDebit = totalDebit,
                     TotalCredit = totalCredit,
                     ClosingBalance = totalDebit - totalCredit
@@ -2555,6 +2721,7 @@ namespace IMS.Services
                     LedgerList = new List<VendorLedgerReportItem>(),
                     Filters = filters,
                     VendorName = null,
+                    VendorUrduName = null,
                     TotalDebit = 0,
                     TotalCredit = 0,
                     ClosingBalance = 0
@@ -2579,6 +2746,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
                     var sql = @"
                         SELECT c.CustomerId, c.CustomerName,
+                               c.UrduName AS CustomerUrduName,
                                ISNULL(d.DebitTotal, 0) - ISNULL(pay.CreditTotal, 0) AS Balance
                         FROM Customers c
                         LEFT JOIN (
@@ -2614,6 +2782,7 @@ namespace IMS.Services
                                 {
                                     CustomerId = reader.GetInt64(reader.GetOrdinal("CustomerId")),
                                     CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    CustomerUrduName = reader.IsDBNull(reader.GetOrdinal("CustomerUrduName")) ? null : reader.GetString(reader.GetOrdinal("CustomerUrduName")),
                                     AsOfDate = asOf,
                                     Balance = reader.GetDecimal(reader.GetOrdinal("Balance"))
                                 });
@@ -2675,6 +2844,7 @@ namespace IMS.Services
                     await connection.OpenAsync();
                     var sql = @"
                         SELECT v.SupplierId AS VendorId, v.SupplierName AS VendorName,
+                               v.UrduName AS VendorUrduName,
                                ISNULL(po.DebitTotal, 0) - ISNULL(bp.CreditTotal, 0) AS Balance
                         FROM AdminSuppliers v
                         LEFT JOIN (
@@ -2710,6 +2880,7 @@ namespace IMS.Services
                                 {
                                     VendorId = reader.GetInt64(reader.GetOrdinal("VendorId")),
                                     VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    VendorUrduName = reader.IsDBNull(reader.GetOrdinal("VendorUrduName")) ? null : reader.GetString(reader.GetOrdinal("VendorUrduName")),
                                     AsOfDate = asOf,
                                     Balance = reader.GetDecimal(reader.GetOrdinal("Balance"))
                                 });

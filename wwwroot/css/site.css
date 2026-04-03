@@ -1,3 +1,18 @@
+@font-face {
+  font-family: 'Jameel Noori Nastaleeq';
+  src: url('/fonts/download/Jameel Noori Nastaleeq.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Urdu names (reports, grids): Jameel Noori with sensible fallbacks */
+.font-jameel-noori,
+.name-urdu-display {
+  font-family: 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Traditional Arabic', Tahoma, serif;
+  font-size: x-large;
+}
+
 html {
   font-size: 14px;
 }
