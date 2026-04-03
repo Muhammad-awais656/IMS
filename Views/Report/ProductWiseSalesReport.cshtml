@@ -32,16 +32,13 @@
                 <form id="filterForm" asp-action="ProductWiseSalesReport" asp-controller="Report" method="get">
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">
+                            <label class="form-label fw-semibold" for="productComboBox">
                                 <i class="fa fa-gift me-1 text-primary"></i>Product
                             </label>
-                            <br />
-                           <div class="col-md-3">
-                                @Html.DropDownList("ProductWiseSalesReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
-                                "-- Select Product --",
-                                                                new { @class = "form-control", @id = "productComboBox" })
-
-                           </div>
+                            <input id="productComboBox" name="Filters.ProductId"
+                                   value="@(Model.Filters?.ProductId?.ToString() ?? "")"
+                                   style="width: 100%;"
+                                   autocomplete="off" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
@@ -250,11 +247,11 @@
                     };
                     
                     if (!string.IsNullOrEmpty(productId))
-                        queryParams.Add($"productId={productId}");
+                        queryParams.Add($"Filters.ProductId={productId}");
                     if (!string.IsNullOrEmpty(fromDate))
-                        queryParams.Add($"FromDate={fromDate}");
+                        queryParams.Add($"Filters.FromDate={fromDate}");
                     if (!string.IsNullOrEmpty(toDate))
-                        queryParams.Add($"ToDate={toDate}");
+                        queryParams.Add($"Filters.ToDate={toDate}");
                     
                     var queryString = string.Join("&", queryParams);
                     
@@ -313,28 +310,46 @@
             }
         }
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Product
-            $("#productComboBox").kendoComboBox({
+            if (typeof $.fn.kendoComboBox === "undefined") {
+                return;
+            }
+            var $input = $("#productComboBox");
+            if (!$input.length) {
+                return;
+            }
+            var initialProductId = "@(Model.Filters?.ProductId?.ToString() ?? "")";
+
+            var productCombo = $input.kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetProducts", "Product")",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
                 placeholder: "-- Select Product --",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
-                dataTextField: "Text",
-                dataValueField: "Value",
-                change: function(e) {
-                    console.log("Product selection changed:", e.sender.value());
-                },
-                select: function(e) {
-                    console.log("Product selected:", e.item);
-                }
-            });
+                value: initialProductId
+            }).data("kendoComboBox");
+
+            if (initialProductId && productCombo) {
+                productCombo.dataSource.read().then(function () {
+                    productCombo.value(initialProductId);
+                });
+            }
         });
 
         function getProductWiseSalesParams() {
-            var productEl = document.getElementById("productComboBox") || document.querySelector("select[name='ProductWiseSalesReportFilters.ProductId']");
+            var combo = $("#productComboBox").data("kendoComboBox");
+            var fallbackInput = document.querySelector("input[name='Filters.ProductId']");
+            var productId = combo ? (combo.value() || "") : (fallbackInput ? fallbackInput.value : "");
             var fromDateInput = document.querySelector("input[name='Filters.FromDate']");
             var toDateInput = document.querySelector("input[name='Filters.ToDate']");
-            var productId = productEl ? (productEl.value || '') : '';
             var fromDate = fromDateInput ? fromDateInput.value : '';
             var toDate = toDateInput ? toDateInput.value : '';
             return { productId: productId, fromDate: fromDate, toDate: toDate };
@@ -342,7 +357,7 @@
 
         function changePageSize(select) {
             var p = getProductWiseSalesParams();
-            var url = `/Report/ProductWiseSalesReport?pageNumber=1&productId=${p.productId}&pageSize=${select.value}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
+            var url = `/Report/ProductWiseSalesReport?pageNumber=1&Filters.ProductId=${encodeURIComponent(p.productId)}&pageSize=${select.value}&Filters.FromDate=${encodeURIComponent(p.fromDate)}&Filters.ToDate=${encodeURIComponent(p.toDate)}`;
             window.location.href = url;
         }
     </script>

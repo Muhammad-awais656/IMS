@@ -973,10 +973,6 @@ namespace IMS.Controllers
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
 
-                // Load dropdown data
-                var products = await _productService.GetAllEnabledProductsAsync();
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
-
                 // Preserve filters before service call
                 var filters = model.Filters;
 
@@ -985,9 +981,6 @@ namespace IMS.Controllers
 
                 // Reassign filters to ensure they're preserved
                 model.Filters = filters;
-
-                // Reassign dropdown again (important after service call)
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
             }
             catch (Exception ex)
             {
@@ -1226,11 +1219,6 @@ namespace IMS.Controllers
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
 
-                // Load dropdown data
-                var products = await _productService.GetAllEnabledProductsAsync();
-
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
-
                 // Date validation - only validate if both dates are provided
                 if (model.Filters.FromDate.HasValue && model.Filters.ToDate.HasValue && model.Filters.FromDate > model.Filters.ToDate)
                 {
@@ -1245,9 +1233,6 @@ namespace IMS.Controllers
 
                 // Reassign filters to ensure they're preserved
                 model.Filters = filters;
-
-                // Reassign dropdown again (important after service call)
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
             }
             catch (Exception ex)
             {
