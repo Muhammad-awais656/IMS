@@ -87,6 +87,29 @@ namespace IMS.Models
         public long? ProductId { get; set; }
     }
 
+    /// <summary>
+    /// Overall P&amp;L: trading gross (sales − COGS, same basis as product-wise report), salaries from employee ledger, all expense records.
+    /// </summary>
+    public class GeneralProfitLossReportViewModel
+    {
+        public GeneralProfitLossReportFilters Filters { get; set; } = new GeneralProfitLossReportFilters();
+        public decimal TotalSalesAmount { get; set; }
+        public decimal TotalPurchaseCost { get; set; }
+        /// <summary>Gross from trading: sales amount minus purchase cost on quantities sold (same logic as product-wise summary).</summary>
+        public decimal GrossTradingProfit { get; set; }
+        /// <summary>Sum of debit amounts on employee ledger rows whose voucher type name contains &quot;Salary&quot; (case-insensitive).</summary>
+        public decimal TotalSalaries { get; set; }
+        /// <summary>Sum of all expense records in the date range.</summary>
+        public decimal TotalExpenses { get; set; }
+        public decimal NetProfitLoss { get; set; }
+    }
+
+    public class GeneralProfitLossReportFilters
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+    }
+
     public class DailyStockReportViewModel
     {
         public List<DailyStockReportItem> StockList { get; set; }

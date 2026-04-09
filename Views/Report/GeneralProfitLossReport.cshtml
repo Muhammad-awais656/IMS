@@ -1,0 +1,153 @@
+@model IMS.Models.GeneralProfitLossReportViewModel
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-scale-balanced me-2"></i>
+                <h4 class="mb-0">General Profit Loss Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="GeneralProfitLossReport" asp-controller="Report" method="get">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>From Date
+                            </label>
+                            <div class="input-group">
+                                <input type="date" name="Filters.FromDate"
+                                       value="@(Model.Filters?.FromDate.HasValue == true ? Model.Filters.FromDate.Value.ToString("yyyy-MM-dd") : new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1).ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.FromDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>To Date
+                            </label>
+                            <div class="input-group">
+                                <input type="date" name="Filters.ToDate"
+                                       value="@(Model.Filters?.ToDate.HasValue == true ? Model.Filters.ToDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.ToDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="GeneralProfitLossReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-4">
+            <i class="fa fa-info-circle me-1"></i>
+            Trading figures use the same basis as <strong>Product Wise Profit and Loss</strong> (sales vs average purchase cost on quantities sold).
+            Salaries are the sum of <strong>debit</strong> amounts on employee ledger entries whose voucher type name contains &quot;Salary&quot;.
+            Expenses include <strong>all</strong> expense records in the period.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:55%">Description</th>
+                        <th class="text-end" style="width:45%">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total sales (revenue)</td>
+                        <td class="text-end text-success fw-semibold">@Model.TotalSalesAmount.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td>Cost of goods sold (purchase cost on sold quantity)</td>
+                        <td class="text-end text-danger">@((-Model.TotalPurchaseCost).ToString("N2"))</td>
+                    </tr>
+                    <tr class="table-info fw-bold">
+                        <td>Gross trading profit</td>
+                        <td class="text-end">@Model.GrossTradingProfit.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td>Salaries</td>
+                        <td class="text-end text-danger">@((-Model.TotalSalaries).ToString("N2"))</td>
+                    </tr>
+                    <tr>
+                        <td>Expenses</td>
+                        <td class="text-end text-danger">@((-Model.TotalExpenses).ToString("N2"))</td>
+                    </tr>
+                    <tr class="@(Model.NetProfitLoss >= 0 ? "table-success" : "table-danger") fw-bold">
+                        <td>Net profit / (loss)</td>
+                        <td class="text-end">@Model.NetProfitLoss.ToString("N2")</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearDate(fieldName) {
+            var input = document.querySelector(`input[name='${fieldName}']`);
+            if (input) {
+                input.value = '';
+                document.getElementById('filterForm').submit();
+            }
+        }
+
+        function getGeneralPlParams() {
+            var fromDateInput = document.querySelector("input[name='Filters.FromDate']");
+            var toDateInput = document.querySelector("input[name='Filters.ToDate']");
+            return {
+                fromDate: fromDateInput ? fromDateInput.value : '',
+                toDate: toDateInput ? toDateInput.value : ''
+            };
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getGeneralPlParams();
+            var url = `/Report/ExportGeneralProfitLossExcel?fromDate=${encodeURIComponent(p.fromDate)}&toDate=${encodeURIComponent(p.toDate)}`;
+            exportWithLoader(url, 'GeneralProfitLossReport_export.xlsx', 'Preparing Excel export... Please wait.');
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getGeneralPlParams();
+            var url = `/Report/ExportGeneralProfitLossPdf?fromDate=${encodeURIComponent(p.fromDate)}&toDate=${encodeURIComponent(p.toDate)}`;
+            exportWithLoader(url, 'GeneralProfitLossReport_export.pdf', 'Preparing PDF export... Please wait.');
+        });
+    </script>
+}

@@ -541,6 +541,129 @@ namespace IMS.Services
             };
         }
 
+        public async Task<GeneralProfitLossReportViewModel> GetGeneralProfitLossReport(GeneralProfitLossReportFilters? filters)
+        {
+            decimal totalSalesAmount = 0;
+            decimal totalPurchaseCost = 0;
+            decimal grossTradingProfit = 0;
+            decimal totalSalaries = 0;
+            decimal totalExpenses = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var toDateEnd = filters?.ToDate != null
+                        ? filters.ToDate.Value.Date.AddDays(1).AddSeconds(-1)
+                        : (DateTime?)null;
+
+                    object fromParam = (object?)filters?.FromDate ?? DBNull.Value;
+                    object toParam = toDateEnd.HasValue ? toDateEnd.Value : DBNull.Value;
+
+                    const string tradingSql = @"
+                        SELECT 
+                            ISNULL(SUM(TotalSalesAmount), 0) AS TotalSalesAmount,
+                            ISNULL(SUM(TotalPurchaseCost), 0) AS TotalPurchaseCost,
+                            ISNULL(SUM(ProfitLoss), 0) AS GrossTradingProfit
+                        FROM (
+                            SELECT 
+                                sd.PrductId_FK AS ProductId,
+                                SUM(sd.PayableAmount) AS TotalSalesAmount,
+                                ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0) AS TotalPurchaseCost,
+                                (SUM(sd.PayableAmount) - ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0)) AS ProfitLoss
+                            FROM SaleDetails sd
+                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                            LEFT JOIN (
+                                SELECT 
+                                    poi.PrductId_FK,
+                                    AVG(poi.UnitPrice) AS AvgPurchasePrice
+                                FROM PurchaseOrderItems poi
+                                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                                WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                                    AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                                GROUP BY poi.PrductId_FK
+                            ) pd ON sd.PrductId_FK = pd.PrductId_FK
+                            WHERE s.IsDeleted = 0
+                                AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
+                                AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
+                            GROUP BY sd.PrductId_FK, pd.AvgPurchasePrice
+                        ) AS Summary";
+
+                    using (var cmd = new SqlCommand(tradingSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@FromDate", fromParam);
+                        cmd.Parameters.AddWithValue("@ToDate", toParam);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                totalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount"));
+                                totalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost"));
+                                grossTradingProfit = reader.IsDBNull(reader.GetOrdinal("GrossTradingProfit"))
+                                    ? 0m
+                                    : reader.GetDecimal(reader.GetOrdinal("GrossTradingProfit"));
+                            }
+                        }
+                    }
+
+                    const string salarySql = @"
+                        SELECT ISNULL(SUM(L.DebitAmount), 0) AS TotalSalaries
+                        FROM EmployeeLedger L
+                        INNER JOIN EmployeeVoucherTypes VT ON VT.VoucherTypeId = L.VoucherTypeId
+                        WHERE (@FromDate IS NULL OR L.VoucherDate >= @FromDate)
+                          AND (@ToDate IS NULL OR L.VoucherDate <= @ToDate)
+                          AND LOWER(VT.VoucherTypeName) LIKE N'%salary%'";
+
+                    using (var cmd = new SqlCommand(salarySql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@FromDate", fromParam);
+                        cmd.Parameters.AddWithValue("@ToDate", toParam);
+                        var scalar = await cmd.ExecuteScalarAsync();
+                        if (scalar != null && scalar != DBNull.Value)
+                            totalSalaries = Convert.ToDecimal(scalar);
+                    }
+
+                    const string expenseSql = @"
+                        SELECT ISNULL(SUM(e.Amount), 0) AS TotalExpenses
+                        FROM Expenses e
+                        WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= CAST(@FromDate AS DATE))
+                          AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= CAST(@ToDate AS DATE))";
+
+                    using (var cmd = new SqlCommand(expenseSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@FromDate", (object?)filters?.FromDate ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ToDate", (object?)filters?.ToDate ?? DBNull.Value);
+                        var scalar = await cmd.ExecuteScalarAsync();
+                        if (scalar != null && scalar != DBNull.Value)
+                            totalExpenses = Convert.ToDecimal(scalar);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+
+            var net = grossTradingProfit - totalSalaries - totalExpenses;
+
+            return new GeneralProfitLossReportViewModel
+            {
+                Filters = filters ?? new GeneralProfitLossReportFilters(),
+                TotalSalesAmount = totalSalesAmount,
+                TotalPurchaseCost = totalPurchaseCost,
+                GrossTradingProfit = grossTradingProfit,
+                TotalSalaries = totalSalaries,
+                TotalExpenses = totalExpenses,
+                NetProfitLoss = net
+            };
+        }
+
         public async Task<ProfitLossReportViewModel> GetProductWiseProfitLossReport(int pageNumber, int? pageSize, ProfitLossReportFilters? filters)
         {
             // For export, get all records without pagination

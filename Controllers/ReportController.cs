@@ -311,10 +311,6 @@ namespace IMS.Controllers
                     HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
                 }
 
-                // Load dropdown data
-                var products = await _productService.GetAllEnabledProductsAsync();
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
-
                 // Preserve filters before service call
                 var filters = model.Filters;
 
@@ -323,9 +319,6 @@ namespace IMS.Controllers
 
                 // Reassign filters to ensure they're preserved
                 model.Filters = filters;
-
-                // Reassign dropdown again (important after service call)
-                ViewBag.Products = new SelectList(products, "ProductId", "ProductName", model.Filters.ProductId);
             }
             catch (Exception ex)
             {
@@ -356,7 +349,7 @@ namespace IMS.Controllers
             var model = await _reportService.GetProductWiseProfitLossReport(pageNumber, currentPageSize, filters);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("Profit Loss Report");
+            var worksheet = workbook.Worksheets.Add("Product Wise Profit and Loss Report");
             
             // Add header
             worksheet.Cell(1, 1).Value = "Product Name";
@@ -435,7 +428,7 @@ namespace IMS.Controllers
 
                 // Title
                 var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
-                document.Add(new Paragraph("Product Wise Profit/Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+                document.Add(new Paragraph("Product Wise Profit and Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n")); // Add space
 
                 // Table with 8 columns
@@ -505,6 +498,130 @@ namespace IMS.Controllers
                 string filename = $"ProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
+        }
+
+        public async Task<IActionResult> GeneralProfitLossReport(GeneralProfitLossReportViewModel model)
+        {
+            try
+            {
+                if (model == null)
+                    model = new GeneralProfitLossReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new GeneralProfitLossReportFilters();
+
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now;
+
+                model = await _reportService.GetGeneralProfitLossReport(model.Filters);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model ??= new GeneralProfitLossReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new GeneralProfitLossReportFilters();
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportGeneralProfitLossExcel(DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new GeneralProfitLossReportFilters
+            {
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetGeneralProfitLossReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("General Profit Loss");
+
+            worksheet.Cell(1, 1).Value = "General Profit Loss Report";
+            worksheet.Cell(1, 1).Style.Font.Bold = true;
+            worksheet.Cell(1, 1).Style.Font.FontSize = 14;
+            worksheet.Range(1, 1, 1, 2).Merge();
+
+            worksheet.Cell(2, 1).Value = "Period";
+            worksheet.Cell(2, 2).Value =
+                $"{filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}";
+
+            int row = 4;
+            void AddRow(string label, decimal value)
+            {
+                worksheet.Cell(row, 1).Value = label;
+                worksheet.Cell(row, 2).Value = value;
+                row++;
+            }
+
+            AddRow("Total sales (revenue)", model.TotalSalesAmount);
+            AddRow("Cost of goods sold (purchase cost on sold qty)", -model.TotalPurchaseCost);
+            AddRow("Gross trading profit", model.GrossTradingProfit);
+            AddRow("Salaries (employee ledger, voucher contains \"Salary\")", -model.TotalSalaries);
+            AddRow("Expenses (all expense records)", -model.TotalExpenses);
+            row++;
+            worksheet.Cell(row, 1).Value = "Net profit / (loss)";
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            worksheet.Cell(row, 2).Value = model.NetProfitLoss;
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var filename = $"GeneralProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportGeneralProfitLossPdf(DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var filters = new GeneralProfitLossReportFilters
+            {
+                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
+                ToDate = toDate ?? DateTimeHelper.Now
+            };
+            var model = await _reportService.GetGeneralProfitLossReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 40f, 40f, 40f, 40f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            document.Add(new Paragraph("General Profit Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph(
+                $"Period: {filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}",
+                FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            PdfPTable table = new PdfPTable(2);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 3f, 1.5f });
+
+            void AddPdfRow(string label, string value, bool bold = false)
+            {
+                var f = bold ? FontFactory.HELVETICA_BOLD : FontFactory.HELVETICA;
+                table.AddCell(new PdfPCell(new Phrase(label, FontFactory.GetFont(f, 10))));
+                table.AddCell(new PdfPCell(new Phrase(value, FontFactory.GetFont(f, 10))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+            }
+
+            AddPdfRow("Total sales (revenue)", model.TotalSalesAmount.ToString("N2"));
+            AddPdfRow("Cost of goods sold", (-model.TotalPurchaseCost).ToString("N2"));
+            AddPdfRow("Gross trading profit", model.GrossTradingProfit.ToString("N2"));
+            AddPdfRow("Salaries", (-model.TotalSalaries).ToString("N2"));
+            AddPdfRow("Expenses", (-model.TotalExpenses).ToString("N2"));
+            AddPdfRow("Net profit / (loss)", model.NetProfitLoss.ToString("N2"), true);
+
+            document.Add(table);
+            document.Close();
+            var filename = $"GeneralProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
         }
 
         public async Task<IActionResult> DailyStockReport(DailyStockReportViewModel model, int pageNumber = 1, int? pageSize = null)
