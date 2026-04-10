@@ -603,10 +603,64 @@ namespace IMS.Services
         {
             try
             {
+                var vm = await LoadBankLedgerReportCoreAsync(personalPaymentId, pageNumber, pageSize, fromDate, toDate, transactionType);
+                if (vm == null)
+                {
+                    return new
+                    {
+                        success = false,
+                        message = "Error loading transaction history.",
+                        transactions = new List<object>(),
+                        accountSummary = new object()
+                    };
+                }
+
+                return new
+                {
+                    success = true,
+                    transactions = vm.Transactions,
+                    accountSummary = vm.AccountSummary,
+                    currentPage = vm.CurrentPage,
+                    totalPages = vm.TotalPages,
+                    totalCount = vm.TotalCount,
+                    pageSize = vm.PageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting transaction history for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return new
+                {
+                    success = false,
+                    message = "Error loading transaction history: " + ex.Message,
+                    transactions = new List<object>(),
+                    accountSummary = new object()
+                };
+            }
+        }
+
+        public async Task<BankLedgerReportViewModel> GetBankLedgerReportAsync(long personalPaymentId, int pageNumber, int pageSize,
+            DateTime? fromDate, DateTime? toDate, string? transactionType)
+        {
+            var vm = await LoadBankLedgerReportCoreAsync(personalPaymentId, pageNumber, pageSize, fromDate, toDate, transactionType);
+            return vm ?? new BankLedgerReportViewModel
+            {
+                CurrentPage = pageNumber,
+                PageSize = pageSize,
+                TotalPages = 1,
+                TotalCount = 0
+            };
+        }
+
+        private async Task<BankLedgerReportViewModel?> LoadBankLedgerReportCoreAsync(long personalPaymentId, int pageNumber, int pageSize,
+            DateTime? fromDate, DateTime? toDate, string? transactionType)
+        {
+            try
+            {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    
+
                     using (var command = new SqlCommand("GetPersonalPaymentTransactionHistory", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
@@ -620,12 +674,10 @@ namespace IMS.Services
                         var transactions = new List<PersonalPaymentTransactionViewModel>();
                         var accountSummary = new PersonalPaymentAccountSummary();
                         var totalCount = 0;
-                        var currentPage = pageNumber;
                         var totalPages = 0;
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
-                            // First result set: transactions
                             while (await reader.ReadAsync())
                             {
                                 transactions.Add(new PersonalPaymentTransactionViewModel
@@ -651,7 +703,6 @@ namespace IMS.Services
                                 });
                             }
 
-                            // Second result set: total count
                             if (await reader.NextResultAsync())
                             {
                                 if (await reader.ReadAsync())
@@ -660,7 +711,6 @@ namespace IMS.Services
                                 }
                             }
 
-                            // Third result set: account summary
                             if (await reader.NextResultAsync())
                             {
                                 if (await reader.ReadAsync())
@@ -681,32 +731,24 @@ namespace IMS.Services
                             }
                         }
 
-                        // Calculate pagination
-                        totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+                        totalPages = pageSize > 0 ? (int)Math.Ceiling((double)totalCount / pageSize) : 1;
 
-                        return new
+                        return new BankLedgerReportViewModel
                         {
-                            success = true,
-                            transactions = transactions,
-                            accountSummary = accountSummary,
-                            currentPage = currentPage,
-                            totalPages = totalPages,
-                            totalCount = totalCount,
-                            pageSize = pageSize
+                            Transactions = transactions,
+                            AccountSummary = accountSummary,
+                            CurrentPage = pageNumber,
+                            TotalPages = totalPages,
+                            TotalCount = totalCount,
+                            PageSize = pageSize
                         };
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting transaction history for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
-                return new
-                {
-                    success = false,
-                    message = "Error loading transaction history: " + ex.Message,
-                    transactions = new List<object>(),
-                    accountSummary = new object()
-                };
+                _logger.LogError(ex, "Error loading bank ledger for PersonalPaymentId: {PersonalPaymentId}", personalPaymentId);
+                return null;
             }
         }
 

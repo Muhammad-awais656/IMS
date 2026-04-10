@@ -24,5 +24,7 @@ namespace IMS.Common_Interfaces
         Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters);
         Task<CustomerBalanceReportViewModel> GetCustomerBalanceReport(CustomerBalanceReportFilters? filters);
         Task<VendorBalanceReportViewModel> GetVendorBalanceReport(VendorBalanceReportFilters? filters);
+        Task<CashInHandReportViewModel> GetCashInHandReport(int pageNumber, int? pageSize, CashInHandReportFilters? filters);
+        Task<CashInHandReportViewModel> GetCashInHandReportForExport(CashInHandReportFilters? filters);
     }
 }

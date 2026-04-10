@@ -42,6 +42,8 @@ namespace IMS.Models
     public class StockHistoryFilters
     {
         public long? StockMasterId { get; set; }
+        /// <summary>Used by Stock Transactions Report (Kendo product combo); resolved to StockMasterId server-side.</summary>
+        public long? ProductId { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public string? TransactionType { get; set; }

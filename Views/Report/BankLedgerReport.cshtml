@@ -1,0 +1,404 @@
+@model IMS.Models.BankLedgerReportViewModel
+@{
+    bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+    string role = isAdmin ? "Admin" : "User";
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-university me-2"></i>
+                <h4 class="mb-0">Bank Ledger Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="BankLedgerReport" asp-controller="Report" method="get">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="bankComboBox" class="form-label fw-semibold">
+                                <i class="fa fa-university me-1 text-primary"></i>Bank Name
+                            </label>
+                            <input id="bankComboBox" style="width: 100%;" autocomplete="off" />
+                            <input type="hidden" name="Filters.PersonalPaymentId" id="bankIdHidden"
+                                   value="@(Model.Filters?.PersonalPaymentId?.ToString() ?? "")" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>From Date
+                            </label>
+                            <div class="input-group">
+                                <input type="date" name="Filters.FromDate"
+                                       value="@(Model.Filters?.FromDate.HasValue == true ? Model.Filters.FromDate.Value.ToString("yyyy-MM-dd") : new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1).ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.FromDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>To Date
+                            </label>
+                            <div class="input-group">
+                                <input type="date" name="Filters.ToDate"
+                                       value="@(Model.Filters?.ToDate.HasValue == true ? Model.Filters.ToDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearDate('Filters.ToDate')" title="Clear Date">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold" for="transactionTypeSelect">
+                                <i class="fa fa-exchange-alt me-1 text-primary"></i>Transaction Type
+                            </label>
+                            <select id="transactionTypeSelect" name="Filters.TransactionType" class="form-select">
+                                <option value="">All</option>
+                                @if (Model.Filters?.TransactionType == "Credit")
+                                {
+                                    <option value="Credit" selected>Credit</option>
+                                }
+                                else
+                                {
+                                    <option value="Credit">Credit</option>
+                                }
+                                @if (Model.Filters?.TransactionType == "Debit")
+                                {
+                                    <option value="Debit" selected>Debit</option>
+                                }
+                                else
+                                {
+                                    <option value="Debit">Debit</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="BankLedgerReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.AccountSummary != null)
+        {
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Bank / Account</h6>
+                            <p class="mb-0 small">@Model.AccountSummary.BankName</p>
+                            <p class="mb-0 small"><code class="text-white">@Model.AccountSummary.AccountNumber</code> — @Model.AccountSummary.AccountHolderName</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Current Balance</h6>
+                            <h3 class="mb-0">@Model.AccountSummary.CurrentBalance.ToString("N2")</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Transactions (filtered)</h6>
+                            <h3 class="mb-0">@Model.TotalCount</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (Model.Filters?.PersonalPaymentId == null || Model.Filters.PersonalPaymentId <= 0)
+        {
+            <div class="alert alert-info">
+                <i class="fa fa-info-circle me-2"></i>Select a <strong>bank account</strong> from the list and choose dates to load the ledger (same data as Transaction History on Bank Payments).
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fa fa-table me-2"></i>Transactions
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Balance</th>
+                                <th>Description</th>
+                                <th>Sale Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Transactions != null && Model.Transactions.Any())
+                            {
+                                @foreach (var t in Model.Transactions)
+                                {
+                                    <tr>
+                                        <td>@t.TransactionDate.ToString("dd-MMM-yyyy")</td>
+                                        <td>
+                                            <span class="badge @(t.TransactionType == "Credit" ? "bg-success" : "bg-danger")">@t.TransactionType</span>
+                                        </td>
+                                        <td class="text-end @(t.TransactionType == "Credit" ? "text-success" : "text-danger") fw-semibold">@t.Amount.ToString("N2")</td>
+                                        <td class="text-end fw-bold">@t.Balance.ToString("N2")</td>
+                                        <td>@(string.IsNullOrEmpty(t.TransactionDescription) ? "—" : t.TransactionDescription)</td>
+                                        <td>
+                                            @if (t.SaleId == 0)
+                                            {
+                                                if (t.TransactionType == "Credit")
+                                                {
+                                                    <span class="badge bg-info">Manual Deposit</span>
+                                                }
+                                                else if (t.TransactionType == "Debit")
+                                                {
+                                                    <span class="badge bg-warning text-dark">Manual Withdraw</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>—</span>
+                                                }
+                                            }
+                                            else if (t.BillNumber > 0)
+                                            {
+                                                <span>Bill #@t.BillNumber</span>
+                                            }
+                                            else if (!string.IsNullOrEmpty(t.SaleDescription))
+                                            {
+                                                @t.SaleDescription
+                                            }
+                                            else
+                                            {
+                                                <span>—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        No transactions for the selected filters.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Filters?.PersonalPaymentId > 0)
+        {
+            var pid = Model.Filters.PersonalPaymentId.ToString();
+            var fromDate = Model.Filters.FromDate?.ToString("yyyy-MM-dd") ?? "";
+            var toDate = Model.Filters.ToDate?.ToString("yyyy-MM-dd") ?? "";
+            var tt = Model.Filters.TransactionType ?? "";
+            var queryParams = new List<string> { $"pageSize={Model.PageSize}" };
+            queryParams.Add($"Filters.PersonalPaymentId={pid}");
+            if (!string.IsNullOrEmpty(fromDate)) queryParams.Add($"Filters.FromDate={fromDate}");
+            if (!string.IsNullOrEmpty(toDate)) queryParams.Add($"Filters.ToDate={toDate}");
+            if (!string.IsNullOrEmpty(tt)) queryParams.Add($"Filters.TransactionType={Uri.EscapeDataString(tt)}");
+            var queryString = string.Join("&", queryParams);
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-info-circle me-2 text-primary"></i>
+                            <span class="text-muted">
+                                <strong>@Model.TotalCount</strong> total | Page <strong>@Model.CurrentPage</strong> of <strong>@Model.TotalPages</strong>
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <label for="pageSize" class="form-label mb-0 text-muted">Per page:</label>
+                            @{
+                                var pageSizeVal = Model.PageSize ?? 10;
+                            }
+                            <select id="pageSize" class="form-select form-select-sm w-auto" onchange="changeBankLedgerPageSize(this)">
+                                @if (pageSizeVal == 10)
+                                {
+                                    <option value="10" selected>10</option>
+                                }
+                                else
+                                {
+                                    <option value="10">10</option>
+                                }
+                                @if (pageSizeVal == 20)
+                                {
+                                    <option value="20" selected>20</option>
+                                }
+                                else
+                                {
+                                    <option value="20">20</option>
+                                }
+                                @if (pageSizeVal == 30)
+                                {
+                                    <option value="30" selected>30</option>
+                                }
+                                else
+                                {
+                                    <option value="30">30</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    @if (Model.TotalPages > 1)
+                    {
+                        <nav aria-label="Bank Ledger pagination" class="mt-3">
+                            <ul class="pagination justify-content-center mb-0">
+                                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                    <a class="page-link" href="/Report/BankLedgerReport?pageNumber=1&@queryString">First</a>
+                                </li>
+                                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                                    <a class="page-link" href="/Report/BankLedgerReport?pageNumber=@(Model.CurrentPage - 1)&@queryString">Previous</a>
+                                </li>
+                                @{
+                                    int startPage = Math.Max(1, Model.CurrentPage - 1);
+                                    int endPage = Math.Min(Model.TotalPages, startPage + 2);
+                                    if (endPage - startPage < 2) startPage = Math.Max(1, endPage - 2);
+                                }
+                                @for (int i = startPage; i <= endPage; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" href="/Report/BankLedgerReport?pageNumber=@i&@queryString">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                    <a class="page-link" href="/Report/BankLedgerReport?pageNumber=@(Model.CurrentPage + 1)&@queryString">Next</a>
+                                </li>
+                                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                                    <a class="page-link" href="/Report/BankLedgerReport?pageNumber=@Model.TotalPages&@queryString">Last</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearDate(fieldName) {
+            var input = document.querySelector(`input[name='${fieldName}']`);
+            if (input) {
+                input.value = '';
+                document.getElementById('filterForm').submit();
+            }
+        }
+
+        $(document).ready(function () {
+            if (typeof $.fn.kendoComboBox === "undefined") return;
+            var $input = $("#bankComboBox");
+            if (!$input.length) return;
+            var initialId = $("#bankIdHidden").val() || "";
+
+            $("#bankComboBox").kendoComboBox({
+                placeholder: "-- Select Bank --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "text",
+                dataValueField: "value",
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetBankNames", "PersonalPayments")",
+                            dataType: "json"
+                        }
+                    }
+                },
+                value: initialId,
+                change: function () {
+                    var v = this.value() || "";
+                    $("#bankIdHidden").val(v);
+                },
+                select: function (e) {
+                    var dataItem = e.item ? this.dataItem(e.item.index()) : null;
+                    $("#bankIdHidden").val(dataItem ? dataItem.value : "");
+                },
+                dataBound: function (e) {
+                    if (initialId) {
+                        e.sender.value(initialId);
+                        $("#bankIdHidden").val(initialId);
+                    }
+                }
+            });
+        });
+
+        function getBankLedgerExportParams() {
+            var combo = $("#bankComboBox").data("kendoComboBox");
+            var bankId = combo ? (combo.value() || "") : (document.getElementById("bankIdHidden") ? document.getElementById("bankIdHidden").value : "");
+            var fromDate = document.querySelector("input[name='Filters.FromDate']");
+            var toDate = document.querySelector("input[name='Filters.ToDate']");
+            var tt = document.getElementById("transactionTypeSelect");
+            return {
+                personalPaymentId: bankId,
+                fromDate: fromDate ? fromDate.value : '',
+                toDate: toDate ? toDate.value : '',
+                transactionType: tt ? tt.value : ''
+            };
+        }
+
+        function changeBankLedgerPageSize(select) {
+            var p = getBankLedgerExportParams();
+            var url = `/Report/BankLedgerReport?pageNumber=1&Filters.PersonalPaymentId=${encodeURIComponent(p.personalPaymentId)}&pageSize=${select.value}&Filters.FromDate=${encodeURIComponent(p.fromDate)}&Filters.ToDate=${encodeURIComponent(p.toDate)}`;
+            if (p.transactionType) url += `&Filters.TransactionType=${encodeURIComponent(p.transactionType)}`;
+            window.location.href = url;
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getBankLedgerExportParams();
+            if (!p.personalPaymentId) {
+                alert("Please select a bank account.");
+                return;
+            }
+            var url = `/Report/ExportBankLedgerExcel?personalPaymentId=${encodeURIComponent(p.personalPaymentId)}&fromDate=${encodeURIComponent(p.fromDate)}&toDate=${encodeURIComponent(p.toDate)}&transactionType=${encodeURIComponent(p.transactionType)}`;
+            exportWithLoader(url, 'BankLedgerReport_export.xlsx', 'Preparing Excel export... Please wait.');
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getBankLedgerExportParams();
+            if (!p.personalPaymentId) {
+                alert("Please select a bank account.");
+                return;
+            }
+            var url = `/Report/ExportBankLedgerPdf?personalPaymentId=${encodeURIComponent(p.personalPaymentId)}&fromDate=${encodeURIComponent(p.fromDate)}&toDate=${encodeURIComponent(p.toDate)}&transactionType=${encodeURIComponent(p.transactionType)}`;
+            exportWithLoader(url, 'BankLedgerReport_export.pdf', 'Preparing PDF export... Please wait.');
+        });
+    </script>
+}

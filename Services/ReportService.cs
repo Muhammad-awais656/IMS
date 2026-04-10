@@ -16,11 +16,22 @@ namespace IMS.Services
     {
         private readonly IDbContextFactory _dbContextFactory;
         private readonly ILogger<ReportService> _logger;
+        private readonly IUnitConversionService _unitConversionService;
+        private readonly IProductService _productService;
+        private readonly IAdminMeasuringUnitService _measuringUnitService;
 
-        public ReportService(IDbContextFactory dbContextFactory, ILogger<ReportService> logger)
+        public ReportService(
+            IDbContextFactory dbContextFactory,
+            ILogger<ReportService> logger,
+            IUnitConversionService unitConversionService,
+            IProductService productService,
+            IAdminMeasuringUnitService measuringUnitService)
         {
             _dbContextFactory = dbContextFactory;
             _logger = logger;
+            _unitConversionService = unitConversionService;
+            _productService = productService;
+            _measuringUnitService = measuringUnitService;
         }
 
         public async Task<ReportsViewModel> GetAllSales(int pageNumber, int? pageSize, SalesReportsFilters? salesReportsFilters)
@@ -839,6 +850,28 @@ namespace IMS.Services
 
         public async Task<DailyStockReportViewModel> GetDailyStockReport(int pageNumber, int? pageSize, DailyStockReportFilters? filters)
         {
+            if (filters != null
+                && filters.DisplayMeasuringUnitId.HasValue
+                && filters.DisplayMeasuringUnitId.Value > 0)
+            {
+                var full = await GetDailyStockReportForExport(1, null, filters);
+                var all = full.StockList ?? new List<DailyStockReportItem>();
+                var displayUnitTotalRows = all.Count;
+                var psz = pageSize ?? 10;
+                var paged = psz > 0
+                    ? all.Skip((pageNumber - 1) * psz).Take(psz).ToList()
+                    : new List<DailyStockReportItem>();
+                full.StockList = paged;
+                full.Filters = filters;
+                full.CurrentPage = pageNumber;
+                full.TotalPages = psz > 0 && displayUnitTotalRows > 0
+                    ? Math.Max(1, (int)Math.Ceiling(displayUnitTotalRows / (double)psz))
+                    : 1;
+                full.PageSize = psz;
+                full.TotalCount = displayUnitTotalRows;
+                return full;
+            }
+
             var stockList = new List<DailyStockReportItem>();
             int totalRecords = 0;
             decimal totalStockValue = 0;
@@ -869,7 +902,7 @@ namespace IMS.Services
                         LEFT JOIN (
                             SELECT 
                                 pr.ProductId_FK,
-                                AVG(pr.UnitPrice) AS UnitPrice
+                                MIN(pr.UnitPrice) AS UnitPrice
                             FROM ProductRange pr
                             GROUP BY pr.ProductId_FK
                         ) pr ON p.ProductId = pr.ProductId_FK
@@ -893,7 +926,7 @@ namespace IMS.Services
                         LEFT JOIN (
                             SELECT 
                                 pr.ProductId_FK,
-                                AVG(pr.UnitPrice) AS UnitPrice
+                                MIN(pr.UnitPrice) AS UnitPrice
                             FROM ProductRange pr
                             GROUP BY pr.ProductId_FK
                         ) pr ON p.ProductId = pr.ProductId_FK
@@ -952,7 +985,7 @@ namespace IMS.Services
                 _logger.LogError(ex, ex.Message);
             }
 
-            return new DailyStockReportViewModel
+            var vm = new DailyStockReportViewModel
             {
                 StockList = stockList,
                 Filters = filters ?? new DailyStockReportFilters(),
@@ -967,6 +1000,8 @@ namespace IMS.Services
                 TotalQuantity = totalQuantity,
                 TotalStockValue = totalStockValue
             };
+            await ApplyMeasuringUnitDisplayToDailyStockAsync(vm, filters);
+            return vm;
         }
 
         public async Task<DailyStockReportViewModel> GetDailyStockReportForExport(int pageNumber, int? pageSize, DailyStockReportFilters? filters)
@@ -1001,7 +1036,7 @@ namespace IMS.Services
                         LEFT JOIN (
                             SELECT 
                                 pr.ProductId_FK,
-                                AVG(pr.UnitPrice) AS UnitPrice
+                                MIN(pr.UnitPrice) AS UnitPrice
                             FROM ProductRange pr
                             GROUP BY pr.ProductId_FK
                         ) pr ON p.ProductId = pr.ProductId_FK
@@ -1019,7 +1054,7 @@ namespace IMS.Services
                         LEFT JOIN (
                             SELECT 
                                 pr.ProductId_FK,
-                                AVG(pr.UnitPrice) AS UnitPrice
+                                MIN(pr.UnitPrice) AS UnitPrice
                             FROM ProductRange pr
                             GROUP BY pr.ProductId_FK
                         ) pr ON p.ProductId = pr.ProductId_FK
@@ -1067,7 +1102,7 @@ namespace IMS.Services
                 _logger.LogError(ex, ex.Message);
             }
 
-            return new DailyStockReportViewModel
+            var exportVm = new DailyStockReportViewModel
             {
                 StockList = stockList,
                 Filters = filters ?? new DailyStockReportFilters(),
@@ -1080,6 +1115,118 @@ namespace IMS.Services
                 TotalQuantity = totalQuantity,
                 TotalStockValue = totalStockValue
             };
+            await ApplyMeasuringUnitDisplayToDailyStockAsync(exportVm, filters);
+            return exportVm;
+        }
+
+        private async Task ApplyMeasuringUnitDisplayToDailyStockAsync(DailyStockReportViewModel vm, DailyStockReportFilters? filters)
+        {
+            if (filters?.DisplayMeasuringUnitId == null || filters.DisplayMeasuringUnitId.Value <= 0)
+                return;
+
+            var displayUnitId = filters.DisplayMeasuringUnitId.Value;
+            try
+            {
+                var mu = await _measuringUnitService.GetAdminMeasuringUnitByIdAsync(displayUnitId);
+                if (mu != null)
+                {
+                    vm.DisplayMeasuringUnitName = mu.MeasuringUnitName?.Trim();
+                    var abbr = mu.MeasuringUnitAbbreviation?.Trim();
+                    vm.DisplayMeasuringUnitAbbreviation = !string.IsNullOrEmpty(abbr)
+                        ? abbr
+                        : vm.DisplayMeasuringUnitName;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not load measuring unit {UnitId} for daily stock display", displayUnitId);
+            }
+
+            if (vm.StockList == null || vm.StockList.Count == 0)
+                return;
+
+            foreach (var item in vm.StockList)
+            {
+                var baseUnitId = await GetBaseUnitIdForProductAsync(item.ProductId);
+                if (!baseUnitId.HasValue)
+                    continue;
+
+                // UnitPrice from query is MIN(ProductRange.UnitPrice), treated as per base (smallest) unit — same basis as StockMaster quantities.
+                var unitPricePerBase = item.UnitPrice;
+
+                item.TotalQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.TotalQuantity);
+                item.UsedQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.UsedQuantity);
+                item.AvailableQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.AvailableQuantity);
+
+                item.UnitPrice = await ConvertUnitPriceFromBaseToDisplayAsync(baseUnitId.Value, displayUnitId, unitPricePerBase);
+                item.StockValue = item.AvailableQuantity * item.UnitPrice;
+            }
+
+            vm.TotalQuantity = vm.StockList.Sum(i => i.TotalQuantity);
+            vm.TotalUsedQuantity = vm.StockList.Sum(i => i.UsedQuantity);
+            vm.TotalAvailableQuantity = vm.StockList.Sum(i => i.AvailableQuantity);
+            vm.TotalStockValue = vm.StockList.Sum(i => i.StockValue);
+        }
+
+        private async Task<long?> GetBaseUnitIdForProductAsync(long productId)
+        {
+            try
+            {
+                var product = await _productService.GetProductByIdAsync(productId);
+                if (product?.ProductList == null || !product.ProductList.MeasuringUnitTypeIdFk.HasValue)
+                    return null;
+
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
+                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                return smallestUnit?.MeasuringUnitId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetBaseUnitIdForProductAsync failed for product {ProductId}", productId);
+                return null;
+            }
+        }
+
+        /// <summary>Matches StockController.ConvertStockForDisplay: quantities in base (smallest) unit → selected display unit.</summary>
+        private async Task<decimal> ConvertStockDisplayQuantityAsync(long baseUnitId, long displayUnitId, decimal stockInBaseUnit)
+        {
+            if (baseUnitId == displayUnitId)
+                return stockInBaseUnit;
+
+            var conversionsFromSelectedUnit = await _unitConversionService.GetConversionsByFromUnitAsync(displayUnitId);
+            var conversion = conversionsFromSelectedUnit.FirstOrDefault(c => c.ToUnitId == baseUnitId && c.IsEnabled);
+            if (conversion != null)
+                return stockInBaseUnit / conversion.ConversionFactor;
+
+            var conversionsFromBaseUnit = await _unitConversionService.GetConversionsByFromUnitAsync(baseUnitId);
+            var reverseConversion = conversionsFromBaseUnit.FirstOrDefault(c => c.ToUnitId == displayUnitId && c.IsEnabled);
+            if (reverseConversion != null)
+                return stockInBaseUnit * reverseConversion.ConversionFactor;
+
+            return stockInBaseUnit;
+        }
+
+        /// <summary>
+        /// Converts unit price from per base (smallest) unit to per selected display unit.
+        /// Keeps monetary value consistent: available (base) × price (base) = available (display) × price (display).
+        /// Uses the same conversion paths as <see cref="ConvertStockDisplayQuantityAsync"/>.
+        /// </summary>
+        private async Task<decimal> ConvertUnitPriceFromBaseToDisplayAsync(long baseUnitId, long displayUnitId, decimal unitPricePerBase)
+        {
+            if (baseUnitId == displayUnitId)
+                return unitPricePerBase;
+
+            var conversionsFromSelectedUnit = await _unitConversionService.GetConversionsByFromUnitAsync(displayUnitId);
+            var conversion = conversionsFromSelectedUnit.FirstOrDefault(c => c.ToUnitId == baseUnitId && c.IsEnabled);
+            if (conversion != null)
+                return unitPricePerBase * conversion.ConversionFactor;
+
+            var conversionsFromBaseUnit = await _unitConversionService.GetConversionsByFromUnitAsync(baseUnitId);
+            var reverseConversion = conversionsFromBaseUnit.FirstOrDefault(c => c.ToUnitId == displayUnitId && c.IsEnabled);
+            if (reverseConversion != null)
+                return unitPricePerBase / reverseConversion.ConversionFactor;
+
+            return unitPricePerBase;
         }
 
         public async Task<BankCreditDebitReportViewModel> GetBankCreditDebitReport(int pageNumber, int? pageSize, BankCreditDebitReportFilters? filters)
@@ -3046,6 +3193,294 @@ namespace IMS.Services
                     TotalBalance = 0
                 };
             }
+        }
+
+        public async Task<CashInHandReportViewModel> GetCashInHandReport(int pageNumber, int? pageSize, CashInHandReportFilters? filters)
+        {
+            var list = new List<CashInHandReportItem>();
+            int totalRecords = 0;
+            decimal totalCashIn = 0;
+            var f = NormalizeCashInHandFilters(filters);
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    var sql = @"
+;WITH Combined AS (
+    SELECT 
+        s.SaleDate AS TransactionDate,
+        s.BillNumber,
+        ISNULL(c.CustomerName, N'') AS PartyName,
+        N'Cash sale' AS SourceKind,
+        s.TotalReceivedAmount AS CashAmount,
+        s.SaleId AS SaleId,
+        CAST(NULL AS BIGINT) AS PaymentId
+    FROM Sales s
+    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
+      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+
+    UNION ALL
+
+    SELECT 
+        p.PaymentDate AS TransactionDate,
+        s.BillNumber,
+        ISNULL(c.CustomerName, N'') AS PartyName,
+        N'Cash payment' AS SourceKind,
+        p.PaymentAmount AS CashAmount,
+        CAST(NULL AS BIGINT) AS SaleId,
+        p.PaymentId AS PaymentId
+    FROM Payments p
+    INNER JOIN Sales s ON p.SaleId = s.SaleId
+    LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
+)
+SELECT TransactionDate, BillNumber, PartyName, SourceKind, CashAmount, SaleId, PaymentId
+FROM Combined
+ORDER BY TransactionDate DESC, BillNumber DESC
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+SELECT COUNT(1) AS TotalRecords FROM (
+    SELECT 1 AS N FROM Sales s
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
+      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+    UNION ALL
+    SELECT 1 AS N FROM Payments p
+    INNER JOIN Sales s ON p.SaleId = s.SaleId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
+) AS CashInHandRowCount;
+
+SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
+    SELECT s.TotalReceivedAmount AS CashAmount
+    FROM Sales s
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
+      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+    UNION ALL
+    SELECT p.PaymentAmount AS CashAmount
+    FROM Payments p
+    INNER JOIN Sales s ON p.SaleId = s.SaleId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
+) AS agg;
+";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", f.FromDate);
+                        command.Parameters.AddWithValue("@ToDateExclusive", f.ToDateExclusive);
+                        command.Parameters.AddWithValue("@CustomerId", (object)f.CustomerId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
+                        command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new CashInHandReportItem
+                                {
+                                    TransactionDate = reader.GetDateTime(0),
+                                    BillNumber = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
+                                    PartyName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                                    SourceKind = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                                    CashAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                                    SaleId = reader.IsDBNull(5) ? null : Convert.ToInt64(reader.GetValue(5)),
+                                    PaymentId = reader.IsDBNull(6) ? null : Convert.ToInt64(reader.GetValue(6))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                                totalRecords = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0));
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                                totalCashIn = reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCashInHandReport error");
+            }
+
+            return new CashInHandReportViewModel
+            {
+                Items = list,
+                Filters = f.Filters,
+                CurrentPage = pageNumber,
+                TotalPages = pageSize.HasValue && pageSize.Value > 0
+                    ? Math.Max(1, (int)Math.Ceiling(totalRecords / (double)pageSize.Value))
+                    : 1,
+                PageSize = pageSize,
+                TotalCount = totalRecords,
+                TotalCashIn = totalCashIn
+            };
+        }
+
+        public async Task<CashInHandReportViewModel> GetCashInHandReportForExport(CashInHandReportFilters? filters)
+        {
+            var list = new List<CashInHandReportItem>();
+            decimal totalCashIn = 0;
+            var f = NormalizeCashInHandFilters(filters);
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+                    var sql = @"
+;WITH Combined AS (
+    SELECT 
+        s.SaleDate AS TransactionDate,
+        s.BillNumber,
+        ISNULL(c.CustomerName, N'') AS PartyName,
+        N'Cash sale' AS SourceKind,
+        s.TotalReceivedAmount AS CashAmount,
+        s.SaleId AS SaleId,
+        CAST(NULL AS BIGINT) AS PaymentId
+    FROM Sales s
+    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
+      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+
+    UNION ALL
+
+    SELECT 
+        p.PaymentDate AS TransactionDate,
+        s.BillNumber,
+        ISNULL(c.CustomerName, N'') AS PartyName,
+        N'Cash payment' AS SourceKind,
+        p.PaymentAmount AS CashAmount,
+        CAST(NULL AS BIGINT) AS SaleId,
+        p.PaymentId AS PaymentId
+    FROM Payments p
+    INNER JOIN Sales s ON p.SaleId = s.SaleId
+    LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
+)
+SELECT TransactionDate, BillNumber, PartyName, SourceKind, CashAmount, SaleId, PaymentId
+FROM Combined
+ORDER BY TransactionDate DESC, BillNumber DESC;
+
+SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
+    SELECT s.TotalReceivedAmount AS CashAmount
+    FROM Sales s
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
+      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
+    UNION ALL
+    SELECT p.PaymentAmount AS CashAmount
+    FROM Payments p
+    INNER JOIN Sales s ON p.SaleId = s.SaleId
+    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
+      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
+      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
+) AS agg;
+";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", f.FromDate);
+                        command.Parameters.AddWithValue("@ToDateExclusive", f.ToDateExclusive);
+                        command.Parameters.AddWithValue("@CustomerId", (object)f.CustomerId ?? DBNull.Value);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new CashInHandReportItem
+                                {
+                                    TransactionDate = reader.GetDateTime(0),
+                                    BillNumber = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
+                                    PartyName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                                    SourceKind = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                                    CashAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                                    SaleId = reader.IsDBNull(5) ? null : Convert.ToInt64(reader.GetValue(5)),
+                                    PaymentId = reader.IsDBNull(6) ? null : Convert.ToInt64(reader.GetValue(6))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                                totalCashIn = reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCashInHandReportForExport error");
+            }
+
+            return new CashInHandReportViewModel
+            {
+                Items = list,
+                Filters = f.Filters,
+                CurrentPage = 1,
+                TotalPages = 1,
+                PageSize = list.Count,
+                TotalCount = list.Count,
+                TotalCashIn = totalCashIn
+            };
+        }
+
+        private sealed class CashInHandNormalizedFilters
+        {
+            public DateTime FromDate { get; set; }
+            public DateTime ToDateExclusive { get; set; }
+            public long? CustomerId { get; set; }
+            public CashInHandReportFilters Filters { get; set; } = new CashInHandReportFilters();
+        }
+
+        private static CashInHandNormalizedFilters NormalizeCashInHandFilters(CashInHandReportFilters? filters)
+        {
+            var now = DateTimeHelper.Now.Date;
+            var from = filters?.FromDate?.Date ?? new DateTime(now.Year, now.Month, 1);
+            var to = filters?.ToDate?.Date ?? now;
+            if (to < from)
+                to = from;
+
+            return new CashInHandNormalizedFilters
+            {
+                FromDate = from,
+                ToDateExclusive = to.AddDays(1),
+                CustomerId = filters?.CustomerId is > 0 ? filters.CustomerId : null,
+                Filters = new CashInHandReportFilters
+                {
+                    FromDate = from,
+                    ToDate = to,
+                    CustomerId = filters?.CustomerId is > 0 ? filters.CustomerId : null
+                }
+            };
         }
 
     }

@@ -29,9 +29,11 @@ namespace IMS.Controllers
         private readonly IProductService _productService;
         private readonly IVendor _vendorService;
         private readonly IExpenseType _expenseTypeService;
+        private readonly IPersonalPaymentService _personalPaymentService;
+        private readonly IStockService _stockService;
         private const int DefaultPageSize = 10; // Default page size
         private static readonly int[] AllowedPageSizes = { 10, 20, 30 };
-        public ReportController(IReportService reportService , ILogger<ReportController> logger, ICustomer customerService, IProductService productService, IVendor vendorService, IExpenseType expenseTypeService)
+        public ReportController(IReportService reportService , ILogger<ReportController> logger, ICustomer customerService, IProductService productService, IVendor vendorService, IExpenseType expenseTypeService, IPersonalPaymentService personalPaymentService, IStockService stockService)
         {
             _reportService = reportService;
             _logger = logger;
@@ -39,6 +41,8 @@ namespace IMS.Controllers
             _productService = productService;
             _vendorService = vendorService;
             _expenseTypeService = expenseTypeService;
+            _personalPaymentService = personalPaymentService;
+            _stockService = stockService;
         }
         public async Task<IActionResult> SalesReport(ReportsViewModel model, int pageNumber = 1, int? pageSize = null)
         {
@@ -624,6 +628,352 @@ namespace IMS.Controllers
             return File(stream.ToArray(), "application/pdf", filename);
         }
 
+        public async Task<IActionResult> BankLedgerReport(BankLedgerReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                if (model == null)
+                    model = new BankLedgerReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new BankLedgerReportFilters();
+
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now;
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                var filters = model.Filters;
+
+                if (filters.PersonalPaymentId.HasValue && filters.PersonalPaymentId.Value > 0)
+                {
+                    var tt = string.IsNullOrWhiteSpace(filters.TransactionType) ? null : filters.TransactionType;
+                    var data = await _personalPaymentService.GetBankLedgerReportAsync(
+                        filters.PersonalPaymentId.Value,
+                        pageNumber,
+                        currentPageSize,
+                        filters.FromDate,
+                        filters.ToDate,
+                        tt);
+                    data.Filters = filters;
+                    model = data;
+                }
+                else
+                {
+                    model.Transactions = new List<PersonalPaymentTransactionViewModel>();
+                    model.AccountSummary = null;
+                    model.TotalCount = 0;
+                    model.CurrentPage = 1;
+                    model.TotalPages = 1;
+                    model.PageSize = currentPageSize;
+                    model.Filters = filters;
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model ??= new BankLedgerReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new BankLedgerReportFilters();
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportBankLedgerExcel(long? personalPaymentId = null, DateTime? fromDate = null, DateTime? toDate = null, string? transactionType = null)
+        {
+            if (!personalPaymentId.HasValue || personalPaymentId.Value <= 0)
+                return BadRequest("Select a bank account.");
+
+            var tt = string.IsNullOrWhiteSpace(transactionType) ? null : transactionType;
+            var data = await _personalPaymentService.GetBankLedgerReportAsync(personalPaymentId.Value, 1, 50000, fromDate, toDate, tt);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Bank Ledger");
+            worksheet.Cell(1, 1).Value = "Bank Ledger Report";
+            worksheet.Cell(1, 1).Style.Font.Bold = true;
+            worksheet.Cell(2, 1).Value = data.AccountSummary != null
+                ? $"{data.AccountSummary.BankName} — {data.AccountSummary.AccountNumber}"
+                : "";
+            int row = 4;
+            worksheet.Cell(row, 1).Value = "Date";
+            worksheet.Cell(row, 2).Value = "Type";
+            worksheet.Cell(row, 3).Value = "Amount";
+            worksheet.Cell(row, 4).Value = "Balance";
+            worksheet.Cell(row, 5).Value = "Description";
+            worksheet.Cell(row, 6).Value = "Sale reference";
+            row++;
+            foreach (var t in data.Transactions)
+            {
+                worksheet.Cell(row, 1).Value = t.TransactionDate;
+                worksheet.Cell(row, 2).Value = t.TransactionType;
+                worksheet.Cell(row, 3).Value = t.Amount;
+                worksheet.Cell(row, 4).Value = t.Balance;
+                worksheet.Cell(row, 5).Value = t.TransactionDescription ?? "";
+                worksheet.Cell(row, 6).Value = FormatBankLedgerSaleReference(t);
+                row++;
+            }
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var filename = $"BankLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportBankLedgerPdf(long? personalPaymentId = null, DateTime? fromDate = null, DateTime? toDate = null, string? transactionType = null)
+        {
+            if (!personalPaymentId.HasValue || personalPaymentId.Value <= 0)
+                return BadRequest("Select a bank account.");
+
+            var tt = string.IsNullOrWhiteSpace(transactionType) ? null : transactionType;
+            var data = await _personalPaymentService.GetBankLedgerReportAsync(personalPaymentId.Value, 1, 50000, fromDate, toDate, tt);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+            document.Add(new Paragraph("Bank Ledger Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14)) { Alignment = Element.ALIGN_CENTER });
+            if (data.AccountSummary != null)
+            {
+                document.Add(new Paragraph($"{data.AccountSummary.BankName} — {data.AccountSummary.AccountNumber} ({data.AccountSummary.AccountHolderName})",
+                    FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
+            }
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(6);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.2f, 1f, 1.2f, 1.2f, 2.5f, 1.5f });
+            string[] headers = { "Date", "Type", "Amount", "Balance", "Description", "Sale ref." };
+            foreach (var h in headers)
+            {
+                table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                {
+                    BackgroundColor = BaseColor.LIGHT_GRAY,
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                });
+            }
+            foreach (var t in data.Transactions)
+            {
+                table.AddCell(t.TransactionDate.ToString("dd-MMM-yyyy"));
+                table.AddCell(t.TransactionType);
+                table.AddCell(t.Amount.ToString("N2"));
+                table.AddCell(t.Balance.ToString("N2"));
+                table.AddCell(t.TransactionDescription ?? "");
+                table.AddCell(FormatBankLedgerSaleReference(t));
+            }
+            document.Add(table);
+            document.Close();
+            var filename = $"BankLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        public async Task<IActionResult> StockTransactionsReport(StockTransactionsReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                if (model == null)
+                    model = new StockTransactionsReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new StockHistoryFilters();
+
+                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
+                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now;
+
+                if (!model.Filters.TransactionTypeId.HasValue || model.Filters.TransactionTypeId == 0)
+                    model.Filters.TransactionTypeId = null;
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                await PopulateStockTransactionsReportAsync(model, pageNumber, currentPageSize);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model ??= new StockTransactionsReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new StockHistoryFilters();
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportStockTransactionsExcel(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null, long? transactionTypeId = null)
+        {
+            if (!productId.HasValue || productId.Value <= 0)
+                return BadRequest("Select a product.");
+
+            var model = new StockTransactionsReportViewModel
+            {
+                Filters = new StockHistoryFilters
+                {
+                    ProductId = productId,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TransactionTypeId = transactionTypeId.HasValue && transactionTypeId.Value > 0 ? transactionTypeId : null
+                }
+            };
+            await PopulateStockTransactionsReportAsync(model, 1, int.MaxValue);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Stock Transactions");
+            worksheet.Cell(1, 1).Value = "Stock Transactions Report";
+            worksheet.Cell(1, 1).Style.Font.Bold = true;
+            worksheet.Cell(2, 1).Value = string.IsNullOrEmpty(model.ProductName)
+                ? ""
+                : $"{model.ProductName} ({model.ProductCode ?? ""})";
+            int row = 4;
+            worksheet.Cell(row, 1).Value = "Transaction ID";
+            worksheet.Cell(row, 2).Value = "Quantity";
+            worksheet.Cell(row, 3).Value = "Date";
+            worksheet.Cell(row, 4).Value = "Type";
+            worksheet.Cell(row, 5).Value = "Description";
+            row++;
+            foreach (var t in model.TransactionList)
+            {
+                worksheet.Cell(row, 1).Value = t.StockTransactionId;
+                worksheet.Cell(row, 2).Value = t.StockQuantity;
+                worksheet.Cell(row, 3).Value = t.TransactionDate;
+                worksheet.Cell(row, 4).Value = t.TransactionType;
+                worksheet.Cell(row, 5).Value = t.Description ?? "";
+                row++;
+            }
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var filename = $"StockTransactionsReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportStockTransactionsPdf(long? productId = null, DateTime? fromDate = null, DateTime? toDate = null, long? transactionTypeId = null)
+        {
+            if (!productId.HasValue || productId.Value <= 0)
+                return BadRequest("Select a product.");
+
+            var model = new StockTransactionsReportViewModel
+            {
+                Filters = new StockHistoryFilters
+                {
+                    ProductId = productId,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    TransactionTypeId = transactionTypeId.HasValue && transactionTypeId.Value > 0 ? transactionTypeId : null
+                }
+            };
+            await PopulateStockTransactionsReportAsync(model, 1, int.MaxValue);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+            document.Add(new Paragraph("Stock Transactions Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14)) { Alignment = Element.ALIGN_CENTER });
+            if (!string.IsNullOrEmpty(model.ProductName))
+            {
+                document.Add(new Paragraph($"{model.ProductName} ({model.ProductCode ?? ""})",
+                    FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
+            }
+            document.Add(new Paragraph("\n"));
+            var table = new PdfPTable(5);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.2f, 1.2f, 1.5f, 1.5f, 3f });
+            foreach (var h in new[] { "Txn ID", "Quantity", "Date", "Type", "Description" })
+            {
+                table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                {
+                    BackgroundColor = BaseColor.LIGHT_GRAY,
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                });
+            }
+            foreach (var t in model.TransactionList)
+            {
+                table.AddCell(t.StockTransactionId.ToString());
+                table.AddCell(t.StockQuantity.ToString("N4"));
+                table.AddCell(t.TransactionDate.ToString("dd-MMM-yyyy"));
+                table.AddCell(t.TransactionType ?? "");
+                table.AddCell(t.Description ?? "");
+            }
+            document.Add(table);
+            document.Close();
+            var filename = $"StockTransactionsReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        private async Task PopulateStockTransactionsReportAsync(StockTransactionsReportViewModel model, int pageNumber, int currentPageSize)
+        {
+            model.TransactionList = new List<StockTransactionHistoryViewModel>();
+            model.TotalCount = 0;
+            model.CurrentPage = pageNumber;
+            model.TotalPages = 1;
+            model.PageSize = currentPageSize;
+            model.ProductName = null;
+            model.ProductCode = null;
+            model.AvailableQuantity = null;
+
+            if (model.Filters == null || !model.Filters.ProductId.HasValue || model.Filters.ProductId.Value <= 0)
+                return;
+
+            var stock = await _stockService.GetStockByProductIdAsync(model.Filters.ProductId.Value);
+            if (stock == null || stock.StockMasterId <= 0)
+            {
+                TempData["ErrorMessage"] = "No stock record exists for this product. Add stock first.";
+                return;
+            }
+
+            try
+            {
+                var pv = await _productService.GetProductByIdAsync(model.Filters.ProductId.Value);
+                if (pv?.ProductList != null)
+                {
+                    model.ProductName = pv.ProductList.ProductName;
+                    model.ProductCode = pv.ProductList.ProductCode;
+                }
+            }
+            catch
+            {
+            }
+
+            model.AvailableQuantity = stock.AvailableQuantity;
+
+            var histFilters = new StockHistoryFilters
+            {
+                StockMasterId = stock.StockMasterId,
+                FromDate = model.Filters.FromDate,
+                ToDate = model.Filters.ToDate,
+                TransactionTypeId = model.Filters.TransactionTypeId.HasValue && model.Filters.TransactionTypeId.Value > 0
+                    ? model.Filters.TransactionTypeId
+                    : null
+            };
+
+            var raw = await _stockService.GetStockHistoryAsync(1, null, histFilters);
+            var all = raw.TransactionList ?? new List<StockTransactionHistoryViewModel>();
+            var total = raw.TotalCount > 0 ? raw.TotalCount : all.Count;
+            model.TotalCount = total;
+            model.TotalPages = currentPageSize > 0 ? Math.Max(1, (int)Math.Ceiling(total / (double)currentPageSize)) : 1;
+            model.CurrentPage = pageNumber;
+            var skip = Math.Max(0, (pageNumber - 1) * currentPageSize);
+            model.TransactionList = all.Skip(skip).Take(currentPageSize).ToList();
+        }
+
         public async Task<IActionResult> DailyStockReport(DailyStockReportViewModel model, int pageNumber = 1, int? pageSize = null)
         {
             try
@@ -673,6 +1023,40 @@ namespace IMS.Controllers
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> StockAvailableBalanceReport(DailyStockReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                if (model == null)
+                    model = new DailyStockReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new DailyStockReportFilters();
+                if (!model.Filters.ReportDate.HasValue)
+                    model.Filters.ReportDate = DateTimeHelper.Now;
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                var filters = model.Filters;
+                model = await _reportService.GetDailyStockReport(pageNumber, currentPageSize, filters);
+                model.Filters = filters;
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model ??= new DailyStockReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new DailyStockReportFilters();
+                model.StockList ??= new List<DailyStockReportItem>();
             }
 
             return View(model);
@@ -833,6 +1217,207 @@ namespace IMS.Controllers
                 string filename = $"DailyStockReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
+        }
+
+        public async Task<IActionResult> ExportStockAvailableBalanceExcel(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? reportDate = null, long? displayMeasuringUnitId = null)
+        {
+            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            {
+                currentPageSize = pageSize.Value;
+                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+            }
+            var filters = new DailyStockReportFilters
+            {
+                ProductId = productId,
+                ReportDate = reportDate ?? DateTimeHelper.Now,
+                DisplayMeasuringUnitId = displayMeasuringUnitId
+            };
+            var model = await _reportService.GetDailyStockReportForExport(pageNumber, currentPageSize, filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Stock Available Balance");
+
+            var qtySuffix = StockAvailableBalanceExportQtyHeaderSuffix(model);
+            const int headerRow = 3;
+            worksheet.Cell(1, 1).Value = "Stock Available Balance Report" + StockAvailableBalanceExportTitleSuffix(model);
+            worksheet.Range(1, 1, 1, 9).Merge();
+            worksheet.Cell(1, 1).Style.Font.Bold = true;
+            worksheet.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            worksheet.Cell(2, 1).Value = StockAvailableBalanceExportMeasuringUnitNote(model);
+            worksheet.Range(2, 1, 2, 9).Merge();
+            worksheet.Cell(2, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(2, 1).Style.Font.Italic = true;
+
+            worksheet.Cell(headerRow, 1).Value = "Product Name";
+            worksheet.Cell(headerRow, 2).Value = "Urdu Name";
+            worksheet.Cell(headerRow, 3).Value = "Product Code";
+            worksheet.Cell(headerRow, 4).Value = "Total Quantity" + qtySuffix;
+            worksheet.Cell(headerRow, 5).Value = "Used Quantity" + qtySuffix;
+            worksheet.Cell(headerRow, 6).Value = "Available Quantity" + qtySuffix;
+            worksheet.Cell(headerRow, 7).Value = "Unit Price";
+            worksheet.Cell(headerRow, 8).Value = "Stock Value";
+            worksheet.Cell(headerRow, 9).Value = "Stock Location";
+
+            var headerRange = worksheet.Range(headerRow, 1, headerRow, 9);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            int row = headerRow + 1;
+            foreach (var item in model.StockList)
+            {
+                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
+                worksheet.Cell(row, 3).Value = item.ProductCode;
+                worksheet.Cell(row, 4).Value = item.TotalQuantity;
+                worksheet.Cell(row, 5).Value = item.UsedQuantity;
+                worksheet.Cell(row, 6).Value = item.AvailableQuantity;
+                worksheet.Cell(row, 7).Value = item.UnitPrice;
+                worksheet.Cell(row, 8).Value = item.StockValue;
+                worksheet.Cell(row, 9).Value = item.StockLocation;
+                row++;
+            }
+
+            row++;
+            worksheet.Cell(row, 3).Value = "TOTAL:";
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalQuantity;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalUsedQuantity;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 6).Value = model.TotalAvailableQuantity;
+            worksheet.Cell(row, 6).Style.Font.Bold = true;
+            worksheet.Cell(row, 8).Value = model.TotalStockValue;
+            worksheet.Cell(row, 8).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"StockAvailableBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportStockAvailableBalancePdf(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? reportDate = null, long? displayMeasuringUnitId = null)
+        {
+            int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+            if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+            {
+                currentPageSize = pageSize.Value;
+                HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+            }
+            var filters = new DailyStockReportFilters
+            {
+                ProductId = productId,
+                ReportDate = reportDate ?? DateTimeHelper.Now,
+                DisplayMeasuringUnitId = displayMeasuringUnitId
+            };
+
+            var model = await _reportService.GetDailyStockReportForExport(pageNumber, currentPageSize, filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 20f, 20f, 20f, 20f);
+            PdfWriter.GetInstance(document, stream);
+
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            document.Add(new Paragraph("Stock Available Balance Report" + StockAvailableBalanceExportTitleSuffix(model), titleFont) { Alignment = Element.ALIGN_CENTER });
+            var noteFont = FontFactory.GetFont(FontFactory.HELVETICA_OBLIQUE, 9);
+            document.Add(new Paragraph(StockAvailableBalanceExportMeasuringUnitNote(model), noteFont) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            PdfPTable table = new PdfPTable(9);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.2f, 1.2f, 1.2f, 1.5f, 1.5f });
+
+            var pdfQtySuf = StockAvailableBalanceExportQtyHeaderSuffix(model);
+            string[] headers =
+            {
+                "Product Name", "Urdu Name", "Product Code",
+                "Total Qty" + pdfQtySuf, "Used Qty" + pdfQtySuf, "Available Qty" + pdfQtySuf,
+                "Unit Price", "Stock Value", "Location"
+            };
+
+            foreach (var header in headers)
+            {
+                var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(cell);
+            }
+
+            foreach (var item in model.StockList)
+            {
+                table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
+                table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
+                table.AddCell(item.ProductCode ?? "");
+                table.AddCell(item.TotalQuantity.ToString("N2"));
+                table.AddCell(item.UsedQuantity.ToString("N2"));
+                table.AddCell(item.AvailableQuantity.ToString("N2"));
+                table.AddCell(item.UnitPrice.ToString("N2"));
+                table.AddCell(item.StockValue.ToString("N2"));
+                table.AddCell(item.StockLocation ?? "");
+            }
+
+            var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+            {
+                Colspan = 3,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(summaryCell);
+
+            table.AddCell(new PdfPCell(new Phrase(model.TotalQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalUsedQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalAvailableQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalStockValue.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+
+            document.Add(table);
+            document.Close();
+            string filename = $"StockAvailableBalanceReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        private static string StockAvailableBalanceExportQtyHeaderSuffix(DailyStockReportViewModel m)
+        {
+            var abbr = m.DisplayMeasuringUnitAbbreviation?.Trim();
+            var name = m.DisplayMeasuringUnitName?.Trim();
+            if (!string.IsNullOrEmpty(abbr)) return $" ({abbr})";
+            if (!string.IsNullOrEmpty(name)) return $" ({name})";
+            return string.Empty;
+        }
+
+        private static string StockAvailableBalanceExportMeasuringUnitNote(DailyStockReportViewModel m)
+        {
+            var name = m.DisplayMeasuringUnitName?.Trim();
+            var abbr = m.DisplayMeasuringUnitAbbreviation?.Trim();
+            if (string.IsNullOrEmpty(name) && string.IsNullOrEmpty(abbr))
+                return "Measuring unit for Total, Used, and Available columns: each product's base (smallest) unit.";
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(abbr) && !string.Equals(name, abbr, StringComparison.OrdinalIgnoreCase))
+                return $"Measuring unit for Total, Used, and Available columns: {name} ({abbr}).";
+            var label = !string.IsNullOrEmpty(abbr) ? abbr : name;
+            return $"Measuring unit for Total, Used, and Available columns: {label}.";
+        }
+
+        private static string StockAvailableBalanceExportTitleSuffix(DailyStockReportViewModel m)
+        {
+            var name = m.DisplayMeasuringUnitName?.Trim();
+            var abbr = m.DisplayMeasuringUnitAbbreviation?.Trim();
+            if (string.IsNullOrEmpty(name) && string.IsNullOrEmpty(abbr))
+                return string.Empty;
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(abbr) && !string.Equals(name, abbr, StringComparison.OrdinalIgnoreCase))
+                return $" — quantities in {name} ({abbr})";
+            var label = !string.IsNullOrEmpty(abbr) ? abbr : name;
+            return $" — quantities in {label}";
         }
 
         public async Task<IActionResult> PurchaseReport(PurchaseReportViewModel model, int pageNumber = 1, int? pageSize = null)
@@ -2757,6 +3342,154 @@ namespace IMS.Controllers
             return File(stream.ToArray(), "application/pdf", filename);
         }
 
+        public async Task<IActionResult> CashInHandReport(CashInHandReportViewModel model, int pageNumber = 1, int? pageSize = null)
+        {
+            try
+            {
+                if (model == null)
+                    model = new CashInHandReportViewModel();
+                if (model.Filters == null)
+                    model.Filters = new CashInHandReportFilters();
+
+                var hasFrom = Request.Query.ContainsKey("Filters.FromDate");
+                var hasTo = Request.Query.ContainsKey("Filters.ToDate");
+                if (!hasFrom && !model.Filters.FromDate.HasValue)
+                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
+                if (!hasTo && !model.Filters.ToDate.HasValue)
+                    model.Filters.ToDate = DateTimeHelper.Now.Date;
+
+                int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
+                if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
+                {
+                    currentPageSize = pageSize.Value;
+                    HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
+                }
+
+                var filters = model.Filters;
+                model = await _reportService.GetCashInHandReport(pageNumber, currentPageSize, filters);
+                model.Filters = filters;
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model ??= new CashInHandReportViewModel();
+                model.Filters ??= new CashInHandReportFilters();
+                model.Items ??= new List<CashInHandReportItem>();
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportCashInHandExcel(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null)
+        {
+            var now = DateTimeHelper.Now.Date;
+            var filters = new CashInHandReportFilters
+            {
+                FromDate = fromDate?.Date ?? new DateTime(now.Year, now.Month, 1),
+                ToDate = toDate?.Date ?? now,
+                CustomerId = customerId is > 0 ? customerId : null
+            };
+            var model = await _reportService.GetCashInHandReportForExport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Cash In Hand");
+            worksheet.Cell(1, 1).Value = "Date";
+            worksheet.Cell(1, 2).Value = "Bill #";
+            worksheet.Cell(1, 3).Value = "Customer";
+            worksheet.Cell(1, 4).Value = "Source";
+            worksheet.Cell(1, 5).Value = "Cash amount";
+            var headerRange = worksheet.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            int row = 2;
+            foreach (var item in model.Items)
+            {
+                worksheet.Cell(row, 1).Value = item.TransactionDate;
+                worksheet.Cell(row, 1).Style.DateFormat.Format = "dd-MMM-yyyy";
+                worksheet.Cell(row, 2).Value = item.BillNumber;
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.EnglishNameCell(item.PartyName);
+                worksheet.Cell(row, 4).Value = item.SourceKind;
+                worksheet.Cell(row, 5).Value = item.CashAmount;
+                row++;
+            }
+
+            row++;
+            worksheet.Cell(row, 4).Value = "TOTAL:";
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalCashIn;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"CashInHandReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        public async Task<IActionResult> ExportCashInHandPdf(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null)
+        {
+            var now = DateTimeHelper.Now.Date;
+            var filters = new CashInHandReportFilters
+            {
+                FromDate = fromDate?.Date ?? new DateTime(now.Year, now.Month, 1),
+                ToDate = toDate?.Date ?? now,
+                CustomerId = customerId is > 0 ? customerId : null
+            };
+            var model = await _reportService.GetCashInHandReportForExport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4, 30f, 30f, 30f, 30f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            document.Add(new Paragraph("Cash In Hand Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
+            var period = $"Period: {filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}";
+            document.Add(new Paragraph(period, FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(5);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.4f, 1f, 2.2f, 1.4f, 1.4f });
+            foreach (var h in new[] { "Date", "Bill #", "Customer", "Source", "Cash amount" })
+            {
+                table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                });
+            }
+
+            foreach (var item in model.Items)
+            {
+                table.AddCell(new PdfPCell(new Phrase(item.TransactionDate.ToString("dd-MMM-yyyy"), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(item.BillNumber.ToString(), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.PartyName), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(item.SourceKind, FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(item.CashAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA, 8))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+            }
+
+            var totalLabel = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                Colspan = 4,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(totalLabel);
+            table.AddCell(new PdfPCell(new Phrase(model.TotalCashIn.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            });
+
+            document.Add(table);
+            document.Close();
+            string filename = $"CashInHandReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
         public async Task<IActionResult> CustomerBalanceReport(CustomerBalanceReportViewModel model)
         {
             try
@@ -3212,6 +3945,18 @@ namespace IMS.Controllers
                 string filename = $"BankCreditDebitReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
                 return File(stream.ToArray(), "application/pdf", filename);
             }
+        }
+
+        private static string FormatBankLedgerSaleReference(PersonalPaymentTransactionViewModel t)
+        {
+            if (t.SaleId == 0)
+            {
+                if (t.TransactionType == "Credit") return "Manual Deposit";
+                if (t.TransactionType == "Debit") return "Manual Withdraw";
+                return "-";
+            }
+            if (t.BillNumber > 0) return "Bill #" + t.BillNumber;
+            return string.IsNullOrEmpty(t.SaleDescription) ? "-" : t.SaleDescription;
         }
 
 }

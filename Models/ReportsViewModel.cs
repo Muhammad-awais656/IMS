@@ -110,6 +110,43 @@ namespace IMS.Models
         public DateTime? ToDate { get; set; }
     }
 
+    public class BankLedgerReportViewModel
+    {
+        public BankLedgerReportFilters Filters { get; set; } = new BankLedgerReportFilters();
+        public List<PersonalPaymentTransactionViewModel> Transactions { get; set; } = new List<PersonalPaymentTransactionViewModel>();
+        public PersonalPaymentAccountSummary? AccountSummary { get; set; }
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; } = 1;
+        public int TotalCount { get; set; }
+        public int? PageSize { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+    }
+
+    public class BankLedgerReportFilters
+    {
+        public long? PersonalPaymentId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string? TransactionType { get; set; }
+    }
+
+    /// <summary>Stock ledger for one product (same data as Stock Transaction History modal).</summary>
+    public class StockTransactionsReportViewModel
+    {
+        public StockHistoryFilters Filters { get; set; } = new StockHistoryFilters();
+        public List<StockTransactionHistoryViewModel> TransactionList { get; set; } = new List<StockTransactionHistoryViewModel>();
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; } = 1;
+        public int? PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+        public decimal? AvailableQuantity { get; set; }
+        public string? ProductName { get; set; }
+        public string? ProductCode { get; set; }
+    }
+
     public class DailyStockReportViewModel
     {
         public List<DailyStockReportItem> StockList { get; set; }
@@ -124,6 +161,10 @@ namespace IMS.Models
         public decimal TotalAvailableQuantity { get; set; }
         public decimal TotalUsedQuantity { get; set; }
         public decimal TotalQuantity { get; set; }
+        /// <summary>When quantities are converted for display, the selected unit abbreviation (e.g. kg, Bori).</summary>
+        public string? DisplayMeasuringUnitAbbreviation { get; set; }
+        /// <summary>Full measuring unit name when a display unit is selected (for labels and exports).</summary>
+        public string? DisplayMeasuringUnitName { get; set; }
     }
 
     public class DailyStockReportItem
@@ -144,6 +185,8 @@ namespace IMS.Models
     {
         public DateTime? ReportDate { get; set; }
         public long? ProductId { get; set; }
+        /// <summary>Optional display unit (measuring unit id). When set, total/used/available quantities are converted from base (smallest) unit like the Stock screen.</summary>
+        public long? DisplayMeasuringUnitId { get; set; }
     }
 
     public class DailyStockPositionReportViewModel
@@ -470,5 +513,38 @@ namespace IMS.Models
         public long? ExpenseTypeId { get; set; }
         public long? ProductId { get; set; }
     }
-    
+
+    public class CashInHandReportViewModel
+    {
+        public List<CashInHandReportItem> Items { get; set; } = new List<CashInHandReportItem>();
+        public CashInHandReportFilters Filters { get; set; } = new CashInHandReportFilters();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public int? PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasPreviousPage => CurrentPage > 1;
+        public bool HasNextPage => CurrentPage < TotalPages;
+        /// <summary>Sum of cash amounts in the filtered period (cash sales + cash customer payments).</summary>
+        public decimal TotalCashIn { get; set; }
+    }
+
+    public class CashInHandReportItem
+    {
+        public DateTime TransactionDate { get; set; }
+        public long BillNumber { get; set; }
+        public string PartyName { get; set; } = string.Empty;
+        /// <summary>Cash sale (invoice paid in cash at sale time) or Cash payment (installment toward a sale).</summary>
+        public string SourceKind { get; set; } = string.Empty;
+        public decimal CashAmount { get; set; }
+        public long? SaleId { get; set; }
+        public long? PaymentId { get; set; }
+    }
+
+    public class CashInHandReportFilters
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public long? CustomerId { get; set; }
+    }
+
 }
