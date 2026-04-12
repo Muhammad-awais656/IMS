@@ -1266,6 +1266,38 @@
             return h;
         }
 
+        /** Sets #unitPrice / #salePrice from server GetUnitPriceRate (IUnitPriceRateService); falls back to catalog range unit price on error. */
+        function applyUnitPriceFromCalculatedRate(productId,productRangeId, fallbackUnitPrice) {
+            const unitPriceElement = document.getElementById('unitPrice');
+            const salePriceElement = document.getElementById('salePrice');
+            const fallback = parseFloat(fallbackUnitPrice) || 0;
+            function setFields(value) {
+                const v = parseFloat(value) || 0;
+                if (unitPriceElement) unitPriceElement.value = v.toFixed(2);
+                if (salePriceElement) salePriceElement.value = v.toFixed(2);
+                if (selectedProductSize) selectedProductSize.unitPrice = v;
+                calculatePayableAmount();
+            }
+            if (!productId) {
+                setFields(fallback);
+                return;
+            }
+            fetch('/Sales/GetUnitPriceRate?productId=' + encodeURIComponent(productId) + '&productRangeId=' + encodeURIComponent(productRangeId) )
+                .then(function (response) {
+                    if (!response.ok) throw new Error('bad response');
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data && data.success && data.rate != null && !isNaN(Number(data.rate)))
+                        setFields(data.rate);
+                    else
+                        setFields(fallback);
+                })
+                .catch(function () {
+                    setFields(fallback);
+                });
+        }
+
         function onProductSizeChange() {
             console.log("onProductSizeChange function called");
             const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
@@ -1292,29 +1324,13 @@
 
                 console.log("Selected product size:", selectedProductSize);
 
-                // Reload available stock in the selected unit
                 const productCombo = $("#productSelect").data("kendoComboBox");
                 const productId = productCombo ? productCombo.value() : null;
                 if (productId && selectedProductSize.measuringUnitId) {
                     loadAvailableStockInProductSizeUnit(productId, selectedProductSize.measuringUnitId);
                 }
 
-                // Populate unit price
-                const unitPriceElement = document.getElementById('unitPrice');
-                if (unitPriceElement) {
-                    unitPriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                    console.log("Unit price set to:", unitPriceElement.value);
-                }
-
-                // Set default sale price to unit price
-                const salePriceElement = document.getElementById('salePrice');
-                if (salePriceElement) {
-                    salePriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                    console.log("Sale price set to:", salePriceElement.value);
-                }
-
-                // Calculate payable amount
-                calculatePayableAmount();
+                applyUnitPriceFromCalculatedRate(productId,selectedItem.productRangeId, selectedItem.unitPrice);
             } else {
                 selectedProductSize = null;
                 resetProductFields();

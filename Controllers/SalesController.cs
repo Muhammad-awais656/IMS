@@ -26,9 +26,10 @@ namespace IMS.Controllers
         private readonly IAdminMeasuringUnitService _measuringUnitService;
         private readonly IVendor _vendorService;
         private readonly IVendorBillsService _vendorBillsService;
+        private readonly IUnitPriceRateService _unitPriceRateService;
         private const string VendorCustomerPrefix = "Vendor - ";
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService, IVendorBillsService vendorBillsService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService, IVendorBillsService vendorBillsService, IUnitPriceRateService unitPriceRateService)
         {
             _salesService = salesService;
             _logger = logger;
@@ -38,6 +39,7 @@ namespace IMS.Controllers
             _measuringUnitService = measuringUnitService;
             _vendorService = vendorService;
             _vendorBillsService = vendorBillsService;
+            _unitPriceRateService = unitPriceRateService;
         }
 
         // GET: SalesController
@@ -1738,6 +1740,26 @@ namespace IMS.Controllers
             {
                 _logger.LogError(ex, "Error getting product sizes for Kendo combobox");
                 return Json(new List<object>());
+            }
+        }
+
+        /// <summary>Land cost / effective unit rate for Add Sale (see <see cref="IUnitPriceRateService.GetUnitPriceRateAsync"/>).</summary>
+        [HttpGet]
+        public async Task<IActionResult> GetUnitPriceRate(long? productId,long? productRangeId)
+        {
+            try
+            {
+                if (!productId.HasValue || productId.Value <= 0)
+                    return Json(new { success = false, rate = 0m, message = "Invalid product" });
+                if (!productRangeId.HasValue || productRangeId.Value <= 0)
+                    return Json(new { success = false, rate = 0m, message = "Invalid product Range" });
+                var rate = await _unitPriceRateService.GetUnitPriceRateAsync(productId.Value, productRangeId.Value, HttpContext.RequestAborted);
+                return Json(new { success = true, rate });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetUnitPriceRate failed for productId {ProductId}", productId);
+                return Json(new { success = false, rate = 0m, message = "Could not calculate unit price" });
             }
         }
 

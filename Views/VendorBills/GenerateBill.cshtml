@@ -907,6 +907,38 @@
                 });
         }
 
+        /** Sets #unitPrice / #purchasePrice from Sales/GetUnitPriceRate (IUnitPriceRateService); falls back to catalog range unit price on error. */
+        function applyUnitPriceFromCalculatedRate(productId,productRangeId, fallbackUnitPrice) {
+            var unitPriceEl = document.getElementById('unitPrice');
+            var purchasePriceEl = document.getElementById('purchasePrice');
+            var fallback = parseFloat(fallbackUnitPrice) || 0;
+            function setFields(value) {
+                var v = parseFloat(value) || 0;
+                if (unitPriceEl) unitPriceEl.value = v.toFixed(2);
+                if (purchasePriceEl) purchasePriceEl.value = v.toFixed(2);
+                if (selectedProductSize) selectedProductSize.unitPrice = v;
+                calculatePayableAmount();
+            }
+            if (!productId) {
+                setFields(fallback);
+                return;
+            }
+            fetch('/Sales/GetUnitPriceRate?productId=' + encodeURIComponent(productId) + '&productRangeId=' + encodeURIComponent(productRangeId))
+                .then(function (response) {
+                    if (!response.ok) throw new Error('bad response');
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data && data.success && data.rate != null && !isNaN(Number(data.rate)))
+                        setFields(data.rate);
+                    else
+                        setFields(fallback);
+                })
+                .catch(function () {
+                    setFields(fallback);
+                });
+        }
+
         function onProductSizeChange() {
             console.log("=== onProductSizeChange function called ===");
             var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
@@ -938,15 +970,9 @@
                 console.log("Measuring unit ID:", selectedProductSize.measuringUnitId);
                 console.log("Measuring unit abbreviation:", selectedProductSize.measuringUnitAbbreviation);
 
-                // Populate unit price
-                $("#unitPrice").val(parseFloat(selectedProductSize.unitPrice || 0).toFixed(2));
-                $("#purchasePrice").val(parseFloat(selectedProductSize.unitPrice || 0).toFixed(2)); // Default to unit price
-
                 // Update current product range ID
                 currentProductRangeId = selectedValue;
 
-                // Load and display available stock in the product size's unit
-                // Get product ID directly from product combo box (like Add Sale screen)
                 const productCombo = $("#productSelect").data("kendoComboBox");
                 const productId = productCombo ? productCombo.value() : null;
 
@@ -967,12 +993,11 @@
                         hasProductCombo: !!productCombo,
                         hasSelectedItem: !!selectedItem
                     });
-                    // Reset stock display if we can't load
                     currentAvailableStock = 0;
                     updateStockDisplay();
                 }
 
-                calculatePayableAmount();
+                applyUnitPriceFromCalculatedRate(productId,selectedItem.productRangeId, selectedItem.unitPrice);
             } else {
                 console.warn("No selected item found in product size combo");
                 selectedProductSize = null;
