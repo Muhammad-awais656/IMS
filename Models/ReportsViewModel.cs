@@ -54,7 +54,9 @@ namespace IMS.Models
     
     public class ProfitLossReportViewModel
     {
-        public List<ProfitLossReportItem> ProfitLossList { get; set; }
+        public List<ProfitLossReportItem> ProfitLossList { get; set; } = new List<ProfitLossReportItem>();
+        /// <summary>Spreadsheet-style blocks: Previous, Purchase, Purchase Exp, Total Stock, Sale, Balance, Bags, Profit.</summary>
+        public List<ProductWiseProfitLossDetailSection> ProductDetailSections { get; set; } = new List<ProductWiseProfitLossDetailSection>();
         public ProfitLossReportFilters Filters { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
@@ -80,11 +82,58 @@ namespace IMS.Models
         public decimal ProfitLossPercentage { get; set; }
     }
 
+    /// <summary>One product block matching the Product Wise P&amp;L spreadsheet (weight = qty in stock base units).</summary>
+    public class ProductWiseProfitLossDetailSection
+    {
+        public long ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string? ProductUrduName { get; set; }
+        public string ProductCode { get; set; } = string.Empty;
+
+        public decimal PreviousWeight { get; set; }
+        public decimal PreviousAmount { get; set; }
+
+        public decimal PurchaseWeight { get; set; }
+        public decimal PurchaseAmount { get; set; }
+
+        public decimal PurchaseExpenseAmount { get; set; }
+
+        public decimal TotalStockWeight { get; set; }
+        public decimal TotalStockAmount { get; set; }
+
+        public decimal SaleWeight { get; set; }
+        public decimal SaleAmount { get; set; }
+
+        public decimal BalanceStockWeight { get; set; }
+        public decimal BalanceStockAmount { get; set; }
+
+        /// <summary>Packaging units (optional). Amount column in UI = BagsWeight × BagsRate when both set.</summary>
+        public decimal BagsWeight { get; set; }
+        public decimal BagsRate { get; set; }
+
+        public decimal Profit { get; set; }
+
+        public decimal PreviousRate => PreviousWeight > 0 ? PreviousAmount / PreviousWeight : 0;
+        public decimal PurchaseRate => PurchaseWeight > 0 ? PurchaseAmount / PurchaseWeight : 0;
+        public decimal TotalStockRate => TotalStockWeight > 0 ? TotalStockAmount / TotalStockWeight : 0;
+        public decimal SaleRate => SaleWeight > 0 ? SaleAmount / SaleWeight : 0;
+        public decimal BalanceRate => TotalStockRate;
+        public decimal BagsAmount => BagsWeight * BagsRate;
+    }
+
+    /// <summary>Product wise = paged spreadsheet blocks per product. Overall = all products, summary totals + compact table (no pagination).</summary>
+    public enum ProfitLossReportViewMode
+    {
+        ProductWise = 0,
+        Overall = 1
+    }
+
     public class ProfitLossReportFilters
     {
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public long? ProductId { get; set; }
+        public ProfitLossReportViewMode ViewMode { get; set; } = ProfitLossReportViewMode.ProductWise;
     }
 
     /// <summary>

@@ -373,6 +373,7 @@ namespace IMS.Services
         public async Task<ProfitLossReportViewModel> GetProductWiseProfitLoss(int pageNumber, int? pageSize, ProfitLossReportFilters? filters)
         {
             var profitLossList = new List<ProfitLossReportItem>();
+            var productDetailSections = new List<ProductWiseProfitLossDetailSection>();
             int totalRecords = 0;
             decimal totalSalesAmount = 0;
             decimal totalPurchaseCost = 0;
@@ -383,162 +384,115 @@ namespace IMS.Services
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
+                    var toDateEnd = filters?.ToDate != null
+                        ? filters.ToDate.Value.Date.AddDays(1).AddSeconds(-1)
+                        : (DateTime?)null;
 
-                    // Build the SQL query for product-wise profit/loss
-                    var sql = @"
-                       
- WITH SalesData AS (
-                            SELECT 
-                                sd.PrductId_FK AS ProductId,
-                                p.ProductName,
-                                p.ProductCode,
-                                MAX(ISNULL(p.UrduName, '')) AS ProductUrduName,
-                                SUM(sd.Quantity) AS TotalQuantitySold,
-                                SUM(sd.PayableAmount) AS TotalSalesAmount
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            INNER JOIN Products p ON sd.PrductId_FK = p.ProductId
-                            WHERE s.IsDeleted = 0
-                                AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                                AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                                AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
-                            GROUP BY sd.PrductId_FK, p.ProductName, p.ProductCode
-                        ),
-                        PurchaseData AS (
-                            SELECT 
-                                poi.PrductId_FK AS ProductId,
-                                AVG(poi.UnitPrice) AS AvgPurchasePrice,
-                                SUM(poi.Quantity) AS TotalQuantityPurchased
-                            FROM PurchaseOrderItems poi
-                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                            WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
-                                AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
-                                AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
-                            GROUP BY poi.PrductId_FK
-                        )
-                        SELECT 
-                            sd.ProductId,
-                            sd.ProductName,
-                            ISNULL(sd.ProductCode, '') AS ProductCode,
-                            NULLIF(sd.ProductUrduName, '') AS ProductUrduName,
-                            sd.TotalQuantitySold,
-                            sd.TotalSalesAmount,
-                            ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0) AS TotalPurchaseCost,
-                            (sd.TotalSalesAmount - ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0)) AS ProfitLoss,
-                            CASE 
-                                WHEN ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0) > 0 
-                                THEN ((sd.TotalSalesAmount - ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0)) / (pd.AvgPurchasePrice * sd.TotalQuantitySold)) * 100
-                                ELSE 0
-                            END AS ProfitLossPercentage
-                        FROM SalesData sd
-                        LEFT JOIN PurchaseData pd ON sd.ProductId = pd.ProductId
-                        ORDER BY sd.ProductName
-                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
-
-                        SELECT COUNT(*) AS TotalRecords
-                        FROM (
-                            SELECT DISTINCT sd.PrductId_FK
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            WHERE s.IsDeleted = 0
-                                AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                                AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                                AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
-                        ) AS ProductCount;
-
-                        SELECT 
-                            SUM(TotalSalesAmount) AS TotalSalesAmount,
-                            SUM(TotalPurchaseCost) AS TotalPurchaseCost,
-                            SUM(ProfitLoss) AS TotalProfitLoss
-                        FROM (
-                            SELECT 
-                                sd.PrductId_FK AS ProductId,
-                                SUM(sd.PayableAmount) AS TotalSalesAmount,
-                                ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0) AS TotalPurchaseCost,
-                                (SUM(sd.PayableAmount) - ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0)) AS ProfitLoss
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            LEFT JOIN (
-                                SELECT 
-                                    poi.PrductId_FK,
-                                    AVG(poi.UnitPrice) AS AvgPurchasePrice
-                                FROM PurchaseOrderItems poi
-                                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                                WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
-                                    AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
-                                GROUP BY poi.PrductId_FK
-                            ) pd ON sd.PrductId_FK = pd.PrductId_FK
-                            WHERE s.IsDeleted = 0
-                                AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                                AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                                AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
-                            GROUP BY sd.PrductId_FK, pd.AvgPurchasePrice
-                        ) AS Summary;
-                    ";
-
-                    using (var command = new SqlCommand(sql, connection))
+                    if (filters?.ViewMode == ProfitLossReportViewMode.Overall)
                     {
-                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
-                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
-                        command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
-
-                        using (var reader = await command.ExecuteReaderAsync())
+                        var allIds = await GetAllProfitLossProductIdsAsync(connection, filters, toDateEnd);
+                        totalRecords = allIds.Count;
+                        if (allIds.Count == 0)
                         {
-                            // Read product-wise data
-                            while (await reader.ReadAsync())
+                            return new ProfitLossReportViewModel
                             {
-                                string? pu = null;
-                                try
-                                {
-                                    var o = reader.GetOrdinal("ProductUrduName");
-                                    if (!reader.IsDBNull(o))
-                                        pu = reader.GetString(o);
-                                }
-                                catch { }
-                                if (string.IsNullOrWhiteSpace(pu)) pu = null;
-                                profitLossList.Add(new ProfitLossReportItem
-                                {
-                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
-                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
-                                    ProductUrduName = pu,
-                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
-                                    TotalQuantitySold = reader.IsDBNull(reader.GetOrdinal("TotalQuantitySold")) ? 0 : reader.GetInt64(reader.GetOrdinal("TotalQuantitySold")),
-                                    TotalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount")),
-                                    TotalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost")),
-                                    ProfitLoss = reader.IsDBNull(reader.GetOrdinal("ProfitLoss")) ? 0m : reader.GetDecimal(reader.GetOrdinal("ProfitLoss")),
-                                    ProfitLossPercentage = reader.IsDBNull(reader.GetOrdinal("ProfitLossPercentage")) ? 0m : reader.GetDecimal(reader.GetOrdinal("ProfitLossPercentage"))
-                                });
-                            }
-
-                            // Read total records
-                            await reader.NextResultAsync();
-                            if (await reader.ReadAsync())
-                            {
-                                totalRecords = reader.IsDBNull(reader.GetOrdinal("TotalRecords")) ? 0 : reader.GetInt32(reader.GetOrdinal("TotalRecords"));
-                            }
-
-                            // Read summary totals
-                            await reader.NextResultAsync();
-                            if (await reader.ReadAsync())
-                            {
-                                totalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount"));
-                                totalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost"));
-                                totalProfitLoss = reader.IsDBNull(reader.GetOrdinal("TotalProfitLoss")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalProfitLoss"));
-                            }
+                                ProfitLossList = profitLossList,
+                                ProductDetailSections = productDetailSections,
+                                Filters = filters ?? new ProfitLossReportFilters(),
+                                CurrentPage = 1,
+                                TotalPages = 1,
+                                PageSize = pageSize,
+                                TotalCount = 0
+                            };
                         }
+
+                        var allSections = await BuildProductWiseProfitLossDetailSectionsAsync(connection, filters, allIds, toDateEnd);
+                        foreach (var s in allSections)
+                        {
+                            profitLossList.Add(new ProfitLossReportItem
+                            {
+                                ProductId = s.ProductId,
+                                ProductName = s.ProductName,
+                                ProductUrduName = s.ProductUrduName,
+                                ProductCode = s.ProductCode,
+                                TotalQuantitySold = (long)Math.Round(s.SaleWeight, MidpointRounding.AwayFromZero),
+                                TotalSalesAmount = s.SaleAmount,
+                                TotalPurchaseCost = s.TotalStockAmount,
+                                ProfitLoss = s.Profit,
+                                ProfitLossPercentage = s.TotalStockAmount > 0 ? (s.Profit / s.TotalStockAmount) * 100m : 0m
+                            });
+                            totalSalesAmount += s.SaleAmount;
+                            totalPurchaseCost += s.TotalStockAmount;
+                            totalProfitLoss += s.Profit;
+                        }
+
+                        profitLossList = profitLossList.OrderBy(p => p.ProductName).ToList();
+
+                        return new ProfitLossReportViewModel
+                        {
+                            ProfitLossList = profitLossList,
+                            ProductDetailSections = new List<ProductWiseProfitLossDetailSection>(),
+                            Filters = filters ?? new ProfitLossReportFilters(),
+                            CurrentPage = 1,
+                            TotalPages = 1,
+                            PageSize = pageSize,
+                            TotalCount = totalRecords,
+                            TotalSalesAmount = totalSalesAmount,
+                            TotalPurchaseCost = totalPurchaseCost,
+                            TotalProfitLoss = totalProfitLoss
+                        };
+                    }
+
+                    var (pageIds, count) = await GetProfitLossProductIdsPageAsync(connection, filters, pageNumber, pageSize ?? 10, toDateEnd);
+                    totalRecords = count;
+                    if (pageIds.Count == 0)
+                    {
+                        return new ProfitLossReportViewModel
+                        {
+                            ProfitLossList = profitLossList,
+                            ProductDetailSections = productDetailSections,
+                            Filters = filters ?? new ProfitLossReportFilters(),
+                            CurrentPage = pageNumber,
+                            TotalPages = pageSize.HasValue && pageSize.Value > 0
+                                ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
+                                : 1,
+                            PageSize = pageSize,
+                            TotalCount = totalRecords
+                        };
+                    }
+
+                    productDetailSections = await BuildProductWiseProfitLossDetailSectionsAsync(connection, filters, pageIds, toDateEnd);
+
+                    foreach (var s in productDetailSections)
+                    {
+                        profitLossList.Add(new ProfitLossReportItem
+                        {
+                            ProductId = s.ProductId,
+                            ProductName = s.ProductName,
+                            ProductUrduName = s.ProductUrduName,
+                            ProductCode = s.ProductCode,
+                            TotalQuantitySold = (long)Math.Round(s.SaleWeight, MidpointRounding.AwayFromZero),
+                            TotalSalesAmount = s.SaleAmount,
+                            TotalPurchaseCost = s.TotalStockAmount,
+                            ProfitLoss = s.Profit,
+                            ProfitLossPercentage = s.TotalStockAmount > 0 ? (s.Profit / s.TotalStockAmount) * 100m : 0m
+                        });
+                        totalSalesAmount += s.SaleAmount;
+                        totalPurchaseCost += s.TotalStockAmount;
+                        totalProfitLoss += s.Profit;
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "GetProductWiseProfitLoss failed.");
+                throw;
             }
 
             return new ProfitLossReportViewModel
             {
                 ProfitLossList = profitLossList,
+                ProductDetailSections = productDetailSections,
                 Filters = filters ?? new ProfitLossReportFilters(),
                 CurrentPage = pageNumber,
                 TotalPages = pageSize.HasValue && pageSize.Value > 0
@@ -550,6 +504,386 @@ namespace IMS.Services
                 TotalPurchaseCost = totalPurchaseCost,
                 TotalProfitLoss = totalProfitLoss
             };
+        }
+
+        /// <summary>Distinct products with sales, purchases, product-expenses in range, or non-zero stock.</summary>
+        private static async Task<(List<long> Ids, int TotalCount)> GetProfitLossProductIdsPageAsync(
+            SqlConnection connection,
+            ProfitLossReportFilters? filters,
+            int pageNumber,
+            int pageSize,
+            DateTime? toDateEnd)
+        {
+            object fromParam = (object?)filters?.FromDate ?? DBNull.Value;
+            object toParam = (object?)toDateEnd ?? DBNull.Value;
+            object productIdParam = (object?)filters?.ProductId ?? DBNull.Value;
+
+            const string unionBody = """
+                SELECT sd.PrductId_FK AS ProductId
+                FROM SaleDetails sd
+                INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                WHERE s.IsDeleted = 0
+                  AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
+                  AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
+                  AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
+                UNION
+                SELECT poi.PrductId_FK AS ProductId
+                FROM PurchaseOrderItems poi
+                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                WHERE ISNULL(po.IsDeleted, 0) = 0
+                  AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                  AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                  AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
+                UNION
+                SELECT e.ProductId_FK AS ProductId
+                FROM Expenses e
+                WHERE e.ProductId_FK IS NOT NULL
+                  AND (@FromDate IS NULL OR e.ExpenseDate >= @FromDate)
+                  AND (@ToDate IS NULL OR e.ExpenseDate <= @ToDate)
+                  AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId)
+                UNION
+                SELECT sm.ProductId_FK AS ProductId
+                FROM StockMaster sm
+                WHERE (sm.AvailableQuantity <> 0 OR sm.TotalQuantity <> 0)
+                  AND (@ProductId IS NULL OR sm.ProductId_FK = @ProductId)
+                UNION
+                SELECT pr.ProductId_FK AS ProductId
+                FROM ProductRange pr
+                WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                """;
+
+            var countSql = $"""
+                SELECT COUNT(*) FROM (
+                    SELECT DISTINCT ProductId FROM (
+                        {unionBody}
+                    ) u
+                ) t
+                """;
+
+            await using (var countCmd = new SqlCommand(countSql, connection))
+            {
+                countCmd.Parameters.AddWithValue("@FromDate", fromParam);
+                countCmd.Parameters.AddWithValue("@ToDate", toParam);
+                countCmd.Parameters.AddWithValue("@ProductId", productIdParam);
+                var countObj = await countCmd.ExecuteScalarAsync();
+                var total = countObj != null && countObj != DBNull.Value ? Convert.ToInt32(countObj) : 0;
+                if (total == 0)
+                    return (new List<long>(), 0);
+
+                var offset = Math.Max(0, (pageNumber - 1) * pageSize);
+                var pageSql = $"""
+                    SELECT ProductId FROM (
+                        SELECT DISTINCT ProductId FROM (
+                            {unionBody}
+                        ) u
+                    ) t
+                    ORDER BY ProductId
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                    """;
+
+                var ids = new List<long>();
+                await using (var pageCmd = new SqlCommand(pageSql, connection))
+                {
+                    pageCmd.Parameters.AddWithValue("@FromDate", fromParam);
+                    pageCmd.Parameters.AddWithValue("@ToDate", toParam);
+                    pageCmd.Parameters.AddWithValue("@ProductId", productIdParam);
+                    pageCmd.Parameters.AddWithValue("@Offset", offset);
+                    pageCmd.Parameters.AddWithValue("@PageSize", pageSize);
+                    await using var reader = await pageCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                        ids.Add(reader.GetInt64(0));
+                }
+
+                return (ids, total);
+            }
+        }
+
+        private async Task<List<long>> GetAllProfitLossProductIdsAsync(SqlConnection connection, ProfitLossReportFilters? filters, DateTime? toDateEnd)
+        {
+            object fromParam = (object?)filters?.FromDate ?? DBNull.Value;
+            object toParam = (object?)toDateEnd ?? DBNull.Value;
+            object productIdParam = (object?)filters?.ProductId ?? DBNull.Value;
+
+            const string unionBody = """
+                SELECT sd.PrductId_FK AS ProductId
+                FROM SaleDetails sd
+                INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                WHERE s.IsDeleted = 0
+                  AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
+                  AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
+                  AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
+                UNION
+                SELECT poi.PrductId_FK AS ProductId
+                FROM PurchaseOrderItems poi
+                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                WHERE ISNULL(po.IsDeleted, 0) = 0
+                  AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                  AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                  AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
+                UNION
+                SELECT e.ProductId_FK AS ProductId
+                FROM Expenses e
+                WHERE e.ProductId_FK IS NOT NULL
+                  AND (@FromDate IS NULL OR e.ExpenseDate >= @FromDate)
+                  AND (@ToDate IS NULL OR e.ExpenseDate <= @ToDate)
+                  AND (@ProductId IS NULL OR e.ProductId_FK = @ProductId)
+                UNION
+                SELECT sm.ProductId_FK AS ProductId
+                FROM StockMaster sm
+                WHERE (sm.AvailableQuantity <> 0 OR sm.TotalQuantity <> 0)
+                  AND (@ProductId IS NULL OR sm.ProductId_FK = @ProductId)
+                UNION
+                SELECT pr.ProductId_FK AS ProductId
+                FROM ProductRange pr
+                WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                """;
+
+            var sql = $"""
+                SELECT ProductId FROM (
+                    SELECT DISTINCT ProductId FROM (
+                        {unionBody}
+                    ) u
+                ) t
+                ORDER BY ProductId
+                """;
+
+            var ids = new List<long>();
+            await using (var cmd = new SqlCommand(sql, connection))
+            {
+                cmd.Parameters.AddWithValue("@FromDate", fromParam);
+                cmd.Parameters.AddWithValue("@ToDate", toParam);
+                cmd.Parameters.AddWithValue("@ProductId", productIdParam);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    ids.Add(reader.GetInt64(0));
+            }
+
+            return ids;
+        }
+
+        /// <summary>
+        /// Opening weight = current available + sales in period − purchases in period (same base units as StockMaster).
+        /// Profit = Sale Amount + Balance Amount − Total Stock Amount; Balance Amount = Balance Weight × Total Stock Rate.
+        /// </summary>
+        private async Task<List<ProductWiseProfitLossDetailSection>> BuildProductWiseProfitLossDetailSectionsAsync(
+            SqlConnection connection,
+            ProfitLossReportFilters? filters,
+            List<long> productIds,
+            DateTime? toDateEnd)
+        {
+            if (productIds == null || productIds.Count == 0)
+                return new List<ProductWiseProfitLossDetailSection>();
+
+            object fromParam = (object?)filters?.FromDate ?? DBNull.Value;
+            object toParam = (object?)toDateEnd ?? DBNull.Value;
+            var idList = string.Join(",", productIds);
+
+            var salesW = new Dictionary<long, decimal>();
+            var salesA = new Dictionary<long, decimal>();
+            var purchaseW = new Dictionary<long, decimal>();
+            var purchaseA = new Dictionary<long, decimal>();
+            var expenseA = new Dictionary<long, decimal>();
+            var stockQty = new Dictionary<long, decimal>();
+            var productMeta = new Dictionary<long, (string Name, string Code, string? Urdu)>();
+
+            async Task ReadAggAsync(string sql, Action<long, decimal, decimal> addPair)
+            {
+                await using var cmd = new SqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@FromDate", fromParam);
+                cmd.Parameters.AddWithValue("@ToDate", toParam);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var pid = reader.GetInt64(0);
+                    var w = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    var a = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                    addPair(pid, w, a);
+                }
+            }
+
+            var salesSql = $"""
+                SELECT sd.PrductId_FK,
+                       SUM(CAST(sd.Quantity AS DECIMAL(18, 4))),
+                       SUM(sd.PayableAmount)
+                FROM SaleDetails sd
+                INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                WHERE s.IsDeleted = 0
+                  AND sd.PrductId_FK IN ({idList})
+                  AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
+                  AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
+                GROUP BY sd.PrductId_FK
+                """;
+            await ReadAggAsync(salesSql, (pid, w, a) => { salesW[pid] = w; salesA[pid] = a; });
+
+            var purchaseSql = $"""
+                SELECT poi.PrductId_FK,
+                       SUM(CAST(poi.Quantity AS DECIMAL(18, 4))),
+                       SUM(poi.PayableAmount)
+                FROM PurchaseOrderItems poi
+                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                WHERE ISNULL(po.IsDeleted, 0) = 0
+                  AND poi.PrductId_FK IN ({idList})
+                  AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
+                  AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
+                GROUP BY poi.PrductId_FK
+                """;
+            await ReadAggAsync(purchaseSql, (pid, w, a) => { purchaseW[pid] = w; purchaseA[pid] = a; });
+
+            var expSql = $"""
+                SELECT e.ProductId_FK, SUM(e.Amount), 0
+                FROM Expenses e
+                WHERE e.ProductId_FK IS NOT NULL
+                  AND e.ProductId_FK IN ({idList})
+                  AND (@FromDate IS NULL OR e.ExpenseDate >= @FromDate)
+                  AND (@ToDate IS NULL OR e.ExpenseDate <= @ToDate)
+                GROUP BY e.ProductId_FK
+                """;
+            await using (var cmd = new SqlCommand(expSql, connection))
+            {
+                cmd.Parameters.AddWithValue("@FromDate", fromParam);
+                cmd.Parameters.AddWithValue("@ToDate", toParam);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var pid = reader.GetInt64(0);
+                    var a = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    expenseA[pid] = a;
+                }
+            }
+
+            var stockSql = $"""
+                SELECT sm.ProductId_FK, sm.AvailableQuantity
+                FROM StockMaster sm
+                WHERE sm.ProductId_FK IN ({idList})
+                """;
+            await using (var sc = new SqlCommand(stockSql, connection))
+            {
+                await using var reader = await sc.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var pid = reader.GetInt64(0);
+                    var q = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    stockQty[pid] = q;
+                }
+            }
+
+            var metaSql = $"""
+                SELECT p.ProductId, p.ProductName, ISNULL(p.ProductCode, ''), NULLIF(LTRIM(RTRIM(p.UrduName)), ''), p.UnitPrice
+                FROM Products p
+                WHERE p.ProductId IN ({idList})
+                """;
+            var productTableUnitPrice = new Dictionary<long, decimal>();
+            await using (var mc = new SqlCommand(metaSql, connection))
+            {
+                await using var reader = await mc.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var pid = reader.GetInt64(0);
+                    var name = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    var code = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    string? urdu = reader.IsDBNull(3) ? null : reader.GetString(3);
+                    var pu = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
+                    productMeta[pid] = (name, code, urdu);
+                    productTableUnitPrice[pid] = pu;
+                }
+            }
+
+            // Catalog rate for smallest MU (e.g. Khal kg @ 110) — used when period purchase/sale averages are unavailable.
+            var smallestRangeUnitPrice = new Dictionary<long, decimal>();
+            var smallestSql = $"""
+                SELECT pr.ProductId_FK, MIN(pr.UnitPrice)
+                FROM ProductRange pr
+                INNER JOIN Products p ON p.ProductId = pr.ProductId_FK
+                INNER JOIN AdminMeasuringUnits mu ON mu.MeasuringUnitId = pr.MeasuringUnitId_FK
+                    AND p.MeasuringUnitTypeId_FK IS NOT NULL
+                    AND mu.MeasuringUnitTypeId_FK = p.MeasuringUnitTypeId_FK
+                    AND mu.IsSmallestUnit = 1
+                WHERE pr.ProductId_FK IN ({idList})
+                GROUP BY pr.ProductId_FK
+                """;
+            try
+            {
+                await using (var su = new SqlCommand(smallestSql, connection))
+                {
+                    await using var reader = await su.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var pid = reader.GetInt64(0);
+                        var up = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                        if (up > 0)
+                            smallestRangeUnitPrice[pid] = up;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Smallest ProductRange unit price query failed; falling back to Products.UnitPrice only.");
+            }
+
+            var sections = new List<ProductWiseProfitLossDetailSection>();
+            foreach (var pid in productIds)
+            {
+                salesW.TryGetValue(pid, out var sw);
+                salesA.TryGetValue(pid, out var sa);
+                purchaseW.TryGetValue(pid, out var pw);
+                purchaseA.TryGetValue(pid, out var pa);
+                expenseA.TryGetValue(pid, out var exp);
+                stockQty.TryGetValue(pid, out var endQty);
+
+                productMeta.TryGetValue(pid, out var meta);
+
+                var previousWeight = endQty + sw - pw;
+                if (previousWeight < 0)
+                    previousWeight = 0;
+
+                // Opening value: never use period sale average — that would revalue opening stock when you add a sale (wrong).
+                // With purchases in range, use purchase average; otherwise catalog smallest-unit rate, then Products.UnitPrice.
+                decimal previousAmount = 0m;
+                if (pw > 0)
+                    previousAmount = previousWeight * (pa / pw);
+                else if (previousWeight > 0)
+                {
+                    if (smallestRangeUnitPrice.TryGetValue(pid, out var catalogRate) && catalogRate > 0)
+                        previousAmount = previousWeight * catalogRate;
+                    else if (productTableUnitPrice.TryGetValue(pid, out var listPrice) && listPrice > 0)
+                        previousAmount = previousWeight * listPrice;
+                }
+
+                var totalStockWeight = previousWeight + pw;
+                var totalStockAmount = previousAmount + pa + exp;
+                var totalStockRate = totalStockWeight > 0 ? totalStockAmount / totalStockWeight : 0m;
+
+                var balanceWeight = totalStockWeight - sw;
+                if (balanceWeight < 0)
+                    balanceWeight = 0;
+                var balanceAmount = balanceWeight * totalStockRate;
+
+                var profit = sa + balanceAmount - totalStockAmount;
+
+                sections.Add(new ProductWiseProfitLossDetailSection
+                {
+                    ProductId = pid,
+                    ProductName = meta.Name,
+                    ProductCode = meta.Code,
+                    ProductUrduName = meta.Urdu,
+                    PreviousWeight = previousWeight,
+                    PreviousAmount = previousAmount,
+                    PurchaseWeight = pw,
+                    PurchaseAmount = pa,
+                    PurchaseExpenseAmount = exp,
+                    TotalStockWeight = totalStockWeight,
+                    TotalStockAmount = totalStockAmount,
+                    SaleWeight = sw,
+                    SaleAmount = sa,
+                    BalanceStockWeight = balanceWeight,
+                    BalanceStockAmount = balanceAmount,
+                    BagsWeight = 0,
+                    BagsRate = 0,
+                    Profit = profit
+                });
+            }
+
+            return sections;
         }
 
         public async Task<GeneralProfitLossReportViewModel> GetGeneralProfitLossReport(GeneralProfitLossReportFilters? filters)
@@ -677,171 +1011,60 @@ namespace IMS.Services
 
         public async Task<ProfitLossReportViewModel> GetProductWiseProfitLossReport(int pageNumber, int? pageSize, ProfitLossReportFilters? filters)
         {
-            // For export, get all records without pagination
             var profitLossList = new List<ProfitLossReportItem>();
+            var productDetailSections = new List<ProductWiseProfitLossDetailSection>();
             decimal totalSalesAmount = 0;
             decimal totalPurchaseCost = 0;
             decimal totalProfitLoss = 0;
 
             try
             {
-                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                await using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
+                    var toDateEnd = filters?.ToDate != null
+                        ? filters.ToDate.Value.Date.AddDays(1).AddSeconds(-1)
+                        : (DateTime?)null;
 
-                    //var sql = @"
-                    //    WITH SalesData AS (
-                    //        SELECT 
-                    //            sd.PrductId_FK AS ProductId,
-                    //            p.ProductName,
-                    //            p.ProductCode,
-                    //            SUM(sd.Quantity) AS TotalQuantitySold,
-                    //            SUM(sd.PayableAmount) AS TotalSalesAmount
-                    //        FROM SaleDetail sd
-                    //        INNER JOIN Sale s ON sd.SaleId_FK = s.SaleId
-                    //        INNER JOIN Product p ON sd.PrductId_FK = p.ProductId
-                    //        WHERE s.IsDeleted = 0
-                    //            AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                    //            AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                    //            AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
-                    //        GROUP BY sd.PrductId_FK, p.ProductName, p.ProductCode
-                    //    ),
-                    //    PurchaseData AS (
-                    //        SELECT 
-                    //            poi.PrductId_FK AS ProductId,
-                    //            AVG(poi.UnitPrice) AS AvgPurchasePrice,
-                    //            SUM(poi.Quantity) AS TotalQuantityPurchased
-                    //        FROM PurchaseOrderItem poi
-                    //        INNER JOIN PurchaseOrder po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                    //        WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
-                    //            AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
-                    //            AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
-                    //        GROUP BY poi.PrductId_FK
-                    //    )
-                    //    SELECT 
-                    //        sd.ProductId,
-                    //        sd.ProductName,
-                    //        ISNULL(sd.ProductCode, '') AS ProductCode,
-                    //        sd.TotalQuantitySold,
-                    //        sd.TotalSalesAmount,
-                    //        ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0) AS TotalPurchaseCost,
-                    //        (sd.TotalSalesAmount - ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0)) AS ProfitLoss,
-                    //        CASE 
-                    //            WHEN ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0) > 0 
-                    //            THEN ((sd.TotalSalesAmount - ISNULL(pd.AvgPurchasePrice * sd.TotalQuantitySold, 0)) / (pd.AvgPurchasePrice * sd.TotalQuantitySold)) * 100
-                    //            ELSE 0
-                    //        END AS ProfitLossPercentage
-                    //    FROM SalesData sd
-                    //    LEFT JOIN PurchaseData pd ON sd.ProductId = pd.ProductId
-                    //    ORDER BY sd.ProductName;
+                    var allIds = await GetAllProfitLossProductIdsAsync(connection, filters, toDateEnd);
+                    productDetailSections = await BuildProductWiseProfitLossDetailSectionsAsync(connection, filters, allIds, toDateEnd);
 
-                    //    SELECT 
-                    //        SUM(TotalSalesAmount) AS TotalSalesAmount,
-                    //        SUM(TotalPurchaseCost) AS TotalPurchaseCost,
-                    //        SUM(ProfitLoss) AS TotalProfitLoss
-                    //    FROM (
-                    //        SELECT 
-                    //            sd.PrductId_FK AS ProductId,
-                    //            SUM(sd.PayableAmount) AS TotalSalesAmount,
-                    //            ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0) AS TotalPurchaseCost,
-                    //            (SUM(sd.PayableAmount) - ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0)) AS ProfitLoss
-                    //        FROM SaleDetail sd
-                    //        INNER JOIN Sale s ON sd.SaleId_FK = s.SaleId
-                    //        LEFT JOIN (
-                    //            SELECT 
-                    //                poi.PrductId_FK,
-                    //                AVG(poi.UnitPrice) AS AvgPurchasePrice
-                    //            FROM PurchaseOrderItem poi
-                    //            INNER JOIN PurchaseOrder po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                    //            WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
-                    //                AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
-                    //            GROUP BY poi.PrductId_FK
-                    //        ) pd ON sd.PrductId_FK = pd.PrductId_FK
-                    //        WHERE s.IsDeleted = 0
-                    //            AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                    //            AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                    //            AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
-                    //        GROUP BY sd.PrductId_FK, pd.AvgPurchasePrice
-                    //    ) AS Summary;
-                    //";
-
-                    using (var command = new SqlCommand("GetSalesProfitSummary", connection))
+                    foreach (var s in productDetailSections)
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@ToDate", filters?.ToDate != null ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : DBNull.Value);
-                        command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
-
-                        using (var reader = await command.ExecuteReaderAsync())
+                        profitLossList.Add(new ProfitLossReportItem
                         {
-                            while (await reader.ReadAsync())
-                            {
-                                profitLossList.Add(new ProfitLossReportItem
-                                {
-                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? 0 : reader.GetInt64(reader.GetOrdinal("ProductId")),
-                                    ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductName")),
-                                    ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? string.Empty : reader.GetString(reader.GetOrdinal("ProductCode")),
-                                    TotalQuantitySold = reader.IsDBNull(reader.GetOrdinal("TotalQuantitySold")) ? 0 : reader.GetInt64(reader.GetOrdinal("TotalQuantitySold")),
-                                    TotalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount")),
-                                    TotalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost")),
-                                    ProfitLoss = reader.IsDBNull(reader.GetOrdinal("ProfitLoss")) ? 0m : reader.GetDecimal(reader.GetOrdinal("ProfitLoss")),
-                                    ProfitLossPercentage = reader.IsDBNull(reader.GetOrdinal("ProfitLossPercentage")) ? 0m : reader.GetDecimal(reader.GetOrdinal("ProfitLossPercentage"))
-                                });
-                            }
-
-                            await reader.NextResultAsync();
-                            if (await reader.ReadAsync())
-                            {
-                                totalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount"));
-                                totalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost"));
-                                totalProfitLoss = reader.IsDBNull(reader.GetOrdinal("TotalProfitLoss")) ? 0m : reader.GetDecimal(reader.GetOrdinal("TotalProfitLoss"));
-                            }
-                        }
-                    }
-
-                    if (profitLossList.Count > 0)
-                    {
-                        var pids = profitLossList.Select(x => x.ProductId).Where(id => id > 0).Distinct().ToList();
-                        if (pids.Count > 0)
-                        {
-                            var ph = string.Join(",", pids.Select((_, i) => "@pl" + i));
-                            using (var urduCmd = new SqlCommand($"SELECT ProductId, UrduName FROM Products WHERE ProductId IN ({ph})", connection))
-                            {
-                                for (var i = 0; i < pids.Count; i++)
-                                    urduCmd.Parameters.AddWithValue("@pl" + i, pids[i]);
-                                using (var ur = await urduCmd.ExecuteReaderAsync())
-                                {
-                                    var map = new Dictionary<long, string?>();
-                                    while (await ur.ReadAsync())
-                                    {
-                                        var pid = ur.GetInt64(0);
-                                        var un = ur.IsDBNull(1) ? null : ur.GetString(1);
-                                        map[pid] = string.IsNullOrWhiteSpace(un) ? null : un;
-                                    }
-                                    foreach (var row in profitLossList)
-                                    {
-                                        if (map.TryGetValue(row.ProductId, out var u))
-                                            row.ProductUrduName = u;
-                                    }
-                                }
-                            }
-                        }
+                            ProductId = s.ProductId,
+                            ProductName = s.ProductName,
+                            ProductUrduName = s.ProductUrduName,
+                            ProductCode = s.ProductCode,
+                            TotalQuantitySold = (long)Math.Round(s.SaleWeight, MidpointRounding.AwayFromZero),
+                            TotalSalesAmount = s.SaleAmount,
+                            TotalPurchaseCost = s.TotalStockAmount,
+                            ProfitLoss = s.Profit,
+                            ProfitLossPercentage = s.TotalStockAmount > 0 ? (s.Profit / s.TotalStockAmount) * 100m : 0m
+                        });
+                        totalSalesAmount += s.SaleAmount;
+                        totalPurchaseCost += s.TotalStockAmount;
+                        totalProfitLoss += s.Profit;
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "GetProductWiseProfitLossReport failed.");
+                throw;
             }
 
+            var n = profitLossList.Count;
             return new ProfitLossReportViewModel
             {
                 ProfitLossList = profitLossList,
+                ProductDetailSections = productDetailSections,
                 Filters = filters ?? new ProfitLossReportFilters(),
                 CurrentPage = 1,
                 TotalPages = 1,
-                PageSize = profitLossList.Count,
-                TotalCount = profitLossList.Count,
+                PageSize = n,
+                TotalCount = n,
                 TotalSalesAmount = totalSalesAmount,
                 TotalPurchaseCost = totalPurchaseCost,
                 TotalProfitLoss = totalProfitLoss

@@ -331,12 +331,15 @@ namespace IMS.Controllers
                 {
                     model = new ProfitLossReportViewModel();
                 }
+                model.Filters ??= new ProfitLossReportFilters();
+                model.ProfitLossList ??= new List<ProfitLossReportItem>();
+                model.ProductDetailSections ??= new List<ProductWiseProfitLossDetailSection>();
             }
 
             return View(model);
         }
 
-        public async Task<IActionResult> ExportProfitLossExcel(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<IActionResult> ExportProfitLossExcel(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? fromDate = null, DateTime? toDate = null, int? viewMode = null)
         {
             int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
             if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
@@ -344,6 +347,57 @@ namespace IMS.Controllers
                 currentPageSize = pageSize.Value;
                 HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
             }
+
+            if (viewMode == (int)ProfitLossReportViewMode.Overall)
+            {
+                var filtersOverall = new ProfitLossReportFilters
+                {
+                    ProductId = productId,
+                    FromDate = fromDate ?? DateTimeHelper.Now,
+                    ToDate = toDate ?? DateTimeHelper.Now,
+                    ViewMode = ProfitLossReportViewMode.Overall
+                };
+                var modelOverall = await _reportService.GetProductWiseProfitLoss(1, null, filtersOverall);
+
+                using var workbookOv = new XLWorkbook();
+                var ws = workbookOv.Worksheets.Add("Overall P&L");
+                int r = 1;
+                ws.Cell(r, 1).Value = "Overall Profit and Loss Report";
+                ws.Range(r, 1, r, 5).Merge();
+                ws.Cell(r, 1).Style.Font.Bold = true;
+                r += 2;
+                ws.Cell(r, 1).Value = "Product";
+                ws.Cell(r, 2).Value = "Sale amount";
+                ws.Cell(r, 3).Value = "Total stock amount";
+                ws.Cell(r, 4).Value = "Profit / (loss)";
+                ws.Cell(r, 5).Value = "%";
+                ws.Range(r, 1, r, 5).Style.Fill.BackgroundColor = XLColor.LightGray;
+                ws.Range(r, 1, r, 5).Style.Font.Bold = true;
+                r++;
+                foreach (var item in modelOverall.ProfitLossList ?? new List<ProfitLossReportItem>())
+                {
+                    ws.Cell(r, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName ?? "");
+                    ws.Cell(r, 2).Value = item.TotalSalesAmount;
+                    ws.Cell(r, 3).Value = item.TotalPurchaseCost;
+                    ws.Cell(r, 4).Value = item.ProfitLoss;
+                    ws.Cell(r, 5).Value = item.ProfitLossPercentage;
+                    r++;
+                }
+                r++;
+                ws.Cell(r, 1).Value = "Grand total";
+                ws.Cell(r, 2).Value = modelOverall.TotalSalesAmount;
+                ws.Cell(r, 3).Value = modelOverall.TotalPurchaseCost;
+                ws.Cell(r, 4).Value = modelOverall.TotalProfitLoss;
+                ws.Range(r, 1, r, 5).Style.Font.Bold = true;
+                ws.Columns().AdjustToContents();
+                using var streamOv = new MemoryStream();
+                workbookOv.SaveAs(streamOv);
+                var filenameOv = $"ProfitLossReport_Overall_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+                return File(streamOv.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    filenameOv);
+            }
+
             var filters = new ProfitLossReportFilters
             {
                 ProductId = productId,
@@ -353,48 +407,77 @@ namespace IMS.Controllers
             var model = await _reportService.GetProductWiseProfitLossReport(pageNumber, currentPageSize, filters);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("Product Wise Profit and Loss Report");
-            
-            // Add header
-            worksheet.Cell(1, 1).Value = "Product Name";
-            worksheet.Cell(1, 2).Value = "Urdu Name";
-            worksheet.Cell(1, 3).Value = "Product Code";
-            worksheet.Cell(1, 4).Value = "Quantity Sold";
-            worksheet.Cell(1, 5).Value = "Total Sales Amount";
-            worksheet.Cell(1, 6).Value = "Total Purchase Cost";
-            worksheet.Cell(1, 7).Value = "Profit/Loss";
-            worksheet.Cell(1, 8).Value = "Profit/Loss %";
-            
-            // Style header
-            var headerRange = worksheet.Range(1, 1, 1, 8);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+            var worksheet = workbook.Worksheets.Add("Product Wise P&L");
 
-            // Add data
-            int row = 2;
-            foreach (var item in model.ProfitLossList)
+            void writeRow(int r, string d, decimal? w, decimal? a, decimal? rate, bool bold = false)
             {
-                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(item.ProductName);
-                worksheet.Cell(row, 2).Value = NameDisplayHelper.UrduNameCell(item.ProductUrduName);
-                worksheet.Cell(row, 3).Value = item.ProductCode;
-                worksheet.Cell(row, 4).Value = item.TotalQuantitySold;
-                worksheet.Cell(row, 5).Value = item.TotalSalesAmount;
-                worksheet.Cell(row, 6).Value = item.TotalPurchaseCost;
-                worksheet.Cell(row, 7).Value = item.ProfitLoss;
-                worksheet.Cell(row, 8).Value = item.ProfitLossPercentage;
-                row++;
+                worksheet.Cell(r, 1).Value = d;
+                if (w.HasValue)
+                    worksheet.Cell(r, 2).Value = w.Value;
+                else
+                    worksheet.Cell(r, 2).Value = string.Empty;
+                if (a.HasValue)
+                    worksheet.Cell(r, 3).Value = a.Value;
+                else
+                    worksheet.Cell(r, 3).Value = string.Empty;
+                if (rate.HasValue)
+                    worksheet.Cell(r, 4).Value = rate.Value;
+                else
+                    worksheet.Cell(r, 4).Value = string.Empty;
+                if (bold)
+                    worksheet.Range(r, 1, r, 4).Style.Font.Bold = true;
             }
 
-            // Add summary row
+            int row = 1;
+            worksheet.Cell(row, 1).Value = "Product Wise Profit and Loss Report";
+            worksheet.Range(row, 1, row, 4).Merge();
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            row += 2;
+
+            worksheet.Cell(row, 1).Value = "Description";
+            worksheet.Cell(row, 2).Value = "Weight";
+            worksheet.Cell(row, 3).Value = "Amount";
+            worksheet.Cell(row, 4).Value = "Rate";
+            worksheet.Range(row, 1, row, 4).Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Range(row, 1, row, 4).Style.Font.Bold = true;
             row++;
-            worksheet.Cell(row, 4).Value = "TOTAL:";
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalSalesAmount;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
-            worksheet.Cell(row, 6).Value = model.TotalPurchaseCost;
-            worksheet.Cell(row, 6).Style.Font.Bold = true;
-            worksheet.Cell(row, 7).Value = model.TotalProfitLoss;
-            worksheet.Cell(row, 7).Style.Font.Bold = true;
+
+            foreach (var p in model.ProductDetailSections ?? new List<ProductWiseProfitLossDetailSection>())
+            {
+                worksheet.Cell(row, 1).Value = NameDisplayHelper.EnglishNameCell(p.ProductName);
+                worksheet.Range(row, 1, row, 4).Merge();
+                worksheet.Cell(row, 1).Style.Font.Bold = true;
+                row++;
+                writeRow(row++, "Previous", p.PreviousWeight, p.PreviousAmount, p.PreviousRate);
+                writeRow(row++, "Purchase", p.PurchaseWeight, p.PurchaseAmount, p.PurchaseRate);
+                writeRow(row++, "Purchase Exp", null, p.PurchaseExpenseAmount, null);
+                writeRow(row++, "Total Stock", p.TotalStockWeight, p.TotalStockAmount, p.TotalStockRate, true);
+                writeRow(row++, "Sale", p.SaleWeight, p.SaleAmount, p.SaleRate);
+                writeRow(row++, "Balance Stock", p.BalanceStockWeight, p.BalanceStockAmount, p.BalanceRate, true);
+                if (p.BagsWeight != 0 || p.BagsRate != 0)
+                    writeRow(row++, "Bags", p.BagsWeight, p.BagsAmount, p.BagsRate, true);
+                worksheet.Cell(row, 1).Value = "Profit";
+                worksheet.Cell(row, 3).Value = p.Profit;
+                worksheet.Range(row, 1, row, 4).Style.Fill.BackgroundColor = XLColor.Black;
+                worksheet.Range(row, 1, row, 4).Style.Font.FontColor = XLColor.White;
+                worksheet.Cell(row, 3).Style.Font.Bold = true;
+                row += 2;
+            }
+
+            row++;
+            worksheet.Cell(row, 1).Value = "GRAND TOTAL";
+            worksheet.Cell(row, 2).Value = "Sales";
+            worksheet.Cell(row, 3).Value = model.TotalSalesAmount;
+            worksheet.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+            row++;
+            worksheet.Cell(row, 2).Value = "Stock value";
+            worksheet.Cell(row, 3).Value = model.TotalPurchaseCost;
+            worksheet.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+            row++;
+            worksheet.Cell(row, 2).Value = "Profit";
+            worksheet.Cell(row, 3).Value = model.TotalProfitLoss;
+            worksheet.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+            worksheet.Range(row - 2, 1, row, 4).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -406,7 +489,7 @@ namespace IMS.Controllers
                 filename);
         }
 
-        public async Task<IActionResult> ExportProfitLossPdf(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<IActionResult> ExportProfitLossPdf(int pageNumber = 1, int? pageSize = null, long? productId = null, DateTime? fromDate = null, DateTime? toDate = null, int? viewMode = null)
         {
             int currentPageSize = HttpContext.Session.GetInt32("UserPageSize") ?? DefaultPageSize;
             if (pageSize.HasValue && AllowedPageSizes.Contains(pageSize.Value))
@@ -414,6 +497,69 @@ namespace IMS.Controllers
                 currentPageSize = pageSize.Value;
                 HttpContext.Session.SetInt32("UserPageSize", currentPageSize);
             }
+
+            if (viewMode == (int)ProfitLossReportViewMode.Overall)
+            {
+                var filtersOverall = new ProfitLossReportFilters
+                {
+                    ProductId = productId,
+                    FromDate = fromDate ?? DateTimeHelper.Now,
+                    ToDate = toDate ?? DateTimeHelper.Now,
+                    ViewMode = ProfitLossReportViewMode.Overall
+                };
+                var modelOverall = await _reportService.GetProductWiseProfitLoss(1, null, filtersOverall);
+
+                using (var streamOv = new MemoryStream())
+                {
+                    var documentOv = new Document(PageSize.A4.Rotate(), 24f, 24f, 24f, 24f);
+                    PdfWriter.GetInstance(documentOv, streamOv);
+                    documentOv.Open();
+                    var titleFontOv = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                    documentOv.Add(new Paragraph("Overall Profit and Loss Report", titleFontOv) { Alignment = Element.ALIGN_CENTER });
+                    documentOv.Add(new Paragraph("\n"));
+
+                    var tableOv = new PdfPTable(5);
+                    tableOv.WidthPercentage = 100;
+                    tableOv.SetWidths(new float[] { 3f, 1.4f, 1.4f, 1.4f, 1f });
+
+                    void hdrOv(string a, string b, string c, string d, string e)
+                    {
+                        tableOv.AddCell(H2(a));
+                        tableOv.AddCell(H2(b));
+                        tableOv.AddCell(H2(c));
+                        tableOv.AddCell(H2(d));
+                        tableOv.AddCell(H2(e));
+                    }
+                    PdfPCell H2(string t) => new PdfPCell(new Phrase(t, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    hdrOv("Product", "Sale amount", "Total stock amount", "Profit / (loss)", "%");
+
+                    var cellFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+                    foreach (var item in modelOverall.ProfitLossList ?? new List<ProfitLossReportItem>())
+                    {
+                        tableOv.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.ProductName ?? ""), cellFont)));
+                        tableOv.AddCell(new PdfPCell(new Phrase(item.TotalSalesAmount.ToString("N2"), cellFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        tableOv.AddCell(new PdfPCell(new Phrase(item.TotalPurchaseCost.ToString("N2"), cellFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        tableOv.AddCell(new PdfPCell(new Phrase(item.ProfitLoss.ToString("N2"), cellFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        tableOv.AddCell(new PdfPCell(new Phrase(item.ProfitLossPercentage.ToString("N2"), cellFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    }
+                    var boldFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9);
+                    tableOv.AddCell(new PdfPCell(new Phrase("Grand total", boldFont)));
+                    tableOv.AddCell(new PdfPCell(new Phrase(modelOverall.TotalSalesAmount.ToString("N2"), boldFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    tableOv.AddCell(new PdfPCell(new Phrase(modelOverall.TotalPurchaseCost.ToString("N2"), boldFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    tableOv.AddCell(new PdfPCell(new Phrase(modelOverall.TotalProfitLoss.ToString("N2"), boldFont)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    tableOv.AddCell(new PdfPCell(new Phrase("", boldFont)));
+
+                    documentOv.Add(tableOv);
+                    documentOv.Close();
+                    var filenameOv = $"ProfitLossReport_Overall_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+                    return File(streamOv.ToArray(), "application/pdf", filenameOv);
+                }
+            }
+
             var filters = new ProfitLossReportFilters
             {
                 ProductId = productId,
@@ -433,69 +579,65 @@ namespace IMS.Controllers
                 // Title
                 var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
                 document.Add(new Paragraph("Product Wise Profit and Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
-                document.Add(new Paragraph("\n")); // Add space
+                document.Add(new Paragraph("\n"));
 
-                // Table with 8 columns
-                PdfPTable table = new PdfPTable(8);
+                var table = new PdfPTable(4);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.8f, 1.8f, 1.8f, 1.2f });
+                table.SetWidths(new float[] { 3.2f, 1.6f, 1.6f, 1.6f });
 
-                // Header row
-                string[] headers = { "Product Name", "Urdu Name", "Product Code", "Qty Sold", "Sales Amount", "Purchase Cost", "Profit/Loss", "P/L %" };
-
-                foreach (var header in headers)
+                void hdr(string a, string b, string c, string d)
                 {
-                    var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
-                    {
-                        HorizontalAlignment = Element.ALIGN_CENTER,
-                        VerticalAlignment = Element.ALIGN_MIDDLE,
-                        BackgroundColor = BaseColor.LIGHT_GRAY
-                    };
-                    table.AddCell(cell);
+                    table.AddCell(H(a));
+                    table.AddCell(H(b));
+                    table.AddCell(H(c));
+                    table.AddCell(H(d));
                 }
-
-                // Data rows
-                foreach (var item in model.ProfitLossList)
+                PdfPCell H(string t) => new PdfPCell(new Phrase(t, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
                 {
-                    table.AddCell(NameDisplayHelper.EnglishNameCell(item.ProductName));
-                    table.AddCell(NameDisplayHelper.UrduNameCell(item.ProductUrduName));
-                    table.AddCell(item.ProductCode ?? "");
-                    table.AddCell(item.TotalQuantitySold.ToString());
-                    table.AddCell(item.TotalSalesAmount.ToString("N2"));
-                    table.AddCell(item.TotalPurchaseCost.ToString("N2"));
-                    
-                    var profitLossCell = new PdfPCell(new Phrase(item.ProfitLoss.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA, 9)));
-                    profitLossCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    if (item.ProfitLoss < 0)
-                        profitLossCell.BackgroundColor = BaseColor.RED;
-                    else
-                        profitLossCell.BackgroundColor = BaseColor.GREEN;
-                    table.AddCell(profitLossCell);
-                    
-                    table.AddCell(item.ProfitLossPercentage.ToString("N2") + "%");
-                }
-
-                // Summary row
-                var summaryCell = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
-                {
-                    Colspan = 4,
-                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    HorizontalAlignment = Element.ALIGN_CENTER,
                     BackgroundColor = BaseColor.LIGHT_GRAY
                 };
-                table.AddCell(summaryCell);
-                
-                table.AddCell(new PdfPCell(new Phrase(model.TotalSalesAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
-                table.AddCell(new PdfPCell(new Phrase(model.TotalPurchaseCost.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
-                
-                var totalProfitLossCell = new PdfPCell(new Phrase(model.TotalProfitLoss.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
-                totalProfitLossCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                if (model.TotalProfitLoss < 0)
-                    totalProfitLossCell.BackgroundColor = BaseColor.RED;
-                else
-                    totalProfitLossCell.BackgroundColor = BaseColor.GREEN;
-                table.AddCell(totalProfitLossCell);
-                
-                table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
+                void row(string desc, string w, string amt, string rate, bool bold = false)
+                {
+                    var f = FontFactory.GetFont(bold ? FontFactory.HELVETICA_BOLD : FontFactory.HELVETICA, 8);
+                    table.AddCell(new PdfPCell(new Phrase(desc, f)));
+                    table.AddCell(new PdfPCell(new Phrase(w, f)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(amt, f)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(rate, f)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                }
+
+                foreach (var p in model.ProductDetailSections ?? new List<ProductWiseProfitLossDetailSection>())
+                {
+                    var titleCell = new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(p.ProductName), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                    {
+                        Colspan = 4,
+                        BackgroundColor = BaseColor.LIGHT_GRAY
+                    };
+                    table.AddCell(titleCell);
+                    hdr("Description", "Weight", "Amount", "Rate");
+                    row("Previous", p.PreviousWeight.ToString("N2"), p.PreviousAmount.ToString("N2"), p.PreviousRate.ToString("N2"));
+                    row("Purchase", p.PurchaseWeight.ToString("N2"), p.PurchaseAmount.ToString("N2"), p.PurchaseRate.ToString("N2"));
+                    row("Purchase Exp", "", p.PurchaseExpenseAmount.ToString("N2"), "");
+                    row("Total Stock", p.TotalStockWeight.ToString("N2"), p.TotalStockAmount.ToString("N2"), p.TotalStockRate.ToString("N2"), true);
+                    row("Sale", p.SaleWeight.ToString("N2"), p.SaleAmount.ToString("N2"), p.SaleRate.ToString("N2"));
+                    row("Balance Stock", p.BalanceStockWeight.ToString("N2"), p.BalanceStockAmount.ToString("N2"), p.BalanceRate.ToString("N2"), true);
+                    if (p.BagsWeight != 0 || p.BagsRate != 0)
+                        row("Bags", p.BagsWeight.ToString("N2"), p.BagsAmount.ToString("N2"), p.BagsRate.ToString("N2"), true);
+                    var wf = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
+                    table.AddCell(new PdfPCell(new Phrase("Profit", wf)) { BackgroundColor = BaseColor.BLACK });
+                    table.AddCell(new PdfPCell(new Phrase("—", wf)) { BackgroundColor = BaseColor.BLACK, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(p.Profit.ToString("N2"), wf))
+                    {
+                        Colspan = 2,
+                        HorizontalAlignment = Element.ALIGN_RIGHT,
+                        BackgroundColor = BaseColor.BLACK
+                    });
+                    table.AddCell(new PdfPCell(new Phrase("\n")) { Colspan = 4, MinimumHeight = 6f });
+                }
+
+                row("GRAND TOTAL Sales", "", model.TotalSalesAmount.ToString("N2"), "", true);
+                row("GRAND TOTAL Stock value", "", model.TotalPurchaseCost.ToString("N2"), "", true);
+                row("GRAND TOTAL Profit", "", model.TotalProfitLoss.ToString("N2"), "", true);
 
                 document.Add(table);
                 document.Close();
