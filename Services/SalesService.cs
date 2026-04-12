@@ -1254,6 +1254,18 @@ namespace IMS.Services
                                     MeasuringUnitName = reader.GetString("MeasuringUnitName"),
                                     MeasuringUnitAbbreviation = reader.GetString("MeasuringUnitAbbreviation")
                                 };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) productSize.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) productSize.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
                                 productSizes.Add(productSize);
                             }
                             _logger.LogInformation("Total records read from database: {Count}", recordCount);

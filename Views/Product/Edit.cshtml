@@ -147,8 +147,8 @@
                         <thead>
                             <tr>
                                 <th>MU</th>
-                                <th>Size from</th>
-                                <th>Size to</th>
+                                <th>Size name</th>
+                                <th>Urdu name</th>
                                 <th>Unit price</th>
                                 <th>Actions</th>
                             </tr>
@@ -160,10 +160,11 @@
                                 {
                                     <tr data-size-id="@item.ProductRangeId" data-measuring-unit-id="@item.MeasuringUnitIdFk"
                                         data-measuring-unit-text="@(item.MeasuringUnitAbbreviation ?? item.MeasuringUnitName)"
-                                        data-range-from="@item.RangeFrom" data-range-to="@item.RangeTo" data-unit-price="@item.UnitPrice">
+                                        data-range-from="0" data-range-to="0" data-unit-price="@item.UnitPrice"
+                                        data-product-range-name="@(item.ProductRangeName ?? "")" data-range-urdu-name="@(item.UrduName ?? "")">
                                         <td>@(item.MeasuringUnitAbbreviation ?? item.MeasuringUnitName ?? item.MeasuringUnitIdFk.ToString())</td>
-                                        <td>@item.RangeFrom.ToString("0.##")</td>
-                                        <td>@item.RangeTo.ToString("0.##")</td>
+                                        <td>@(item.ProductRangeName ?? "")</td>
+                                        <td dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif;">@(item.UrduName ?? "")</td>
                                         <td>@item.UnitPrice.ToString("0.##")</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
@@ -229,6 +230,27 @@
                 console.log("MeasuringUnitTypeId changed to:", measuringUnitTypeId);
             });
 
+            // jQuery maps data-size-id -> .data("sizeId"), not .data("size-id"). Read from attributes (or table cells).
+            function readSizeRowFromTable($row) {
+                var productRangeName = ($row.attr("data-product-range-name") || "").trim();
+                if (!productRangeName) productRangeName = ($row.find("td:eq(1)").text() || "").trim();
+                var rangeUrduName = ($row.attr("data-range-urdu-name") || "").trim();
+                if (!rangeUrduName) rangeUrduName = ($row.find("td:eq(2)").text() || "").trim();
+                var unitPrice = $row.attr("data-unit-price");
+                if (unitPrice === undefined || unitPrice === "") {
+                    unitPrice = ($row.find("td:eq(3)").text() || "").trim();
+                }
+                return {
+                    sizeId: $row.attr("data-size-id"),
+                    measuringUnitId: $row.attr("data-measuring-unit-id"),
+                    productRangeName: productRangeName,
+                    rangeUrduName: rangeUrduName,
+                    unitPrice: unitPrice,
+                    rangeFrom: $row.attr("data-range-from"),
+                    rangeTo: $row.attr("data-range-to")
+                };
+            }
+
             // Open Add Size Modal
             $("#addSizeBtn").click(function () {
                 // Get current value directly from Kendo ComboBox
@@ -284,11 +306,12 @@
             // Edit Size Button Click
             $(document).on("click", ".edit-size-btn", function () {
                 var $row = $(this).closest("tr");
-                var sizeId = $row.data("size-id");
-                var measuringUnitId = $row.data("measuring-unit-id");
-                var rangeFrom = $row.data("range-from");
-                var rangeTo = $row.data("range-to");
-                var unitPrice = $row.data("unit-price");
+                var rowData = readSizeRowFromTable($row);
+                var sizeId = rowData.sizeId;
+                var measuringUnitId = rowData.measuringUnitId;
+                var productRangeName = rowData.productRangeName;
+                var rangeUrduName = rowData.rangeUrduName;
+                var unitPrice = rowData.unitPrice;
 
                 editingSizeId = sizeId; // Set editing mode
 
@@ -331,16 +354,15 @@
                                     setTimeout(function() {
                                         var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
                                         if (measuringUnitCombo) {
-                                            measuringUnitCombo.value(measuringUnitId.toString());
+                                            measuringUnitCombo.value(String(measuringUnitId));
                                             console.log("Set measuring unit value to:", measuringUnitId);
                                         }
                                     }, 500);
                                 }
                             }
                             
-                            // Set other field values (formatted to remove trailing zeros)
-                            $("#addSizeForm input[name='RangeFrom']").val(formatDecimal(rangeFrom));
-                            $("#addSizeForm input[name='RangeTo']").val(formatDecimal(rangeTo));
+                            $("#addSizeForm input[name='ProductRangeName']").val(productRangeName);
+                            $("#addSizeForm input[name='UrduName']").val(rangeUrduName);
                             $("#addSizeForm input[name='UnitPrice']").val(formatDecimal(unitPrice));
                         }, 300);
                         
@@ -360,38 +382,34 @@
                 var measuringUnitCombo = $("#modalMeasuringUnitId").data("kendoComboBox");
                 var measuringUnitId = measuringUnitCombo ? measuringUnitCombo.value() : $("#addSizeForm input[name='MeasuringUnitIdFk']").val();
                 var measuringUnitText = measuringUnitCombo ? (measuringUnitCombo.text() || "").trim() : "";
-                var rangeFrom = $("#addSizeForm input[name='RangeFrom']").val();
-                var rangeTo = $("#addSizeForm input[name='RangeTo']").val();
+                var productRangeName = ($("#addSizeForm input[name='ProductRangeName']").val() || "").trim();
+                var rangeUrduName = ($("#addSizeForm input[name='UrduName']").val() || "").trim();
                 var unitPrice = $("#addSizeForm input[name='UnitPrice']").val();
 
-                // Validate non-empty fields (allow 0 but not null/empty)
                 if (!measuringUnitId || measuringUnitId === "" || measuringUnitId === "0") {
                     alert("Please select a Measuring Unit.");
                     return;
                 }
 
-                if (rangeFrom === "" || rangeFrom === null || rangeTo === "" || rangeTo === null || unitPrice === "" || unitPrice === null) {
-                    alert("Please fill in all fields. You can use 0 as a value, but fields cannot be empty.");
+                if (!productRangeName) {
+                    alert("Please enter a size name.");
                     return;
                 }
 
-                // Validate numeric values (allow 0 but not negative, and RangeFrom must be less than RangeTo)
-                if (parseFloat(rangeFrom) < 0 || parseFloat(rangeTo) < 0 || parseFloat(unitPrice) < 0) {
+                if (unitPrice === "" || unitPrice === null) {
+                    alert("Please fill in unit price. You can use 0 as a value, but the field cannot be empty.");
+                    return;
+                }
+
+                if (parseFloat(unitPrice) < 0) {
                     alert("Numeric values cannot be negative.");
                     return;
                 }
 
-                if (parseFloat(rangeFrom) > parseFloat(rangeTo)) {
-                    alert("Range From must be less than Range To.");
-                    return;
-                }
-
                 if (editingSizeId) {
-                    // Update existing size
-                    updateSizeInTable(editingSizeId, measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice);
+                    updateSizeInTable(editingSizeId, measuringUnitId, measuringUnitText, productRangeName, rangeUrduName, unitPrice);
                 } else {
-                    // Add new size
-                    addSizeToTable(measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice);
+                    addSizeToTable(measuringUnitId, measuringUnitText, productRangeName, rangeUrduName, unitPrice);
                 }
                 
                 // Clear form and close modal
@@ -408,23 +426,28 @@
                 return num.toFixed(2).replace(/\.?0+$/, '');
             }
 
+            function escapeAttr(s) {
+                if (s == null || s === undefined) return '';
+                return String(s).replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
+            }
+
             // Add size to table (measuringUnitText = display name e.g. kg, Bori)
-            function addSizeToTable(measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice) {
+            function addSizeToTable(measuringUnitId, measuringUnitText, productRangeName, rangeUrduName, unitPrice) {
                 sizeCounter++;
                 var measuringUnitIdNum = parseInt(measuringUnitId);
-                var rangeFromNum = parseFloat(rangeFrom);
-                var rangeToNum = parseFloat(rangeTo);
                 var unitPriceNum = parseFloat(unitPrice);
                 var displayMu = (measuringUnitText && measuringUnitText.length > 0) ? measuringUnitText : measuringUnitIdNum;
-                var escapedMu = (typeof displayMu === 'string') ? displayMu.replace(/"/g, '&quot;') : displayMu;
+                var escapedMu = escapeAttr(displayMu);
+                var escapedPr = escapeAttr(productRangeName);
+                var escapedUrdu = escapeAttr(rangeUrduName);
                 
                 var row = `
                     <tr data-size-id="new_${sizeCounter}" data-measuring-unit-id="${measuringUnitIdNum}" data-measuring-unit-text="${escapedMu}"
-                        data-range-from="${rangeFromNum}" data-range-to="${rangeToNum}" data-unit-price="${unitPriceNum}">
-                        <td>${displayMu}</td>
-                        <td>${formatDecimal(rangeFromNum)}</td>
-                        <td>${formatDecimal(rangeToNum)}</td>
-                        <td>${formatDecimal(unitPriceNum)}</td>
+                        data-range-from="0" data-range-to="0" data-product-range-name="${escapedPr}" data-range-urdu-name="${escapedUrdu}" data-unit-price="${unitPriceNum}">
+                        <td></td>
+                        <td></td>
+                        <td dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif;"></td>
+                        <td></td>
                         <td>
                             <button type="button" class="btn btn-sm btn-primary edit-size-btn">Edit</button>
                             <button type="button" class="btn btn-sm btn-danger remove-size-btn">Delete</button>
@@ -432,13 +455,16 @@
                     </tr>
                 `;
                 $("#sizesTableBody").append(row);
+                var $nr = $("#sizesTableBody tr").last();
+                $nr.find("td:eq(0)").text(displayMu);
+                $nr.find("td:eq(1)").text(productRangeName);
+                $nr.find("td:eq(2)").text(rangeUrduName || "");
+                $nr.find("td:eq(3)").text(formatDecimal(unitPriceNum));
             }
 
             // Update size in table (measuringUnitText = display name e.g. kg, Bori)
-            function updateSizeInTable(sizeId, measuringUnitId, measuringUnitText, rangeFrom, rangeTo, unitPrice) {
+            function updateSizeInTable(sizeId, measuringUnitId, measuringUnitText, productRangeName, rangeUrduName, unitPrice) {
                 var measuringUnitIdNum = parseInt(measuringUnitId);
-                var rangeFromNum = parseFloat(rangeFrom);
-                var rangeToNum = parseFloat(rangeTo);
                 var unitPriceNum = parseFloat(unitPrice);
                 var displayMu = (measuringUnitText && measuringUnitText.length > 0) ? measuringUnitText : measuringUnitIdNum;
                 
@@ -448,23 +474,29 @@
                 $row.removeData("measuring-unit-text");
                 $row.removeData("range-from");
                 $row.removeData("range-to");
+                $row.removeData("product-range-name");
+                $row.removeData("range-urdu-name");
                 $row.removeData("unit-price");
                 
                 $row.attr("data-measuring-unit-id", measuringUnitIdNum);
-                $row.attr("data-measuring-unit-text", displayMu);
-                $row.attr("data-range-from", rangeFromNum);
-                $row.attr("data-range-to", rangeToNum);
+                $row.attr("data-measuring-unit-text", escapeAttr(displayMu));
+                $row.attr("data-range-from", "0");
+                $row.attr("data-range-to", "0");
+                $row.attr("data-product-range-name", productRangeName || "");
+                $row.attr("data-range-urdu-name", rangeUrduName || "");
                 $row.attr("data-unit-price", unitPriceNum);
                 
                 $row.data("measuring-unit-id", measuringUnitIdNum);
                 $row.data("measuring-unit-text", displayMu);
-                $row.data("range-from", rangeFromNum);
-                $row.data("range-to", rangeToNum);
+                $row.data("range-from", 0);
+                $row.data("range-to", 0);
+                $row.data("product-range-name", productRangeName || "");
+                $row.data("range-urdu-name", rangeUrduName || "");
                 $row.data("unit-price", unitPriceNum);
                 
                 $row.find("td:eq(0)").text(displayMu);
-                $row.find("td:eq(1)").text(formatDecimal(rangeFromNum));
-                $row.find("td:eq(2)").text(formatDecimal(rangeToNum));
+                $row.find("td:eq(1)").text(productRangeName || "");
+                $row.find("td:eq(2)").text(rangeUrduName || "");
                 $row.find("td:eq(3)").text(formatDecimal(unitPriceNum));
             }
 
@@ -513,16 +545,16 @@
                 var sizeIndex = 0;
                 $("#sizesTableBody tr").each(function () {
                     var $row = $(this);
-                    var sizeId = $row.data("size-id");
-                    var measuringUnitId = $row.data("measuring-unit-id");
-                    var rangeFrom = $row.data("range-from");
-                    var rangeTo = $row.data("range-to");
-                    var unitPrice = $row.data("unit-price");
+                    var rowData = readSizeRowFromTable($row);
+                    var sizeId = rowData.sizeId;
+                    var measuringUnitId = rowData.measuringUnitId;
+                    var rangeFrom = rowData.rangeFrom != null ? rowData.rangeFrom : 0;
+                    var rangeTo = rowData.rangeTo != null ? rowData.rangeTo : 0;
+                    var productRangeName = rowData.productRangeName;
+                    var rangeUrduName = rowData.rangeUrduName;
+                    var unitPrice = rowData.unitPrice;
 
-                    // Allow 0 but not null/empty (measuringUnitId must be > 0 though)
-                    if (measuringUnitId && measuringUnitId > 0 && 
-                        rangeFrom !== "" && rangeFrom !== null && rangeFrom !== undefined &&
-                        rangeTo !== "" && rangeTo !== null && rangeTo !== undefined &&
+                    if (measuringUnitId && parseFloat(measuringUnitId) > 0 &&
                         unitPrice !== "" && unitPrice !== null && unitPrice !== undefined) {
                         // Add ProductRangeId for existing sizes
                         if (sizeId && !sizeId.toString().startsWith("new_")) {
@@ -549,6 +581,18 @@
                             type: "hidden",
                             name: `productRanges[${sizeIndex}].RangeTo`,
                             value: rangeTo
+                        }).appendTo("#productForm");
+
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].ProductRangeName`,
+                            value: productRangeName
+                        }).appendTo("#productForm");
+
+                        $("<input>").attr({
+                            type: "hidden",
+                            name: `productRanges[${sizeIndex}].UrduName`,
+                            value: rangeUrduName
                         }).appendTo("#productForm");
                         
                         $("<input>").attr({

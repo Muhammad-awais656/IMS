@@ -341,6 +341,18 @@ namespace IMS.Services
                                     RangeTo = reader.GetDecimal("RangeTo"),
                                     UnitPrice = reader.GetDecimal("UnitPrice")
                                 };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) productRange.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) productRange.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
                                 productRanges.Add(productRange);
                             }
                         }
@@ -435,7 +447,7 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                productSizes.Add(new ProductRange
+                                var prs = new ProductRange
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
@@ -444,7 +456,20 @@ namespace IMS.Services
                                     MeasuringUnitIdFk = reader.GetInt64("MeasuringUnitId_FK"),
                                     MeasuringUnitName = reader.IsDBNull("MeasuringUnitName") ? "Unit" : reader.GetString("MeasuringUnitName"),
                                     MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? "U" : reader.GetString("MeasuringUnitAbbreviation")
-                                });
+                                };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) prs.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) prs.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
+                                productSizes.Add(prs);
                             }
                         }
                     }

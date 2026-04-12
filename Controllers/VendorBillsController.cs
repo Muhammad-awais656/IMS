@@ -388,19 +388,29 @@ namespace IMS.Controllers
                 var productSizes = await _vendorBillsService.GetProductSizesAsync(productId.Value);
                 _logger.LogInformation("Retrieved {Count} product sizes from database", productSizes.Count);
 
+                string SizeComboText(ProductRange ps)
+                {
+                    var mu = $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation})";
+                    if (!string.IsNullOrWhiteSpace(ps.ProductRangeName))
+                        return $"{mu} - {ps.ProductRangeName} - Rs.{ps.UnitPrice:F2}";
+                    if (ps.RangeFrom == ps.RangeTo)
+                        return $"{mu} - {ps.RangeFrom} - ${ps.UnitPrice:F2}";
+                    return $"{mu} - {ps.RangeFrom} to {ps.RangeTo} - ${ps.UnitPrice:F2}";
+                }
+
                 var result = productSizes.Select(ps => new
                 {
                     value = ps.ProductRangeId.ToString(),
-                    text = ps.RangeFrom == ps.RangeTo ? 
-                        $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom} - ${ps.UnitPrice:F2}" :
-                        $"{ps.MeasuringUnitName} ({ps.MeasuringUnitAbbreviation}) - {ps.RangeFrom} to {ps.RangeTo} - ${ps.UnitPrice:F2}",
+                    text = SizeComboText(ps),
                     productRangeId = ps.ProductRangeId,
                     measuringUnitId = ps.MeasuringUnitIdFk,
                     rangeFrom = ps.RangeFrom,
                     rangeTo = ps.RangeTo,
                     unitPrice = ps.UnitPrice,
                     measuringUnitName = ps.MeasuringUnitName ?? "",
-                    measuringUnitAbbreviation = ps.MeasuringUnitAbbreviation ?? ""
+                    measuringUnitAbbreviation = ps.MeasuringUnitAbbreviation ?? "",
+                    productRangeName = ps.ProductRangeName ?? "",
+                    urduName = ps.UrduName ?? ""
                 }).ToList();
                 
                 _logger.LogInformation("Returning {Count} product sizes to frontend", result.Count);

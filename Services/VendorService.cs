@@ -422,7 +422,7 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                productSizes.Add(new ProductSizeViewModel
+                                var ps = new ProductSizeViewModel
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
                                     ProductId_FK = reader.GetInt64("ProductId_FK"),
@@ -432,7 +432,20 @@ namespace IMS.Services
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
                                     MeasuringUnitName = reader.IsDBNull("MeasuringUnitName") ? null : reader.GetString("MeasuringUnitName"),
                                     MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? null : reader.GetString("MeasuringUnitAbbreviation")
-                                });
+                                };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) ps.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) ps.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
+                                productSizes.Add(ps);
                             }
                         }
                         return productSizes;

@@ -72,6 +72,8 @@ namespace IMS.Models
         public decimal RangeFrom { get; set; }
         public decimal RangeTo { get; set; }
         public decimal UnitPrice { get; set; }
+        public string? ProductRangeName { get; set; }
+        public string? UrduName { get; set; }
         public string MeasuringUnitName { get; set; }
         public string MeasuringUnitAbbreviation { get; set; }
     }
