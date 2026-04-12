@@ -88,7 +88,7 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>Measuring Unit</th>
-                                    <th>Product</th>
+                                    <th>Product / size</th>
                                     <th>Item Level Discount</th>
                                     <th>Unit Price</th>
                                     <th>Purchase Price</th>
@@ -281,6 +281,24 @@
         let selectedProductSize = null;
         let currentAvailableStock = 0; // Variable to store current available stock in selected unit
         let isPopulatingEditForm = false; // Flag to prevent multiple simultaneous calls
+
+        function escapeHtmlSale(s) {
+            if (s == null || s === undefined || s === '') return '';
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function buildProductSizeCellHtml(productName, rangeName, rangeUrduName) {
+            var h = '<div class="fw-semibold">' + escapeHtmlSale(rangeName) + '</div>';
+            // if (rangeName) {
+            //     h += '<div class="text-secondary small">' + escapeHtmlSale(rangeName) + '</div>';
+            // }
+            // if (rangeUrduName) {
+            //     h += '<div class="text-secondary small" dir="rtl" style="font-family: \'Urdu Typesetting\',\'Jameel Noori Nastaleeq\',Tahoma,serif;">' + escapeHtmlSale(rangeUrduName) + '</div>';
+            // }
+            return h;
+        }
 
         function initializeVendorBillGeneration() {
             // Initialize Kendo UI components
@@ -687,7 +705,9 @@
                                 rangeTo: selectedSize.rangeTo,
                                 unitPrice: selectedSize.unitPrice,
                                 measuringUnitName: selectedSize.measuringUnitName || "",
-                                measuringUnitAbbreviation: selectedSize.measuringUnitAbbreviation || item.measuringUnitAbbreviation || "N/A"
+                                measuringUnitAbbreviation: selectedSize.measuringUnitAbbreviation || item.measuringUnitAbbreviation || "N/A",
+                                productRangeName: selectedSize.productRangeName != null ? selectedSize.productRangeName : (item.productRangeName || ""),
+                                urduName: selectedSize.urduName != null ? selectedSize.urduName : (item.productRangeUrduName || "")
                             };
 
                             // Convert base unit quantity to product size unit for display
@@ -728,7 +748,9 @@
                                 rangeTo: item.rangeTo || null,
                                 unitPrice: item.unitPrice,
                                 measuringUnitName: item.measuringUnitName || "",
-                                measuringUnitAbbreviation: item.measuringUnitAbbreviation || item.productSize || "N/A"
+                                measuringUnitAbbreviation: item.measuringUnitAbbreviation || item.productSize || "N/A",
+                                productRangeName: item.productRangeName || "",
+                                urduName: item.productRangeUrduName || ""
                             };
                             $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                         }
@@ -897,6 +919,8 @@
             console.log("Selected item full data:", JSON.stringify(selectedItem, null, 2));
 
             if (selectedValue && selectedItem) {
+                var prName = selectedItem.productRangeName != null ? selectedItem.productRangeName : '';
+                var urdu = selectedItem.urduName != null ? selectedItem.urduName : '';
                 // Store the selected product size data globally - match Sales pattern exactly
                 selectedProductSize = {
                     productRangeId: selectedItem.value || selectedItem.productRangeId,
@@ -905,7 +929,9 @@
                     rangeTo: selectedItem.rangeTo,
                     unitPrice: selectedItem.unitPrice,
                     measuringUnitName: selectedItem.measuringUnitName,
-                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation,
+                    productRangeName: prName,
+                    urduName: urdu
                 };
 
                 console.log("Selected product size stored:", selectedProductSize);
@@ -1337,7 +1363,9 @@
                 salePrice: unitPrice,
                 lineDiscountAmount: discountAmount * displayQuantity,
                 payableAmount: payableAmount,
-                productRangeId: selectedProductSize.productRangeId
+                productRangeId: selectedProductSize.productRangeId,
+                productRangeName: selectedProductSize.productRangeName || "",
+                productRangeUrduName: selectedProductSize.urduName || ""
             };
 
             if (editingIndex >= 0) {
@@ -1456,7 +1484,12 @@
                 }
 
                 row.append("<td>" + measuringUnit + "</td>");
-                row.append("<td>" + (item.productName || "") + "</td>");
+                var productCellHtml = buildProductSizeCellHtml(
+                    item.productName || "",
+                    item.productRangeName || "",
+                    item.productRangeUrduName || ""
+                );
+                row.append($("<td></td>").html(productCellHtml));
                 row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.purchasePrice, 2) + "</td>");
@@ -2323,7 +2356,9 @@
                     baseUnitQuantity: baseUnitQuantity, // Base unit quantity (for saving)
                     salePrice: item.SalePrice || item.salePrice || 0,
                     lineDiscountAmount: item.LineDiscountAmount || item.lineDiscountAmount || 0,
-                    payableAmount: item.PayableAmount || item.payableAmount || 0
+                    payableAmount: item.PayableAmount || item.payableAmount || 0,
+                    productRangeName: item.ProductRangeName || item.productRangeName || '',
+                    productRangeUrduName: item.ProductRangeUrduName || item.productRangeUrduName || ''
                 };
             }
 

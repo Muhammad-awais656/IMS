@@ -88,7 +88,7 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Code</th>
-                                        <th>Product</th>
+                                        <th>Product / size</th>
                                         <th>Item Level Discount</th>
                                         <th>Unit Sale Price</th>
                                         <th>Qty</th>
@@ -1248,6 +1248,24 @@
             }
         }
 
+        function escapeHtmlSale(s) {
+            if (s == null || s === undefined || s === '') return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function buildProductSizeCellHtml(productName, rangeName, rangeUrduName) {
+            let h = '<div class="fw-semibold">' + escapeHtmlSale(rangeName) + '</div>';
+            // if (rangeName) {
+            //     h += '<div class="text-secondary small">' + escapeHtmlSale(rangeName) + '</div>';
+            // }
+            // if (rangeUrduName) {
+            //     h += '<div class="text-secondary small" dir="rtl" style="font-family: \'Urdu Typesetting\',\'Jameel Noori Nastaleeq\',Tahoma,serif;">' + escapeHtmlSale(rangeUrduName) + '</div>';
+            // }
+            return h;
+        }
+
         function onProductSizeChange() {
             console.log("onProductSizeChange function called");
             const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
@@ -1258,6 +1276,8 @@
             console.log("Selected item:", selectedItem);
 
             if (selectedValue && selectedItem) {
+                const prName = selectedItem.productRangeName != null ? selectedItem.productRangeName : '';
+                const urdu = selectedItem.urduName != null ? selectedItem.urduName : '';
                 selectedProductSize = {
                     productRangeId: selectedItem.value,
                     measuringUnitId: selectedItem.measuringUnitId,
@@ -1265,7 +1285,9 @@
                     rangeTo: selectedItem.rangeTo,
                     unitPrice: selectedItem.unitPrice,
                     measuringUnitName: selectedItem.measuringUnitName,
-                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation,
+                    productRangeName: prName,
+                    urduName: urdu
                 };
 
                 console.log("Selected product size:", selectedProductSize);
@@ -1382,12 +1404,15 @@
 
             // Add to table (Add New Sale: use selectedProductSize.measuringUnitAbbreviation with safe fallback)
             const unitAbbrAdd = (selectedProductSize && selectedProductSize.measuringUnitAbbreviation) ? selectedProductSize.measuringUnitAbbreviation : '';
+            const rangeNm = (selectedProductSize && selectedProductSize.productRangeName) ? selectedProductSize.productRangeName : '';
+            const rangeUrdu = (selectedProductSize && selectedProductSize.urduName) ? selectedProductSize.urduName : '';
+            const productCellHtml = buildProductSizeCellHtml(productName, rangeNm, rangeUrdu);
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
 
             newRow.innerHTML = `
                 <td>${unitAbbrAdd}</td>
-                <td>${productName}</td>
+                <td>${productCellHtml}</td>
                 <td>Rs${discount.toFixed(2)}</td>
                 <td>Rs${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
@@ -1540,6 +1565,11 @@
         function addExistingProductToTable(detail) {
             // Get product name from the detail object or use a placeholder
             const productName = detail.productName || 'Product';
+            const productCellHtml = buildProductSizeCellHtml(
+                productName,
+                detail.productRangeName || '',
+                detail.productRangeUrduName || ''
+            );
             // Edit Sale: backend sends measuringUnitAbbreviation; fall back to productSize. Add New Sale uses selectedProductSize.measuringUnitAbbreviation when adding rows.
             const unitAbbr = (detail.measuringUnitAbbreviation || detail.productSize || '').trim();
 
@@ -1552,7 +1582,7 @@
             
             newRow.innerHTML = `
                 <td>${unitAbbr}</td>
-                <td>${productName}</td>
+                <td>${productCellHtml}</td>
                 <td>$${itemLevelDiscount.toFixed(2)}</td>
                 <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
                 <td>${detail.quantity}</td>

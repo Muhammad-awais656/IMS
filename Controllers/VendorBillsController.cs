@@ -998,7 +998,9 @@ namespace IMS.Controllers
                         ProductRangeId = item.ProductRangeId,
                         ProductCode = item.ProductCode,
                         MeasuringUnitId = muId != 0 ? muId : (long?)null,
-                        MeasuringUnitAbbreviation = !string.IsNullOrWhiteSpace(muAbbrev) ? muAbbrev : null
+                        MeasuringUnitAbbreviation = !string.IsNullOrWhiteSpace(muAbbrev) ? muAbbrev : null,
+                        ProductRangeName = productRange?.ProductRangeName,
+                        ProductRangeUrduName = productRange?.UrduName
                     };
                     billDetailsList.Add(billDetail);
                 }

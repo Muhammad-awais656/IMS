@@ -133,10 +133,12 @@ namespace IMS.Services
 
             // Get sale details
             var detailsQuery = @"
-                SELECT p.ProductName, sd.Quantity, sd.UnitPrice, sd.SalePrice, 
+                SELECT p.ProductName, pr.ProductRangeName, pr.UrduName AS RangeUrduName,
+                       sd.Quantity, sd.UnitPrice, sd.SalePrice, 
                        sd.LineDiscountAmount, sd.PayableAmount
                 FROM SaleDetails sd
-                LEFT JOIN Product p ON sd.ProductId_FK = p.ProductId
+                LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
                 WHERE sd.SaleId_FK = @SaleId";
 
             using var detailsCommand = new SqlCommand(detailsQuery, connection);
@@ -146,7 +148,11 @@ namespace IMS.Services
             while (await detailsReader.ReadAsync())
             {
                 var row = new ReceiptDataRow();
-                row.Columns["Product"] = detailsReader.IsDBNull("ProductName") ? "N/A" : detailsReader.GetString("ProductName");
+                var pn = detailsReader.IsDBNull("ProductName") ? "N/A" : detailsReader.GetString("ProductName");
+                var rn = detailsReader.IsDBNull("ProductRangeName") ? null : detailsReader.GetString("ProductRangeName");
+                row.Columns["Product"] = string.IsNullOrWhiteSpace(rn) ? pn : $"{pn} — {rn}";
+                if (!detailsReader.IsDBNull("RangeUrduName") && !string.IsNullOrWhiteSpace(detailsReader.GetString("RangeUrduName")))
+                    row.Columns["Product"] = (string)row.Columns["Product"] + " | " + detailsReader.GetString("RangeUrduName");
                 row.Columns["Quantity"] = detailsReader.GetDecimal("Quantity");
                 row.Columns["Unit_Price"] = detailsReader.GetDecimal("UnitPrice");
                 row.Columns["Sale_Price"] = detailsReader.GetDecimal("SalePrice");
@@ -222,10 +228,12 @@ namespace IMS.Services
 
             // Get sale items
             var detailsQuery = @"
-                SELECT p.ProductName, sd.Quantity, sd.UnitPrice, sd.SalePrice, 
+                SELECT p.ProductName, pr.ProductRangeName, pr.UrduName AS RangeUrduName,
+                       sd.Quantity, sd.UnitPrice, sd.SalePrice, 
                        sd.LineDiscountAmount, sd.PayableAmount
                 FROM SaleDetails sd
-                LEFT JOIN Product p ON sd.ProductId_FK = p.ProductId
+                LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
                 WHERE sd.SaleId_FK = @SaleId";
 
             using var detailsCommand = new SqlCommand(detailsQuery, connection);
@@ -234,9 +242,14 @@ namespace IMS.Services
             using var detailsReader = await detailsCommand.ExecuteReaderAsync();
             while (await detailsReader.ReadAsync())
             {
+                var pn = detailsReader.IsDBNull("ProductName") ? "N/A" : detailsReader.GetString("ProductName");
+                var rn = detailsReader.IsDBNull("ProductRangeName") ? null : detailsReader.GetString("ProductRangeName");
+                var line = string.IsNullOrWhiteSpace(rn) ? pn : $"{pn} — {rn}";
+                if (!detailsReader.IsDBNull("RangeUrduName") && !string.IsNullOrWhiteSpace(detailsReader.GetString("RangeUrduName")))
+                    line += " | " + detailsReader.GetString("RangeUrduName");
                 salesReceiptData.SaleItems.Add(new SaleItem
                 {
-                    Product = detailsReader.IsDBNull("ProductName") ? "N/A" : detailsReader.GetString("ProductName"),
+                    Product = line,
                     QTY = detailsReader.GetDecimal("Quantity"),
                     SalePrice = detailsReader.GetDecimal("SalePrice"),
                     DiscountAmount = detailsReader.GetDecimal("LineDiscountAmount"),

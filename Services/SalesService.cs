@@ -739,7 +739,8 @@ namespace IMS.Services
             {
                 // Use inline SQL from SaleDetails so UnitPrice, SalePrice, LineDiscountAmount, PayableAmount are always populated (SP may return different column names or nulls)
                 var detailsSql = @"SELECT sd.PrductId_FK, sd.ProductRangeId_FK, sd.UnitPrice, sd.Quantity, sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount,
-                                   p.ProductName, mu.MeasuringUnitAbbreviation
+                                   p.ProductName, mu.MeasuringUnitAbbreviation,
+                                   pr.ProductRangeName AS ProductRangeName, pr.UrduName AS ProductRangeUrduName
                                    FROM SaleDetails sd
                                    LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
                                    LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
@@ -763,6 +764,8 @@ namespace IMS.Services
                                     ProductId = reader.IsDBNull("PrductId_FK") ? 0 : reader.GetInt64("PrductId_FK"),
                                     ProductRangeId = reader.IsDBNull("ProductRangeId_FK") ? 0 : reader.GetInt64("ProductRangeId_FK"),
                                     ProductName = reader.IsDBNull("ProductName") ? string.Empty : reader.GetString("ProductName"),
+                                    ProductRangeName = reader.IsDBNull("ProductRangeName") ? null : reader.GetString("ProductRangeName"),
+                                    ProductRangeUrduName = reader.IsDBNull("ProductRangeUrduName") ? null : reader.GetString("ProductRangeUrduName"),
                                     MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
                                     UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
                                     Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
@@ -889,7 +892,8 @@ namespace IMS.Services
                     // Get sale details with product names and measuring unit
                     var detailsSql = @"SELECT sd.SaleDetailId, sd.PrductId_FK, sd.UnitPrice, sd.Quantity, 
                                              sd.SalePrice, sd.LineDiscountAmount, sd.PayableAmount, sd.ProductRangeId_FK,
-                                             p.ProductName, mu.MeasuringUnitAbbreviation,mu.MeasuringUnitId,mu.IsSmallestUnit,mu.UrduName as UrduNameMU
+                                             p.ProductName, mu.MeasuringUnitAbbreviation,mu.MeasuringUnitId,mu.IsSmallestUnit,mu.UrduName as UrduNameMU,
+                                             pr.ProductRangeName AS ProductRangeName, pr.UrduName AS ProductRangeUrduName
                                       FROM SaleDetails sd
                                       LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
                                       LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
@@ -914,6 +918,8 @@ namespace IMS.Services
                             var ordIsSmallestUnit = reader.GetOrdinal("IsSmallestUnit");
                             var ordMeasuringUnitId = reader.GetOrdinal("MeasuringUnitId");
                             var UrduNameMU = reader.GetOrdinal("UrduNameMU");
+                            var ordProductRangeName = reader.GetOrdinal("ProductRangeName");
+                            var ordProductRangeUrduName = reader.GetOrdinal("ProductRangeUrduName");
 
                             while (await reader.ReadAsync())
                             {
@@ -924,6 +930,8 @@ namespace IMS.Services
                                     ProductId = productId,
                                     ProductName = reader.IsDBNull(ordProductName) ? "Unknown Product" : reader.GetString(ordProductName),
                                     ProductUrduName = null, // set below if UrduName column exists
+                                    ProductRangeName = reader.IsDBNull(ordProductRangeName) ? null : reader.GetString(ordProductRangeName),
+                                    ProductRangeUrduName = reader.IsDBNull(ordProductRangeUrduName) ? null : reader.GetString(ordProductRangeUrduName),
                                     UnitPrice = reader.IsDBNull(ordUnitPrice) ? 0m : reader.GetDecimal(ordUnitPrice),
                                     Quantity = reader.IsDBNull(ordQuantity) ? 0L : reader.GetInt64(ordQuantity),
                                     SalePrice = reader.IsDBNull(ordSalePrice) ? 0m : reader.GetDecimal(ordSalePrice),

@@ -47,6 +47,8 @@ namespace IMS.Models
         public long ProductRangeId { get; set; }
         public long? MeasuringUnitId { get; set; }
         public string? MeasuringUnitAbbreviation { get; set; }
+        public string? ProductRangeName { get; set; }
+        public string? ProductRangeUrduName { get; set; }
     }
 
     public class VendorBillWithVendorViewModel

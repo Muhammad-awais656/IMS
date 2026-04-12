@@ -127,10 +127,15 @@
                         var qtyWithUnit = item.PrintQuantity.ToString("N2");
                         var displayMU = !string.IsNullOrWhiteSpace(item.UrduNameMU) ? item.UrduNameMU : item.MeasuringUnitAbbreviation;
                         if (!string.IsNullOrEmpty(item.MeasuringUnitAbbreviation)) { qtyWithUnit += " " + displayMU; }
-                        var descText = !string.IsNullOrWhiteSpace(item.ProductUrduName) ? item.ProductUrduName : item.ProductName;
+                        var descEnglish = !string.IsNullOrWhiteSpace(item.ProductRangeUrduName)
+                        ? item.ProductRangeUrduName
+                        : item.ProductRangeName;
                         <tr>
                             <td class="num ltr">@srNo</td>
-                            <td class="desc">@descText</td>
+                            <td class="desc">
+                                @descEnglish
+
+                            </td>
                             <td class="qty ltr">@qtyWithUnit</td>
                             <td class="rate ltr">@item.UnitPrice.ToString("N2")</td>
                             <td class="amt ltr">@lineTotal.ToString("N2")</td>

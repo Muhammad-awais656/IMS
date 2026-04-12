@@ -1697,6 +1697,38 @@ namespace IMS.Services
                             }
                         }
                         catch { }
+
+                        var rangeIds = billItems.Where(i => i.ProductRangeId > 0).Select(i => i.ProductRangeId).Distinct().ToList();
+                        if (rangeIds.Count > 0)
+                        {
+                            try
+                            {
+                                var rangeList = string.Join(",", rangeIds);
+                                using (var cmdPr = new SqlCommand(
+                                    $"SELECT ProductRangeId, ProductRangeName, UrduName FROM ProductRange WHERE ProductRangeId IN ({rangeList})",
+                                    connection))
+                                using (var rdrPr = await cmdPr.ExecuteReaderAsync())
+                                {
+                                    var rangeNames = new Dictionary<long, (string? Name, string? Urdu)>();
+                                    while (await rdrPr.ReadAsync())
+                                    {
+                                        var prId = rdrPr.GetInt64(0);
+                                        string? n = rdrPr.IsDBNull(1) ? null : rdrPr.GetString(1);
+                                        string? u = rdrPr.IsDBNull(2) ? null : rdrPr.GetString(2);
+                                        rangeNames[prId] = (n, u);
+                                    }
+                                    foreach (var item in billItems)
+                                    {
+                                        if (rangeNames.TryGetValue(item.ProductRangeId, out var pr))
+                                        {
+                                            item.ProductRangeName = pr.Name;
+                                            item.ProductRangeUrduName = pr.Urdu;
+                                        }
+                                    }
+                                }
+                            }
+                            catch { /* ProductRange columns may differ */ }
+                        }
                     }
                 }
             }

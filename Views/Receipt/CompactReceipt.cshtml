@@ -189,7 +189,7 @@
                 {
                     <tr>
                         <td class="text-center">@item.SerialNumber</td>
-                        <td>@item.ProductName</td>
+                        <td><partial name="_ReceiptLineDescription" model="item" /></td>
                         <td class="text-right">@item.Quantity.ToString("N2")</td>
                         <td class="text-right">@item.SalePrice.ToString("N2")</td>
                         <td class="text-right">@item.PayableAmount.ToString("N2")</td>

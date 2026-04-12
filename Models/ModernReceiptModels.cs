@@ -46,6 +46,8 @@ namespace IMS.Models
     {
         public int SerialNumber { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string? ProductRangeName { get; set; }
+        public string? RangeUrduName { get; set; }
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal SalePrice { get; set; }

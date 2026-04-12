@@ -135,12 +135,14 @@ namespace IMS.Services
                 }
             };
 
-            // Get sale items
+            // Get sale items (ProductRange: size name + Urdu for line)
             var detailsQuery = @"
-                SELECT p.ProductName, sd.Quantity, sd.UnitPrice, sd.SalePrice, 
+                SELECT p.ProductName, pr.ProductRangeName, pr.UrduName AS RangeUrduName,
+                       sd.Quantity, sd.UnitPrice, sd.SalePrice, 
                        sd.LineDiscountAmount, sd.PayableAmount
                 FROM SaleDetails sd
-                LEFT JOIN Product p ON sd.ProductId_FK = p.ProductId
+                LEFT JOIN Products p ON sd.PrductId_FK = p.ProductId
+                LEFT JOIN ProductRange pr ON sd.ProductRangeId_FK = pr.ProductRangeId
                 WHERE sd.SaleId_FK = @SaleId";
 
             using var detailsCommand = new SqlCommand(detailsQuery, connection);
@@ -154,6 +156,8 @@ namespace IMS.Services
                 {
                     SerialNumber = serialNumber++,
                     ProductName = detailsReader.IsDBNull("ProductName") ? "N/A" : detailsReader.GetString("ProductName"),
+                    ProductRangeName = detailsReader.IsDBNull("ProductRangeName") ? null : detailsReader.GetString("ProductRangeName"),
+                    RangeUrduName = detailsReader.IsDBNull("RangeUrduName") ? null : detailsReader.GetString("RangeUrduName"),
                     Quantity = detailsReader.GetDecimal("Quantity"),
                     UnitPrice = detailsReader.GetDecimal("UnitPrice"),
                     SalePrice = detailsReader.GetDecimal("SalePrice"),
