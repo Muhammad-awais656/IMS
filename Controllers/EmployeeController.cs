@@ -105,6 +105,10 @@ namespace IMS.Controllers
         {
             try
             {
+                // Remove SaleDetails/Description/PayNow validation errors; we validate manually
+                var keysToRemove = ModelState.Keys.Where(k => k.StartsWith("EmployeeName")).ToList();
+                foreach (var key in keysToRemove)
+                    ModelState.Remove(key);
                 if (ModelState.IsValid)
                 {
                     var userIdStr = HttpContext.Session.GetString("UserId");
@@ -213,7 +217,10 @@ emp.MaritalStatus
             {
                 return BadRequest();
             }
-
+            // Remove SaleDetails/Description/PayNow validation errors; we validate manually
+            var keysToRemove = ModelState.Keys.Where(k => k.StartsWith("EmployeeName")).ToList();
+            foreach (var key in keysToRemove)
+                ModelState.Remove(key);
             if (ModelState.IsValid)
             {
                 try
