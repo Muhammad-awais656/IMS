@@ -137,26 +137,32 @@ namespace IMS.Models
     }
 
     /// <summary>
-    /// Overall P&amp;L: trading gross (sales − COGS, same basis as product-wise report), salaries from employee ledger, all expense records.
+    /// Bank account balances from ledger transactions (credits minus debits) up to end of the selected date.
     /// </summary>
-    public class GeneralProfitLossReportViewModel
+    public class BankBalancesReportViewModel
     {
-        public GeneralProfitLossReportFilters Filters { get; set; } = new GeneralProfitLossReportFilters();
-        public decimal TotalSalesAmount { get; set; }
-        public decimal TotalPurchaseCost { get; set; }
-        /// <summary>Gross from trading: sales amount minus purchase cost on quantities sold (same logic as product-wise summary).</summary>
-        public decimal GrossTradingProfit { get; set; }
-        /// <summary>Sum of debit amounts on employee ledger rows whose voucher type name contains &quot;Salary&quot; (case-insensitive).</summary>
-        public decimal TotalSalaries { get; set; }
-        /// <summary>Sum of all expense records in the date range.</summary>
-        public decimal TotalExpenses { get; set; }
-        public decimal NetProfitLoss { get; set; }
+        public BankBalancesReportFilters Filters { get; set; } = new BankBalancesReportFilters();
+        public List<BankBalancesReportRow> Rows { get; set; } = new List<BankBalancesReportRow>();
+        /// <summary>Sum of balances when showing all accounts; same as the one account balance when filtered.</summary>
+        public decimal TotalBalance { get; set; }
     }
 
-    public class GeneralProfitLossReportFilters
+    public class BankBalancesReportFilters
     {
-        public DateTime? FromDate { get; set; }
-        public DateTime? ToDate { get; set; }
+        /// <summary>Balance as of end of this calendar day (all transactions on or before this time).</summary>
+        public DateTime? ReportDate { get; set; }
+        /// <summary>When set, only this bank account; when null, all active accounts.</summary>
+        public long? PersonalPaymentId { get; set; }
+    }
+
+    public class BankBalancesReportRow
+    {
+        public long PersonalPaymentId { get; set; }
+        public string BankName { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountHolderName { get; set; } = string.Empty;
+        public string? BankBranch { get; set; }
+        public decimal BalanceAsOf { get; set; }
     }
 
     public class BankLedgerReportViewModel
@@ -306,7 +312,7 @@ namespace IMS.Models
         public string? TransactionType { get; set; }
     }
 
-    /// <summary>Customer-wise ledger: Debit = (TotalAmount - DiscountAmount) from Sales, Credit = PaymentAmount from Payments.</summary>
+    /// <summary>Customer-wise ledger: Debit = TotalAmount from Sales (net invoice total; matches Add Sale due logic), Credit = PaymentAmount from Payments.</summary>
     public class CustomerLedgerReportViewModel
     {
         public List<CustomerLedgerReportItem> LedgerList { get; set; } = new List<CustomerLedgerReportItem>();
@@ -337,7 +343,7 @@ namespace IMS.Models
         public DateTime? ToDate { get; set; }
     }
 
-    /// <summary>Vendor-wise ledger: Debit = (TotalAmount - DiscountAmount) from PurchaseOrders, Credit = PaymentAmount from BillPayments.</summary>
+    /// <summary>Vendor-wise ledger: Debit = TotalAmount from PurchaseOrders (net), Credit = PaymentAmount from BillPayments.</summary>
     public class VendorLedgerReportViewModel
     {
         public List<VendorLedgerReportItem> LedgerList { get; set; } = new List<VendorLedgerReportItem>();
@@ -416,6 +422,38 @@ namespace IMS.Models
     {
         public long? VendorId { get; set; }
         public DateTime? AsOfDate { get; set; }
+    }
+
+    /// <summary>
+    /// As-of snapshot: customer balance (sales − payments) appears as receivable when ≥ 0, otherwise as payable (positive) when the customer is in credit.
+    /// Vendor balance (purchases − bill payments) appears as payable when ≥ 0, otherwise as receivable (positive) when the vendor balance is a credit in our favor.
+    /// </summary>
+    public class PayableReceivableReportViewModel
+    {
+        public List<PayableReceivableReportItem> Rows { get; set; } = new List<PayableReceivableReportItem>();
+        public PayableReceivableReportFilters Filters { get; set; } = new PayableReceivableReportFilters();
+        /// <summary>Sum of amounts shown in the Receivable column.</summary>
+        public decimal TotalReceivable { get; set; }
+        /// <summary>Sum of amounts shown in the Payable column.</summary>
+        public decimal TotalPayable { get; set; }
+    }
+
+    public class PayableReceivableReportItem
+    {
+        public DateTime AsOfDate { get; set; }
+        public string? CustomerName { get; set; }
+        public string? VendorName { get; set; }
+        /// <summary>Amount in the Payable column (non-negative); may reflect a customer credit balance moved from receivable.</summary>
+        public decimal Payable { get; set; }
+        /// <summary>Amount in the Receivable column (non-negative); may reflect a vendor credit balance moved from payable.</summary>
+        public decimal Receivable { get; set; }
+    }
+
+    public class PayableReceivableReportFilters
+    {
+        public DateTime? AsOfDate { get; set; }
+        public long? CustomerId { get; set; }
+        public long? VendorId { get; set; }
     }
 
     public class PurchaseReportViewModel

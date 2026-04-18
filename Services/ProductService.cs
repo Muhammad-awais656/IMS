@@ -476,8 +476,8 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pRangeFrom", productRange.RangeFrom==null ? 0: productRange.RangeFrom);
                         command.Parameters.AddWithValue("@pRangeTo", productRange.RangeTo==null ? 0 : productRange.RangeTo);
                         command.Parameters.AddWithValue("@pUnitPrice", productRange.UnitPrice);
-                        command.Parameters.AddWithValue("@pProductRangeName", string.IsNullOrWhiteSpace(productRange.ProductRangeName) ? (object)DBNull.Value : productRange.ProductRangeName);
-                        command.Parameters.AddWithValue("@pUrduName", string.IsNullOrWhiteSpace(productRange.UrduName) ? (object)DBNull.Value : productRange.UrduName);
+                        command.Parameters.AddWithValue("@pProductRangeName", string.IsNullOrEmpty(productRange.ProductRangeName) ? (object)DBNull.Value : productRange.ProductRangeName);
+                        command.Parameters.AddWithValue("@pUrduName", string.IsNullOrEmpty(productRange.UrduName) ? (object)DBNull.Value : productRange.UrduName);
                   
                         var unitTypeyIdParam = new SqlParameter("@pProductRangeId", SqlDbType.BigInt)
                         {

@@ -886,126 +886,80 @@ namespace IMS.Services
             return sections;
         }
 
-        public async Task<GeneralProfitLossReportViewModel> GetGeneralProfitLossReport(GeneralProfitLossReportFilters? filters)
+        public async Task<BankBalancesReportViewModel> GetBankBalancesReport(BankBalancesReportFilters? filters)
         {
-            decimal totalSalesAmount = 0;
-            decimal totalPurchaseCost = 0;
-            decimal grossTradingProfit = 0;
-            decimal totalSalaries = 0;
-            decimal totalExpenses = 0;
+            var rows = new List<BankBalancesReportRow>();
+            decimal totalBalance = 0;
 
             try
             {
+                var reportDate = filters?.ReportDate ?? DateTimeHelper.Now;
+                var asOfEnd = reportDate.Date.AddDays(1).AddSeconds(-1);
+
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
 
-                    var toDateEnd = filters?.ToDate != null
-                        ? filters.ToDate.Value.Date.AddDays(1).AddSeconds(-1)
-                        : (DateTime?)null;
-
-                    object fromParam = (object?)filters?.FromDate ?? DBNull.Value;
-                    object toParam = toDateEnd.HasValue ? toDateEnd.Value : DBNull.Value;
-
-                    const string tradingSql = @"
+                    const string sql = @"
                         SELECT 
-                            ISNULL(SUM(TotalSalesAmount), 0) AS TotalSalesAmount,
-                            ISNULL(SUM(TotalPurchaseCost), 0) AS TotalPurchaseCost,
-                            ISNULL(SUM(ProfitLoss), 0) AS GrossTradingProfit
-                        FROM (
-                            SELECT 
-                                sd.PrductId_FK AS ProductId,
-                                SUM(sd.PayableAmount) AS TotalSalesAmount,
-                                ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0) AS TotalPurchaseCost,
-                                (SUM(sd.PayableAmount) - ISNULL(pd.AvgPurchasePrice * SUM(sd.Quantity), 0)) AS ProfitLoss
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            LEFT JOIN (
-                                SELECT 
-                                    poi.PrductId_FK,
-                                    AVG(poi.UnitPrice) AS AvgPurchasePrice
-                                FROM PurchaseOrderItems poi
-                                INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                                WHERE (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
-                                    AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
-                                GROUP BY poi.PrductId_FK
-                            ) pd ON sd.PrductId_FK = pd.PrductId_FK
-                            WHERE s.IsDeleted = 0
-                                AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
-                                AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
-                            GROUP BY sd.PrductId_FK, pd.AvgPurchasePrice
-                        ) AS Summary";
+                            pp.PersonalPaymentId,
+                            pp.BankName,
+                            ISNULL(pp.AccountNumber, '') AS AccountNumber,
+                            ISNULL(pp.AccountHolderName, '') AS AccountHolderName,
+                            ISNULL(pp.BankBranch, '') AS BankBranch,
+                            ISNULL(SUM(
+                                CASE 
+                                    WHEN ppsd.TransactionType = N'Credit' THEN ppsd.Amount
+                                    WHEN ppsd.TransactionType = N'Debit' THEN -ppsd.Amount
+                                    ELSE 0
+                                END
+                            ), 0) AS BalanceAsOf
+                        FROM PersonalPayments pp
+                        LEFT JOIN PersonalPaymentSaleDetail ppsd ON pp.PersonalPaymentId = ppsd.PersonalPaymentId
+                            AND ppsd.IsActive = 1
+                            AND ppsd.TransactionDate <= @AsOfEnd
+                        WHERE pp.IsActive = 1
+                            AND (@PersonalPaymentId IS NULL OR pp.PersonalPaymentId = @PersonalPaymentId)
+                        GROUP BY pp.PersonalPaymentId, pp.BankName, pp.AccountNumber, pp.AccountHolderName, pp.BankBranch
+                        ORDER BY pp.BankName, pp.AccountNumber";
 
-                    using (var cmd = new SqlCommand(tradingSql, connection))
+                    using (var command = new SqlCommand(sql, connection))
                     {
-                        cmd.Parameters.AddWithValue("@FromDate", fromParam);
-                        cmd.Parameters.AddWithValue("@ToDate", toParam);
-                        using (var reader = await cmd.ExecuteReaderAsync())
+                        command.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
+                        command.Parameters.AddWithValue("@PersonalPaymentId", (object?)filters?.PersonalPaymentId ?? DBNull.Value);
+
+                        using (var reader = await command.ExecuteReaderAsync())
                         {
-                            if (await reader.ReadAsync())
+                            while (await reader.ReadAsync())
                             {
-                                totalSalesAmount = reader.IsDBNull(reader.GetOrdinal("TotalSalesAmount"))
+                                var bal = reader.IsDBNull(reader.GetOrdinal("BalanceAsOf"))
                                     ? 0m
-                                    : reader.GetDecimal(reader.GetOrdinal("TotalSalesAmount"));
-                                totalPurchaseCost = reader.IsDBNull(reader.GetOrdinal("TotalPurchaseCost"))
-                                    ? 0m
-                                    : reader.GetDecimal(reader.GetOrdinal("TotalPurchaseCost"));
-                                grossTradingProfit = reader.IsDBNull(reader.GetOrdinal("GrossTradingProfit"))
-                                    ? 0m
-                                    : reader.GetDecimal(reader.GetOrdinal("GrossTradingProfit"));
+                                    : reader.GetDecimal(reader.GetOrdinal("BalanceAsOf"));
+                                rows.Add(new BankBalancesReportRow
+                                {
+                                    PersonalPaymentId = reader.GetInt64(reader.GetOrdinal("PersonalPaymentId")),
+                                    BankName = reader.IsDBNull(reader.GetOrdinal("BankName")) ? string.Empty : reader.GetString(reader.GetOrdinal("BankName")),
+                                    AccountNumber = reader.IsDBNull(reader.GetOrdinal("AccountNumber")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountNumber")),
+                                    AccountHolderName = reader.IsDBNull(reader.GetOrdinal("AccountHolderName")) ? string.Empty : reader.GetString(reader.GetOrdinal("AccountHolderName")),
+                                    BankBranch = reader.IsDBNull(reader.GetOrdinal("BankBranch")) ? null : reader.GetString(reader.GetOrdinal("BankBranch")),
+                                    BalanceAsOf = bal
+                                });
+                                totalBalance += bal;
                             }
                         }
-                    }
-
-                    const string salarySql = @"
-                        SELECT ISNULL(SUM(L.DebitAmount), 0) AS TotalSalaries
-                        FROM EmployeeLedger L
-                        INNER JOIN EmployeeVoucherTypes VT ON VT.VoucherTypeId = L.VoucherTypeId
-                        WHERE (@FromDate IS NULL OR L.VoucherDate >= @FromDate)
-                          AND (@ToDate IS NULL OR L.VoucherDate <= @ToDate)
-                          AND LOWER(VT.VoucherTypeName) LIKE N'%salary%'";
-
-                    using (var cmd = new SqlCommand(salarySql, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@FromDate", fromParam);
-                        cmd.Parameters.AddWithValue("@ToDate", toParam);
-                        var scalar = await cmd.ExecuteScalarAsync();
-                        if (scalar != null && scalar != DBNull.Value)
-                            totalSalaries = Convert.ToDecimal(scalar);
-                    }
-
-                    const string expenseSql = @"
-                        SELECT ISNULL(SUM(e.Amount), 0) AS TotalExpenses
-                        FROM Expenses e
-                        WHERE (@FromDate IS NULL OR CAST(e.ExpenseDate AS DATE) >= CAST(@FromDate AS DATE))
-                          AND (@ToDate IS NULL OR CAST(e.ExpenseDate AS DATE) <= CAST(@ToDate AS DATE))";
-
-                    using (var cmd = new SqlCommand(expenseSql, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@FromDate", (object?)filters?.FromDate ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@ToDate", (object?)filters?.ToDate ?? DBNull.Value);
-                        var scalar = await cmd.ExecuteScalarAsync();
-                        if (scalar != null && scalar != DBNull.Value)
-                            totalExpenses = Convert.ToDecimal(scalar);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "GetBankBalancesReport failed.");
             }
 
-            var net = grossTradingProfit - totalSalaries - totalExpenses;
-
-            return new GeneralProfitLossReportViewModel
+            return new BankBalancesReportViewModel
             {
-                Filters = filters ?? new GeneralProfitLossReportFilters(),
-                TotalSalesAmount = totalSalesAmount,
-                TotalPurchaseCost = totalPurchaseCost,
-                GrossTradingProfit = grossTradingProfit,
-                TotalSalaries = totalSalaries,
-                TotalExpenses = totalExpenses,
-                NetProfitLoss = net
+                Filters = filters ?? new BankBalancesReportFilters(),
+                Rows = rows,
+                TotalBalance = totalBalance
             };
         }
 
@@ -2875,11 +2829,11 @@ namespace IMS.Services
                     var fromDate = filters.FromDate ?? (DateTime?)null;
                     var toDate = filters.ToDate.HasValue ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : (DateTime?)null;
 
-                    // Sales: Debit = (TotalAmount - DiscountAmount), include CustomerName
+                    // Sales: Debit = TotalAmount (stored net = sum of line payables; DiscountAmount is line-discount total for display only)
                     var salesSql = @"
                         SELECT s.SaleDate AS [Date], ISNULL(c.CustomerName, '') AS CustomerName,
                                c.UrduName AS CustomerUrduName,
-                               (s.TotalAmount - ISNULL(s.DiscountAmount,0)) AS DebitAmount,
+                               s.TotalAmount AS DebitAmount,
                                ISNULL(s.SaleDescription, '') AS GLAccount, s.BillNumber
                         FROM Sales s
                         LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
@@ -3057,11 +3011,11 @@ namespace IMS.Services
                     var fromDate = filters.FromDate ?? (DateTime?)null;
                     var toDate = filters.ToDate.HasValue ? filters.ToDate.Value.AddDays(1).AddSeconds(-1) : (DateTime?)null;
 
-                    // PurchaseOrders: Debit = (TotalAmount - DiscountAmount), include VendorName
+                    // PurchaseOrders: Debit = TotalAmount (stored net; same pattern as sales)
                     var purchasesSql = @"
                         SELECT po.PurchaseOrderDate AS [Date], ISNULL(s.SupplierName, '') AS VendorName,
                                s.UrduName AS VendorUrduName,
-                               (po.TotalAmount - ISNULL(po.DiscountAmount, 0)) AS DebitAmount,
+                               po.TotalAmount AS DebitAmount,
                                ISNULL(po.PurchaseOrderDescription, '') AS GLAccount, po.BillNumber
                         FROM PurchaseOrders po
                         LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
@@ -3222,6 +3176,163 @@ namespace IMS.Services
             }
         }
 
+        public async Task<PayableReceivableReportViewModel> GetPayableReceivableReport(PayableReceivableReportFilters? filters)
+        {
+            filters ??= new PayableReceivableReportFilters();
+            var asOf = filters.AsOfDate?.Date ?? DateTimeHelper.Now.Date;
+            var asOfEnd = asOf.AddDays(1).AddSeconds(-1);
+            var hasCustomerFilter = filters.CustomerId.HasValue && filters.CustomerId.Value > 0;
+            var hasVendorFilter = filters.VendorId.HasValue && filters.VendorId.Value > 0;
+
+            var rows = new List<PayableReceivableReportItem>();
+            decimal totalRecv = 0;
+            decimal totalPay = 0;
+
+            try
+            {
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                {
+                    await connection.OpenAsync();
+
+                    var customerSql = @"
+                        SELECT c.CustomerName,
+                               ISNULL(d1.DebitTotal, 0) - ISNULL(p1.CreditTotal, 0) AS AsOfBalance
+                        FROM Customers c
+                        LEFT JOIN (
+                            SELECT s.CustomerId_FK AS CustomerId,
+                                   SUM(s.TotalAmount) AS DebitTotal
+                            FROM Sales s
+                            WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                              AND s.SaleDate <= @AsOfEnd
+                            GROUP BY s.CustomerId_FK
+                        ) d1 ON c.CustomerId = d1.CustomerId
+                        LEFT JOIN (
+                            SELECT p.CustomerId, SUM(p.PaymentAmount) AS CreditTotal
+                            FROM Payments p
+                            WHERE p.PaymentDate <= @AsOfEnd
+                            GROUP BY p.CustomerId
+                        ) p1 ON c.CustomerId = p1.CustomerId
+                        WHERE (
+                            (@HasCustomer = 1 AND c.CustomerId = @CustomerId)
+                            OR (@HasCustomer = 0 AND c.IsEnabled = 1)
+                          )
+                        ORDER BY c.CustomerName";
+
+                    using (var cmd = new SqlCommand(customerSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
+                        cmd.Parameters.AddWithValue("@HasCustomer", hasCustomerFilter ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@CustomerId", hasCustomerFilter ? (object)filters.CustomerId!.Value : DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var closing = reader.GetDecimal(reader.GetOrdinal("AsOfBalance"));
+                                // Positive = they owe us → receivable column; negative = we owe them (credit) → payable column as positive
+                                decimal pay = 0, recv = 0;
+                                if (closing >= 0)
+                                {
+                                    recv = closing;
+                                    totalRecv += closing;
+                                }
+                                else
+                                {
+                                    pay = -closing;
+                                    totalPay += -closing;
+                                }
+                                rows.Add(new PayableReceivableReportItem
+                                {
+                                    AsOfDate = asOf,
+                                    CustomerName = reader.IsDBNull(reader.GetOrdinal("CustomerName")) ? null : reader.GetString(reader.GetOrdinal("CustomerName")),
+                                    VendorName = null,
+                                    Payable = pay,
+                                    Receivable = recv
+                                });
+                            }
+                        }
+                    }
+
+                    var vendorSql = @"
+                        SELECT v.SupplierName AS VendorName,
+                               ISNULL(po1.DebitTotal, 0) - ISNULL(bp1.CreditTotal, 0) AS AsOfBalance
+                        FROM AdminSuppliers v
+                        LEFT JOIN (
+                            SELECT po.SupplierId_FK AS SupplierId,
+                                   SUM(po.TotalAmount) AS DebitTotal
+                            FROM PurchaseOrders po
+                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                              AND po.PurchaseOrderDate <= @AsOfEnd
+                            GROUP BY po.SupplierId_FK
+                        ) po1 ON v.SupplierId = po1.SupplierId
+                        LEFT JOIN (
+                            SELECT p.SupplierId_FK AS SupplierId,
+                                   SUM(p.PaymentAmount) AS CreditTotal
+                            FROM BillPayments p
+                            WHERE p.PaymentDate <= @AsOfEnd
+                            GROUP BY p.SupplierId_FK
+                        ) bp1 ON v.SupplierId = bp1.SupplierId
+                        WHERE (
+                            (@HasVendor = 1 AND v.SupplierId = @VendorId)
+                            OR (@HasVendor = 0 AND v.IsDeleted = 0)
+                          )
+                        ORDER BY v.SupplierName";
+
+                    using (var cmd = new SqlCommand(vendorSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
+                        cmd.Parameters.AddWithValue("@HasVendor", hasVendorFilter ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@VendorId", hasVendorFilter ? (object)filters.VendorId!.Value : DBNull.Value);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var closing = reader.GetDecimal(reader.GetOrdinal("AsOfBalance"));
+                                // Positive = we owe vendor → payable column; negative = vendor owes us / advance → receivable column as positive
+                                decimal pay = 0, recv = 0;
+                                if (closing >= 0)
+                                {
+                                    pay = closing;
+                                    totalPay += closing;
+                                }
+                                else
+                                {
+                                    recv = -closing;
+                                    totalRecv += -closing;
+                                }
+                                rows.Add(new PayableReceivableReportItem
+                                {
+                                    AsOfDate = asOf,
+                                    CustomerName = null,
+                                    VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName")),
+                                    Payable = pay,
+                                    Receivable = recv
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return new PayableReceivableReportViewModel
+                {
+                    Rows = rows,
+                    Filters = filters,
+                    TotalReceivable = totalRecv,
+                    TotalPayable = totalPay
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPayableReceivableReport error");
+                return new PayableReceivableReportViewModel
+                {
+                    Rows = new List<PayableReceivableReportItem>(),
+                    Filters = filters,
+                    TotalReceivable = 0,
+                    TotalPayable = 0
+                };
+            }
+        }
+
         public async Task<CustomerBalanceReportViewModel> GetCustomerBalanceReport(CustomerBalanceReportFilters? filters)
         {
             if (filters == null)
@@ -3244,7 +3355,7 @@ namespace IMS.Services
                         FROM Customers c
                         LEFT JOIN (
                             SELECT s.CustomerId_FK AS CustomerId,
-                                   SUM(s.TotalAmount - ISNULL(s.DiscountAmount, 0)) AS DebitTotal
+                                   SUM(s.TotalAmount) AS DebitTotal
                             FROM Sales s
                             WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
                               AND s.SaleDate <= @AsOfEnd
@@ -3342,7 +3453,7 @@ namespace IMS.Services
                         FROM AdminSuppliers v
                         LEFT JOIN (
                             SELECT po.SupplierId_FK AS SupplierId,
-                                   SUM(po.TotalAmount - ISNULL(po.DiscountAmount, 0)) AS DebitTotal
+                                   SUM(po.TotalAmount) AS DebitTotal
                             FROM PurchaseOrders po
                             WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
                               AND po.PurchaseOrderDate <= @AsOfEnd

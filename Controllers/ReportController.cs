@@ -646,127 +646,181 @@ namespace IMS.Controllers
             }
         }
 
-        public async Task<IActionResult> GeneralProfitLossReport(GeneralProfitLossReportViewModel model)
+        public async Task<IActionResult> BankBalancesReport(BankBalancesReportViewModel model)
         {
             try
             {
                 if (model == null)
-                    model = new GeneralProfitLossReportViewModel();
+                    model = new BankBalancesReportViewModel();
                 if (model.Filters == null)
-                    model.Filters = new GeneralProfitLossReportFilters();
+                    model.Filters = new BankBalancesReportFilters();
 
-                var hasFromDateParam = Request.Query.ContainsKey("Filters.FromDate");
-                var hasToDateParam = Request.Query.ContainsKey("Filters.ToDate");
+                var hasReportDateParam = Request.Query.ContainsKey("Filters.ReportDate");
+                if (!hasReportDateParam && !model.Filters.ReportDate.HasValue)
+                    model.Filters.ReportDate = DateTimeHelper.Now;
 
-                if (!hasFromDateParam && !model.Filters.FromDate.HasValue)
-                    model.Filters.FromDate = new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1);
-                if (!hasToDateParam && !model.Filters.ToDate.HasValue)
-                    model.Filters.ToDate = DateTimeHelper.Now;
+                var personalPayments = await _vendorService.GetAllPersonalPaymentsAsync(1, 1000, new PersonalPaymentFilters { IsActive = true });
+                var filters = model.Filters;
 
-                model = await _reportService.GetGeneralProfitLossReport(model.Filters);
+                var bankAccountItems = new List<SelectListItem>
+                {
+                    new SelectListItem { Value = "", Text = "-- All bank accounts --" }
+                };
+                foreach (var pp in personalPayments.PersonalPaymentList)
+                {
+                    bankAccountItems.Add(new SelectListItem
+                    {
+                        Value = pp.PersonalPaymentId.ToString(),
+                        Text = $"{pp.BankName} - {pp.AccountNumber} ({pp.AccountHolderName})"
+                    });
+                }
+                ViewBag.BankAccounts = bankAccountItems;
+
+                model = await _reportService.GetBankBalancesReport(filters);
+                model.Filters = filters;
+
+                foreach (var it in bankAccountItems)
+                {
+                    it.Selected = string.IsNullOrEmpty(it.Value)
+                        ? (!model.Filters.PersonalPaymentId.HasValue || model.Filters.PersonalPaymentId.Value <= 0)
+                        : model.Filters.PersonalPaymentId.HasValue && it.Value == model.Filters.PersonalPaymentId.Value.ToString();
+                }
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                model ??= new GeneralProfitLossReportViewModel();
+                model ??= new BankBalancesReportViewModel();
                 if (model.Filters == null)
-                    model.Filters = new GeneralProfitLossReportFilters();
+                    model.Filters = new BankBalancesReportFilters();
+                model.Rows ??= new List<BankBalancesReportRow>();
+                ViewBag.BankAccounts = new List<SelectListItem> { new SelectListItem { Value = "", Text = "-- All bank accounts --" } };
             }
 
             return View(model);
         }
 
-        public async Task<IActionResult> ExportGeneralProfitLossExcel(DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<IActionResult> ExportBankBalancesExcel(DateTime? reportDate = null, long? personalPaymentId = null)
         {
-            var filters = new GeneralProfitLossReportFilters
+            var filters = new BankBalancesReportFilters
             {
-                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
-                ToDate = toDate ?? DateTimeHelper.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now,
+                PersonalPaymentId = personalPaymentId
             };
-            var model = await _reportService.GetGeneralProfitLossReport(filters);
+            var model = await _reportService.GetBankBalancesReport(filters);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("General Profit Loss");
+            var worksheet = workbook.Worksheets.Add("Bank Balances");
 
-            worksheet.Cell(1, 1).Value = "General Profit Loss Report";
+            worksheet.Cell(1, 1).Value = "Bank Balances Report";
             worksheet.Cell(1, 1).Style.Font.Bold = true;
             worksheet.Cell(1, 1).Style.Font.FontSize = 14;
-            worksheet.Range(1, 1, 1, 2).Merge();
+            worksheet.Range(1, 1, 1, 5).Merge();
 
-            worksheet.Cell(2, 1).Value = "Period";
-            worksheet.Cell(2, 2).Value =
-                $"{filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}";
+            worksheet.Cell(2, 1).Value = "As of";
+            worksheet.Cell(2, 2).Value = filters.ReportDate?.ToString("dd-MMM-yyyy") ?? "";
 
             int row = 4;
-            void AddRow(string label, decimal value)
+            worksheet.Cell(row, 1).Value = "Bank";
+            worksheet.Cell(row, 2).Value = "Account #";
+            worksheet.Cell(row, 3).Value = "Account holder";
+            worksheet.Cell(row, 4).Value = "Branch";
+            worksheet.Cell(row, 5).Value = "Balance";
+            var headerRange = worksheet.Range(row, 1, row, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+            row++;
+
+            foreach (var r in model.Rows)
             {
-                worksheet.Cell(row, 1).Value = label;
-                worksheet.Cell(row, 2).Value = value;
+                worksheet.Cell(row, 1).Value = r.BankName;
+                worksheet.Cell(row, 2).Value = r.AccountNumber;
+                worksheet.Cell(row, 3).Value = r.AccountHolderName;
+                worksheet.Cell(row, 4).Value = r.BankBranch ?? "";
+                worksheet.Cell(row, 5).Value = r.BalanceAsOf;
                 row++;
             }
 
-            AddRow("Total sales (revenue)", model.TotalSalesAmount);
-            AddRow("Cost of goods sold (purchase cost on sold qty)", -model.TotalPurchaseCost);
-            AddRow("Gross trading profit", model.GrossTradingProfit);
-            AddRow("Salaries (employee ledger, voucher contains \"Salary\")", -model.TotalSalaries);
-            AddRow("Expenses (all expense records)", -model.TotalExpenses);
             row++;
-            worksheet.Cell(row, 1).Value = "Net profit / (loss)";
-            worksheet.Cell(row, 1).Style.Font.Bold = true;
-            worksheet.Cell(row, 2).Value = model.NetProfitLoss;
-            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = "Total";
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalBalance;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            var filename = $"GeneralProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            var filename = $"BankBalancesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 filename);
         }
 
-        public async Task<IActionResult> ExportGeneralProfitLossPdf(DateTime? fromDate = null, DateTime? toDate = null)
+        public async Task<IActionResult> ExportBankBalancesPdf(DateTime? reportDate = null, long? personalPaymentId = null)
         {
-            var filters = new GeneralProfitLossReportFilters
+            var filters = new BankBalancesReportFilters
             {
-                FromDate = fromDate ?? new DateTime(DateTimeHelper.Now.Year, DateTimeHelper.Now.Month, 1),
-                ToDate = toDate ?? DateTimeHelper.Now
+                ReportDate = reportDate ?? DateTimeHelper.Now,
+                PersonalPaymentId = personalPaymentId
             };
-            var model = await _reportService.GetGeneralProfitLossReport(filters);
+            var model = await _reportService.GetBankBalancesReport(filters);
 
             using var stream = new MemoryStream();
-            var document = new Document(PageSize.A4, 40f, 40f, 40f, 40f);
+            var document = new Document(PageSize.A4.Rotate(), 30f, 30f, 30f, 30f);
             PdfWriter.GetInstance(document, stream);
             document.Open();
 
-            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
-            document.Add(new Paragraph("General Profit Loss Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14);
+            document.Add(new Paragraph("Bank Balances Report", titleFont) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph(
-                $"Period: {filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}",
+                $"As of: {filters.ReportDate:dd-MMM-yyyy}",
                 FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph("\n"));
 
-            PdfPTable table = new PdfPTable(2);
+            var table = new PdfPTable(5);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 3f, 1.5f });
+            table.SetWidths(new float[] { 2.2f, 1.5f, 2f, 1.5f, 1.5f });
 
-            void AddPdfRow(string label, string value, bool bold = false)
+            void AddHeader(string text)
             {
-                var f = bold ? FontFactory.HELVETICA_BOLD : FontFactory.HELVETICA;
-                table.AddCell(new PdfPCell(new Phrase(label, FontFactory.GetFont(f, 10))));
-                table.AddCell(new PdfPCell(new Phrase(value, FontFactory.GetFont(f, 10))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                table.AddCell(new PdfPCell(new Phrase(text, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+                {
+                    BackgroundColor = BaseColor.LIGHT_GRAY,
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                });
             }
 
-            AddPdfRow("Total sales (revenue)", model.TotalSalesAmount.ToString("N2"));
-            AddPdfRow("Cost of goods sold", (-model.TotalPurchaseCost).ToString("N2"));
-            AddPdfRow("Gross trading profit", model.GrossTradingProfit.ToString("N2"));
-            AddPdfRow("Salaries", (-model.TotalSalaries).ToString("N2"));
-            AddPdfRow("Expenses", (-model.TotalExpenses).ToString("N2"));
-            AddPdfRow("Net profit / (loss)", model.NetProfitLoss.ToString("N2"), true);
+            AddHeader("Bank");
+            AddHeader("Account #");
+            AddHeader("Account holder");
+            AddHeader("Branch");
+            AddHeader("Balance");
+
+            foreach (var r in model.Rows)
+            {
+                table.AddCell(new PdfPCell(new Phrase(r.BankName, FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(r.AccountNumber, FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(r.AccountHolderName, FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(r.BankBranch ?? "", FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(r.BalanceAsOf.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA, 8)))
+                {
+                    HorizontalAlignment = Element.ALIGN_RIGHT
+                });
+            }
+
+            var totalCell = new PdfPCell(new Phrase("Total", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                Colspan = 4,
+                HorizontalAlignment = Element.ALIGN_RIGHT
+            };
+            table.AddCell(totalCell);
+            table.AddCell(new PdfPCell(new Phrase(model.TotalBalance.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT
+            });
 
             document.Add(table);
             document.Close();
-            var filename = $"GeneralProfitLossReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            var filename = $"BankBalancesReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
             return File(stream.ToArray(), "application/pdf", filename);
         }
 
@@ -3481,6 +3535,171 @@ namespace IMS.Controllers
             document.Close();
 
             string filename = $"VendorLedgerReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
+            return File(stream.ToArray(), "application/pdf", filename);
+        }
+
+        public async Task<IActionResult> PayableReceivableReport([Bind(Prefix = "Filters")] PayableReceivableReportFilters? filters)
+        {
+            PayableReceivableReportViewModel model;
+            try
+            {
+                filters ??= new PayableReceivableReportFilters();
+
+                if (!Request.Query.ContainsKey("Filters.AsOfDate") && !filters.AsOfDate.HasValue)
+                    filters.AsOfDate = DateTimeHelper.Now.Date;
+
+                // IDs: read from query only (GET + Kendo hidden fields) so filtering is reliable
+                var qCust = Request.Query["Filters.CustomerId"].FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(qCust) && long.TryParse(qCust.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cid) && cid > 0)
+                    filters.CustomerId = cid;
+                else
+                    filters.CustomerId = null;
+
+                var qVend = Request.Query["Filters.VendorId"].FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(qVend) && long.TryParse(qVend.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var vid) && vid > 0)
+                    filters.VendorId = vid;
+                else
+                    filters.VendorId = null;
+
+                model = await _reportService.GetPayableReceivableReport(filters);
+                model.Filters = filters;
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                model = new PayableReceivableReportViewModel
+                {
+                    Filters = filters ?? new PayableReceivableReportFilters(),
+                    Rows = new List<PayableReceivableReportItem>()
+                };
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> ExportPayableReceivableExcel(long? customerId = null, long? vendorId = null, DateTime? asOfDate = null)
+        {
+            var filters = new PayableReceivableReportFilters
+            {
+                CustomerId = customerId,
+                VendorId = vendorId,
+                AsOfDate = asOfDate?.Date ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetPayableReceivableReport(filters);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Payable Receivable Report");
+
+            worksheet.Cell(1, 1).Value = "As of date";
+            worksheet.Cell(1, 2).Value = "Customer";
+            worksheet.Cell(1, 3).Value = "Vendor";
+            worksheet.Cell(1, 4).Value = "Payable";
+            worksheet.Cell(1, 5).Value = "Receivable";
+            var headerRange = worksheet.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+            int row = 2;
+            foreach (var item in model.Rows ?? new List<PayableReceivableReportItem>())
+            {
+                worksheet.Cell(row, 1).Value = item.AsOfDate;
+                worksheet.Cell(row, 1).Style.DateFormat.Format = "dd-MM-yy";
+                worksheet.Cell(row, 2).Value = NameDisplayHelper.EnglishNameCell(item.CustomerName);
+                worksheet.Cell(row, 3).Value = NameDisplayHelper.EnglishNameCell(item.VendorName);
+                worksheet.Cell(row, 4).Value = item.Payable;
+                worksheet.Cell(row, 5).Value = item.Receivable;
+                row++;
+            }
+
+            worksheet.Cell(row, 1).Value = "Total";
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            worksheet.Cell(row, 4).Value = model.TotalPayable;
+            worksheet.Cell(row, 4).Style.Font.Bold = true;
+            worksheet.Cell(row, 5).Value = model.TotalReceivable;
+            worksheet.Cell(row, 5).Style.Font.Bold = true;
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            string filename = $"PayableReceivableReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename);
+        }
+
+        private static string FormatPrSnapshotCell(decimal amount)
+        {
+            if (amount == 0) return "0.00";
+            return amount > 0 ? amount.ToString("N2") : "(" + (-amount).ToString("N2") + ")";
+        }
+
+        public async Task<IActionResult> ExportPayableReceivablePdf(long? customerId = null, long? vendorId = null, DateTime? asOfDate = null)
+        {
+            var filters = new PayableReceivableReportFilters
+            {
+                CustomerId = customerId,
+                VendorId = vendorId,
+                AsOfDate = asOfDate?.Date ?? DateTimeHelper.Now.Date
+            };
+            var model = await _reportService.GetPayableReceivableReport(filters);
+
+            using var stream = new MemoryStream();
+            var document = new Document(PageSize.A4.Rotate(), 24f, 24f, 24f, 24f);
+            PdfWriter.GetInstance(document, stream);
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            document.Add(new Paragraph("Payable / Receivable Report", titleFont) { Alignment = Element.ALIGN_CENTER });
+            var period = $"As of: {filters.AsOfDate:dd-MMM-yyyy}. Negative customer balance → Payable column (positive). Negative vendor balance → Receivable column (positive).";
+            document.Add(new Paragraph(period, FontFactory.GetFont(FontFactory.HELVETICA, 9)) { Alignment = Element.ALIGN_CENTER });
+            document.Add(new Paragraph("\n"));
+
+            var table = new PdfPTable(5);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1.2f, 2.1f, 2.1f, 1.7f, 1.7f });
+            string[] headers = { "As of date", "Customer", "Vendor", "Payable", "Receivable" };
+            foreach (var header in headers)
+            {
+                var cell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8)))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    BackgroundColor = BaseColor.LIGHT_GRAY
+                };
+                table.AddCell(cell);
+            }
+
+            foreach (var item in model.Rows ?? new List<PayableReceivableReportItem>())
+            {
+                table.AddCell(new PdfPCell(new Phrase(item.AsOfDate.ToString("dd-MM-yy"), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.CustomerName), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(NameDisplayHelper.EnglishNameCell(item.VendorName), FontFactory.GetFont(FontFactory.HELVETICA, 8))));
+                table.AddCell(new PdfPCell(new Phrase(FormatPrSnapshotCell(item.Payable), FontFactory.GetFont(FontFactory.HELVETICA, 8))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                table.AddCell(new PdfPCell(new Phrase(FormatPrSnapshotCell(item.Receivable), FontFactory.GetFont(FontFactory.HELVETICA, 8))) { HorizontalAlignment = Element.ALIGN_RIGHT });
+            }
+
+            var totalLabel = new PdfPCell(new Phrase("Total", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                Colspan = 3,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            };
+            table.AddCell(totalLabel);
+            table.AddCell(new PdfPCell(new Phrase(model.TotalPayable.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalReceivable.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
+            {
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                BackgroundColor = BaseColor.LIGHT_GRAY
+            });
+
+            document.Add(table);
+            document.Close();
+
+            string filename = $"PayableReceivableReport_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf";
             return File(stream.ToArray(), "application/pdf", filename);
         }
 

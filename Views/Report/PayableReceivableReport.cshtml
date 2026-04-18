@@ -1,0 +1,323 @@
+@model IMS.Models.PayableReceivableReportViewModel
+@{
+    ViewBag.Title = "Payable / Receivable Report";
+}
+
+@functions {
+    string Cell(decimal amount)
+    {
+        if (amount == 0) return "0.00";
+        return amount > 0 ? amount.ToString("N2") : "(" + (-amount).ToString("N2") + ")";
+    }
+}
+
+<style>
+    #printArea .pr-payable-head,
+    #printArea .pr-receivable-head { font-weight: 600; }
+    #printArea .pr-payable-head { background-color: #f8d7da !important; color: #842029 !important; border-color: #f5c2c7; }
+    #printArea .pr-receivable-head { background-color: #cfe2ff !important; color: #084298 !important; border-color: #b6d4fe; }
+    /* Pills: bold white text on solid color (match bank-label style) */
+    #printArea .pr-badge-payable {
+        display: inline-block;
+        background-color: #e03131 !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        border-radius: 999px;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.25;
+        border: none;
+        letter-spacing: 0.01em;
+    }
+    #printArea .pr-badge-receivable {
+        display: inline-block;
+        background-color: #15b5d0 !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        border-radius: 999px;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.25;
+        border: none;
+        letter-spacing: 0.01em;
+    }
+</style>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-right-left me-2"></i>
+                <h4 class="mb-0">Payable / Receivable Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportPayableReceivableExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPayableReceivablePdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="PayableReceivableReport" asp-controller="Report" method="get">
+                    <input type="hidden" name="Filters.CustomerId" id="payRecCustomerIdHidden" value="@(Model.Filters?.CustomerId?.ToString() ?? "")" />
+                    <input type="hidden" name="Filters.VendorId" id="payRecVendorIdHidden" value="@(Model.Filters?.VendorId?.ToString() ?? "")" />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>As of date
+                            </label>
+                            <input type="date" name="Filters.AsOfDate"
+                                   value="@(Model.Filters?.AsOfDate.HasValue == true ? Model.Filters.AsOfDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
+                                   class="form-control" />
+                            <small class="text-muted">Closing balances through end of this day. If a customer balance is negative (credit in their favor), it appears under <strong>Payable</strong> as a positive amount. If a vendor balance is negative (credit in our favor), it appears under <strong>Receivable</strong> as a positive amount.</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-user me-1 text-primary"></i>Customer
+                            </label>
+                            <input id="payRecCustomerSelect" style="width: 100%;" />
+                            <small class="text-muted">Optional — limit customer rows</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-building me-1 text-primary"></i>Vendor
+                            </label>
+                            <input id="payRecVendorSelect" style="width: 100%;" />
+                            <small class="text-muted">Optional — limit vendor rows</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex flex-column gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="PayableReceivableReport" class="btn btn-outline-secondary">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.Rows != null && Model.Rows.Any())
+        {
+            <div class="row mb-3 g-2">
+                <div class="col-md-6">
+                    <div class="card border-primary border-2">
+                        <div class="card-body py-2 text-white" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
+                            <h6 class="card-title small mb-0 opacity-90"><i class="fa fa-arrow-up me-1"></i>Total Receivable column</h6>
+                            <span class="fw-bold fs-5">@Model.TotalReceivable.ToString("N2")</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-danger border-2">
+                        <div class="card-body py-2 text-white" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                            <h6 class="card-title small mb-0 opacity-90"><i class="fa fa-arrow-down me-1"></i>Total Payable column</h6>
+                            <span class="fw-bold fs-5">@Model.TotalPayable.ToString("N2")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fa fa-table me-2"></i>Balances
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="printArea">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th><i class="fa fa-calendar me-1"></i>As of date</th>
+                                <th><i class="fa fa-user me-1"></i>Customer</th>
+                                <th><i class="fa fa-building me-1"></i>Vendor</th>
+                                <th class="text-end pr-payable-head"><i class="fa fa-arrow-down me-1"></i>Payable</th>
+                                <th class="text-end pr-receivable-head"><i class="fa fa-arrow-up me-1"></i>Receivable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Rows != null && Model.Rows.Any())
+                            {
+                                @foreach (var item in Model.Rows)
+                                {
+                                    <tr>
+                                        <td>@item.AsOfDate.ToString("dd-MM-yy")</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(item.CustomerName)</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(item.VendorName)</td>
+                                        <td class="text-end">
+                                            <span class="pr-badge-payable">@Cell(item.Payable)</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="pr-badge-receivable">@Cell(item.Receivable)</span>
+                                        </td>
+                                    </tr>
+                                }
+                                <tr class="table-secondary fw-bold">
+                                    <td>Total</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-end">
+                                        <span class="pr-badge-payable">@Model.TotalPayable.ToString("N2")</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="pr-badge-receivable">@Model.TotalReceivable.ToString("N2")</span>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No data</h5>
+                                            <p class="text-muted mb-0">Choose as of date and click Search.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function getExportParams() {
+                var customerId = document.getElementById("payRecCustomerIdHidden") ? document.getElementById("payRecCustomerIdHidden").value || "" : "";
+                var vendorId = document.getElementById("payRecVendorIdHidden") ? document.getElementById("payRecVendorIdHidden").value || "" : "";
+                var asInput = document.querySelector("input[name='Filters.AsOfDate']");
+                var asOfDate = asInput ? asInput.value || "" : "";
+                if (typeof $ !== 'undefined') {
+                    var cCombo = $("#payRecCustomerSelect").data("kendoComboBox");
+                    if (cCombo) customerId = cCombo.value() || "";
+                    var vCombo = $("#payRecVendorSelect").data("kendoComboBox");
+                    if (vCombo) vendorId = vCombo.value() || "";
+                }
+                var params = new URLSearchParams();
+                if (customerId) params.append("customerId", customerId);
+                if (vendorId) params.append("vendorId", vendorId);
+                if (asOfDate) params.append("asOfDate", asOfDate);
+                return params;
+            }
+
+            if (typeof $ !== 'undefined' && typeof $.fn.kendoComboBox !== 'undefined') {
+                var $c = $("#payRecCustomerSelect");
+                if ($c.length) {
+                    var ec = $c.data("kendoComboBox");
+                    if (ec) ec.destroy();
+                    $c.kendoComboBox({
+                        placeholder: "All customers",
+                        filter: "contains",
+                        suggest: true,
+                        minLength: 1,
+                        dataTextField: "text",
+                        dataValueField: "value",
+                        dataSource: {
+                            transport: {
+                                read: {
+                                    url: "@Url.Action("GetCustomersForDropdown", "Customer")",
+                                    dataType: "json"
+                                }
+                            }
+                        },
+                        value: "@(Model.Filters?.CustomerId?.ToString() ?? "")",
+                        change: function () {
+                            $("#payRecCustomerIdHidden").val(this.value() || "");
+                        }
+                    });
+                }
+                var $v = $("#payRecVendorSelect");
+                if ($v.length) {
+                    var ev = $v.data("kendoComboBox");
+                    if (ev) ev.destroy();
+                    $v.kendoComboBox({
+                        placeholder: "All vendors",
+                        filter: "contains",
+                        suggest: true,
+                        minLength: 1,
+                        dataTextField: "text",
+                        dataValueField: "value",
+                        dataSource: {
+                            transport: {
+                                read: {
+                                    url: "@Url.Action("GetVendors", "Vendor")",
+                                    dataType: "json"
+                                }
+                            }
+                        },
+                        value: "@(Model.Filters?.VendorId?.ToString() ?? "")",
+                        change: function () {
+                            $("#payRecVendorIdHidden").val(this.value() || "");
+                        }
+                    });
+                }
+            }
+
+            (function syncPayRecFiltersOnSubmit() {
+                var form = document.getElementById("filterForm");
+                if (!form) return;
+                form.addEventListener("submit", function () {
+                    if (typeof window.jQuery === "undefined" || !window.jQuery.fn.kendoComboBox) return;
+                    var $ = window.jQuery;
+                    var cc = $("#payRecCustomerSelect").data("kendoComboBox");
+                    var hc = document.getElementById("payRecCustomerIdHidden");
+                    if (cc && hc) {
+                        var cv = typeof cc.value === "function" ? (cc.value() || "") : "";
+                        hc.value = String(cv).trim();
+                    }
+                    var vc = $("#payRecVendorSelect").data("kendoComboBox");
+                    var hv = document.getElementById("payRecVendorIdHidden");
+                    if (vc && hv) {
+                        var vv = typeof vc.value === "function" ? (vc.value() || "") : "";
+                        hv.value = String(vv).trim();
+                    }
+                });
+            })();
+
+            var excelBtn = document.getElementById("exportPayableReceivableExcelBtn");
+            if (excelBtn) {
+                excelBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var params = getExportParams();
+                    var url = "@Url.Action("ExportPayableReceivableExcel", "Report")" + (params.toString() ? "?" + params.toString() : "");
+                    if (typeof exportWithLoader === "function")
+                        exportWithLoader(url, "PayableReceivableReport_export.xlsx", "Preparing Excel export... Please wait.");
+                    else
+                        window.location.href = url;
+                });
+            }
+            var pdfBtn = document.getElementById("exportPayableReceivablePdfBtn");
+            if (pdfBtn) {
+                pdfBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    var params = getExportParams();
+                    var url = "@Url.Action("ExportPayableReceivablePdf", "Report")" + (params.toString() ? "?" + params.toString() : "");
+                    if (typeof exportWithLoader === "function")
+                        exportWithLoader(url, "PayableReceivableReport_export.pdf", "Preparing PDF export... Please wait.");
+                    else
+                        window.location.href = url;
+                });
+            }
+        });
+    </script>
+}
