@@ -611,8 +611,12 @@ namespace IMS.Models
         public int TotalCount { get; set; }
         public bool HasPreviousPage => CurrentPage > 1;
         public bool HasNextPage => CurrentPage < TotalPages;
-        /// <summary>Sum of cash amounts in the filtered period (cash sales + cash customer payments).</summary>
+        /// <summary>Total cash inflows in the period (sales + customer cash payments).</summary>
         public decimal TotalCashIn { get; set; }
+        /// <summary>Total cash outflows (expenses, purchase payments, salaries).</summary>
+        public decimal TotalCashOut { get; set; }
+        /// <summary>Net cash movement (inflows − outflows).</summary>
+        public decimal NetCash { get; set; }
     }
 
     public class CashInHandReportItem
@@ -620,8 +624,9 @@ namespace IMS.Models
         public DateTime TransactionDate { get; set; }
         public long BillNumber { get; set; }
         public string PartyName { get; set; } = string.Empty;
-        /// <summary>Cash sale (invoice paid in cash at sale time) or Cash payment (installment toward a sale).</summary>
+        /// <summary>Cash sale, cash payment, expense, purchase payment (cash), salary, etc.</summary>
         public string SourceKind { get; set; } = string.Empty;
+        /// <summary>Positive = cash in; negative = cash out.</summary>
         public decimal CashAmount { get; set; }
         public long? SaleId { get; set; }
         public long? PaymentId { get; set; }
@@ -632,6 +637,10 @@ namespace IMS.Models
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public long? CustomerId { get; set; }
+        /// <summary>Limits purchase (cash) payment rows to this supplier when set.</summary>
+        public long? VendorId { get; set; }
+        /// <summary>Exact <see cref="CashInHandReportItem.SourceKind"/> value, or null/empty for all sources.</summary>
+        public string? SourceKind { get; set; }
     }
 
 }

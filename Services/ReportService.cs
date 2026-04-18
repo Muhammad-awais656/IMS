@@ -3534,87 +3534,39 @@ namespace IMS.Services
             var list = new List<CashInHandReportItem>();
             int totalRecords = 0;
             decimal totalCashIn = 0;
+            decimal totalCashOut = 0;
             var f = NormalizeCashInHandFilters(filters);
+            var combinedFrom = GetCashInHandCombinedSql();
+            var whereCombined = GetCashInHandOuterWhereSql("Combined");
+            var whereCnt = GetCashInHandOuterWhereSql("Cnt");
+            var whereTot = GetCashInHandOuterWhereSql("Tot");
 
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    var sql = @"
-;WITH Combined AS (
-    SELECT 
-        s.SaleDate AS TransactionDate,
-        s.BillNumber,
-        ISNULL(c.CustomerName, N'') AS PartyName,
-        N'Cash sale' AS SourceKind,
-        s.TotalReceivedAmount AS CashAmount,
-        s.SaleId AS SaleId,
-        CAST(NULL AS BIGINT) AS PaymentId
-    FROM Sales s
-    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
-      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
-
-    UNION ALL
-
-    SELECT 
-        p.PaymentDate AS TransactionDate,
-        s.BillNumber,
-        ISNULL(c.CustomerName, N'') AS PartyName,
-        N'Cash payment' AS SourceKind,
-        p.PaymentAmount AS CashAmount,
-        CAST(NULL AS BIGINT) AS SaleId,
-        p.PaymentId AS PaymentId
-    FROM Payments p
-    INNER JOIN Sales s ON p.SaleId = s.SaleId
-    LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
-      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
-)
+                    var sql = $@"
 SELECT TransactionDate, BillNumber, PartyName, SourceKind, CashAmount, SaleId, PaymentId
-FROM Combined
+FROM (
+{combinedFrom}
+) AS Combined
+{whereCombined}
 ORDER BY TransactionDate DESC, BillNumber DESC
 OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
 
 SELECT COUNT(1) AS TotalRecords FROM (
-    SELECT 1 AS N FROM Sales s
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
-      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
-    UNION ALL
-    SELECT 1 AS N FROM Payments p
-    INNER JOIN Sales s ON p.SaleId = s.SaleId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
-      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
-) AS CashInHandRowCount;
+{combinedFrom}
+) AS Cnt
+{whereCnt};
 
-SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
-    SELECT s.TotalReceivedAmount AS CashAmount
-    FROM Sales s
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
-      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
-    UNION ALL
-    SELECT p.PaymentAmount AS CashAmount
-    FROM Payments p
-    INNER JOIN Sales s ON p.SaleId = s.SaleId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
-      AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
-) AS agg;
+SELECT
+    ISNULL(SUM(CASE WHEN CashAmount > 0 THEN CashAmount ELSE 0 END), 0) AS TotalCashIn,
+    ISNULL(SUM(CASE WHEN CashAmount < 0 THEN -CashAmount ELSE 0 END), 0) AS TotalCashOut
+FROM (
+{combinedFrom}
+) AS Tot
+{whereTot};
 ";
 
                     using (var command = new SqlCommand(sql, connection))
@@ -3622,6 +3574,8 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
                         command.Parameters.AddWithValue("@FromDate", f.FromDate);
                         command.Parameters.AddWithValue("@ToDateExclusive", f.ToDateExclusive);
                         command.Parameters.AddWithValue("@CustomerId", (object)f.CustomerId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@VendorId", (object)f.VendorId ?? DBNull.Value);
+                        AddCashInHandSourceKindParameter(command, f.SourceKind);
                         command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
                         command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
 
@@ -3647,7 +3601,12 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
 
                             await reader.NextResultAsync();
                             if (await reader.ReadAsync())
+                            {
                                 totalCashIn = reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0));
+                                totalCashOut = reader.FieldCount > 1 && !reader.IsDBNull(1)
+                                    ? Convert.ToDecimal(reader.GetValue(1))
+                                    : 0m;
+                            }
                         }
                     }
                 }
@@ -3657,6 +3616,7 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
                 _logger.LogError(ex, "GetCashInHandReport error");
             }
 
+            var net = totalCashIn - totalCashOut;
             return new CashInHandReportViewModel
             {
                 Items = list,
@@ -3667,7 +3627,9 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
                     : 1,
                 PageSize = pageSize,
                 TotalCount = totalRecords,
-                TotalCashIn = totalCashIn
+                TotalCashIn = totalCashIn,
+                TotalCashOut = totalCashOut,
+                NetCash = net
             };
         }
 
@@ -3675,15 +3637,96 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
         {
             var list = new List<CashInHandReportItem>();
             decimal totalCashIn = 0;
+            decimal totalCashOut = 0;
             var f = NormalizeCashInHandFilters(filters);
+            var combinedFrom = GetCashInHandCombinedSql();
+            var whereCombined = GetCashInHandOuterWhereSql("Combined");
+            var whereTot = GetCashInHandOuterWhereSql("Tot");
 
             try
             {
                 using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
                     await connection.OpenAsync();
-                    var sql = @"
-;WITH Combined AS (
+                    var sql = $@"
+SELECT TransactionDate, BillNumber, PartyName, SourceKind, CashAmount, SaleId, PaymentId
+FROM (
+{combinedFrom}
+) AS Combined
+{whereCombined}
+ORDER BY TransactionDate DESC, BillNumber DESC;
+
+SELECT
+    ISNULL(SUM(CASE WHEN CashAmount > 0 THEN CashAmount ELSE 0 END), 0) AS TotalCashIn,
+    ISNULL(SUM(CASE WHEN CashAmount < 0 THEN -CashAmount ELSE 0 END), 0) AS TotalCashOut
+FROM (
+{combinedFrom}
+) AS Tot
+{whereTot};
+";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@FromDate", f.FromDate);
+                        command.Parameters.AddWithValue("@ToDateExclusive", f.ToDateExclusive);
+                        command.Parameters.AddWithValue("@CustomerId", (object)f.CustomerId ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@VendorId", (object)f.VendorId ?? DBNull.Value);
+                        AddCashInHandSourceKindParameter(command, f.SourceKind);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                list.Add(new CashInHandReportItem
+                                {
+                                    TransactionDate = reader.GetDateTime(0),
+                                    BillNumber = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
+                                    PartyName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                                    SourceKind = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                                    CashAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                                    SaleId = reader.IsDBNull(5) ? null : Convert.ToInt64(reader.GetValue(5)),
+                                    PaymentId = reader.IsDBNull(6) ? null : Convert.ToInt64(reader.GetValue(6))
+                                });
+                            }
+
+                            await reader.NextResultAsync();
+                            if (await reader.ReadAsync())
+                            {
+                                totalCashIn = reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0));
+                                totalCashOut = reader.FieldCount > 1 && !reader.IsDBNull(1)
+                                    ? Convert.ToDecimal(reader.GetValue(1))
+                                    : 0m;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCashInHandReportForExport error");
+            }
+
+            var net = totalCashIn - totalCashOut;
+            return new CashInHandReportViewModel
+            {
+                Items = list,
+                Filters = f.Filters,
+                CurrentPage = 1,
+                TotalPages = 1,
+                PageSize = list.Count,
+                TotalCount = list.Count,
+                TotalCashIn = totalCashIn,
+                TotalCashOut = totalCashOut,
+                NetCash = net
+            };
+        }
+
+        /// <summary>
+        /// Subquery body: customer cash in, expense (cash out), vendor cash payments, salary payments (per General Expenses / P&amp;L salary logic).
+        /// </summary>
+        private static string GetCashInHandCombinedSql()
+        {
+            return @"
     SELECT 
         s.SaleDate AS TransactionDate,
         s.BillNumber,
@@ -3717,74 +3760,78 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
       AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
       AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
       AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
-)
-SELECT TransactionDate, BillNumber, PartyName, SourceKind, CashAmount, SaleId, PaymentId
-FROM Combined
-ORDER BY TransactionDate DESC, BillNumber DESC;
 
-SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
-    SELECT s.TotalReceivedAmount AS CashAmount
-    FROM Sales s
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
-      AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
     UNION ALL
-    SELECT p.PaymentAmount AS CashAmount
-    FROM Payments p
-    INNER JOIN Sales s ON p.SaleId = s.SaleId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
-      AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
-      AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
+
+    SELECT
+        e.ExpenseDate AS TransactionDate,
+        CAST(e.ExpenseId AS BIGINT) AS BillNumber,
+        CASE
+            WHEN LTRIM(RTRIM(ISNULL(e.ExpenseDetail, N''))) <> N'' THEN ISNULL(e.ExpenseDetail, N'')
+            ELSE ISNULL(et.ExpenseTypeName, N'Expense')
+        END AS PartyName,
+        N'Expense payment' AS SourceKind,
+        -e.Amount AS CashAmount,
+        CAST(NULL AS BIGINT) AS SaleId,
+        CAST(NULL AS BIGINT) AS PaymentId
+    FROM Expenses e
+    LEFT JOIN AdminExpenseTypes et ON e.ExpenseTypeId_FK = et.ExpenseTypeId
+    WHERE e.ExpenseDate >= @FromDate AND e.ExpenseDate < @ToDateExclusive
+      AND ISNULL(e.ProductId_FK, 0) = 0
+
+    UNION ALL
+
+    SELECT
+        p.PaymentDate AS TransactionDate,
+        ISNULL(po.BillNumber, CAST(p.BillId AS BIGINT)) AS BillNumber,
+        ISNULL(sup.SupplierName, N'') AS PartyName,
+        N'Purchase payment (cash)' AS SourceKind,
+        -p.PaymentAmount AS CashAmount,
+        CAST(NULL AS BIGINT) AS SaleId,
+        p.PaymentId AS PaymentId
+    FROM BillPayments p
+    LEFT JOIN PurchaseOrders po ON p.BillId = po.PurchaseOrderId AND (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+    LEFT JOIN AdminSuppliers sup ON p.SupplierId_FK = sup.SupplierId
+    WHERE (p.IsDeleted = 0 OR p.IsDeleted IS NULL)
+      AND UPPER(LTRIM(RTRIM(ISNULL(p.PaymentMethod, N'')))) = N'CASH'
       AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
-      AND (@CustomerId IS NULL OR p.CustomerId = @CustomerId OR s.CustomerId_FK = @CustomerId)
-) AS agg;
+      AND (@VendorId IS NULL OR p.SupplierId_FK = @VendorId)
+
+    UNION ALL
+
+    SELECT
+        L.VoucherDate AS TransactionDate,
+        CAST(L.LedgerId AS BIGINT) AS BillNumber,
+        ISNULL(NULLIF(LTRIM(RTRIM(ISNULL(emp.FirstName, N'') + N' ' + ISNULL(emp.LastName, N''))), N''), N'Salary') AS PartyName,
+        N'Salary payment' AS SourceKind,
+        -L.DebitAmount AS CashAmount,
+        CAST(NULL AS BIGINT) AS SaleId,
+        CAST(NULL AS BIGINT) AS PaymentId
+    FROM EmployeeLedger L
+    INNER JOIN EmployeeVoucherTypes VT ON VT.VoucherTypeId = L.VoucherTypeId
+    LEFT JOIN Employees emp ON emp.EmployeeId = L.EmployeeId_FK
+    WHERE LOWER(VT.VoucherTypeName) LIKE N'%salary%'
+      AND L.DebitAmount > 0
+      AND L.VoucherDate >= @FromDate AND L.VoucherDate < @ToDateExclusive
 ";
+        }
 
-                    using (var command = new SqlCommand(sql, connection))
-                    {
-                        command.Parameters.AddWithValue("@FromDate", f.FromDate);
-                        command.Parameters.AddWithValue("@ToDateExclusive", f.ToDateExclusive);
-                        command.Parameters.AddWithValue("@CustomerId", (object)f.CustomerId ?? DBNull.Value);
+        private static string GetCashInHandOuterWhereSql(string tableAlias)
+        {
+            return $@"
+WHERE (
+  @SourceKind IS NULL
+  OR LTRIM(RTRIM(ISNULL(@SourceKind, N''))) = N''
+  OR {tableAlias}.SourceKind = @SourceKind
+)";
+        }
 
-                        using (var reader = await command.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                list.Add(new CashInHandReportItem
-                                {
-                                    TransactionDate = reader.GetDateTime(0),
-                                    BillNumber = reader.IsDBNull(1) ? 0 : Convert.ToInt64(reader.GetValue(1)),
-                                    PartyName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-                                    SourceKind = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-                                    CashAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
-                                    SaleId = reader.IsDBNull(5) ? null : Convert.ToInt64(reader.GetValue(5)),
-                                    PaymentId = reader.IsDBNull(6) ? null : Convert.ToInt64(reader.GetValue(6))
-                                });
-                            }
-
-                            await reader.NextResultAsync();
-                            if (await reader.ReadAsync())
-                                totalCashIn = reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0));
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetCashInHandReportForExport error");
-            }
-
-            return new CashInHandReportViewModel
-            {
-                Items = list,
-                Filters = f.Filters,
-                CurrentPage = 1,
-                TotalPages = 1,
-                PageSize = list.Count,
-                TotalCount = list.Count,
-                TotalCashIn = totalCashIn
-            };
+        private static void AddCashInHandSourceKindParameter(SqlCommand command, string? sourceKind)
+        {
+            if (string.IsNullOrWhiteSpace(sourceKind))
+                command.Parameters.AddWithValue("@SourceKind", DBNull.Value);
+            else
+                command.Parameters.AddWithValue("@SourceKind", sourceKind.Trim());
         }
 
         private sealed class CashInHandNormalizedFilters
@@ -3792,6 +3839,8 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
             public DateTime FromDate { get; set; }
             public DateTime ToDateExclusive { get; set; }
             public long? CustomerId { get; set; }
+            public long? VendorId { get; set; }
+            public string? SourceKind { get; set; }
             public CashInHandReportFilters Filters { get; set; } = new CashInHandReportFilters();
         }
 
@@ -3803,16 +3852,22 @@ SELECT ISNULL(SUM(agg.CashAmount), 0) AS TotalCashIn FROM (
             if (to < from)
                 to = from;
 
+            var sourceKind = string.IsNullOrWhiteSpace(filters?.SourceKind) ? null : filters!.SourceKind.Trim();
+
             return new CashInHandNormalizedFilters
             {
                 FromDate = from,
                 ToDateExclusive = to.AddDays(1),
                 CustomerId = filters?.CustomerId is > 0 ? filters.CustomerId : null,
+                VendorId = filters?.VendorId is > 0 ? filters.VendorId : null,
+                SourceKind = sourceKind,
                 Filters = new CashInHandReportFilters
                 {
                     FromDate = from,
                     ToDate = to,
-                    CustomerId = filters?.CustomerId is > 0 ? filters.CustomerId : null
+                    CustomerId = filters?.CustomerId is > 0 ? filters.CustomerId : null,
+                    VendorId = filters?.VendorId is > 0 ? filters.VendorId : null,
+                    SourceKind = sourceKind
                 }
             };
         }

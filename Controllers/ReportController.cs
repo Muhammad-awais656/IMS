@@ -3741,24 +3741,26 @@ namespace IMS.Controllers
             return View(model);
         }
 
-        public async Task<IActionResult> ExportCashInHandExcel(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null)
+        public async Task<IActionResult> ExportCashInHandExcel(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null, long? vendorId = null, string? sourceKind = null)
         {
             var now = DateTimeHelper.Now.Date;
             var filters = new CashInHandReportFilters
             {
                 FromDate = fromDate?.Date ?? new DateTime(now.Year, now.Month, 1),
                 ToDate = toDate?.Date ?? now,
-                CustomerId = customerId is > 0 ? customerId : null
+                CustomerId = customerId is > 0 ? customerId : null,
+                VendorId = vendorId is > 0 ? vendorId : null,
+                SourceKind = string.IsNullOrWhiteSpace(sourceKind) ? null : sourceKind.Trim()
             };
             var model = await _reportService.GetCashInHandReportForExport(filters);
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Cash In Hand");
             worksheet.Cell(1, 1).Value = "Date";
-            worksheet.Cell(1, 2).Value = "Bill #";
-            worksheet.Cell(1, 3).Value = "Customer";
+            worksheet.Cell(1, 2).Value = "Ref / Bill #";
+            worksheet.Cell(1, 3).Value = "Party / detail";
             worksheet.Cell(1, 4).Value = "Source";
-            worksheet.Cell(1, 5).Value = "Cash amount";
+            worksheet.Cell(1, 5).Value = "Amount (+ in, − out)";
             var headerRange = worksheet.Range(1, 1, 1, 5);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
@@ -3776,10 +3778,20 @@ namespace IMS.Controllers
             }
 
             row++;
-            worksheet.Cell(row, 4).Value = "TOTAL:";
-            worksheet.Cell(row, 4).Style.Font.Bold = true;
-            worksheet.Cell(row, 5).Value = model.TotalCashIn;
-            worksheet.Cell(row, 5).Style.Font.Bold = true;
+            worksheet.Cell(row, 1).Value = "Summary";
+            worksheet.Cell(row, 1).Style.Font.Bold = true;
+            worksheet.Cell(row, 2).Value = "Total cash in";
+            worksheet.Cell(row, 3).Value = model.TotalCashIn;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Total cash out";
+            worksheet.Cell(row, 3).Value = model.TotalCashOut;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
+            row++;
+            worksheet.Cell(row, 2).Value = "Net cash";
+            worksheet.Cell(row, 2).Style.Font.Bold = true;
+            worksheet.Cell(row, 3).Value = model.NetCash;
+            worksheet.Cell(row, 3).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
             using var stream = new MemoryStream();
@@ -3790,14 +3802,16 @@ namespace IMS.Controllers
                 filename);
         }
 
-        public async Task<IActionResult> ExportCashInHandPdf(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null)
+        public async Task<IActionResult> ExportCashInHandPdf(DateTime? fromDate = null, DateTime? toDate = null, long? customerId = null, long? vendorId = null, string? sourceKind = null)
         {
             var now = DateTimeHelper.Now.Date;
             var filters = new CashInHandReportFilters
             {
                 FromDate = fromDate?.Date ?? new DateTime(now.Year, now.Month, 1),
                 ToDate = toDate?.Date ?? now,
-                CustomerId = customerId is > 0 ? customerId : null
+                CustomerId = customerId is > 0 ? customerId : null,
+                VendorId = vendorId is > 0 ? vendorId : null,
+                SourceKind = string.IsNullOrWhiteSpace(sourceKind) ? null : sourceKind.Trim()
             };
             var model = await _reportService.GetCashInHandReportForExport(filters);
 
@@ -3807,14 +3821,14 @@ namespace IMS.Controllers
             document.Open();
 
             document.Add(new Paragraph("Cash In Hand Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
-            var period = $"Period: {filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy}";
+            var period = $"Period: {filters.FromDate:dd-MMM-yyyy} to {filters.ToDate:dd-MMM-yyyy} (sales, expenses, purchase cash, salaries)";
             document.Add(new Paragraph(period, FontFactory.GetFont(FontFactory.HELVETICA, 10)) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph("\n"));
 
             var table = new PdfPTable(5);
             table.WidthPercentage = 100;
             table.SetWidths(new float[] { 1.4f, 1f, 2.2f, 1.4f, 1.4f });
-            foreach (var h in new[] { "Date", "Bill #", "Customer", "Source", "Cash amount" })
+            foreach (var h in new[] { "Date", "Ref #", "Party / detail", "Source", "Amount" })
             {
                 table.AddCell(new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
                 {
@@ -3832,18 +3846,14 @@ namespace IMS.Controllers
                 table.AddCell(new PdfPCell(new Phrase(item.CashAmount.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA, 8))) { HorizontalAlignment = Element.ALIGN_RIGHT });
             }
 
-            var totalLabel = new PdfPCell(new Phrase("TOTAL", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-            {
-                Colspan = 4,
-                HorizontalAlignment = Element.ALIGN_RIGHT,
-                BackgroundColor = BaseColor.LIGHT_GRAY
-            };
-            table.AddCell(totalLabel);
-            table.AddCell(new PdfPCell(new Phrase(model.TotalCashIn.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9)))
-            {
-                HorizontalAlignment = Element.ALIGN_RIGHT,
-                BackgroundColor = BaseColor.LIGHT_GRAY
-            });
+            var sumFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9);
+            var cellG = BaseColor.LIGHT_GRAY;
+            table.AddCell(new PdfPCell(new Phrase("Total cash in", sumFont)) { Colspan = 4, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalCashIn.ToString("N2"), sumFont)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
+            table.AddCell(new PdfPCell(new Phrase("Total cash out", sumFont)) { Colspan = 4, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
+            table.AddCell(new PdfPCell(new Phrase(model.TotalCashOut.ToString("N2"), sumFont)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
+            table.AddCell(new PdfPCell(new Phrase("Net cash", sumFont)) { Colspan = 4, HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
+            table.AddCell(new PdfPCell(new Phrase(model.NetCash.ToString("N2"), sumFont)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = cellG });
 
             document.Add(table);
             document.Close();

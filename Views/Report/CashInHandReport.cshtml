@@ -1,6 +1,8 @@
 @model IMS.Models.CashInHandReportViewModel
 @{
     var ps = Model.PageSize ?? 10;
+    var sourceKindCurrent = Model.Filters?.SourceKind?.Trim() ?? "";
+    var sourceKinds = new[] { "Cash sale", "Cash payment", "Expense payment", "Purchase payment (cash)", "Salary payment" };
 }
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white py-3">
@@ -29,13 +31,47 @@
             <div class="card-body">
                 <form id="cashInHandFilterForm" asp-action="CashInHandReport" asp-controller="Report" method="get">
                     <input type="hidden" name="Filters.CustomerId" id="cashInHandCustomerIdHidden" value="@(Model.Filters?.CustomerId?.ToString() ?? "")" />
-                    <div class="row g-3">
-                        <div class="col-md-4">
+                    <input type="hidden" name="Filters.VendorId" id="cashInHandVendorIdHidden" value="@(Model.Filters?.VendorId?.ToString() ?? "")" />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold" for="cashInHandCustomerSelect">
                                 <i class="fa fa-user me-1 text-primary"></i>Customer
                             </label>
                             <input id="cashInHandCustomerSelect" style="width: 100%;" autocomplete="off" />
                             <small class="text-muted">Leave empty for all customers.</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold" for="cashInHandVendorSelect">
+                                <i class="fa fa-building me-1 text-primary"></i>Vendor
+                            </label>
+                            <input id="cashInHandVendorSelect" style="width: 100%;" autocomplete="off" />
+                            <small class="text-muted">Limits <strong>purchase (cash)</strong> payments only.</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold" for="cashInHandSourceSelect">
+                                <i class="fa fa-tag me-1 text-primary"></i>Source
+                            </label>
+                            <select name="Filters.SourceKind" id="cashInHandSourceSelect" class="form-select">
+                                @if (string.IsNullOrEmpty(sourceKindCurrent))
+                                {
+                                    <option value="" selected>All sources</option>
+                                }
+                                else
+                                {
+                                    <option value="">All sources</option>
+                                }
+                                @foreach (var sk in sourceKinds)
+                                {
+                                    if (sourceKindCurrent == sk)
+                                    {
+                                        <option value="@sk" selected>@sk</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@sk">@sk</option>
+                                    }
+                                }
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">
@@ -53,15 +89,15 @@
                                    value="@(Model.Filters?.ToDate.HasValue == true ? Model.Filters.ToDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
                                    class="form-control" />
                         </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <div class="d-flex gap-2 w-100">
-                                <button type="submit" class="btn btn-primary flex-fill">
-                                    <i class="fa fa-search me-1"></i> Search
-                                </button>
-                                <a asp-action="CashInHandReport" class="btn btn-outline-secondary flex-fill">
-                                    <i class="fa fa-refresh me-1"></i> Refresh
-                                </a>
-                            </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-12 d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-search me-1"></i> Search
+                            </button>
+                            <a asp-action="CashInHandReport" class="btn btn-outline-secondary">
+                                <i class="fa fa-refresh me-1"></i> Refresh
+                            </a>
                         </div>
                     </div>
                 </form>
@@ -70,24 +106,41 @@
 
         <p class="text-muted small mb-4">
             <i class="fa fa-info-circle me-1"></i>
-            <strong>Cash sale</strong> rows use sales with payment method Cash (<code>TotalReceivedAmount</code>).
-            <strong>Cash payment</strong> rows are cash installments on sales that were <em>not</em> recorded as cash at invoice time (credit/online/etc.), so the same bill is not counted twice when a cash sale also creates a payment line.
+            Daily <strong>cash movement</strong> for the selected date range: <strong>cash sales</strong> and <strong>cash customer payments</strong> (in),
+            <strong>expense</strong> records (out), <strong>vendor purchase payments</strong> with payment method Cash (out), and <strong>salary</strong> entries on the employee ledger (voucher type name contains &quot;salary&quot;, debit amount, out).
+            Set <strong>From</strong> and <strong>To</strong> to the same day (e.g. today) to see that day only.
         </p>
 
-        <div class="row mb-4">
-            <div class="col-md-6">
+        <div class="row mb-4 g-2">
+            <div class="col-md-3">
                 <div class="card bg-success text-white border-success">
-                    <div class="card-body">
-                        <h6 class="card-title">Total cash in (period)</h6>
-                        <h3 class="mb-0">@Model.TotalCashIn.ToString("N2")</h3>
+                    <div class="card-body py-3">
+                        <h6 class="card-title small mb-0 opacity-90">Total cash in</h6>
+                        <h4 class="mb-0">@Model.TotalCashIn.ToString("N2")</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-3">
+                <div class="card bg-danger text-white border-danger">
+                    <div class="card-body py-3">
+                        <h6 class="card-title small mb-0 opacity-90">Total cash out</h6>
+                        <h4 class="mb-0">@Model.TotalCashOut.ToString("N2")</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-primary text-white border-primary">
+                    <div class="card-body py-3">
+                        <h6 class="card-title small mb-0 opacity-90">Net cash</h6>
+                        <h4 class="mb-0">@Model.NetCash.ToString("N2")</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="card bg-light border">
-                    <div class="card-body">
-                        <h6 class="card-title text-muted">Rows in period</h6>
-                        <h3 class="mb-0">@Model.TotalCount</h3>
+                    <div class="card-body py-3">
+                        <h6 class="card-title text-muted small mb-0">Rows</h6>
+                        <h4 class="mb-0 text-dark">@Model.TotalCount</h4>
                     </div>
                 </div>
             </div>
@@ -103,10 +156,10 @@
                         <thead class="table-dark">
                             <tr>
                                 <th>Date</th>
-                                <th>Bill #</th>
-                                <th>Customer</th>
+                                <th>Ref / Bill #</th>
+                                <th>Party / detail</th>
                                 <th>Source</th>
-                                <th class="text-end">Cash amount</th>
+                                <th class="text-end">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -119,14 +172,14 @@
                                         <td><code>@item.BillNumber</code></td>
                                         <td>@NameDisplayHelper.EnglishNameCell(item.PartyName)</td>
                                         <td><span class="badge bg-secondary">@item.SourceKind</span></td>
-                                        <td class="text-end fw-semibold text-success">@item.CashAmount.ToString("N2")</td>
+                                        <td class="text-end fw-semibold @(item.CashAmount >= 0 ? "text-success" : "text-danger")">@item.CashAmount.ToString("N2")</td>
                                     </tr>
                                 }
                             }
                             else
                             {
                                 <tr>
-                                    <td colspan="5" class="text-center py-4 text-muted">No cash movements found for the selected filters.</td>
+                                    <td colspan="5" class="text-center py-4 text-muted">No cash movements found for the selected period.</td>
                                 </tr>
                             }
                         </tbody>
@@ -164,12 +217,16 @@
                 @if (Model.TotalPages > 1)
                 {
                     var cid = Model.Filters?.CustomerId?.ToString() ?? "";
+                    var vid = Model.Filters?.VendorId?.ToString() ?? "";
                     var fd = Model.Filters?.FromDate?.ToString("yyyy-MM-dd") ?? "";
                     var td = Model.Filters?.ToDate?.ToString("yyyy-MM-dd") ?? "";
+                    var sk = Model.Filters?.SourceKind ?? "";
                     var qp = new List<string> { $"pageSize={Model.PageSize}" };
                     if (!string.IsNullOrEmpty(cid)) qp.Add($"Filters.CustomerId={cid}");
+                    if (!string.IsNullOrEmpty(vid)) qp.Add($"Filters.VendorId={vid}");
                     if (!string.IsNullOrEmpty(fd)) qp.Add($"Filters.FromDate={fd}");
                     if (!string.IsNullOrEmpty(td)) qp.Add($"Filters.ToDate={td}");
+                    if (!string.IsNullOrEmpty(sk)) qp.Add($"Filters.SourceKind={Uri.EscapeDataString(sk)}");
                     var qs = string.Join("&", qp);
                     <nav aria-label="Cash in hand pagination" class="mt-3">
                         <ul class="pagination justify-content-center mb-0">
@@ -231,16 +288,62 @@
                 var cb = $("#cashInHandCustomerSelect").data("kendoComboBox");
                 if (cb) cb.dataSource.read().then(function () { cb.value(initialCustomerId); });
             }
+
+            var initialVendorId = "@(Model.Filters?.VendorId?.ToString() ?? "")";
+            $("#cashInHandVendorSelect").kendoComboBox({
+                placeholder: "-- All vendors --",
+                filter: "contains",
+                suggest: true,
+                minLength: 1,
+                dataTextField: "text",
+                dataValueField: "value",
+                dataSource: {
+                    transport: {
+                        read: { url: "@Url.Action("GetVendors", "Vendor")", dataType: "json" }
+                    }
+                },
+                value: initialVendorId || "",
+                change: function () { $("#cashInHandVendorIdHidden").val(this.value() || ""); }
+            });
+            if (initialVendorId) {
+                var vb = $("#cashInHandVendorSelect").data("kendoComboBox");
+                if (vb) vb.dataSource.read().then(function () { vb.value(initialVendorId); });
+            }
         });
+
+        (function syncCashInHandCombosOnSubmit() {
+            var form = document.getElementById("cashInHandFilterForm");
+            if (!form) return;
+            form.addEventListener("submit", function () {
+                if (typeof window.jQuery === "undefined" || !window.jQuery.fn.kendoComboBox) return;
+                var $ = window.jQuery;
+                var cc = $("#cashInHandCustomerSelect").data("kendoComboBox");
+                var hc = document.getElementById("cashInHandCustomerIdHidden");
+                if (cc && hc) {
+                    var cv = typeof cc.value === "function" ? (cc.value() || "") : "";
+                    hc.value = String(cv).trim();
+                }
+                var vc = $("#cashInHandVendorSelect").data("kendoComboBox");
+                var hv = document.getElementById("cashInHandVendorIdHidden");
+                if (vc && hv) {
+                    var vv = typeof vc.value === "function" ? (vc.value() || "") : "";
+                    hv.value = String(vv).trim();
+                }
+            });
+        })();
 
         function getCashInHandExportParams() {
             var fd = document.querySelector("input[name='Filters.FromDate']");
             var td = document.querySelector("input[name='Filters.ToDate']");
-            var hidden = document.getElementById("cashInHandCustomerIdHidden");
+            var cust = document.getElementById("cashInHandCustomerIdHidden");
+            var vend = document.getElementById("cashInHandVendorIdHidden");
+            var src = document.getElementById("cashInHandSourceSelect");
             return {
                 fromDate: fd ? fd.value : "",
                 toDate: td ? td.value : "",
-                customerId: hidden ? hidden.value : ""
+                customerId: cust ? cust.value : "",
+                vendorId: vend ? vend.value : "",
+                sourceKind: src ? src.value : ""
             };
         }
 
@@ -250,6 +353,8 @@
                 + "&Filters.FromDate=" + encodeURIComponent(p.fromDate)
                 + "&Filters.ToDate=" + encodeURIComponent(p.toDate);
             if (p.customerId) u += "&Filters.CustomerId=" + encodeURIComponent(p.customerId);
+            if (p.vendorId) u += "&Filters.VendorId=" + encodeURIComponent(p.vendorId);
+            if (p.sourceKind) u += "&Filters.SourceKind=" + encodeURIComponent(p.sourceKind);
             window.location.href = u;
         }
 
@@ -259,6 +364,8 @@
             var u = "/Report/ExportCashInHandExcel?fromDate=" + encodeURIComponent(p.fromDate)
                 + "&toDate=" + encodeURIComponent(p.toDate);
             if (p.customerId) u += "&customerId=" + encodeURIComponent(p.customerId);
+            if (p.vendorId) u += "&vendorId=" + encodeURIComponent(p.vendorId);
+            if (p.sourceKind) u += "&sourceKind=" + encodeURIComponent(p.sourceKind);
             if (typeof exportWithLoader === "function")
                 exportWithLoader(u, "CashInHandReport.xlsx", "Preparing Excel...");
             else window.location.href = u;
@@ -269,6 +376,8 @@
             var u = "/Report/ExportCashInHandPdf?fromDate=" + encodeURIComponent(p.fromDate)
                 + "&toDate=" + encodeURIComponent(p.toDate);
             if (p.customerId) u += "&customerId=" + encodeURIComponent(p.customerId);
+            if (p.vendorId) u += "&vendorId=" + encodeURIComponent(p.vendorId);
+            if (p.sourceKind) u += "&sourceKind=" + encodeURIComponent(p.sourceKind);
             if (typeof exportWithLoader === "function")
                 exportWithLoader(u, "CashInHandReport.pdf", "Preparing PDF...");
             else window.location.href = u;
