@@ -123,7 +123,7 @@
                 {
                     @foreach (var item in billItems)
                     {
-                        var lineTotal = item.UnitPrice * item.PrintQuantity;
+                        var lineTotal = item.BillPrice * item.PrintQuantity;
                         var qtyWithUnit = item.PrintQuantity.ToString("N2");
                         var displayMU = !string.IsNullOrWhiteSpace(item.UrduNameMU) ? item.UrduNameMU : item.MeasuringUnitAbbreviation;
                         if (!string.IsNullOrEmpty(item.MeasuringUnitAbbreviation)) { qtyWithUnit += " " + displayMU; }
@@ -137,7 +137,7 @@
 
                             </td>
                             <td class="qty ltr">@qtyWithUnit</td>
-                            <td class="rate ltr">@item.UnitPrice.ToString("N2")</td>
+                            <td class="rate ltr">@item.BillPrice.ToString("N2")</td>
                             <td class="amt ltr">@lineTotal.ToString("N2")</td>
                         </tr>
                         srNo++;
