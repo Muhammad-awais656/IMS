@@ -19,19 +19,22 @@ namespace IMS.Services
         private readonly IUnitConversionService _unitConversionService;
         private readonly IProductService _productService;
         private readonly IAdminMeasuringUnitService _measuringUnitService;
+        private readonly IVendorBillsService _vendorBillsService;
 
         public ReportService(
             IDbContextFactory dbContextFactory,
             ILogger<ReportService> logger,
             IUnitConversionService unitConversionService,
             IProductService productService,
-            IAdminMeasuringUnitService measuringUnitService)
+            IAdminMeasuringUnitService measuringUnitService,
+            IVendorBillsService vendorBillsService)
         {
             _dbContextFactory = dbContextFactory;
             _logger = logger;
             _unitConversionService = unitConversionService;
             _productService = productService;
             _measuringUnitService = measuringUnitService;
+            _vendorBillsService = vendorBillsService;
         }
 
         public async Task<ReportsViewModel> GetAllSales(int pageNumber, int? pageSize, SalesReportsFilters? salesReportsFilters)
@@ -3196,7 +3199,7 @@ namespace IMS.Services
 
                     var customerSql = @"
                         SELECT c.CustomerName,
-                               ISNULL(d1.DebitTotal, 0) - ISNULL(p1.CreditTotal, 0) AS AsOfBalance
+                               ISNULL(d1.DebitTotal, 0) - ISNULL(p1.CreditTotal, 0) - ISNULL(poCust.CustomerPurchaseDue, 0) AS AsOfBalance
                         FROM Customers c
                         LEFT JOIN (
                             SELECT s.CustomerId_FK AS CustomerId,
@@ -3212,6 +3215,15 @@ namespace IMS.Services
                             WHERE p.PaymentDate <= @AsOfEnd
                             GROUP BY p.CustomerId
                         ) p1 ON c.CustomerId = p1.CustomerId
+                        LEFT JOIN (
+                            SELECT po.CustomerId_FK AS CustomerId,
+                                   SUM(po.TotalDueAmount) AS CustomerPurchaseDue
+                            FROM PurchaseOrders po
+                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                              AND po.CustomerId_FK IS NOT NULL AND po.CustomerId_FK > 0
+                              AND po.PurchaseOrderDate <= @AsOfEnd
+                            GROUP BY po.CustomerId_FK
+                        ) poCust ON c.CustomerId = poCust.CustomerId
                         WHERE (
                             (@HasCustomer = 1 AND c.CustomerId = @CustomerId)
                             OR (@HasCustomer = 0 AND c.IsEnabled = 1)
@@ -3252,63 +3264,68 @@ namespace IMS.Services
                         }
                     }
 
-                    var vendorSql = @"
-                        SELECT v.SupplierName AS VendorName,
-                               ISNULL(po1.DebitTotal, 0) - ISNULL(bp1.CreditTotal, 0) AS AsOfBalance
+                    /* Vendor net position: same as Add Sale / Generate Bill — GetPreviousDueAmountByBillId (via IVendorBillsService).
+                       Sign: positive = we owe vendor (payable); negative = vendor owes us / net receivable (receivable column). */
+                    var vendorListSql = @"
+                        SELECT v.SupplierId, v.SupplierName
                         FROM AdminSuppliers v
-                        LEFT JOIN (
-                            SELECT po.SupplierId_FK AS SupplierId,
-                                   SUM(po.TotalAmount) AS DebitTotal
-                            FROM PurchaseOrders po
-                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
-                              AND po.PurchaseOrderDate <= @AsOfEnd
-                            GROUP BY po.SupplierId_FK
-                        ) po1 ON v.SupplierId = po1.SupplierId
-                        LEFT JOIN (
-                            SELECT p.SupplierId_FK AS SupplierId,
-                                   SUM(p.PaymentAmount) AS CreditTotal
-                            FROM BillPayments p
-                            WHERE p.PaymentDate <= @AsOfEnd
-                            GROUP BY p.SupplierId_FK
-                        ) bp1 ON v.SupplierId = bp1.SupplierId
                         WHERE (
                             (@HasVendor = 1 AND v.SupplierId = @VendorId)
                             OR (@HasVendor = 0 AND v.IsDeleted = 0)
                           )
                         ORDER BY v.SupplierName";
 
-                    using (var cmd = new SqlCommand(vendorSql, connection))
+                    var vendorRows = new List<(long SupplierId, string? SupplierName)>();
+                    using (var cmd = new SqlCommand(vendorListSql, connection))
                     {
-                        cmd.Parameters.AddWithValue("@AsOfEnd", asOfEnd);
                         cmd.Parameters.AddWithValue("@HasVendor", hasVendorFilter ? 1 : 0);
                         cmd.Parameters.AddWithValue("@VendorId", hasVendorFilter ? (object)filters.VendorId!.Value : DBNull.Value);
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
                             {
-                                var closing = reader.GetDecimal(reader.GetOrdinal("AsOfBalance"));
-                                // Positive = we owe vendor → payable column; negative = vendor owes us / advance → receivable column as positive
-                                decimal pay = 0, recv = 0;
-                                if (closing >= 0)
-                                {
-                                    pay = closing;
-                                    totalPay += closing;
-                                }
-                                else
-                                {
-                                    recv = -closing;
-                                    totalRecv += -closing;
-                                }
-                                rows.Add(new PayableReceivableReportItem
-                                {
-                                    AsOfDate = asOf,
-                                    CustomerName = null,
-                                    VendorName = reader.IsDBNull(reader.GetOrdinal("VendorName")) ? null : reader.GetString(reader.GetOrdinal("VendorName")),
-                                    Payable = pay,
-                                    Receivable = recv
-                                });
+                                var id = reader.GetInt64(reader.GetOrdinal("SupplierId"));
+                                var name = reader.IsDBNull(reader.GetOrdinal("SupplierName"))
+                                    ? null
+                                    : reader.GetString(reader.GetOrdinal("SupplierName"));
+                                vendorRows.Add((id, name));
                             }
                         }
+                    }
+
+                    foreach (var (supplierId, supplierName) in vendorRows)
+                    {
+                        decimal closing;
+                        try
+                        {
+                            closing = await _vendorBillsService.GetPreviousDueAmountAsync(supplierId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "GetPreviousDueAmountAsync failed for supplier {SupplierId} in PayableReceivable report", supplierId);
+                            closing = 0;
+                        }
+
+                        decimal pay = 0, recv = 0;
+                        if (closing >= 0)
+                        {
+                            pay = closing;
+                            totalPay += closing;
+                        }
+                        else
+                        {
+                            recv = -closing;
+                            totalRecv += -closing;
+                        }
+
+                        rows.Add(new PayableReceivableReportItem
+                        {
+                            AsOfDate = asOf,
+                            CustomerName = null,
+                            VendorName = supplierName,
+                            Payable = pay,
+                            Receivable = recv
+                        });
                     }
                 }
 
@@ -3351,7 +3368,7 @@ namespace IMS.Services
                     var sql = @"
                         SELECT c.CustomerId, c.CustomerName,
                                c.UrduName AS CustomerUrduName,
-                               ISNULL(d.DebitTotal, 0) - ISNULL(pay.CreditTotal, 0) AS Balance
+                               ISNULL(d.DebitTotal, 0) - ISNULL(pay.CreditTotal, 0) - ISNULL(poCust.CustomerPurchaseDue, 0) AS Balance
                         FROM Customers c
                         LEFT JOIN (
                             SELECT s.CustomerId_FK AS CustomerId,
@@ -3368,6 +3385,15 @@ namespace IMS.Services
                             WHERE p.PaymentDate <= @AsOfEnd
                             GROUP BY p.CustomerId
                         ) pay ON c.CustomerId = pay.CustomerId
+                        LEFT JOIN (
+                            SELECT po.CustomerId_FK AS CustomerId,
+                                   SUM(po.TotalDueAmount) AS CustomerPurchaseDue
+                            FROM PurchaseOrders po
+                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                              AND po.CustomerId_FK IS NOT NULL AND po.CustomerId_FK > 0
+                              AND po.PurchaseOrderDate <= @AsOfEnd
+                            GROUP BY po.CustomerId_FK
+                        ) poCust ON c.CustomerId = poCust.CustomerId
                         WHERE (
                             (@HasCustomer = 1 AND c.CustomerId = @CustomerId)
                             OR (@HasCustomer = 0 AND c.IsEnabled = 1)
