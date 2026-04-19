@@ -115,13 +115,25 @@
                     </h5>
                 </div>
                 <div class="col-md-3">
-                    <label for="vendorSelect" class="form-label">Vendor:</label>
+                    <label for="vendorSelect" class="form-label d-flex align-items-center gap-2 mb-1">
+                        <span>Vendor:</span>
+                        <a asp-controller="Vendor" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                           class="add-sale-new-entity-link" title="Create new Vendor" aria-label="Create new Vendor">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                    </label>
                     <input id="vendorSelect" name="VendorId" asp-for="VendorId" style="width: 100%;" />
                 </div>
                 <div class="col-md-3">
-                    <label for="CustomerId" class="form-label">Customer:</label>
+                    <label for="customerSelect" class="form-label d-flex align-items-center gap-2 mb-1">
+                        <span>Customer:</span>
+                        <a asp-controller="Customer" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                           class="add-sale-new-entity-link" title="Create new Customer" aria-label="Create new Customer">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                    </label>
                     <input id="customerSelect" name="CustomerId" asp-for="CustomerId" style="width: 100%;" />
-
+                    <small class="form-text text-muted">Select either Customer or Vendor</small>
                 </div>
 
                 <div class="col-md-3">

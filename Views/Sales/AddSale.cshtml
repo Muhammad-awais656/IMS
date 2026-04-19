@@ -113,17 +113,29 @@
                         </h5>
                     </div>
                     <div class="col-md-3">
-                        <label asp-for="CustomerId" class="form-label">Customer:</label>
+                        <label asp-for="CustomerId" class="form-label d-flex align-items-center gap-2 mb-1">
+                            <span>Customer:</span>
+                            <a asp-controller="Customer" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                               class="add-sale-new-entity-link" title="Create new Customer" aria-label="Create new Customer">
+                                <i class="fa-solid fa-plus"></i>
+                            </a>
+                        </label>
                         <input asp-for="CustomerId" id="customerSelect" style="width: 100%;" />
                         <span asp-validation-for="CustomerId" class="text-danger"></span>
                     </div>
                     <div class="col-md-3">
-                        <label asp-for="VendorId" class="form-label">Vendor:</label>
+                        <label asp-for="VendorId" class="form-label d-flex align-items-center gap-2 mb-1">
+                            <span>Vendor:</span>
+                            <a asp-controller="Vendor" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                               class="add-sale-new-entity-link" title="Create new Vendor" aria-label="Create new Vendor">
+                                <i class="fa-solid fa-plus"></i>
+                            </a>
+                        </label>
                         <input asp-for="VendorId" id="vendorSelect" style="width: 100%;" />
                         <span asp-validation-for="VendorId" class="text-danger"></span>
                         <small class="form-text text-muted">Select either Customer or Vendor</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-1">
                         <label asp-for="BillNo" class="form-label">Bill #:</label>
                         @if (ViewBag.IsEdit == true)
                         {
@@ -296,7 +308,6 @@
         let rowIndex = 0;
         let selectedProductSize = null;
         let currentAvailableStock = 0;
-
         // Initialize on page load
         $(document).ready(function() {
             console.log("=== ADD SALE PAGE LOADED ===");
