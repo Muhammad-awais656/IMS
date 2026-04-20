@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace IMS.DAL.PrimaryDBContext;
@@ -14,6 +14,15 @@ public partial class User
     public bool IsEnabled { get; set; }
 
     public bool IsAdmin { get; set; }
+
+    public int BranchId { get; set; }
+
+    /// <summary>
+    /// Role assigned to the user (from UserRoles table; not a column on Users).
+    /// </summary>
+    public long? RoleId { get; set; }
+
+    public virtual Branch? Branch { get; set; }
 
     public virtual ICollection<AdminMeasuringUnit> AdminMeasuringUnits { get; set; } = new List<AdminMeasuringUnit>();
 }

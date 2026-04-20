@@ -1,3 +1,4 @@
+@using IMS.Enums
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,9 +24,9 @@
         }
 
         .sidebar {
-            width: 250px;
-            min-width: 250px;
-            max-width: 250px;
+            width: 280px;
+            min-width: 280px;
+            max-width: 280px;
             flex-shrink: 0;
             background-color: #2c3e50;
             height: 100vh;
@@ -66,7 +67,7 @@
 
                 .sidebar a:hover {
                 background-color: #34495e;
-                color: #3498db;
+                color:forestgreen;
                 border-left-color: #3498db;
             }
 
@@ -105,7 +106,7 @@
 
         .submenu a:hover {
             background-color: #2c3e50;
-            color: #3498db;
+                    color: forestgreen;
         }
 
         .menu-item.has-submenu > a {
@@ -219,7 +220,7 @@
 
         .sidebar-flyout a:hover {
             background-color: #34495e;
-            color: #3498db;
+                    color: forestgreen;
             border-left-color: #3498db;
         }
 
@@ -312,14 +313,20 @@
 </head>
 <body>
     @{
-        bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
-        string role = isAdmin ? "Admin" : "User";
+        bool isAdminClaim = bool.TryParse(User.FindFirst("IsAdmin")?.Value, out var adminParsed) && adminParsed;
+        string role = isAdminClaim ? "Admin" : "User";
+        bool isAdmin = ViewBag.IsAdmin as bool? ?? isAdminClaim;
+        var userPrivs = ViewBag.UserPrivileges as HashSet<string>;
+        bool CanSee(params string[] privs)
+        {
+            if (isAdmin) return true;
+            if (userPrivs == null || privs == null || privs.Length == 0) return false;
+            return privs.Any(p => userPrivs.Contains(p));
+        }
     }
-    @if (!string.IsNullOrEmpty(role))
+    @if (Context.User.Identity?.IsAuthenticated == true)
     {
-
-     
-        <div class="sidebar collapsed" id="sidebar">
+        <div class="sidebar" id="sidebar">
             <script>
                 try {
                     /* Default: collapsed. Only expand if user previously chose expanded in this tab. */
@@ -331,120 +338,231 @@
             <div class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></div>
 
             @* Dashboard *@
-            @if (role == "Admin")
+            @if (CanSee(IMS.Enums.EnumPrivilegesName.DASHBOARD))
             {
                 <div class="menu-item">
-
-                    <a asp-controller="Home" asp-action="Index"><i class="fa-solid fa-house"></i> <span>    Dashboard</span></a>
+                    <a asp-controller="Home" asp-action="Index"><i class="fa-solid fa-house"></i> <span> Dashboard</span></a>
                 </div>
-
-
             }
 
-            @* Admin *@
-            @if (role == "Admin")
+            @* User Management *@
+            @if (CanSee(EnumPrivilegesName.USER_MANAGEMENT))
             {
                 <div class="menu-item has-submenu" data-tooltip="User Management">
                     <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user-tie"></i><span>User Management <i class="fa-solid fa-angle-down"></i></span></a>
                     <div class="submenu">
-                        <a asp-controller="User" asp-action="GetAllUsers"><i class="fa-solid fa-people-group"></i><span>Users</span></a>
+                        @if (CanSee(EnumPrivilegesName.USER_MANAGEMENT, EnumPrivilegesName.VIEW_USERS))
+                        { <a asp-controller="User" asp-action="GetAllUsers"><i class="fa-solid fa-people-group"></i><span>View Users</span></a> }
+                        @if (CanSee(EnumPrivilegesName.USER_MANAGEMENT, EnumPrivilegesName.USER_PERMISSIONS))
+                        { <a asp-controller="UserPermissions" asp-action="Index"><i class="fa-solid fa-key"></i><span>User Permissions</span></a> }
+                        @if (CanSee(EnumPrivilegesName.USER_MANAGEMENT, EnumPrivilegesName.VIEW_ROLES))
+                        {
+                            <a asp-controller="Role" asp-action="Index"><i class="fa-solid fa-user-shield"></i><span>View Roles</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.USER_MANAGEMENT, EnumPrivilegesName.VIEW_BRANCHES))
+                        {
+                            <a asp-controller="Branch" asp-action="Index"><i class="fa-solid fa-code-branch"></i><span>View Branches</span></a>
+                        }
                     </div>
                 </div>
             }
 
-
-
-
-
-            <div class="menu-item has-submenu" data-tooltip="Customer">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user"></i><span>Customer <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Customer" asp-action="Index"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-                    <a asp-controller="Sales" asp-action="Index"><i class="fa-solid fa-address-book"></i><span>Sales</span></a>
-                    <a asp-controller="Sales" asp-action="AddSale"><i class="fa-solid fa-plus"></i><span>Add Sale</span></a>
-                    <a asp-controller="CustomerPayment" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>Payments</span></a>
+            @* Customer Management *@
+            @if (CanSee(EnumPrivilegesName.CUSTOMER_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Customer Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user"></i><span>Customer Management <i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.CUSTOMER_MANAGEMENT, EnumPrivilegesName.VIEW_CUSTOMERS))
+                        {
+                            <a asp-controller="Customer" asp-action="Index"><i class="fa-solid fa-users"></i><span>View Customers</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.CUSTOMER_MANAGEMENT, EnumPrivilegesName.VIEW_SALES))
+                        {
+                            <a asp-controller="Sales" asp-action="Index"><i class="fa-solid fa-address-book"></i><span>View Sales</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.CUSTOMER_MANAGEMENT, EnumPrivilegesName.ADD_SALE))
+                        {
+                            <a asp-controller="Sales" asp-action="AddSale"><i class="fa-solid fa-plus"></i><span>Add Sale</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.CUSTOMER_MANAGEMENT, EnumPrivilegesName.VIEW_CUSTOMER_PAYMENTS))
+                        {
+                            <a asp-controller="CustomerPayment" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>View Customer Payments</span></a>
+                        }
+                    </div>
                 </div>
-            </div>
-            <div class="menu-item has-submenu" data-tooltip="Vendor">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-person-walking-arrow-right"></i><span>Vendor <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Vendor" asp-action="Index"><i class="fa-solid fa-person-walking-arrow-right"></i><span>Vendors</span></a>
-                    <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-file-invoice-dollar"></i><span>Purchase Order Bills</span></a>
-                    <a asp-controller="VendorBills" asp-action="GenerateBill"><i class="fa-solid fa-print"></i><span>Generate PO Bills</span></a>
-                    <a asp-controller="VendorPayments" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>Vendor Payments</span></a>
+            }
+            @* Vendor Management *@
+            @if (CanSee(EnumPrivilegesName.VENDOR_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Vendor Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-person-walking-arrow-right"></i><span>Vendor Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.VENDOR_MANAGEMENT, EnumPrivilegesName.VIEW_VENDORS))
+                        {
+                            <a asp-controller="Vendor" asp-action="Index"><i class="fa-solid fa-person-walking-arrow-right"></i><span>View Vendors</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.VENDOR_MANAGEMENT, EnumPrivilegesName.VIEW_PURCHASE_ORDERS))
+                        {
+                            <a asp-controller="VendorBills" asp-action="Index"><i class="fa-solid fa-file-invoice-dollar"></i><span>View Purchase Orders</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.VENDOR_MANAGEMENT, EnumPrivilegesName.GENERATE_PO_BILLS))
+                        {
+                            <a asp-controller="VendorBills" asp-action="GenerateBill"><i class="fa-solid fa-print"></i><span>Generate PO Bills</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.VENDOR_MANAGEMENT, EnumPrivilegesName.VIEW_VENDOR_PAYMENTS))
+                        {
+                            <a asp-controller="VendorPayments" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>View Vendor Payments</span></a>
+                        }
+                    </div>
                 </div>
-            </div>
-            <div class="menu-item has-submenu" data-tooltip="Employee">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user-tie"></i><span>Employee <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Employee" asp-action="Index"><i class="fa-solid fa-people-group"></i><span>Employees</span></a>
-                    <a asp-controller="Employee" asp-action="EmployeeLedger"><i class="fa-solid fa-people-group"></i><span>Employees Ledger</span></a>
-                    
+            }
+            @* Employee management *@
+            @if (CanSee(EnumPrivilegesName.EMPLOYEE_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Employee Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-user-tie"></i><span>Employee Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.EMPLOYEE_MANAGEMENT, EnumPrivilegesName.VIEW_EMPLOYEES))
+                        {
+                            <a asp-controller="Employee" asp-action="Index"><i class="fa-solid fa-people-group"></i><span>View Employees</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.EMPLOYEE_MANAGEMENT, EnumPrivilegesName.VIEW_EMPLOYEES_LEDGER))
+                        {
+                            <a asp-controller="Employee" asp-action="EmployeeLedger"><i class="fa-solid fa-people-group"></i><span>View Employees Ledger</span></a>
+                        }
+                    </div>
                 </div>
-            </div>
+            }
 
-            <div class="menu-item has-submenu" data-tooltip="Product">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-gift"></i><span>Product <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Product" asp-action="Index"><i class="fa-solid fa-gift"></i><span>Products</span></a>
+            @* Product management *@
+            @if (CanSee(EnumPrivilegesName.PRODUCT_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Product Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-gift"></i><span>Product Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.PRODUCT_MANAGEMENT, EnumPrivilegesName.VIEW_PRODUCTS))
+                        {
+                            <a asp-controller="Product" asp-action="Index"><i class="fa-solid fa-gift"></i><span>View Products</span></a>
+                        }
+                    </div>
                 </div>
-            </div>
-            
-            <div class="menu-item has-submenu" data-tooltip="Stock">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-layer-group"></i><span>Stock <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Stock" asp-action="Index"><i class="fa-solid fa-layer-group"></i><span>Stocks</span></a>
-                </div>
-            </div>
-            <div class="menu-item has-submenu" data-tooltip="Expense">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-sack-dollar"></i><span>Expense <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Expense" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>Expenses</span></a>
-                    <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i><span>Bank Payments</span></a>
-                </div>
-            </div>
+            }
 
-            <div class="menu-item has-submenu" data-tooltip="Reports">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-address-book"></i><span>Reports <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Report" asp-action="DailyStockPositionReport"><i class="fa-solid fa-boxes"></i><span>Daily Stock Position</span></a>
-                    <a asp-controller="Report" asp-action="StockTransactionsReport"><i class="fa-solid fa-right-left"></i><span>Stock Transactions Report</span></a>
-                    <a asp-controller="Report" asp-action="StockAvailableBalanceReport"><i class="fa-solid fa-scale-balanced"></i><span>Stock Available Balance Report</span></a>
-                    <a asp-controller="Report" asp-action="ProductWiseSalesReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Sales Report</span></a>
-                    <a asp-controller="Report" asp-action="ProfitLossReport"><i class="fa-solid fa-chart-line"></i><span>Product Wise Profit and Loss Report</span></a>
-                    <a asp-controller="Report" asp-action="ProductWisePurchaseReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Purchase Report</span></a>
-                    <a asp-controller="Report" asp-action="CustomerLedgerReport"><i class="fa-solid fa-book"></i><span>Customer Ledger Report</span></a>
-                    <a asp-controller="Report" asp-action="CustomerBalanceReport"><i class="fa-solid fa-scale-balanced"></i><span>Customer Balance Report</span></a>
-                    <a asp-controller="Report" asp-action="VendorLedgerReport"><i class="fa-solid fa-book"></i><span>Vendor Ledger Report</span></a>
-                    <a asp-controller="Report" asp-action="VendorBalanceReport"><i class="fa-solid fa-scale-balanced"></i><span>Vendor Balance Report</span></a>
-                    <a asp-controller="Report" asp-action="PayableReceivableReport"><i class="fa-solid fa-right-left"></i><span>Payable / Receivable Report</span></a>
-                    <a asp-controller="Report" asp-action="BankLedgerReport"><i class="fa-solid fa-university"></i><span>Bank Ledger Report</span></a>
-                    <a asp-controller="Report" asp-action="CashInHandReport"><i class="fa-solid fa-money-bill-wave"></i><span> Day Book /Cash In Hand Report</span></a>
-                    <a asp-controller="Report" asp-action="BankBalancesReport"><i class="fa-solid fa-university"></i><span>Bank Balances Report</span></a>
-                    <a asp-controller="Report" asp-action="GeneralExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span>General Expenses Report</span></a>
-                    <a asp-controller="Report" asp-action="PurchaseOrderProductExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span> Direct Product Expenses Report</span></a>
-                   
-                    @* <a asp-controller="Report" asp-action="SalesReport"><i class="fa-solid fa-address-book"></i><span>Sales Report</span></a>
-                    <a asp-controller="Report" asp-action="PurchaseReport"><i class="fa-solid fa-shopping-cart"></i><span>Purchase Report</span></a>
-                    <a asp-controller="Report" asp-action="DailyStockReport"><i class="fa-solid fa-boxes"></i><span>Daily Stock Report</span></a>
-                    <a asp-controller="Report" asp-action="BankCreditDebitReport"><i class="fa-solid fa-university"></i><span>Bank Credit / Debit Report</span></a> *@
+            @* Stock management *@
+            @if (CanSee(EnumPrivilegesName.STOCK_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Stock Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-layer-group"></i><span>Stock Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.STOCK_MANAGEMENT, EnumPrivilegesName.VIEW_STOCKS))
+                        {
+                            <a asp-controller="Stock" asp-action="Index"><i class="fa-solid fa-layer-group"></i><span>View Stocks</span></a>
+                        }
+                    </div>
                 </div>
-            </div>
-
-
-            <div class="menu-item has-submenu" data-tooltip="Settings">
-                <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-gear"></i><span>Settings <i class="fa-solid fa-angle-down"></i></span></a>
-                <div class="submenu">
-                    <a asp-controller="Settings" asp-action="GetAllExpenseTypes"><i class="fa-solid fa-sack-dollar"></i><span>Expense Types</span></a>
-                    <a asp-controller="SettingsAdminLabels" asp-action="Index"><i class="fa-solid fa-building"></i><span>Company Labels</span></a>
-                    <a asp-controller="Categories" asp-action="Index"><i class="fa-solid fa-list"></i><span>Admin Categories</span></a>
-                    <a asp-controller="AdminMeasuringUnitTypes" asp-action="Index"><i class="fa-solid fa-text-height"></i><span>Measuring Unit Types</span></a>
-                    <a asp-controller="MeasuringUnit" asp-action="Index"><i class="fa-solid fa-helmet-un"></i><span>Measuring Units</span></a>
-                    <a asp-controller="UnitConversion" asp-action="Index"><i class="fa-solid fa-exchange-alt"></i><span>Unit Conversions</span></a>
+            }
+            @* Expense management *@
+            @if (CanSee(EnumPrivilegesName.EXPENSE_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Expense Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-sack-dollar"></i><span>Expense Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.EXPENSE_MANAGEMENT, EnumPrivilegesName.VIEW_EXPENSES))
+                        {
+                            <a asp-controller="Expense" asp-action="Index"><i class="fa-solid fa-sack-dollar"></i><span>View Expenses</span></a>
+                        }
+                        @* <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i><span>Bank Payments</span></a> *@
+                    </div>
                 </div>
-            </div>
-         
 
+            }
+            @* Bank management *@
+            @if (CanSee(EnumPrivilegesName.ONLINE_BANK_MANAGEMENT))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Online/Bank Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-sack-dollar"></i><span>Online/Bank Payments Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.ONLINE_BANK_MANAGEMENT, EnumPrivilegesName.VIEW_BANK_PAYMENTS))
+                        {
+                             <a asp-controller="PersonalPayments" asp-action="Index"><i class="fa-solid fa-credit-card"></i><span>View Bank Payments</span></a>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Reports management *@
+            @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT))
+            {
+
+                <div class="menu-item has-submenu" data-tooltip="Reports Management">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-address-book"></i><span>Reports Management<i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.DAILY_STOCK_POSITION_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="DailyStockPositionReport"><i class="fa-solid fa-boxes"></i><span>Daily Stock Position Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.PRODUCT_WISE_SALES_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="ProductWiseSalesReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Sales Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.PRODUCT_WISE_PURCHASE_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="ProductWisePurchaseReport"><i class="fa-solid fa-chart-bar"></i><span>Product Wise Purchase Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.CUSTOMER_LEDGER_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="CustomerLedgerReport"><i class="fa-solid fa-book"></i><span>Customer Ledger Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.VENDOR_LEDGER_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="VendorLedgerReport"><i class="fa-solid fa-book"></i><span>Vendor Ledger Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.GENERAL_EXPENSE_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="GeneralExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span>General Expense Report</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.REPORTS_MANAGEMENT, EnumPrivilegesName.DIRECT_PRODUCT_EXPENSE_REPORT))
+                        {
+                            <a asp-controller="Report" asp-action="PurchaseOrderProductExpensesReport"><i class="fa-solid fa-money-bill-wave"></i><span> Direct Product Expenses Report</span></a>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Settings *@
+            @if (CanSee(EnumPrivilegesName.SETTINGS))
+            {
+                <div class="menu-item has-submenu" data-tooltip="Settings">
+                    <a href="#" onclick="toggleSubmenu(this); return false;"><i class="fa-solid fa-gear"></i><span>Settings <i class="fa-solid fa-angle-down"></i></span></a>
+                    <div class="submenu">
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_EXPENSE_TYPES))
+                        {
+                            <a asp-controller="Settings" asp-action="GetAllExpenseTypes"><i class="fa-solid fa-sack-dollar"></i><span>View Expense Types</span></a> 
+                        }
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_ADMIN_LABEL))
+                        {
+                            <a asp-controller="SettingsAdminLabels" asp-action="Index"><i class="fa-solid fa-building"></i><span>View Company/Brand Labels</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_CATEGORIES))
+                        {
+                            <a asp-controller="Categories" asp-action="Index"><i class="fa-solid fa-list"></i><span>View Categories</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_MEASURING_UNIT_TYPE))
+                        {
+                            <a asp-controller="AdminMeasuringUnitTypes" asp-action="Index"><i class="fa-solid fa-text-height"></i><span>View Measuring Unit Types</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_MEASURING_UNITS))
+                        {
+                            <a asp-controller="MeasuringUnit" asp-action="Index"><i class="fa-solid fa-helmet-un"></i><span>View Measuring Units</span></a>
+                        }
+                        @if (CanSee(EnumPrivilegesName.SETTINGS, EnumPrivilegesName.VIEW_UNIT_CONVERSIONS))
+                        {
+                            <a asp-controller="UnitConversion" asp-action="Index"><i class="fa-solid fa-exchange-alt"></i><span>View Unit Conversions</span></a>
+                        }
+                    </div>
+                </div>
+            }
         </div>
 
         <!-- Flyout panel when sidebar is collapsed (menus to the right, clickable) -->
@@ -510,18 +628,18 @@
             </div>
         
             <div style="width: inherit; height: fit-content; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; padding: 15px 25px; border-bottom: 3px solid #5a67d8;">
-                <!-- Left: Domain Information -->
+                <!-- Left: Selected Branch (context: Session["BranchId"], Session["BranchName"], Session["BranchCode"]) -->
                 <div style="flex: 1; text-align: left; display: flex; align-items: center; gap: 15px;">
                     @if (Context.User.Identity.IsAuthenticated)
                     {
-                        var domain = "";
-                        {
-                             domain = Context.Session.GetString("Domain");
-                        }
-                        @if (!string.IsNullOrEmpty(domain))
+                        var branchName = Context.Session.GetString("BranchName");
+                        var branchId = Context.Session.GetInt32("BranchId");
+                        var branchCode = Context.Session.GetString("BranchCode");
+                        var displayBranch = !string.IsNullOrEmpty(branchName) ? branchName : (branchId.HasValue ? "Branch #" + branchId.Value : null);
+                        @if (!string.IsNullOrEmpty(displayBranch))
                         {
                             <span style="font-weight: bold; color: #ffffff; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                                <i class="fa-solid fa-building me-2"></i>Domain(@domain)
+                                <i class="fa-solid fa-code-branch me-2"></i>Branch: @displayBranch
                             </span>
                         }
                     }
@@ -530,7 +648,7 @@
                 <!-- Center: Project Name -->
                 <div style="flex: 1; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); letter-spacing: 1px;">
-                        <i class="fa-solid fa-store me-2"></i>M Zahoor Traders
+                        <i class="fa-solid fa-store me-2"></i>IMS
                     </h1>
                     <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 12px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px;">
                         Inventory Management System
@@ -759,6 +877,7 @@
         <script src="~/KendoDropdown/kendoScripts/kendo.selectable.min.js"></script>
         <script src="~/KendoDropdown/kendoScripts/kendo.dropdownlist.min.js"></script>
         <script src="~/KendoDropdown/kendoScripts/kendo.combobox.min.js"></script>
+        <script src="~/KendoDropdown/kendoScripts/kendo.multiselect.min.js"></script>
         <script src="~/toastr.js/toastr.min.js"></script>
         
         <!-- Essential Services Only -->

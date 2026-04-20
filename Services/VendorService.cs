@@ -367,34 +367,56 @@ namespace IMS.Services
             }
         }
 
-        public async Task<List<Product>> GetAllEnabledProductsAsync()
+        public async Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null)
         {
             try
             {
-                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+
+                if (branchId.HasValue)
                 {
-                    await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
+                    const string sql = @"SELECT p.ProductId, p.ProductName, p.ProductCode, p.UnitPrice, p.IsEnabled FROM Products p
+INNER JOIN Users u ON u.UserId = p.CreatedBy
+WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
+                    using var cmd = new SqlCommand(sql, connection);
+                    cmd.Parameters.AddWithValue("@BranchId", branchId.Value);
+                    var products = new List<Product>();
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-                        var products = new List<Product>();
-                        
-                        using (var reader = await command.ExecuteReaderAsync())
+                        products.Add(new Product
                         {
-                            while (await reader.ReadAsync())
-                            {
-                                products.Add(new Product
-                                {
-                                    ProductId = reader.GetInt64("ProductId"),
-                                    ProductName = reader.GetString("ProductName"),
-                                    ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
-                                    UnitPrice = reader.GetDecimal("UnitPrice"),
-                                    IsEnabled = reader.GetByte("IsEnabled")
-                                });
-                            }
-                        }
-                        return products;
+                            ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                            ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
+                            UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
+                            IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled"))
+                        });
                     }
+                    return products;
+                }
+
+                using (var command = new SqlCommand("GetAllEnabledProducts", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    var products = new List<Product>();
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            products.Add(new Product
+                            {
+                                ProductId = reader.GetInt64("ProductId"),
+                                ProductName = reader.GetString("ProductName"),
+                                ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
+                                UnitPrice = reader.GetDecimal("UnitPrice"),
+                                IsEnabled = reader.GetByte("IsEnabled")
+                            });
+                        }
+                    }
+                    return products;
                 }
             }
             catch (Exception ex)

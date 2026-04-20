@@ -15,7 +15,7 @@ namespace IMS.Common_Interfaces
 
         // Bill Generation Methods
         Task<long> GetNextBillNumberAsync();
-        Task<List<Product>> GetAllEnabledProductsAsync();
+        Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null);
         Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId);
         Task<StockMaster?> GetStockByProductIdAsync(long productId);
         Task<decimal> GetPreviousDueAmountByVendorIdAsync(long vendorId);

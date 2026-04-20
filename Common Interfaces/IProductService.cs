@@ -1,4 +1,4 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using static IMS.Models.ProductViewModel;
 
@@ -14,7 +14,8 @@ namespace IMS.Common_Interfaces
         Task<int> UpdateProductAsync(Product product);
         Task<int> DeleteProductAsync(long id);
 
-        Task<List<Product>> GetAllEnabledProductsAsync();
+        /// <param name="branchId">When set, limit to products whose <c>CreatedBy</c> user belongs to this legacy branch.</param>
+        Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null);
 
         Task<bool> CreateProductRange(ProductRange productRange);
         Task<Product?> GetProductByCodeAsync(string productCode);

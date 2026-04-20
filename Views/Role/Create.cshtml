@@ -1,0 +1,54 @@
+@using IMS.DAL.PrimaryDBContext
+@model AdminRole
+@{
+    ViewData["Title"] = "Create Role";
+}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-plus-circle me-2"></i>
+            <h4 class="mb-0">Create Role</h4>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="Create" id="roleForm">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="RoleName" class="form-label fw-semibold">
+                        <i class="fa fa-shield-halved me-1"></i>Role Name <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="RoleName" class="form-control" placeholder="e.g. Manager" maxlength="100" required />
+                    <span asp-validation-for="RoleName" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="RoleDescription" class="form-label fw-semibold">
+                    <i class="fa fa-align-left me-1"></i>Description
+                </label>
+                <textarea asp-for="RoleDescription" class="form-control" rows="2" placeholder="Role description" maxlength="200"></textarea>
+                <span asp-validation-for="RoleDescription" class="text-danger small"></span>
+            </div>
+            <div class="mb-4">
+                <div class="form-check form-switch">
+                    <input type="checkbox" asp-for="IsActive" class="form-check-input" id="isActiveSwitch" checked />
+                    <label asp-for="IsActive" class="form-check-label fw-semibold" for="isActiveSwitch">
+                        <i class="fa fa-toggle-on me-1"></i>Active
+                    </label>
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Create Role
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

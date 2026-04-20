@@ -1,4 +1,4 @@
-﻿// Common changes
+// Common changes
 var dataUrl = null;
 var tableId = null;
 
@@ -545,16 +545,23 @@ function LoadSocitiesKendoDropDown(id, placeholder, url) {
             console.log("KENDO DROPDOWN ERROR" + "/r/n" + "Url:" + url + "/r/n" + "htmlElementId:" + id + "/r/n" + "Error Detail" + error));
 };
 
-function LoadKendoMultiselect(id, placeholder, url, callback = null) {
+function LoadKendoMultiselect(id, placeholder, url, callbackOrInitialValues) {
+    var initialValues = Array.isArray(callbackOrInitialValues) ? callbackOrInitialValues : null;
+    var callback = typeof callbackOrInitialValues === 'function' ? callbackOrInitialValues : null;
     var promiseObject = GetPromise(url);
-    debugger
-    promiseObject
-        .then(data =>
-            SetKendoMultiSource(id, placeholder, data))
-        .catch(error =>
-            console.log("KENDO MULTISELECT ERROR" + "/r/n" + "Url:" + url + "/r/n" + "htmlElementId:" + id + "/r/n" + "Error Detail" + error));
-    if (callback != null)
-        callback();
+    return promiseObject
+        .then(function (data) {
+            SetKendoMultiSource(id, placeholder, data);
+            if (initialValues && initialValues.length > 0) {
+                var w = $("#" + id).data("kendoMultiSelect");
+                if (w) w.value(initialValues);
+            }
+            if (callback) callback();
+            return $("#" + id).data("kendoMultiSelect");
+        })
+        .catch(function (error) {
+            console.log("KENDO MULTISELECT ERROR" + "/r/n" + "Url:" + url + "/r/n" + "htmlElementId:" + id + "/r/n" + "Error Detail" + error);
+        });
 };
 
 
@@ -729,10 +736,12 @@ function SetKendoDDSourceValue(id, placeholder, data, value) {
 };
 
 function SetKendoMultiSource(id, placeholder, data) {
-
+    // ASP.NET Core JSON uses camelCase by default (id, name)
+    var dataTextField = (data && data[0]) ? (data[0].Name !== undefined ? "Name" : "name") : "name";
+    var dataValueField = (data && data[0]) ? (data[0].Id !== undefined ? "Id" : "id") : "id";
     $("#" + id).kendoMultiSelect({
-        dataTextField: "Name",
-        dataValueField: "Id",
+        dataTextField: dataTextField,
+        dataValueField: dataValueField,
         optionLabel: placeholder,
         placeholder: placeholder,
         dataSource: data,
@@ -1991,3 +2000,269 @@ function allowOnlyUrdu(input) {
 //        }
 //    });  
 //};
+
+/**
+ * IMS Common Multi-Select Combo Box - Reusable for Create/Edit and other forms.
+ * Supports single-select (dropdown) and multi-select modes; searchable; syncs with hidden input(s) for form submit.
+ * Usage: IMSCommonCombo.init('containerId', { data: [...], valueField: 'id', textField: 'name', inputName: 'BranchId', selectedValue: 1 });
+ */
+var IMSCommonCombo = (function () {
+    'use strict';
+
+    function escapeHtml(text) {
+        if (text == null) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addStyles() {
+        if (document.getElementById('ims-common-combo-styles')) return;
+        var css = [
+            '.ims-combo-wrapper { position: relative; width: 100%; }',
+            '.ims-combo-display { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 6px 12px; border: 1px solid #ced4da; border-radius: 6px; background: #fff; cursor: pointer; user-select: none; }',
+            '.ims-combo-display:hover { border-color: #86b7fe; }',
+            '.ims-combo-display.open { border-color: #86b7fe; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }',
+            '.ims-combo-display .ims-combo-text { flex: 1; color: #212529; min-width: 0; overflow: hidden; }',
+            '.ims-combo-display .ims-combo-placeholder { color: #6c757d; }',
+            '.ims-combo-display .ims-combo-arrow { margin-left: 8px; color: #6c757d; font-size: 0.7em; transition: transform 0.2s; }',
+            '.ims-combo-display.open .ims-combo-arrow { transform: rotate(180deg); }',
+            '.ims-combo-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; margin-top: 2px; background: #fff; border: 1px solid #ced4da; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 280px; min-height: 80px; }',
+            '.ims-combo-panel.open { display: block !important; visibility: visible; }',
+            '.ims-combo-search { width: 100%; padding: 8px 12px; border: none; border-bottom: 1px solid #dee2e6; border-radius: 6px 6px 0 0; box-sizing: border-box; }',
+            '.ims-combo-search:focus { outline: none; }',
+            '.ims-combo-list { max-height: 220px; overflow-y: auto; padding: 4px 0; }',
+            '.ims-combo-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; }',
+            '.ims-combo-item:hover { background: #f8f9fa; }',
+            '.ims-combo-item.selected { background: #e7f1ff; color: #0d6efd; }',
+            '.ims-combo-item input[type="checkbox"] { margin-right: 8px; }',
+            '.ims-combo-no-results { padding: 12px; color: #6c757d; text-align: center; }',
+            '.ims-combo-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }',
+            '.ims-combo-tag { display: inline-flex; align-items: center; padding: 2px 8px; background: #e9ecef; border-radius: 4px; font-size: 0.875rem; }',
+            '.ims-combo-tag .ims-combo-tag-remove { margin-left: 6px; cursor: pointer; color: #6c757d; }',
+            '.ims-combo-tag .ims-combo-tag-remove:hover { color: #dc3545; }'
+        ].join('\n');
+        var style = document.createElement('style');
+        style.id = 'ims-common-combo-styles';
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    function init(containerId, options) {
+        var container = document.getElementById(containerId);
+        if (!container) {
+            console.warn('IMSCommonCombo: container not found:', containerId);
+            return null;
+        }
+
+        addStyles();
+
+        var opts = options || {};
+        var data = Array.isArray(opts.data) ? opts.data : [];
+        var valueField = opts.valueField || 'value';
+        var textField = opts.textField || 'text';
+        var placeholder = opts.placeholder || '-- Select --';
+        var multiSelect = !!opts.multiSelect;
+        var inputName = opts.inputName || 'comboValue';
+        var selectedValue = opts.selectedValue;
+        var selectedValues = opts.selectedValues || (selectedValue != null ? [selectedValue] : []);
+
+        function toStr(v) {
+            return v != null && v !== '' ? String(v) : '';
+        }
+        var initialSelected = multiSelect ? selectedValues : (selectedValue != null ? [selectedValue] : []);
+        var normalizedSelected = initialSelected.map(function (v) { return toStr(v); }).filter(function (s) { return s !== ''; });
+
+        var state = {
+            open: false,
+            selected: normalizedSelected,
+            filtered: data.slice()
+        };
+
+        var hiddenInput = container.querySelector('input[type="hidden"]');
+        if (!hiddenInput) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = inputName;
+        }
+        hiddenInput.name = inputName;
+
+        function getItemText(item) {
+            var t = item[textField];
+            return t != null ? String(t) : '';
+        }
+
+        function getItemValue(item) {
+            var v = item[valueField];
+            return toStr(v);
+        }
+
+        function getSelectedItems() {
+            return data.filter(function (item) {
+                return state.selected.indexOf(getItemValue(item)) !== -1;
+            });
+        }
+
+        function updateHiddenInput() {
+            if (multiSelect) {
+                hiddenInput.value = state.selected.join(',');
+            } else {
+                hiddenInput.value = state.selected.length ? state.selected[0] : '';
+            }
+        }
+
+        function renderDisplay() {
+            var textEl = container.querySelector('.ims-combo-text');
+            if (!textEl) return;
+            var items = getSelectedItems();
+            if (items.length === 0) {
+                textEl.textContent = placeholder;
+                textEl.classList.add('ims-combo-placeholder');
+            } else {
+                textEl.classList.remove('ims-combo-placeholder');
+                if (multiSelect) {
+                    textEl.innerHTML = '';
+                    var tagsDiv = document.createElement('div');
+                    tagsDiv.className = 'ims-combo-tags';
+                    items.forEach(function (item) {
+                        var tag = document.createElement('span');
+                        tag.className = 'ims-combo-tag';
+                        tag.innerHTML = escapeHtml(getItemText(item)) + ' <span class="ims-combo-tag-remove" data-value="' + escapeHtml(getItemValue(item)) + '">&times;</span>';
+                        tagsDiv.appendChild(tag);
+                    });
+                    textEl.appendChild(tagsDiv);
+                } else {
+                    textEl.textContent = getItemText(items[0]);
+                }
+            }
+        }
+
+        function renderList() {
+            var listEl = container.querySelector('.ims-combo-list');
+            if (!listEl) return;
+            if (state.filtered.length === 0) {
+                listEl.innerHTML = '<div class="ims-combo-no-results">No results found</div>';
+                return;
+            }
+            listEl.innerHTML = state.filtered.map(function (item) {
+                var val = getItemValue(item);
+                var txt = getItemText(item);
+                var isSelected = state.selected.indexOf(val) !== -1;
+                var check = multiSelect ? '<input type="checkbox" ' + (isSelected ? 'checked' : '') + ' data-value="' + escapeHtml(val) + '" data-text="' + escapeHtml(txt) + '">' : '';
+                return '<div class="ims-combo-item ' + (isSelected ? 'selected' : '') + '" data-value="' + escapeHtml(val) + '" data-text="' + escapeHtml(txt) + '">' + check + escapeHtml(txt) + '</div>';
+            }).join('');
+        }
+
+        function filterList(query) {
+            query = (query || '').toLowerCase().trim();
+            if (!query) {
+                state.filtered = data.slice();
+            } else {
+                state.filtered = data.filter(function (item) {
+                    return getItemText(item).toLowerCase().indexOf(query) !== -1;
+                });
+            }
+            renderList();
+        }
+
+        function toggleSelection(val, add) {
+            var strVal = toStr(val);
+            var idx = state.selected.indexOf(strVal);
+            if (multiSelect) {
+                if (add && idx === -1) state.selected.push(strVal);
+                if (!add && idx !== -1) state.selected.splice(idx, 1);
+            } else {
+                state.selected = add ? [strVal] : [];
+            }
+            updateHiddenInput();
+            renderDisplay();
+            renderList();
+        }
+
+        function openPanel() {
+            state.open = true;
+            container.querySelector('.ims-combo-display').classList.add('open');
+            container.querySelector('.ims-combo-panel').classList.add('open');
+            filterList('');
+            var searchEl = container.querySelector('.ims-combo-search');
+            if (searchEl) { searchEl.value = ''; searchEl.focus(); }
+        }
+
+        function closePanel() {
+            state.open = false;
+            container.querySelector('.ims-combo-display').classList.remove('open');
+            container.querySelector('.ims-combo-panel').classList.remove('open');
+        }
+
+        container.innerHTML = [
+            '<div class="ims-combo-display" tabindex="0">',
+            '  <span class="ims-combo-text ims-combo-placeholder">' + escapeHtml(placeholder) + '</span>',
+            '  <span class="ims-combo-arrow">&#9662;</span>',
+            '</div>',
+            '<div class="ims-combo-panel">',
+            '  <input type="text" class="ims-combo-search" placeholder="Type to search...">',
+            '  <div class="ims-combo-list"></div>',
+            '</div>'
+        ].join('');
+
+        container.appendChild(hiddenInput);
+
+        container.querySelector('.ims-combo-display').addEventListener('click', function (e) {
+            e.preventDefault();
+            if (state.open) closePanel(); else openPanel();
+        });
+
+        container.querySelector('.ims-combo-search').addEventListener('input', function () {
+            filterList(this.value);
+        });
+
+        container.querySelector('.ims-combo-search').addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { e.preventDefault(); closePanel(); }
+        });
+
+        container.querySelector('.ims-combo-list').addEventListener('click', function (e) {
+            e.stopPropagation();
+            var item = e.target.closest('.ims-combo-item');
+            var checkbox = e.target && e.target.type === 'checkbox' ? e.target : null;
+            if (checkbox && item) {
+                toggleSelection(checkbox.getAttribute('data-value'), checkbox.checked);
+                if (!multiSelect) closePanel();
+                return;
+            }
+            if (item && !item.classList.contains('ims-combo-no-results')) {
+                var val = item.getAttribute('data-value');
+                var isSelected = state.selected.indexOf(val) !== -1;
+                toggleSelection(val, !isSelected);
+                if (!multiSelect) closePanel();
+            }
+        });
+
+        container.addEventListener('click', function (e) {
+            var remove = e.target.classList && e.target.classList.contains('ims-combo-tag-remove');
+            if (remove) {
+                e.preventDefault();
+                e.stopPropagation();
+                var val = e.target.getAttribute('data-value');
+                toggleSelection(val, false);
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (state.open && !container.contains(e.target)) closePanel();
+        });
+
+        updateHiddenInput();
+        renderDisplay();
+        renderList();
+
+        return {
+            getValue: function () { return multiSelect ? state.selected : (state.selected[0] || ''); },
+            setValue: function (v) { state.selected = v != null ? (multiSelect ? (Array.isArray(v) ? v : [v]) : [v]) : []; updateHiddenInput(); renderDisplay(); renderList(); },
+            getSelectedItems: getSelectedItems,
+            open: openPanel,
+            close: closePanel
+        };
+    }
+
+    return { init: init };
+})();

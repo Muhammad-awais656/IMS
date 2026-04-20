@@ -1,0 +1,68 @@
+@using IMS.DAL.PrimaryDBContext
+@model Branch
+@{
+    ViewData["Title"] = "Create Branch";
+}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center">
+            <i class="fa fa-plus-circle me-2"></i>
+            <h4 class="mb-0">Create Branch</h4>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="Create" id="branchForm">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="BranchCode" class="form-label fw-semibold">
+                        <i class="fa fa-code me-1"></i>Branch Code
+                    </label>
+                    <input asp-for="BranchCode" class="form-control" placeholder="e.g. BR001" maxlength="150" />
+                    <span asp-validation-for="BranchCode" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="BranchName" class="form-label fw-semibold">
+                        <i class="fa fa-building me-1"></i>Branch Name <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="BranchName" class="form-control" placeholder="Enter branch name" maxlength="150" required />
+                    <span asp-validation-for="BranchName" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Address" class="form-label fw-semibold">
+                    <i class="fa fa-map-marker-alt me-1"></i>Address
+                </label>
+                <textarea asp-for="Address" class="form-control" rows="2" placeholder="Branch address" maxlength="250"></textarea>
+                <span asp-validation-for="Address" class="text-danger small"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Phone" class="form-label fw-semibold">
+                    <i class="fa fa-phone me-1"></i>Phone
+                </label>
+                <input asp-for="Phone" class="form-control" placeholder="Phone number" maxlength="50" />
+                <span asp-validation-for="Phone" class="text-danger small"></span>
+            </div>
+            <div class="mb-4">
+                <div class="form-check form-switch">
+                    <input type="checkbox" asp-for="IsActive" class="form-check-input" id="isActiveSwitch" checked />
+                    <label asp-for="IsActive" class="form-check-label fw-semibold" for="isActiveSwitch">
+                        <i class="fa fa-toggle-on me-1"></i>Active
+                    </label>
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg me-md-2">
+                    <i class="fa fa-times me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-save me-1"></i>Create Branch
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

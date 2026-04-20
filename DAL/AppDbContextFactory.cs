@@ -1,6 +1,7 @@
-﻿using IMS.DAL.PrimaryDBContext;
+using IMS.DAL.PrimaryDBContext;
 using Microsoft.Data.SqlClient;
 using StringEncrptandDecryptorApp;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +11,11 @@ namespace IMS.DAL
     {
         // Uncomment the following line if you want to create a DbContext instance means Code First approach
         //AppDbContext CreateDbContext();
-        public  string DBConnectionString();
+        string DBConnectionString();
+        /// <summary>
+        /// Returns decrypted connection string for the default database (Shop). Used for login page to load branches when session is not yet set.
+        /// </summary>
+        string GetDefaultConnectionString();
     }
 
     public class AppDbContextFactory : IDbContextFactory
@@ -24,55 +29,110 @@ namespace IMS.DAL
             _configuration = configuration;
         }
 
-        public  string DBConnectionString()
-        {
-            var DecrptedConnectionString = string.Empty;
-            var selectedDb = _httpContextAccessor?.HttpContext?.Session.GetString("Domain");
-            try
-            {
-                if (string.IsNullOrEmpty(selectedDb))
-                {
-                    throw new InvalidOperationException("Please select a Domain by logging in.");
-                }
-                var connectionString = selectedDb switch
-                {
-                    "Shop" => _configuration.GetConnectionString("ShopConnectionString"),
-                    "Factory" => _configuration.GetConnectionString("FactoryConnectionString"),
-                    _ => throw new InvalidOperationException("No Domain selected or invalid domain selection.")
-                };
-                if (!string.IsNullOrEmpty(connectionString))
-                {
-                    var encryptionHelper = new EncryptionHelper();
-                    var userId = string.Empty;
-                    var password = string.Empty;
-                    try
-                    {
-                        var builder = new SqlConnectionStringBuilder(connectionString);
-                        userId = builder.UserID;
-                        password = builder.Password;
-                        var DecryptedUserId = encryptionHelper.Decrypt(userId);
-                        var DecryptedPassword = encryptionHelper.Decrypt(password);
-                        var decryptedBuilder = new SqlConnectionStringBuilder(connectionString)
-                        {
-                            UserID = DecryptedUserId,
-                            Password = DecryptedPassword
-                        };
-                        DecrptedConnectionString = decryptedBuilder.ConnectionString;
-                    }
-                    catch (SqlException ex)
-                    {
+        //public  string DBConnectionString()
+        //{
+        //    var DecrptedConnectionString = string.Empty;
+        //    var selectedDb = _httpContextAccessor?.HttpContext?.Session.GetString("Domain");
+        //    try
+        //    {
 
-                        throw new Exception($"{ex.Message}");
-                    }
-                }
-                }
-            catch (Exception ex)
-            {
+        //        if (string.IsNullOrEmpty(selectedDb))
+        //        {
+        //            throw new InvalidOperationException("Please select a Domain by logging in.");
+        //        }
+        //        var connectionString = selectedDb switch
+        //        {
+        //            "Shop" => _configuration.GetConnectionString("ShopConnectionString"),
+        //            "Factory" => _configuration.GetConnectionString("FactoryConnectionString"),
+        //            _ => throw new InvalidOperationException("No Domain selected or invalid domain selection.")
+        //        };
+        //        if (!string.IsNullOrEmpty(connectionString))
+        //        {
+        //            var encryptionHelper = new EncryptionHelper();
+        //            var userId = string.Empty;
+        //            var password = string.Empty;
+        //            try
+        //            {
+        //                var builder = new SqlConnectionStringBuilder(connectionString);
+        //                userId = builder.UserID;
+        //                password = builder.Password;
+        //                var DecryptedUserId = encryptionHelper.Decrypt(userId);
+        //                var DecryptedPassword = encryptionHelper.Decrypt(password);
+        //                var decryptedBuilder = new SqlConnectionStringBuilder(connectionString)
+        //                {
+        //                    UserID = DecryptedUserId,
+        //                    Password = DecryptedPassword
+        //                };
+        //                DecrptedConnectionString = decryptedBuilder.ConnectionString;
+        //            }
+        //            catch (SqlException ex)
+        //            {
+
+        //                throw new Exception($"{ex.Message}");
+        //            }
+        //        }
+        //        }
+        //    catch (Exception ex)
+        //    {
                
-                throw new Exception($"{ex.Message}");
-            }
-            return DecrptedConnectionString;
-        }
+        //        throw new Exception($"{ex.Message}");
+        //    }
+        //    return DecrptedConnectionString;
+        //}
 
+        
+
+public string DBConnectionString()
+    {
+        try
+        {
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Connection string not found.");
+            }
+
+            var builder = new SqlConnectionStringBuilder(connectionString);
+
+            // Decrypt credentials
+            var encryptionHelper = new EncryptionHelper();
+
+            var decryptedUserId = encryptionHelper.Decrypt(builder.UserID);
+            var decryptedPassword = encryptionHelper.Decrypt(builder.Password);
+
+            builder.UserID = decryptedUserId;
+            builder.Password = decryptedPassword;
+
+            return builder.ConnectionString;
+        }
+        catch (Exception ex)
+        {
+            //  Better: log instead of wrapping exception
+            // _logger.LogError(ex, "Error while building connection string");
+
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public string GetDefaultConnectionString()
+        {
+            var connectionString = _configuration.GetConnectionString("ShopConnectionString");
+            if (string.IsNullOrEmpty(connectionString))
+                throw new InvalidOperationException("Shop connection string is not configured.");
+            var encryptionHelper = new EncryptionHelper();
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            var userId = builder.UserID;
+            var password = builder.Password;
+            var decryptedUserId = encryptionHelper.Decrypt(userId);
+            var decryptedPassword = encryptionHelper.Decrypt(password);
+            var decryptedBuilder = new SqlConnectionStringBuilder(connectionString)
+            {
+                UserID = decryptedUserId,
+                Password = decryptedPassword
+            };
+            return decryptedBuilder.ConnectionString;
+        }
     }
 }
