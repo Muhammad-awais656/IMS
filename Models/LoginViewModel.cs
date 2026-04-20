@@ -18,12 +18,6 @@ namespace IMS.Models
         [Range(1, int.MaxValue, ErrorMessage = "Please select a branch.")]
         public int BranchId { get; set; }
 
-        /// <summary>
-        /// Kept for connection string selection (e.g. Shop/Factory). Set server-side on login.
-        /// </summary>
-        [ValidateNever]
-        public string Domain { get; set; } = "Shop";
-
         [ValidateNever]
         public List<DAL.PrimaryDBContext.Branch>? Branches { get; set; }
         public bool RememberMe { get; set; }

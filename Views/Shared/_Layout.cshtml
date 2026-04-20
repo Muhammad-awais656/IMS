@@ -298,7 +298,7 @@
 </head>
 <body>
     @{
-        bool isAdminClaim = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
+        bool isAdminClaim = bool.TryParse(User.FindFirst("IsAdmin")?.Value, out var adminParsed) && adminParsed;
         string role = isAdminClaim ? "Admin" : "User";
         bool isAdmin = ViewBag.IsAdmin as bool? ?? isAdminClaim;
         var userPrivs = ViewBag.UserPrivileges as HashSet<string>;

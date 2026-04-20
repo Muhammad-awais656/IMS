@@ -24,15 +24,18 @@ namespace IMS.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly IdentityHelper _identityHelper;
+        private readonly IBranchService _branchService;
 
         public AccountController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-            IConfiguration configuration, SignInManager<ApplicationUser> signInManager,IdentityHelper identityHelper)
+            IConfiguration configuration, SignInManager<ApplicationUser> signInManager, IdentityHelper identityHelper,
+            IBranchService branchService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _signInManager = signInManager;
             _identityHelper = identityHelper;
+            _branchService = branchService;
         }
 
         [HttpGet]
@@ -145,6 +148,7 @@ namespace IMS.Controllers
 
                 if (result.Succeeded && ValidFlag)
                 {
+                    await SetLoginSessionAsync(model);
                     TempData["Success"] = AlertMessages.LoginSuccess;
                     return RedirectToAction("Index", "Home");
                 }
@@ -187,6 +191,42 @@ namespace IMS.Controllers
             }
            
 
+        }
+
+        /// <summary>
+        /// Populates session after sign-in. Uses claims when present; otherwise model and <see cref="ApplicationUser"/> (same keys as Program.cs middleware).
+        /// </summary>
+        private async Task SetLoginSessionAsync(LoginViewModel model)
+        {
+            await HttpContext.Session.LoadAsync();
+            var principal = HttpContext.User;
+            var appUser = await _userManager.FindByNameAsync(model.Username);
+
+            var userName = principal.Identity?.Name
+                ?? appUser?.UserName
+                ?? model.Username;
+            var role = principal.Claims.FirstOrDefault(c => c.Type == "IsAdmin")?.Value
+                ?? appUser?.IsAdmin.ToString()
+                ?? string.Empty;
+            var usrId = principal.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value
+                ?? (appUser?.LegacyUserId?.ToString() ?? string.Empty);
+
+            HttpContext.Session.SetString("UserName", userName);
+            HttpContext.Session.SetString("IsAdmin", role ?? string.Empty);
+            HttpContext.Session.SetString("UserId", usrId ?? string.Empty);
+
+            HttpContext.Session.SetInt32("BranchId", model.BranchId);
+            var branch = await _branchService.GetBranchByIdAsync(model.BranchId);
+            if (branch != null)
+            {
+                HttpContext.Session.SetString("BranchName", branch.BranchName ?? branch.BranchCode ?? model.BranchId.ToString());
+                HttpContext.Session.SetString("BranchCode", branch.BranchCode ?? string.Empty);
+            }
+            else
+            {
+                HttpContext.Session.SetString("BranchName", model.BranchId.ToString());
+                HttpContext.Session.SetString("BranchCode", string.Empty);
+            }
         }
     }
 }

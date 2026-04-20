@@ -128,7 +128,8 @@ builder.Services
         options.User.RequireUniqueEmail = false;
     })
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -216,14 +217,14 @@ app.Use(async (context, next) =>
     {
         await context.Session.LoadAsync();
         var userName = context.User.Identity.Name;
-        var domain = context.User.Claims.FirstOrDefault(c => c.Type == "Domain")?.Value;
         var role = context.User.Claims.FirstOrDefault(c => c.Type == "IsAdmin")?.Value;
         var usrId = context.User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
 
         context.Session.SetString("UserName", userName);
-        context.Session.SetString("Domain", domain ?? string.Empty);
-        context.Session.SetString("IsAdmin", role ?? string.Empty);
-        context.Session.SetString("UserId", usrId ?? string.Empty);
+        if (role != null)
+            context.Session.SetString("IsAdmin", role);
+        if (usrId != null)
+            context.Session.SetString("UserId", usrId);
     }
 
     await next();

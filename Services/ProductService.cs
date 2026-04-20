@@ -218,48 +218,60 @@ namespace IMS.Services
             };
         }
 
-        public async Task<List<Product>> GetAllEnabledProductsAsync()
+        public async Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null)
         {
             var productList = new List<Product>();
-            
 
             try
             {
-                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+
+                if (branchId.HasValue)
                 {
-                    await connection.OpenAsync();
-                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
+                    const string sql = @"SELECT p.ProductId, p.ProductName FROM Products p
+INNER JOIN Users u ON u.UserId = p.CreatedBy
+WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
+                    using var command = new SqlCommand(sql, connection);
+                    command.Parameters.AddWithValue("@BranchId", branchId.Value);
+                    using var reader = await command.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
                     {
-                        
-                        command.CommandType = CommandType.StoredProcedure;
-                        try
+                        productList.Add(new Product
                         {
-                            using (var reader = await command.ExecuteReaderAsync())
+                            ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                        });
+                    }
+                    return productList;
+                }
+
+                using (var command = new SqlCommand("GetAllEnabledProducts", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    try
+                    {
+                        using var reader = await command.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            productList.Add(new Product
                             {
-                                while (await reader.ReadAsync())
-                                {
-                                    productList.Add(new Product
-                                    {
-                                        ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                                        
-                                    });
-                                    
-                                }
-                            }
+                                ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                            });
                         }
-                        catch
-                        {
-
-                        }
-
+                    }
+                    catch
+                    {
+                        // ignored
                     }
                 }
             }
             catch
             {
-
+                // ignored
             }
+
             return productList;
         }
 

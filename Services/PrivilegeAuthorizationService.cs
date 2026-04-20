@@ -47,9 +47,18 @@ namespace IMS.Services
                 using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
                 await connection.OpenAsync();
                 var (userId, isAdmin) = await GetUserInfoByUserNameAsync(connection, userName);
-                if (userId == null) return false;
-                if (isAdmin) return true;
-                return await UserHasPrivilegeForUserAsync(connection, userId.Value, privilegeName);
+                if (userId != null)
+                {
+                    if (isAdmin) return true;
+                    return await UserHasPrivilegeForUserAsync(connection, userId.Value, privilegeName);
+                }
+
+                var identityRow = await GetIdentityUserByUserNameAsync(connection, userName);
+                if (identityRow == null) return false;
+                var (legacyId, isAdminIdentity) = identityRow.Value;
+                if (isAdminIdentity) return true;
+                if (legacyId == null) return false;
+                return await UserHasPrivilegeForUserAsync(connection, legacyId.Value, privilegeName);
             }
             catch (Exception ex)
             {
@@ -93,6 +102,39 @@ namespace IMS.Services
             return (null, false);
         }
 
+        /// <summary>
+        /// Identity-only users (e.g. seeded in AspNetUsers) are not in legacy <c>Users</c>; resolve admin/privileges from AspNetUsers + LegacyUserId.
+        /// </summary>
+        private static async Task<(long? LegacyUserId, bool IsAdmin)?> GetIdentityUserByUserNameAsync(SqlConnection connection, string userName)
+        {
+            const string sql = "SELECT LegacyUserId, IsAdmin FROM AspNetUsers WHERE NormalizedUserName = @Norm";
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@Norm", userName.ToUpperInvariant());
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return null;
+            var legacyOrdinal = reader.GetOrdinal("LegacyUserId");
+            var legacyId = reader.IsDBNull(legacyOrdinal) ? (long?)null : reader.GetInt64(legacyOrdinal);
+            var isAdmin = reader.GetBoolean(reader.GetOrdinal("IsAdmin"));
+            return (legacyId, isAdmin);
+        }
+
+        private static async Task AppendPrivilegesForUserAsync(SqlConnection connection, long userId, HashSet<string> privileges)
+        {
+            const string sql = @"
+SELECT f.FeatureName FROM RoleFeatureAccessRights r
+INNER JOIN AdminFeatures f ON f.FeatureId = r.FeatureId_FK
+WHERE r.UserId_FK = @UserId AND (r.CanView = 1 OR r.CanModify = 1)";
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@UserId", userId);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var name = reader.GetString(reader.GetOrdinal("FeatureName"));
+                if (!string.IsNullOrEmpty(name)) privileges.Add(name);
+            }
+        }
+
         public async Task<(bool IsAdmin, HashSet<string> PrivilegeNames)> GetUserPrivilegeNamesAsync(string? userName)
         {
             var privileges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -103,20 +145,23 @@ namespace IMS.Services
                 using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
                 await connection.OpenAsync();
                 var (userId, isAdmin) = await GetUserInfoByUserNameAsync(connection, userName);
-                if (userId == null) return (false, privileges);
-                if (isAdmin) return (true, privileges);
-                const string sql = @"
-SELECT f.FeatureName FROM RoleFeatureAccessRights r
-INNER JOIN AdminFeatures f ON f.FeatureId = r.FeatureId_FK
-WHERE r.UserId_FK = @UserId AND (r.CanView = 1 OR r.CanModify = 1)";
-                using var cmd = new SqlCommand(sql, connection);
-                cmd.Parameters.AddWithValue("@UserId", userId.Value);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                if (userId != null)
                 {
-                    var name = reader.GetString(reader.GetOrdinal("FeatureName"));
-                    if (!string.IsNullOrEmpty(name)) privileges.Add(name);
+                    if (isAdmin) return (true, privileges);
+                    await AppendPrivilegesForUserAsync(connection, userId.Value, privileges);
+                    return (false, privileges);
                 }
+
+                var identityRow = await GetIdentityUserByUserNameAsync(connection, userName);
+                if (identityRow == null)
+                    return (false, privileges);
+
+                var (legacyId, isAdminIdentity) = identityRow.Value;
+                if (isAdminIdentity)
+                    return (true, privileges);
+                if (legacyId != null)
+                    await AppendPrivilegesForUserAsync(connection, legacyId.Value, privileges);
+                return (false, privileges);
             }
             catch (Exception ex)
             {
