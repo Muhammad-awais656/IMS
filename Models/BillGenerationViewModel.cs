@@ -66,6 +66,10 @@ namespace IMS.Models
         public string? MeasuringUnitAbbreviation { get; set; }
         public string? UrduNameMU { get; set; }
         public bool IsSmallestUnit { get; set; }
+        /// <summary>Display name for the selected product size/range (ProductRange.ProductRangeName).</summary>
+        public string? ProductRangeName { get; set; }
+        /// <summary>Urdu label for the product range (ProductRange.UrduName).</summary>
+        public string? ProductRangeUrduName { get; set; }
     }
 }
 

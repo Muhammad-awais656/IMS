@@ -1,0 +1,11 @@
+@model IMS.Models.ReceiptItem
+@{
+    var line = string.IsNullOrWhiteSpace(Model.ProductRangeName)
+        ? Model.ProductName
+        : $"{Model.ProductName} — {Model.ProductRangeName}";
+}
+<div>@line</div>
+@if (!string.IsNullOrWhiteSpace(Model.RangeUrduName))
+{
+    <div dir="rtl" style="font-family: 'Urdu Typesetting', 'Jameel Noori Nastaleeq', Tahoma, serif; font-size: 0.95em;">@Model.RangeUrduName</div>
+}

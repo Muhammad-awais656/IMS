@@ -330,7 +330,7 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                                             productRangeId = 0;
                                         }
 
-                                        productRanges.Add(new ProductRange
+                                        var pr = new ProductRange
                                         {
                                             ProductRangeId = productRangeId,
                                             ProductIdFk = reader.GetInt64(reader.GetOrdinal("ProductId_FK")),
@@ -338,8 +338,29 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                                             RangeFrom = reader.IsDBNull(reader.GetOrdinal("RangeFrom")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeFrom")),
                                             RangeTo = reader.IsDBNull(reader.GetOrdinal("RangeTo")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeTo")),
                                             UnitPrice = reader.IsDBNull(reader.GetOrdinal("RangeUnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("RangeUnitPrice"))
-                                           
-                                        });
+                                        };
+                                        try
+                                        {
+                                            int ord = reader.GetOrdinal("ProductRangeName");
+                                            if (!reader.IsDBNull(ord)) pr.ProductRangeName = reader.GetString(ord);
+                                        }
+                                        catch { }
+                                        try
+                                        {
+                                            int ord = reader.GetOrdinal("ProductRangeUrduName");
+                                            if (!reader.IsDBNull(ord)) pr.UrduName = reader.GetString(ord);
+                                        }
+                                        catch { }
+                                        if (pr.UrduName == null)
+                                        {
+                                            try
+                                            {
+                                                int ord = reader.GetOrdinal("RangeUrduName");
+                                                if (!reader.IsDBNull(ord)) pr.UrduName = reader.GetString(ord);
+                                            }
+                                            catch { }
+                                        }
+                                        productRanges.Add(pr);
 
                                     }
                                     
@@ -467,6 +488,8 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                         command.Parameters.AddWithValue("@pRangeFrom", productRange.RangeFrom==null ? 0: productRange.RangeFrom);
                         command.Parameters.AddWithValue("@pRangeTo", productRange.RangeTo==null ? 0 : productRange.RangeTo);
                         command.Parameters.AddWithValue("@pUnitPrice", productRange.UnitPrice);
+                        command.Parameters.AddWithValue("@pProductRangeName", string.IsNullOrEmpty(productRange.ProductRangeName) ? (object)DBNull.Value : productRange.ProductRangeName);
+                        command.Parameters.AddWithValue("@pUrduName", string.IsNullOrEmpty(productRange.UrduName) ? (object)DBNull.Value : productRange.UrduName);
                   
                         var unitTypeyIdParam = new SqlParameter("@pProductRangeId", SqlDbType.BigInt)
                         {
@@ -546,16 +569,16 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.AddWithValue("@pProductCode", productCode);
-                        command.Parameters.AddWithValue("@pProductId", excludeProductId ?? 0);
+                        //command.Parameters.AddWithValue("@pProductId", excludeProductId ?? 0);
 
-                        var returnValue = new SqlParameter("@RETURN_VALUE", SqlDbType.Int)
+                        var returnValue = new SqlParameter("@isAlreadyExists", SqlDbType.Bit)
                         {
                             Direction = ParameterDirection.Output
                         };
                         command.Parameters.Add(returnValue);
 
                         await command.ExecuteNonQueryAsync();
-                        response = (int)returnValue.Value == 1;
+                        response = (bool)returnValue.Value;
                     }
                 }
             }

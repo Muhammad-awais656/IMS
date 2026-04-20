@@ -395,6 +395,8 @@ public partial class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.RangeFrom).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.RangeTo).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.UnitPrice).HasColumnType("numeric(18, 3)");
+            entity.Property(e => e.ProductRangeName).HasMaxLength(500);
+            entity.Property(e => e.UrduName).HasMaxLength(500);
         });
 
         modelBuilder.Entity<PurchaseOrder>(entity =>

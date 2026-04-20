@@ -131,7 +131,9 @@
                             <tr>
                                 <th><i class="fa fa-hashtag me-1"></i>Purchase ID</th>
                                 <th><i class="fa fa-truck me-1"></i>Vendor Name</th>
-                                <th><i class="fa fa-truck me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-language me-1"></i>Vendor Urdu</th>
+                                <th><i class="fa fa-user me-1"></i>Customer Name</th>
+                                <th><i class="fa fa-language me-1"></i>Customer Urdu</th>
                                 <th><i class="fa fa-file-text me-1"></i>Bill #</th>
                                 <th><i class="fa fa-calendar me-1"></i>Purchase Date</th>
                                 <th><i class="fa fa-dollar-sign me-1"></i>Total Amount</th>
@@ -148,8 +150,10 @@
                                 {
                                     <tr>
                                         <td><span class="badge bg-primary">@Html.DisplayFor(modelItem => item.PurchaseOrderId)</span></td>
-                                        <td>@Html.DisplayFor(modelitem => item.VendorName)</td>
-                                        <td>@Html.DisplayFor(modelitem => item.CustomerName)</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(item.VendorName)</td>
+                                        <td class="name-urdu-display" dir="auto">@NameDisplayHelper.UrduNameCell(item.VendorUrduName)</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(item.CustomerName)</td>
+                                        <td class="name-urdu-display" dir="auto">@NameDisplayHelper.UrduNameCell(item.CustomerUrduName)</td>
                                         <td><code>@Html.DisplayFor(modelitem => item.BillNumber)</code></td>
                                         <td>@item.PurchaseDate.ToString("dd/MM/yyyy")</td>
                                         <td><strong class="text-success">@item.TotalAmount.ToString("N2")</strong></td>
@@ -163,7 +167,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center py-4">
+                                    <td colspan="12" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Purchase Data Found</h5>

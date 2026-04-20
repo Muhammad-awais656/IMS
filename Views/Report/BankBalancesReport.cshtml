@@ -1,0 +1,175 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model IMS.Models.BankBalancesReportViewModel
+@{
+    var bankItems = ViewBag.BankAccounts as List<SelectListItem> ?? new List<SelectListItem>();
+}
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-university me-2"></i>
+                <h4 class="mb-0">Bank Balances Report</h4>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-excel text-success me-1"></i> Export Excel
+                </a>
+                <a href="#" id="exportPdfBtn" class="btn btn-warning btn-sm">
+                    <i class="fa fa-file-pdf text-danger me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fa fa-filter me-2 text-primary"></i>Filter Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="filterForm" asp-action="BankBalancesReport" asp-controller="Report" method="get">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold" for="bankAccountSelect">
+                                <i class="fa fa-university me-1 text-primary"></i>Bank account
+                            </label>
+                            <select name="Filters.PersonalPaymentId" id="bankAccountSelect" class="form-select">
+                                @foreach (var item in bankItems)
+                                {
+                                    if (item.Selected)
+                                    {
+                                        <option value="@item.Value" selected="selected">@item.Text</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@item.Value">@item.Text</option>
+                                    }
+                                }
+                            </select>
+                            <span class="text-muted small">Leave as &quot;All&quot; to list every bank balance as of the date below.</span>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fa fa-calendar me-1 text-primary"></i>As of date
+                            </label>
+                            <input type="date" name="Filters.ReportDate"
+                                   value="@(Model.Filters?.ReportDate.HasValue == true ? Model.Filters.ReportDate.Value.ToString("yyyy-MM-dd") : DateTimeHelper.Now.ToString("yyyy-MM-dd"))"
+                                   class="form-control" />
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="d-flex gap-2 w-100">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    <i class="fa fa-search me-1"></i> Search
+                                </button>
+                                <a asp-action="BankBalancesReport" class="btn btn-outline-secondary flex-fill">
+                                    <i class="fa fa-refresh me-1"></i> Refresh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-4">
+            <i class="fa fa-info-circle me-1"></i>
+            Balance is the sum of <strong>credit</strong> minus <strong>debit</strong> amounts on <strong>Bank Payments</strong> ledger lines through the end of the selected day (same basis as Bank Credit / Debit Report).
+        </p>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-success text-white border-success">
+                    <div class="card-body">
+                        <h6 class="card-title">@(Model.Filters?.PersonalPaymentId.HasValue == true && Model.Filters.PersonalPaymentId > 0 ? "Balance (selected account)" : "Total balance (all accounts shown)")</h6>
+                        <h3 class="mb-0">@Model.TotalBalance.ToString("N2")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-light border">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">As of</h6>
+                        <h3 class="mb-0">@(Model.Filters?.ReportDate?.ToString("dd-MMM-yyyy") ?? DateTimeHelper.Now.ToString("dd-MMM-yyyy"))</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fa fa-table me-2"></i>Bank balances</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Bank</th>
+                                <th>Account #</th>
+                                <th>Account holder</th>
+                                <th>Branch</th>
+                                <th class="text-end">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Rows != null && Model.Rows.Any())
+                            {
+                                foreach (var row in Model.Rows)
+                                {
+                                    <tr>
+                                        <td><strong>@row.BankName</strong></td>
+                                        <td>@row.AccountNumber</td>
+                                        <td>@NameDisplayHelper.EnglishNameCell(row.AccountHolderName)</td>
+                                        <td>@(row.BankBranch ?? "—")</td>
+                                        <td class="text-end fw-semibold">@row.BalanceAsOf.ToString("N2")</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No bank accounts found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function getBankBalancesParams() {
+            var reportDateInput = document.querySelector("input[name='Filters.ReportDate']");
+            var bankSelect = document.getElementById("bankAccountSelect");
+            var pid = bankSelect ? bankSelect.value : '';
+            return {
+                reportDate: reportDateInput ? reportDateInput.value : '',
+                personalPaymentId: pid
+            };
+        }
+
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getBankBalancesParams();
+            var q = `reportDate=${encodeURIComponent(p.reportDate)}`;
+            if (p.personalPaymentId)
+                q += `&personalPaymentId=${encodeURIComponent(p.personalPaymentId)}`;
+            var url = `/Report/ExportBankBalancesExcel?${q}`;
+            exportWithLoader(url, 'BankBalancesReport_export.xlsx', 'Preparing Excel export... Please wait.');
+        });
+
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getBankBalancesParams();
+            var q = `reportDate=${encodeURIComponent(p.reportDate)}`;
+            if (p.personalPaymentId)
+                q += `&personalPaymentId=${encodeURIComponent(p.personalPaymentId)}`;
+            var url = `/Report/ExportBankBalancesPdf?${q}`;
+            exportWithLoader(url, 'BankBalancesReport_export.pdf', 'Preparing PDF export... Please wait.');
+        });
+    </script>
+}

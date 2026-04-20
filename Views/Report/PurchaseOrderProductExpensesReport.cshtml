@@ -113,6 +113,7 @@
                                 <th><i class="fa fa-calendar me-1"></i>Date</th>
                                 <th><i class="fa fa-tag me-1"></i>Expense Type</th>
                                 <th><i class="fa fa-box me-1"></i>Product Name</th>
+                                <th><i class="fa fa-language me-1"></i>Urdu Name</th>
                                 <th><i class="fa fa-info-circle me-1"></i>Description</th>
                                 <th><i class="fa fa-money-bill me-1"></i>Amount</th>
                             </tr>
@@ -149,7 +150,13 @@
                                         <td>
                                             @if (!item.IsTotalRow && !string.IsNullOrEmpty(item.ProductName))
                                             {
-                                                <span class="badge bg-info">@Html.DisplayFor(modelItem => item.ProductName)</span>
+                                                <span class="badge bg-info">@NameDisplayHelper.EnglishNameCell(item.ProductName)</span>
+                                            }
+                                        </td>
+                                        <td class="name-urdu-display" dir="auto">
+                                            @if (!item.IsTotalRow && !string.IsNullOrEmpty(item.ProductName))
+                                            {
+                                                <span class="badge bg-secondary">@NameDisplayHelper.UrduNameCell(item.ProductUrduName)</span>
                                             }
                                         </td>
                                         <td>
@@ -169,7 +176,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
+                                    <td colspan="6" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Expenses Data Found</h5>

@@ -189,8 +189,8 @@ namespace IMS.Controllers
         {
             try
             {
-                if (ModelState.IsValid)
-                {
+                //if (ModelState.IsValid)
+                //{
                     var userIdStr = HttpContext.Session.GetString("UserId");
                     long userId = long.Parse(userIdStr ?? "1");
                     
@@ -212,7 +212,7 @@ namespace IMS.Controllers
                     {
                         TempData["ErrorMessage"] = AlertMessages.RecordNotAdded;
                     }
-                }
+                //}
             }
             catch (Exception ex)
             {
@@ -505,12 +505,12 @@ namespace IMS.Controllers
                 var model = await _personalPaymentService.GetAllPersonalPaymentsAsync(1, exportPageSize, filters);
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Personal Payment Accounts");
-                worksheet.Cell(1, 1).Value = "Id"; worksheet.Cell(1, 2).Value = "Bank Name"; worksheet.Cell(1, 3).Value = "Account Number"; worksheet.Cell(1, 4).Value = "Account Holder"; worksheet.Cell(1, 5).Value = "Credit"; worksheet.Cell(1, 6).Value = "Debit"; worksheet.Cell(1, 7).Value = "Description"; worksheet.Cell(1, 8).Value = "Date"; worksheet.Cell(1, 9).Value = "Active";
-                var headerRange = worksheet.Range(1, 1, 1, 9); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                worksheet.Cell(1, 1).Value = "Id"; worksheet.Cell(1, 2).Value = "Bank Name"; worksheet.Cell(1, 3).Value = "Account Number"; worksheet.Cell(1, 4).Value = "Account Holder"; worksheet.Cell(1, 5).Value = "Credit"; worksheet.Cell(1, 6).Value = "Debit"; worksheet.Cell(1, 7).Value = "Balance"; worksheet.Cell(1, 8).Value = "Description"; worksheet.Cell(1, 9).Value = "Date"; worksheet.Cell(1, 10).Value = "Active";
+                var headerRange = worksheet.Range(1, 1, 1, 10); headerRange.Style.Font.Bold = true; headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
                 int row = 2;
                 foreach (var item in model.PersonalPaymentList ?? new List<PersonalPaymentModel>())
                 {
-                    worksheet.Cell(row, 1).Value = item.PersonalPaymentId; worksheet.Cell(row, 2).Value = item.BankName ?? ""; worksheet.Cell(row, 3).Value = item.AccountNumber ?? ""; worksheet.Cell(row, 4).Value = item.AccountHolderName ?? ""; worksheet.Cell(row, 5).Value = item.CreditAmount; worksheet.Cell(row, 6).Value = item.DebitAmount; worksheet.Cell(row, 7).Value = item.PaymentDescription ?? ""; worksheet.Cell(row, 8).Value = item.PaymentDate.ToString("dd-MMM-yyyy"); worksheet.Cell(row, 9).Value = item.IsActive ? "Yes" : "No";
+                    worksheet.Cell(row, 1).Value = item.PersonalPaymentId; worksheet.Cell(row, 2).Value = item.BankName ?? ""; worksheet.Cell(row, 3).Value = item.AccountNumber ?? ""; worksheet.Cell(row, 4).Value = item.AccountHolderName ?? ""; worksheet.Cell(row, 5).Value = item.CreditAmount; worksheet.Cell(row, 6).Value = item.DebitAmount; worksheet.Cell(row, 7).Value = item.NetAmount; worksheet.Cell(row, 8).Value = item.PaymentDescription ?? ""; worksheet.Cell(row, 9).Value = item.PaymentDate.ToString("dd-MMM-yyyy"); worksheet.Cell(row, 10).Value = item.IsActive ? "Yes" : "No";
                     row++;
                 }
                 worksheet.Columns().AdjustToContents();
@@ -539,11 +539,11 @@ namespace IMS.Controllers
                 PdfWriter.GetInstance(document, stream); document.Open();
                 document.Add(new Paragraph("Personal Payment Accounts Report", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16)) { Alignment = Element.ALIGN_CENTER });
                 document.Add(new Paragraph("\n"));
-                var table = new PdfPTable(9); table.WidthPercentage = 100; table.SetWidths(new float[] { 0.6f, 1.5f, 1.2f, 1.5f, 1f, 1f, 2f, 1f, 0.6f });
-                foreach (var h in new[] { "Id", "Bank", "Account #", "Holder", "Credit", "Debit", "Description", "Date", "Active" })
+                var table = new PdfPTable(10); table.WidthPercentage = 100; table.SetWidths(new float[] { 0.55f, 1.35f, 1.1f, 1.35f, 0.95f, 0.95f, 0.95f, 1.85f, 0.95f, 0.5f });
+                foreach (var h in new[] { "Id", "Bank", "Account #", "Holder", "Credit", "Debit", "Balance", "Description", "Date", "Active" })
                 { var cell = new PdfPCell(new Phrase(h, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 7))) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = BaseColor.LIGHT_GRAY }; table.AddCell(cell); }
                 foreach (var p in model.PersonalPaymentList ?? new List<PersonalPaymentModel>())
-                { table.AddCell(p.PersonalPaymentId.ToString()); table.AddCell(p.BankName ?? ""); table.AddCell(p.AccountNumber ?? ""); table.AddCell(p.AccountHolderName ?? ""); table.AddCell(p.CreditAmount.ToString("N2")); table.AddCell(p.DebitAmount.ToString("N2")); table.AddCell(p.PaymentDescription ?? ""); table.AddCell(p.PaymentDate.ToString("dd-MMM-yy")); table.AddCell(p.IsActive ? "Yes" : "No"); }
+                { table.AddCell(p.PersonalPaymentId.ToString()); table.AddCell(p.BankName ?? ""); table.AddCell(p.AccountNumber ?? ""); table.AddCell(p.AccountHolderName ?? ""); table.AddCell(p.CreditAmount.ToString("N2")); table.AddCell(p.DebitAmount.ToString("N2")); table.AddCell(p.NetAmount.ToString("N2")); table.AddCell(p.PaymentDescription ?? ""); table.AddCell(p.PaymentDate.ToString("dd-MMM-yy")); table.AddCell(p.IsActive ? "Yes" : "No"); }
                 document.Add(table); document.Close();
                 return File(stream.ToArray(), "application/pdf", $"PersonalPaymentAccounts_{DateTimeHelper.Now:yyyyMMddHHmmss}.pdf");
             }

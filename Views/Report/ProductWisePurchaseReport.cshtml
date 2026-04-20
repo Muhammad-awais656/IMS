@@ -32,16 +32,13 @@
                 <form id="filterForm" asp-action="ProductWisePurchaseReport" asp-controller="Report" method="get">
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">
+                            <label class="form-label fw-semibold" for="productComboBox">
                                 <i class="fa fa-gift me-1 text-primary"></i>Product
                             </label>
-                            <br />
-                           <div class="col-md-3">
-                                @Html.DropDownList("Filters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
-                                "-- Select Product --",
-                                                                new { @class = "form-control", @id = "productComboBox" })
-
-                           </div>
+                            <input id="productComboBox" name="Filters.ProductId"
+                                   value="@(Model.Filters?.ProductId?.ToString() ?? "")"
+                                   style="width: 100%;"
+                                   autocomplete="off" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">
@@ -125,7 +122,8 @@
                         <thead class="table-dark">
                             <tr>
                                 <th><i class="fa fa-calendar me-1"></i>Date</th>
-                                <th><i class="fa fa-tag me-1"></i>Description</th>
+                                <th><i class="fa fa-tag me-1"></i>Product Name</th>
+                                <th><i class="fa fa-language me-1"></i>Urdu Name</th>
                                 <th><i class="fa fa-weight me-1"></i>Weight</th>
                                 <th><i class="fa fa-shopping-cart me-1"></i>Qty</th>
                                 <th><i class="fa fa-dollar-sign me-1"></i>Rate</th>
@@ -154,12 +152,15 @@
                                         <td>
                                             @if (item.IsTotalRow)
                                             {
-                                                <strong>Total Purchase @item.ProductName</strong>
+                                                <strong>Total — @NameDisplayHelper.EnglishNameCell(item.ProductName)</strong>
                                             }
                                             else
                                             {
-                                                <strong>@Html.DisplayFor(modelItem => item.ProductName)</strong>
+                                                <strong>@NameDisplayHelper.EnglishNameCell(item.ProductName)</strong>
                                             }
+                                        </td>
+                                        <td class="name-urdu-display" dir="auto">
+                                            <strong>@NameDisplayHelper.UrduNameCell(item.ProductUrduName)</strong>
                                         </td>
                                         <td>
                                             @if (item.IsTotalRow)
@@ -202,7 +203,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">
+                                    <td colspan="7" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Purchase Data Found</h5>
@@ -313,48 +314,69 @@
             }
         }
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Product
-            $("#productComboBox").kendoComboBox({
+            if (typeof $.fn.kendoComboBox === "undefined") {
+                return;
+            }
+            var $input = $("#productComboBox");
+            if (!$input.length) {
+                return;
+            }
+            var initialProductId = "@(Model.Filters?.ProductId?.ToString() ?? "")";
+
+            var productCombo = $input.kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetProducts", "Product")",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
                 placeholder: "-- Select Product --",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
-                dataTextField: "Text",
-                dataValueField: "Value",
-                change: function(e) {
-                    console.log("Product selection changed:", e.sender.value());
-                },
-                select: function(e) {
-                    console.log("Product selected:", e.item);
-                }
-            });
+                value: initialProductId
+            }).data("kendoComboBox");
+
+            if (initialProductId && productCombo) {
+                productCombo.dataSource.read().then(function () {
+                    productCombo.value(initialProductId);
+                });
+            }
         });
 
-        function changePageSize(select) {
-            var productId = document.getElementById("productComboBox").value;
-            var fromDate = document.querySelector("input[name='Filters.FromDate']").value;
-            var toDate = document.querySelector("input[name='Filters.ToDate']").value;
+        function getProductWisePurchaseParams() {
+            var combo = $("#productComboBox").data("kendoComboBox");
+            var fallbackInput = document.querySelector("input[name='Filters.ProductId']");
+            var productId = combo ? (combo.value() || "") : (fallbackInput ? fallbackInput.value : "");
+            var fromDateInput = document.querySelector("input[name='Filters.FromDate']");
+            var toDateInput = document.querySelector("input[name='Filters.ToDate']");
+            var fromDate = fromDateInput ? fromDateInput.value : '';
+            var toDate = toDateInput ? toDateInput.value : '';
+            return { productId: productId, fromDate: fromDate, toDate: toDate };
+        }
 
-            var url = `/Report/ProductWisePurchaseReport?pageNumber=1&Filters.ProductId=${productId}&pageSize=${select.value}&Filters.FromDate=${fromDate}&Filters.ToDate=${toDate}`;
+        function changePageSize(select) {
+            var p = getProductWisePurchaseParams();
+            var url = `/Report/ProductWisePurchaseReport?pageNumber=1&Filters.ProductId=${encodeURIComponent(p.productId)}&pageSize=${select.value}&Filters.FromDate=${encodeURIComponent(p.fromDate)}&Filters.ToDate=${encodeURIComponent(p.toDate)}`;
             window.location.href = url;
         }
     </script>
     <script>
-        document.getElementById("exportExcelBtn").addEventListener("click", function () {
-            var productId = document.getElementById("productComboBox").value;
-            var fromDate = document.querySelector("input[name='Filters.FromDate']").value;
-            var toDate = document.querySelector("input[name='Filters.ToDate']").value;
-
-            var url = `/Report/ExportProductWisePurchaseExcel?productId=${productId}&fromDate=${fromDate}&toDate=${toDate}`;
+        document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getProductWisePurchaseParams();
+            var url = `/Report/ExportProductWisePurchaseExcel?productId=${p.productId}&fromDate=${p.fromDate}&toDate=${p.toDate}`;
             exportWithLoader(url, 'ProductWisePurchaseReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
-        document.getElementById("exportPdfBtn").addEventListener("click", function () {
-            var productId = document.getElementById("productComboBox").value;
-            var fromDate = document.querySelector("input[name='Filters.FromDate']").value;
-            var toDate = document.querySelector("input[name='Filters.ToDate']").value;
-
-            var url = `/Report/ExportProductWisePurchasePdf?productId=${productId}&fromDate=${fromDate}&toDate=${toDate}`;
+        document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
+            e.preventDefault();
+            var p = getProductWisePurchaseParams();
+            var url = `/Report/ExportProductWisePurchasePdf?productId=${p.productId}&fromDate=${p.fromDate}&toDate=${p.toDate}`;
             exportWithLoader(url, 'ProductWisePurchaseReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>

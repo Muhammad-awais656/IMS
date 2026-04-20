@@ -1,14 +1,23 @@
 @model IMS.Models.ProfitLossReportViewModel;
+@using IMS.Models
 @{
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
+    var isOverall = Model.Filters?.ViewMode == ProfitLossReportViewMode.Overall;
+    var viewModeVal = (int)(Model.Filters?.ViewMode ?? ProfitLossReportViewMode.ProductWise);
 }
 <div class="card shadow-sm">
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger m-3 mb-0" role="alert">
+            <i class="fa fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        </div>
+    }
     <div class="card-header bg-primary text-white py-3">
         <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
-                <i class="fa fa-chart-line me-2"></i>
-                <h4 class="mb-0">Product Wise Profit/Loss Report</h4>
+                <i class="fa fa-chart-bar me-2"></i>
+                <h4 class="mb-0">@(isOverall ? "Overall Profit and Loss Report" : "Product Wise Profit and Loss Report")</h4>
             </div>
             <div class="d-flex gap-2">
                 <a href="#" id="exportExcelBtn" class="btn btn-warning btn-sm">
@@ -31,19 +40,33 @@
             <div class="card-body">
                 <form id="filterForm" asp-action="ProfitLossReport" asp-controller="Report" method="get">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">
+                        <div class="col-md-3 col-lg-2">
+                            <label class="form-label fw-semibold" for="productComboBox">
                                 <i class="fa fa-gift me-1 text-primary"></i>Product
                             </label>
-                            <br />
-                           <div>
-                                @Html.DropDownList("ProfitLossReportFilters.ProductId", ViewBag.Products as IEnumerable<SelectListItem>,
-                                "-- Select Product --",
-                                                                new { @class = "form-control", @id = "productComboBox" })
-
-                           </div>
+                            <input id="productComboBox" name="Filters.ProductId"
+                                   value="@(Model.Filters?.ProductId?.ToString() ?? "")"
+                                   style="width: 100%;"
+                                   autocomplete="off" />
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-lg-2">
+                            <label class="form-label fw-semibold" for="viewModeSelect">
+                                <i class="fa fa-layer-group me-1 text-primary"></i>Report type
+                            </label>
+                            <select id="viewModeSelect" name="Filters.ViewMode" class="form-select">
+                                @if (viewModeVal == 0)
+                                {
+                                    <option value="0" selected>Product wise (detail)</option>
+                                    <option value="1">Overall profit / loss</option>
+                                }
+                                else
+                                {
+                                    <option value="0">Product wise (detail)</option>
+                                    <option value="1" selected>Overall profit / loss</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-lg-3">
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>From Date
                             </label>
@@ -56,7 +79,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-lg-3">
                             <label class="form-label fw-semibold">
                                 <i class="fa fa-calendar me-1 text-primary"></i>To Date
                             </label>
@@ -69,7 +92,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
+                        <div class="col-md-12 col-lg-2 d-flex align-items-end">
                             <div class="d-flex gap-2 w-100">
                                 <button type="submit" class="btn btn-primary flex-fill">
                                     <i class="fa fa-search me-1"></i> Search
@@ -85,6 +108,12 @@
         </div>
 
         <!-- Summary Cards -->
+        @if (isOverall && Model.TotalCount > 0)
+        {
+            <p class="text-muted small mb-2">
+                <i class="fa fa-info-circle me-1"></i>Grand totals and the table below include <strong>@Model.TotalCount</strong> product(s) for the selected dates@(Model.Filters?.ProductId.HasValue == true ? " (filtered by product)" : "").
+            </p>
+        }
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="card bg-success text-white">
@@ -97,7 +126,7 @@
             <div class="col-md-4">
                 <div class="card bg-info text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total Purchase Cost</h6>
+                        <h6 class="card-title">Total stock amount</h6>
                         <h3 class="mb-0">@Model.TotalPurchaseCost.ToString("N2")</h3>
                     </div>
                 </div>
@@ -112,68 +141,144 @@
             </div>
         </div>
 
-        <!-- Enhanced Table Section -->
+        <!-- Spreadsheet-style blocks per product, or overall summary table -->
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
-                    <i class="fa fa-table me-2"></i>Profit/Loss Report Data
+                    <i class="fa fa-table me-2"></i>@(isOverall ? "Overall profit / loss (all products)" : "Product wise profit and loss (detail)")
                 </h5>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" id="printArea">
-                    <table id="profitLossTable" class="table table-hover table-striped mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th><i class="fa fa-hashtag me-1"></i>Product Name</th>
-                                <th><i class="fa fa-barcode me-1"></i>Product Code</th>
-                                <th><i class="fa fa-shopping-cart me-1"></i>Quantity Sold</th>
-                                <th><i class="fa fa-dollar-sign me-1"></i>Total Sales Amount</th>
-                                <th><i class="fa fa-money-bill me-1"></i>Total Purchase Cost</th>
-                                <th><i class="fa fa-chart-line me-1"></i>Profit/Loss</th>
-                                <th><i class="fa fa-percent me-1"></i>Profit/Loss %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.ProfitLossList.Any())
-                            {
-                                @foreach (var item in Model.ProfitLossList)
+            <div class="card-body" id="printArea">
+                @if (isOverall && Model.ProfitLossList != null && Model.ProfitLossList.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover align-middle mb-0">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-end">Sale amount</th>
+                                    <th class="text-end">Total stock amount</th>
+                                    <th class="text-end">Profit / (loss)</th>
+                                    <th class="text-end">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in Model.ProfitLossList)
                                 {
                                     <tr>
-                                        <td><strong>@Html.DisplayFor(modelItem => item.ProductName)</strong></td>
-                                        <td><code>@Html.DisplayFor(modelitem => item.ProductCode)</code></td>
-                                        <td>@Html.DisplayFor(modelitem => item.TotalQuantitySold)</td>
-                                        <td><strong class="text-success">@item.TotalSalesAmount.ToString("N2")</strong></td>
-                                        <td><span class="text-info">@item.TotalPurchaseCost.ToString("N2")</span></td>
                                         <td>
-                                            <span class="badge @(item.ProfitLoss >= 0 ? "bg-success" : "bg-danger")">
-                                                @item.ProfitLoss.ToString("N2")
-                                            </span>
+                                            <strong>@NameDisplayHelper.EnglishNameCell(row.ProductName)</strong>
+                                            @if (!string.IsNullOrWhiteSpace(row.ProductUrduName))
+                                            {
+                                                <span class="name-urdu-display text-secondary ms-1" dir="auto">@NameDisplayHelper.UrduNameCell(row.ProductUrduName)</span>
+                                            }
                                         </td>
-                                        <td>
-                                            <span class="badge @(item.ProfitLossPercentage >= 0 ? "bg-success" : "bg-danger")">
-                                                @item.ProfitLossPercentage.ToString("N2")%
-                                            </span>
-                                        </td>
+                                        <td class="text-end">@row.TotalSalesAmount.ToString("N2")</td>
+                                        <td class="text-end">@row.TotalPurchaseCost.ToString("N2")</td>
+                                        <td class="text-end @(row.ProfitLoss >= 0 ? "text-success" : "text-danger") fw-semibold">@row.ProfitLoss.ToString("N2")</td>
+                                        <td class="text-end">@row.ProfitLossPercentage.ToString("N2")</td>
                                     </tr>
                                 }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="7" class="text-center py-4">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-                                            <h5 class="text-muted">No Profit/Loss Data Found</h5>
-                                            <p class="text-muted">Try adjusting your filter criteria to see more results.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else if (!isOverall && Model.ProductDetailSections != null && Model.ProductDetailSections.Any())
+                {
+                    @foreach (var p in Model.ProductDetailSections)
+                    {
+                        <div class="mb-4 pnl-product-block border rounded overflow-hidden">
+                            <div class="bg-light px-3 py-2 border-bottom">
+                                <strong>@NameDisplayHelper.EnglishNameCell(p.ProductName)</strong>
+                                @if (!string.IsNullOrWhiteSpace(p.ProductUrduName))
+                                {
+                                    <span class="name-urdu-display text-secondary ms-2" dir="auto">@NameDisplayHelper.UrduNameCell(p.ProductUrduName)</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(p.ProductCode))
+                                {
+                                    <code class="ms-2">@p.ProductCode</code>
+                                }
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0 align-middle">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th style="width:28%">Description</th>
+                                            <th class="text-end">Weight</th>
+                                            <th class="text-end">Amount</th>
+                                            <th class="text-end">Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Previous</td>
+                                            <td class="text-end">@p.PreviousWeight.ToString("N2")</td>
+                                            <td class="text-end">@p.PreviousAmount.ToString("N2")</td>
+                                            <td class="text-end">@p.PreviousRate.ToString("N2")</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Purchase</td>
+                                            <td class="text-end">@p.PurchaseWeight.ToString("N2")</td>
+                                            <td class="text-end">@p.PurchaseAmount.ToString("N2")</td>
+                                            <td class="text-end">@p.PurchaseRate.ToString("N2")</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Purchase Exp</td>
+                                            <td class="text-end">—</td>
+                                            <td class="text-end">@(p.PurchaseExpenseAmount != 0 ? p.PurchaseExpenseAmount.ToString("N2") : "")</td>
+                                            <td class="text-end">—</td>
+                                        </tr>
+                                        <tr class="fw-bold">
+                                            <td>Total Stock</td>
+                                            <td class="text-end">@p.TotalStockWeight.ToString("N2")</td>
+                                            <td class="text-end">@p.TotalStockAmount.ToString("N2")</td>
+                                            <td class="text-end">@p.TotalStockRate.ToString("N2")</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sale</td>
+                                            <td class="text-end">@p.SaleWeight.ToString("N2")</td>
+                                            <td class="text-end">@p.SaleAmount.ToString("N2")</td>
+                                            <td class="text-end">@p.SaleRate.ToString("N2")</td>
+                                        </tr>
+                                        <tr class="fw-bold">
+                                            <td>Balance Stock</td>
+                                            <td class="text-end">@p.BalanceStockWeight.ToString("N2")</td>
+                                            <td class="text-end">@p.BalanceStockAmount.ToString("N2")</td>
+                                            <td class="text-end">@p.BalanceRate.ToString("N2")</td>
+                                        </tr>
+                                        @if (p.BagsWeight != 0 || p.BagsRate != 0)
+                                        {
+                                            <tr>
+                                                <td>Bags</td>
+                                                <td class="text-end">@p.BagsWeight.ToString("N2")</td>
+                                                <td class="text-end">@p.BagsAmount.ToString("N2")</td>
+                                                <td class="text-end fw-bold">@p.BagsRate.ToString("N2")</td>
+                                            </tr>
+                                        }
+                                        <tr class="table-dark text-white">
+                                            <td>Profit</td>
+                                            <td class="text-end">—</td>
+                                            <td class="text-end fw-bold">@p.Profit.ToString("N2")</td>
+                                            <td class="text-end">—</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa fa-inbox fa-3x mb-3 d-block"></i>
+                        <h5>No Profit/Loss Data Found</h5>
+                        <p class="mb-0">Try adjusting your filter criteria to see more results.</p>
+                    </div>
+                }
             </div>
         </div>
+        @if (!isOverall)
+        {
         <!-- Enhanced Pagination Section -->
         <div class="card mt-4">
             <div class="card-body">
@@ -188,10 +293,34 @@
                         <label for="pageSize" class="form-label mb-0 text-muted">
                             <i class="fa fa-list me-1"></i>Items Per Page:
                         </label>
+                        @{
+                            var curPageSize = Model.PageSize ?? 10;
+                        }
                         <select id="pageSize" class="form-select form-select-sm w-auto" onchange="changePageSize(this)">
-                            <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                            <option value="20" selected="@(Model.PageSize == 20)">20</option>
-                            <option value="30" selected="@(Model.PageSize == 30)">30</option>
+                            @if (curPageSize == 10)
+                            {
+                                <option value="10" selected>10</option>
+                            }
+                            else
+                            {
+                                <option value="10">10</option>
+                            }
+                            @if (curPageSize == 20)
+                            {
+                                <option value="20" selected>20</option>
+                            }
+                            else
+                            {
+                                <option value="20">20</option>
+                            }
+                            @if (curPageSize == 30)
+                            {
+                                <option value="30" selected>30</option>
+                            }
+                            else
+                            {
+                                <option value="30">30</option>
+                            }
                         </select>
                     </div>
                 </div>
@@ -208,15 +337,16 @@
                     };
                     
                     if (!string.IsNullOrEmpty(productId))
-                        queryParams.Add($"productId={productId}");
+                        queryParams.Add($"Filters.ProductId={productId}");
                     if (!string.IsNullOrEmpty(fromDate))
-                        queryParams.Add($"FromDate={fromDate}");
+                        queryParams.Add($"Filters.FromDate={fromDate}");
                     if (!string.IsNullOrEmpty(toDate))
-                        queryParams.Add($"ToDate={toDate}");
+                        queryParams.Add($"Filters.ToDate={toDate}");
+                    queryParams.Add($"Filters.ViewMode={viewModeVal}");
                     
                     var queryString = string.Join("&", queryParams);
                     
-                    <nav aria-label="Profit Loss Report pagination" class="mt-3">
+                    <nav aria-label="Product Wise Profit and Loss Report pagination" class="mt-3">
                         <ul class="pagination justify-content-center mb-0">
                             <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
                                 <a class="page-link" href="/Report/ProfitLossReport?pageNumber=1&@queryString">
@@ -257,6 +387,7 @@
                 }
             </div>
         </div>
+        }
         </div>
     </div>
 </div>
@@ -271,36 +402,56 @@
             }
         }
         $(document).ready(function() {
-            // Initialize Kendo UI ComboBox for Product
-            $("#productComboBox").kendoComboBox({
+            if (typeof $.fn.kendoComboBox === "undefined") {
+                return;
+            }
+            var $input = $("#productComboBox");
+            if (!$input.length) {
+                return;
+            }
+            var initialProductId = "@(Model.Filters?.ProductId?.ToString() ?? "")";
+
+            var productCombo = $input.kendoComboBox({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "@Url.Action("GetProducts", "Product")",
+                            dataType: "json"
+                        }
+                    }
+                },
+                dataTextField: "text",
+                dataValueField: "value",
                 placeholder: "-- Select Product --",
                 filter: "contains",
                 suggest: true,
                 minLength: 1,
-                dataTextField: "Text",
-                dataValueField: "Value",
-                change: function(e) {
-                    console.log("Product selection changed:", e.sender.value());
-                },
-                select: function(e) {
-                    console.log("Product selected:", e.item);
-                }
-            });
+                value: initialProductId
+            }).data("kendoComboBox");
+
+            if (initialProductId && productCombo) {
+                productCombo.dataSource.read().then(function () {
+                    productCombo.value(initialProductId);
+                });
+            }
         });
 
         function getProfitLossParams() {
-            var productEl = document.getElementById("productComboBox") || document.querySelector("select[name='ProfitLossReportFilters.ProductId']");
+            var combo = $("#productComboBox").data("kendoComboBox");
+            var fallbackInput = document.querySelector("input[name='Filters.ProductId']");
+            var productId = combo ? (combo.value() || "") : (fallbackInput ? fallbackInput.value : "");
             var fromDateInput = document.querySelector("input[name='Filters.FromDate']");
             var toDateInput = document.querySelector("input[name='Filters.ToDate']");
-            var productId = productEl ? (productEl.value || '') : '';
+            var viewModeInput = document.querySelector("select[name='Filters.ViewMode']");
             var fromDate = fromDateInput ? fromDateInput.value : '';
             var toDate = toDateInput ? toDateInput.value : '';
-            return { productId: productId, fromDate: fromDate, toDate: toDate };
+            var viewMode = viewModeInput ? viewModeInput.value : '0';
+            return { productId: productId, fromDate: fromDate, toDate: toDate, viewMode: viewMode };
         }
 
         function changePageSize(select) {
             var p = getProfitLossParams();
-            var url = `/Report/ProfitLossReport?pageNumber=1&productId=${p.productId}&pageSize=${select.value}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
+            var url = `/Report/ProfitLossReport?pageNumber=1&Filters.ProductId=${encodeURIComponent(p.productId)}&pageSize=${select.value}&Filters.FromDate=${encodeURIComponent(p.fromDate)}&Filters.ToDate=${encodeURIComponent(p.toDate)}&Filters.ViewMode=${encodeURIComponent(p.viewMode)}`;
             window.location.href = url;
         }
     </script>
@@ -308,14 +459,14 @@
         document.getElementById("exportExcelBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getProfitLossParams();
-            var url = `/Report/ExportProfitLossExcel?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
+            var url = `/Report/ExportProfitLossExcel?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}&viewMode=${encodeURIComponent(p.viewMode)}`;
             exportWithLoader(url, 'ProfitLossReport_export.xlsx', 'Preparing Excel export... Please wait.');
         });
 
         document.getElementById("exportPdfBtn").addEventListener("click", function (e) {
             e.preventDefault();
             var p = getProfitLossParams();
-            var url = `/Report/ExportProfitLossPdf?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}`;
+            var url = `/Report/ExportProfitLossPdf?productId=${p.productId}&FromDate=${p.fromDate}&ToDate=${p.toDate}&viewMode=${encodeURIComponent(p.viewMode)}`;
             exportWithLoader(url, 'ProfitLossReport_export.pdf', 'Preparing PDF export... Please wait.');
         });
     </script>

@@ -88,7 +88,7 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Code</th>
-                                        <th>Product</th>
+                                        <th>Product / size</th>
                                         <th>Item Level Discount</th>
                                         <th>Unit Sale Price</th>
                                         <th>Qty</th>
@@ -113,17 +113,29 @@
                         </h5>
                     </div>
                     <div class="col-md-3">
-                        <label asp-for="CustomerId" class="form-label">Customer:</label>
+                        <label asp-for="CustomerId" class="form-label d-flex align-items-center gap-2 mb-1">
+                            <span>Customer:</span>
+                            <a asp-controller="Customer" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                               class="add-sale-new-entity-link" title="Create new Customer" aria-label="Create new Customer">
+                                <i class="fa-solid fa-plus"></i>
+                            </a>
+                        </label>
                         <input asp-for="CustomerId" id="customerSelect" style="width: 100%;" />
                         <span asp-validation-for="CustomerId" class="text-danger"></span>
                     </div>
                     <div class="col-md-3">
-                        <label asp-for="VendorId" class="form-label">Vendor:</label>
+                        <label asp-for="VendorId" class="form-label d-flex align-items-center gap-2 mb-1">
+                            <span>Vendor:</span>
+                            <a asp-controller="Vendor" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                               class="add-sale-new-entity-link" title="Create new Vendor" aria-label="Create new Vendor">
+                                <i class="fa-solid fa-plus"></i>
+                            </a>
+                        </label>
                         <input asp-for="VendorId" id="vendorSelect" style="width: 100%;" />
                         <span asp-validation-for="VendorId" class="text-danger"></span>
                         <small class="form-text text-muted">Select either Customer or Vendor</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-1">
                         <label asp-for="BillNo" class="form-label">Bill #:</label>
                         @if (ViewBag.IsEdit == true)
                         {
@@ -296,7 +308,6 @@
         let rowIndex = 0;
         let selectedProductSize = null;
         let currentAvailableStock = 0;
-
         // Initialize on page load
         $(document).ready(function() {
             console.log("=== ADD SALE PAGE LOADED ===");
@@ -1248,6 +1259,56 @@
             }
         }
 
+        function escapeHtmlSale(s) {
+            if (s == null || s === undefined || s === '') return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function buildProductSizeCellHtml(productName, rangeName, rangeUrduName) {
+            let h = '<div class="fw-semibold">' + escapeHtmlSale(rangeName) + '</div>';
+            // if (rangeName) {
+            //     h += '<div class="text-secondary small">' + escapeHtmlSale(rangeName) + '</div>';
+            // }
+            // if (rangeUrduName) {
+            //     h += '<div class="text-secondary small" dir="rtl" style="font-family: \'Urdu Typesetting\',\'Jameel Noori Nastaleeq\',Tahoma,serif;">' + escapeHtmlSale(rangeUrduName) + '</div>';
+            // }
+            return h;
+        }
+
+        /** Sets #unitPrice / #salePrice from server GetUnitPriceRate (IUnitPriceRateService); falls back to catalog range unit price on error. */
+        function applyUnitPriceFromCalculatedRate(productId,productRangeId, fallbackUnitPrice) {
+            const unitPriceElement = document.getElementById('unitPrice');
+            const salePriceElement = document.getElementById('salePrice');
+            const fallback = parseFloat(fallbackUnitPrice) || 0;
+            function setFields(value) {
+                const v = parseFloat(value) || 0;
+                if (unitPriceElement) unitPriceElement.value = v.toFixed(2);
+                if (salePriceElement) salePriceElement.value = v.toFixed(2);
+                if (selectedProductSize) selectedProductSize.unitPrice = v;
+                calculatePayableAmount();
+            }
+            if (!productId) {
+                setFields(fallback);
+                return;
+            }
+            fetch('/Sales/GetUnitPriceRate?productId=' + encodeURIComponent(productId) + '&productRangeId=' + encodeURIComponent(productRangeId) )
+                .then(function (response) {
+                    if (!response.ok) throw new Error('bad response');
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data && data.success && data.rate != null && !isNaN(Number(data.rate)))
+                        setFields(data.rate);
+                    else
+                        setFields(fallback);
+                })
+                .catch(function () {
+                    setFields(fallback);
+                });
+        }
+
         function onProductSizeChange() {
             console.log("onProductSizeChange function called");
             const sizeCombo = $("#productSizeSelect").data("kendoComboBox");
@@ -1258,6 +1319,8 @@
             console.log("Selected item:", selectedItem);
 
             if (selectedValue && selectedItem) {
+                const prName = selectedItem.productRangeName != null ? selectedItem.productRangeName : '';
+                const urdu = selectedItem.urduName != null ? selectedItem.urduName : '';
                 selectedProductSize = {
                     productRangeId: selectedItem.value,
                     measuringUnitId: selectedItem.measuringUnitId,
@@ -1265,34 +1328,20 @@
                     rangeTo: selectedItem.rangeTo,
                     unitPrice: selectedItem.unitPrice,
                     measuringUnitName: selectedItem.measuringUnitName,
-                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation,
+                    productRangeName: prName,
+                    urduName: urdu
                 };
 
                 console.log("Selected product size:", selectedProductSize);
 
-                // Reload available stock in the selected unit
                 const productCombo = $("#productSelect").data("kendoComboBox");
                 const productId = productCombo ? productCombo.value() : null;
                 if (productId && selectedProductSize.measuringUnitId) {
                     loadAvailableStockInProductSizeUnit(productId, selectedProductSize.measuringUnitId);
                 }
 
-                // Populate unit price
-                const unitPriceElement = document.getElementById('unitPrice');
-                if (unitPriceElement) {
-                    unitPriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                    console.log("Unit price set to:", unitPriceElement.value);
-                }
-
-                // Set default sale price to unit price
-                const salePriceElement = document.getElementById('salePrice');
-                if (salePriceElement) {
-                    salePriceElement.value = parseFloat(selectedProductSize.unitPrice).toFixed(2);
-                    console.log("Sale price set to:", salePriceElement.value);
-                }
-
-                // Calculate payable amount
-                calculatePayableAmount();
+                applyUnitPriceFromCalculatedRate(productId,selectedItem.productRangeId, selectedItem.unitPrice);
             } else {
                 selectedProductSize = null;
                 resetProductFields();
@@ -1382,12 +1431,15 @@
 
             // Add to table (Add New Sale: use selectedProductSize.measuringUnitAbbreviation with safe fallback)
             const unitAbbrAdd = (selectedProductSize && selectedProductSize.measuringUnitAbbreviation) ? selectedProductSize.measuringUnitAbbreviation : '';
+            const rangeNm = (selectedProductSize && selectedProductSize.productRangeName) ? selectedProductSize.productRangeName : '';
+            const rangeUrdu = (selectedProductSize && selectedProductSize.urduName) ? selectedProductSize.urduName : '';
+            const productCellHtml = buildProductSizeCellHtml(productName, rangeNm, rangeUrdu);
             const tbody = document.getElementById('saleDetailsBody');
             const newRow = document.createElement('tr');
 
             newRow.innerHTML = `
                 <td>${unitAbbrAdd}</td>
-                <td>${productName}</td>
+                <td>${productCellHtml}</td>
                 <td>Rs${discount.toFixed(2)}</td>
                 <td>Rs${salePrice.toFixed(2)}</td>
                 <td>${quantity}</td>
@@ -1540,6 +1592,11 @@
         function addExistingProductToTable(detail) {
             // Get product name from the detail object or use a placeholder
             const productName = detail.productName || 'Product';
+            const productCellHtml = buildProductSizeCellHtml(
+                productName,
+                detail.productRangeName || '',
+                detail.productRangeUrduName || ''
+            );
             // Edit Sale: backend sends measuringUnitAbbreviation; fall back to productSize. Add New Sale uses selectedProductSize.measuringUnitAbbreviation when adding rows.
             const unitAbbr = (detail.measuringUnitAbbreviation || detail.productSize || '').trim();
 
@@ -1552,7 +1609,7 @@
             
             newRow.innerHTML = `
                 <td>${unitAbbr}</td>
-                <td>${productName}</td>
+                <td>${productCellHtml}</td>
                 <td>$${itemLevelDiscount.toFixed(2)}</td>
                 <td>$${parseFloat(detail.salePrice).toFixed(2)}</td>
                 <td>${detail.quantity}</td>

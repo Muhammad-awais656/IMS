@@ -88,7 +88,7 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>Measuring Unit</th>
-                                    <th>Product</th>
+                                    <th>Product / size</th>
                                     <th>Item Level Discount</th>
                                     <th>Unit Price</th>
                                     <th>Purchase Price</th>
@@ -115,13 +115,25 @@
                     </h5>
                 </div>
                 <div class="col-md-3">
-                    <label for="vendorSelect" class="form-label">Vendor:</label>
+                    <label for="vendorSelect" class="form-label d-flex align-items-center gap-2 mb-1">
+                        <span>Vendor:</span>
+                        <a asp-controller="Vendor" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                           class="add-sale-new-entity-link" title="Create new Vendor" aria-label="Create new Vendor">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                    </label>
                     <input id="vendorSelect" name="VendorId" asp-for="VendorId" style="width: 100%;" />
                 </div>
                 <div class="col-md-3">
-                    <label for="CustomerId" class="form-label">Customer:</label>
+                    <label for="customerSelect" class="form-label d-flex align-items-center gap-2 mb-1">
+                        <span>Customer:</span>
+                        <a asp-controller="Customer" asp-action="Create" target="_blank" rel="noopener noreferrer"
+                           class="add-sale-new-entity-link" title="Create new Customer" aria-label="Create new Customer">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                    </label>
                     <input id="customerSelect" name="CustomerId" asp-for="CustomerId" style="width: 100%;" />
-
+                    <small class="form-text text-muted">Select either Customer or Vendor</small>
                 </div>
 
                 <div class="col-md-3">
@@ -281,6 +293,24 @@
         let selectedProductSize = null;
         let currentAvailableStock = 0; // Variable to store current available stock in selected unit
         let isPopulatingEditForm = false; // Flag to prevent multiple simultaneous calls
+
+        function escapeHtmlSale(s) {
+            if (s == null || s === undefined || s === '') return '';
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function buildProductSizeCellHtml(productName, rangeName, rangeUrduName) {
+            var h = '<div class="fw-semibold">' + escapeHtmlSale(rangeName) + '</div>';
+            // if (rangeName) {
+            //     h += '<div class="text-secondary small">' + escapeHtmlSale(rangeName) + '</div>';
+            // }
+            // if (rangeUrduName) {
+            //     h += '<div class="text-secondary small" dir="rtl" style="font-family: \'Urdu Typesetting\',\'Jameel Noori Nastaleeq\',Tahoma,serif;">' + escapeHtmlSale(rangeUrduName) + '</div>';
+            // }
+            return h;
+        }
 
         function initializeVendorBillGeneration() {
             // Initialize Kendo UI components
@@ -687,7 +717,9 @@
                                 rangeTo: selectedSize.rangeTo,
                                 unitPrice: selectedSize.unitPrice,
                                 measuringUnitName: selectedSize.measuringUnitName || "",
-                                measuringUnitAbbreviation: selectedSize.measuringUnitAbbreviation || item.measuringUnitAbbreviation || "N/A"
+                                measuringUnitAbbreviation: selectedSize.measuringUnitAbbreviation || item.measuringUnitAbbreviation || "N/A",
+                                productRangeName: selectedSize.productRangeName != null ? selectedSize.productRangeName : (item.productRangeName || ""),
+                                urduName: selectedSize.urduName != null ? selectedSize.urduName : (item.productRangeUrduName || "")
                             };
 
                             // Convert base unit quantity to product size unit for display
@@ -728,7 +760,9 @@
                                 rangeTo: item.rangeTo || null,
                                 unitPrice: item.unitPrice,
                                 measuringUnitName: item.measuringUnitName || "",
-                                measuringUnitAbbreviation: item.measuringUnitAbbreviation || item.productSize || "N/A"
+                                measuringUnitAbbreviation: item.measuringUnitAbbreviation || item.productSize || "N/A",
+                                productRangeName: item.productRangeName || "",
+                                urduName: item.productRangeUrduName || ""
                             };
                             $("#quantity").val((item.quantity || baseUnitQuantity).toFixed(3));
                         }
@@ -885,6 +919,38 @@
                 });
         }
 
+        /** Sets #unitPrice / #purchasePrice from Sales/GetUnitPriceRate (IUnitPriceRateService); falls back to catalog range unit price on error. */
+        function applyUnitPriceFromCalculatedRate(productId,productRangeId, fallbackUnitPrice) {
+            var unitPriceEl = document.getElementById('unitPrice');
+            var purchasePriceEl = document.getElementById('purchasePrice');
+            var fallback = parseFloat(fallbackUnitPrice) || 0;
+            function setFields(value) {
+                var v = parseFloat(value) || 0;
+                if (unitPriceEl) unitPriceEl.value = v.toFixed(2);
+                if (purchasePriceEl) purchasePriceEl.value = v.toFixed(2);
+                if (selectedProductSize) selectedProductSize.unitPrice = v;
+                calculatePayableAmount();
+            }
+            if (!productId) {
+                setFields(fallback);
+                return;
+            }
+            fetch('/Sales/GetUnitPriceRate?productId=' + encodeURIComponent(productId) + '&productRangeId=' + encodeURIComponent(productRangeId))
+                .then(function (response) {
+                    if (!response.ok) throw new Error('bad response');
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data && data.success && data.rate != null && !isNaN(Number(data.rate)))
+                        setFields(data.rate);
+                    else
+                        setFields(fallback);
+                })
+                .catch(function () {
+                    setFields(fallback);
+                });
+        }
+
         function onProductSizeChange() {
             console.log("=== onProductSizeChange function called ===");
             var productSizeComboBox = $("#productSizeSelect").data("kendoComboBox");
@@ -897,6 +963,8 @@
             console.log("Selected item full data:", JSON.stringify(selectedItem, null, 2));
 
             if (selectedValue && selectedItem) {
+                var prName = selectedItem.productRangeName != null ? selectedItem.productRangeName : '';
+                var urdu = selectedItem.urduName != null ? selectedItem.urduName : '';
                 // Store the selected product size data globally - match Sales pattern exactly
                 selectedProductSize = {
                     productRangeId: selectedItem.value || selectedItem.productRangeId,
@@ -905,22 +973,18 @@
                     rangeTo: selectedItem.rangeTo,
                     unitPrice: selectedItem.unitPrice,
                     measuringUnitName: selectedItem.measuringUnitName,
-                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation
+                    measuringUnitAbbreviation: selectedItem.measuringUnitAbbreviation,
+                    productRangeName: prName,
+                    urduName: urdu
                 };
 
                 console.log("Selected product size stored:", selectedProductSize);
                 console.log("Measuring unit ID:", selectedProductSize.measuringUnitId);
                 console.log("Measuring unit abbreviation:", selectedProductSize.measuringUnitAbbreviation);
 
-                // Populate unit price
-                $("#unitPrice").val(parseFloat(selectedProductSize.unitPrice || 0).toFixed(2));
-                $("#purchasePrice").val(parseFloat(selectedProductSize.unitPrice || 0).toFixed(2)); // Default to unit price
-
                 // Update current product range ID
                 currentProductRangeId = selectedValue;
 
-                // Load and display available stock in the product size's unit
-                // Get product ID directly from product combo box (like Add Sale screen)
                 const productCombo = $("#productSelect").data("kendoComboBox");
                 const productId = productCombo ? productCombo.value() : null;
 
@@ -941,12 +1005,11 @@
                         hasProductCombo: !!productCombo,
                         hasSelectedItem: !!selectedItem
                     });
-                    // Reset stock display if we can't load
                     currentAvailableStock = 0;
                     updateStockDisplay();
                 }
 
-                calculatePayableAmount();
+                applyUnitPriceFromCalculatedRate(productId,selectedItem.productRangeId, selectedItem.unitPrice);
             } else {
                 console.warn("No selected item found in product size combo");
                 selectedProductSize = null;
@@ -1337,7 +1400,9 @@
                 salePrice: unitPrice,
                 lineDiscountAmount: discountAmount * displayQuantity,
                 payableAmount: payableAmount,
-                productRangeId: selectedProductSize.productRangeId
+                productRangeId: selectedProductSize.productRangeId,
+                productRangeName: selectedProductSize.productRangeName || "",
+                productRangeUrduName: selectedProductSize.urduName || ""
             };
 
             if (editingIndex >= 0) {
@@ -1456,7 +1521,12 @@
                 }
 
                 row.append("<td>" + measuringUnit + "</td>");
-                row.append("<td>" + (item.productName || "") + "</td>");
+                var productCellHtml = buildProductSizeCellHtml(
+                    item.productName || "",
+                    item.productRangeName || "",
+                    item.productRangeUrduName || ""
+                );
+                row.append($("<td></td>").html(productCellHtml));
                 row.append("<td>" + safeToFixed(unitDiscountPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.unitPrice, 2) + "</td>");
                 row.append("<td>" + safeToFixed(item.purchasePrice, 2) + "</td>");
@@ -2323,7 +2393,9 @@
                     baseUnitQuantity: baseUnitQuantity, // Base unit quantity (for saving)
                     salePrice: item.SalePrice || item.salePrice || 0,
                     lineDiscountAmount: item.LineDiscountAmount || item.lineDiscountAmount || 0,
-                    payableAmount: item.PayableAmount || item.payableAmount || 0
+                    payableAmount: item.PayableAmount || item.payableAmount || 0,
+                    productRangeName: item.ProductRangeName || item.productRangeName || '',
+                    productRangeUrduName: item.ProductRangeUrduName || item.productRangeUrduName || ''
                 };
             }
 

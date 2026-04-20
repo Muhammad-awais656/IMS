@@ -8,6 +8,7 @@ namespace IMS.Common_Interfaces
         Task<ReportsViewModel> GetAllSalesReport(int pageNumber, int? pageSize, SalesReportsFilters? salesReportsFilters);
         Task<ProfitLossReportViewModel> GetProductWiseProfitLoss(int pageNumber, int? pageSize, ProfitLossReportFilters? filters);
         Task<ProfitLossReportViewModel> GetProductWiseProfitLossReport(int pageNumber, int? pageSize, ProfitLossReportFilters? filters);
+        Task<BankBalancesReportViewModel> GetBankBalancesReport(BankBalancesReportFilters? filters);
         Task<DailyStockReportViewModel> GetDailyStockReport(int pageNumber, int? pageSize, DailyStockReportFilters? filters);
         Task<DailyStockReportViewModel> GetDailyStockReportForExport(int pageNumber, int? pageSize, DailyStockReportFilters? filters);
         Task<BankCreditDebitReportViewModel> GetBankCreditDebitReport(int pageNumber, int? pageSize, BankCreditDebitReportFilters? filters);
@@ -21,5 +22,10 @@ namespace IMS.Common_Interfaces
         Task<DailyStockPositionReportViewModel> GetDailyStockPositionReport(DailyStockPositionReportFilters? filters);
         Task<CustomerLedgerReportViewModel> GetCustomerLedgerReport(CustomerLedgerReportFilters? filters);
         Task<VendorLedgerReportViewModel> GetVendorLedgerReport(VendorLedgerReportFilters? filters);
+        Task<CustomerBalanceReportViewModel> GetCustomerBalanceReport(CustomerBalanceReportFilters? filters);
+        Task<VendorBalanceReportViewModel> GetVendorBalanceReport(VendorBalanceReportFilters? filters);
+        Task<PayableReceivableReportViewModel> GetPayableReceivableReport(PayableReceivableReportFilters? filters);
+        Task<CashInHandReportViewModel> GetCashInHandReport(int pageNumber, int? pageSize, CashInHandReportFilters? filters);
+        Task<CashInHandReportViewModel> GetCashInHandReportForExport(CashInHandReportFilters? filters);
     }
 }

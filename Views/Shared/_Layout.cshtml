@@ -173,13 +173,17 @@
             position: fixed;
             left: 70px;
             min-width: 220px;
-            max-width: 280px;
+            max-width: min(340px, calc(100vw - 90px));
+            max-height: calc(100vh - 16px);
+            overflow-x: hidden;
+            overflow-y: auto;
             background-color: #2c3e50;
             box-shadow: 4px 0 15px rgba(0,0,0,0.25);
             z-index: 1050;
             border-radius: 0 6px 6px 0;
             padding: 8px 0;
             border-left: 3px solid #3498db;
+            box-sizing: border-box;
         }
 
         .sidebar-flyout.show {
@@ -188,19 +192,30 @@
 
         .sidebar-flyout a {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             padding: 12px 20px;
             color: #ecf0f1;
             text-decoration: none;
-            white-space: nowrap;
+            white-space: normal;
+            line-height: 1.35;
             font-size: 0.95em;
             border-left: 3px solid transparent;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            min-width: 0;
         }
 
         .sidebar-flyout a i {
             width: 22px;
             margin-right: 10px;
+            margin-top: 0.15em;
+            flex-shrink: 0;
             text-align: center;
+        }
+
+        .sidebar-flyout a span {
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .sidebar-flyout a:hover {
@@ -314,8 +329,9 @@
         <div class="sidebar" id="sidebar">
             <script>
                 try {
-                    if (sessionStorage.getItem('sidebarCollapsed') === '1') {
-                        document.getElementById('sidebar').classList.add('collapsed');
+                    /* Default: collapsed. Only expand if user previously chose expanded in this tab. */
+                    if (sessionStorage.getItem('sidebarCollapsed') === '0') {
+                        document.getElementById('sidebar').classList.remove('collapsed');
                     }
                 } catch (e) {}
             </script>
@@ -684,26 +700,41 @@
             function toggleSidebar() {
                 var sidebar = document.getElementById('sidebar');
                 if (!sidebar) return;
+                var wasCollapsed = sidebar.classList.contains('collapsed');
                 sidebar.classList.toggle('collapsed');
+                var nowCollapsed = sidebar.classList.contains('collapsed');
                 try {
-                    sessionStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+                    sessionStorage.setItem('sidebarCollapsed', nowCollapsed ? '1' : '0');
                 } catch (e) {}
-                if (sidebar.classList.contains('collapsed')) {
+                if (nowCollapsed) {
                     if (typeof hideSidebarFlyout === 'function') hideSidebarFlyout();
+                } else if (wasCollapsed) {
+                    /* Expanding: inline submenu display from clicks while collapsed would otherwise stay "block" and draw over the sidebar */
+                    if (typeof hideSidebarFlyoutImmediate === 'function') hideSidebarFlyoutImmediate();
+                    document.querySelectorAll('.menu-item .submenu').forEach(function (sub) {
+                        sub.style.display = '';
+                    });
+                    document.querySelectorAll('.menu-item .fa-angle-down.expanded').forEach(function (el) {
+                        el.classList.remove('expanded');
+                    });
                 }
             }
 
             document.addEventListener('DOMContentLoaded', function () {
                 var sidebar = document.getElementById('sidebar');
                 try {
-                    if (sidebar && sessionStorage.getItem('sidebarCollapsed') === '1') {
-                        sidebar.classList.add('collapsed');
+                    if (sidebar && sessionStorage.getItem('sidebarCollapsed') === '0') {
+                        sidebar.classList.remove('collapsed');
                     }
                 } catch (e) {}
             });
 
             function toggleSubmenu(element) {
                 const menuItem = element.closest('.menu-item');
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('collapsed')) {
+                    return false;
+                }
                 const submenu = menuItem.querySelector('.submenu');
                 const arrow = element.querySelector('.fa-angle-down');
                 
@@ -774,6 +805,20 @@
                     }, 120);
                 }
 
+                function hideSidebarFlyoutImmediate() {
+                    if (hideTimer) {
+                        clearTimeout(hideTimer);
+                        hideTimer = null;
+                    }
+                    if (flyout) {
+                        flyout.classList.remove('show');
+                        flyout.innerHTML = '';
+                        flyout.setAttribute('aria-hidden', 'true');
+                    }
+                    var list = document.querySelectorAll('.menu-item.show-flyout');
+                    for (var i = 0; i < list.length; i++) list[i].classList.remove('show-flyout');
+                }
+
                 function cancelHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
 
                 if (sidebar && flyout) {
@@ -799,6 +844,7 @@
                     });
                 }
                 window.hideSidebarFlyout = hideSidebarFlyout;
+                window.hideSidebarFlyoutImmediate = hideSidebarFlyoutImmediate;
             })();
 
                     document.addEventListener("DOMContentLoaded", function () {

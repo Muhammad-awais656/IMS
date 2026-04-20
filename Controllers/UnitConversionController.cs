@@ -341,23 +341,29 @@ namespace IMS.Controllers
                 // Use the same method that the Index page uses to get all units
                 // Get first page with large page size to get all enabled units
                 var viewModel = await _unitConversionService.GetSmallestMeasuringUnitAsync();
-                
-                
-                // Filter to only enabled units and sort by name
-                var enabledMeasuringUnits = viewModel.IsEnabled ? new List<AdminMeasuringUnit> { viewModel } : new List<AdminMeasuringUnit>();
 
-             
-                
-                var result = enabledMeasuringUnits.Select(mu => new
+
+                // Filter to only enabled units and sort by name
+                if (viewModel !=null)
                 {
-                    value = mu.MeasuringUnitId.ToString(),
-                    text = mu.MeasuringUnitName,
-                    measuringUnitAbbreviation = mu.MeasuringUnitAbbreviation ?? ""
-                }).ToList();
-                
-                _logger.LogInformation("Returning {Count} measuring units for dropdown", result.Count);
-                
-                return Json(result);
+                    var enabledMeasuringUnits = viewModel.IsEnabled ? new List<AdminMeasuringUnit> { viewModel } : new List<AdminMeasuringUnit>();
+
+
+
+                    var result = enabledMeasuringUnits.Select(mu => new
+                    {
+                        value = mu.MeasuringUnitId.ToString(),
+                        text = mu.MeasuringUnitName,
+                        measuringUnitAbbreviation = mu.MeasuringUnitAbbreviation ?? ""
+                    }).ToList();
+
+                    _logger.LogInformation("Returning {Count} measuring units for dropdown", result.Count);
+                    return Json(result);
+
+                }
+                return Json(new List<object>());
+
+
             }
             catch (Exception ex)
             {

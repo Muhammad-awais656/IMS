@@ -67,7 +67,8 @@
                     <table id="dailyStockPositionTable" class="table table-bordered table-hover mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th class="text-center"><i class="fa fa-tag me-1"></i>Particulars</th>
+                                <th class="text-center"><i class="fa fa-tag me-1"></i>Product Name</th>
+                                <th class="text-center"><i class="fa fa-language me-1"></i>Urdu Name</th>
                                 <th class="text-center"><i class="fa fa-shopping-cart me-1"></i>Purchase</th>
                                 <th class="text-center"><i class="fa fa-shopping-bag me-1"></i>Sales</th>
                                 <th class="text-center"><i class="fa fa-box me-1"></i>Closing</th>
@@ -80,7 +81,8 @@
                                 @foreach (var item in Model.StockPositionList)
                                 {
                                     <tr>
-                                        <td><strong>@item.ProductName</strong></td>
+                                        <td><strong>@NameDisplayHelper.EnglishNameCell(item.ProductName)</strong></td>
+                                        <td class="name-urdu-display" dir="auto"><strong>@NameDisplayHelper.UrduNameCell(item.ProductUrduName)</strong></td>
                                         <td class="text-end">@(item.PurchaseQuantity > 0 ? item.PurchaseQuantity.ToString("N2") : "")</td>
                                         <td class="text-end">@(item.SalesQuantity > 0 ? item.SalesQuantity.ToString("N2") : "")</td>
                                         <td class="text-end"><strong>@item.ClosingStock.ToString("N2")</strong></td>
@@ -90,6 +92,7 @@
                                 <!-- Total Row -->
                                 <tr class="table-info fw-bold">
                                     <td><strong>TOTAL</strong></td>
+                                    <td></td>
                                     <td class="text-end"><strong>@Model.TotalPurchase.ToString("N2")</strong></td>
                                     <td class="text-end"><strong>@Model.TotalSales.ToString("N2")</strong></td>
                                     <td class="text-end"><strong>@Model.TotalClosing.ToString("N2")</strong></td>
@@ -99,7 +102,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
+                                    <td colspan="6" class="text-center py-4">
                                         <div class="d-flex flex-column align-items-center">
                                             <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
                                             <h5 class="text-muted">No Stock Data Found</h5>

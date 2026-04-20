@@ -341,6 +341,18 @@ namespace IMS.Services
                                     RangeTo = reader.GetDecimal("RangeTo"),
                                     UnitPrice = reader.GetDecimal("UnitPrice")
                                 };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) productRange.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) productRange.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
                                 productRanges.Add(productRange);
                             }
                         }
@@ -435,7 +447,7 @@ namespace IMS.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                productSizes.Add(new ProductRange
+                                var prs = new ProductRange
                                 {
                                     ProductRangeId = reader.GetInt64("ProductRangeId"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
@@ -444,7 +456,20 @@ namespace IMS.Services
                                     MeasuringUnitIdFk = reader.GetInt64("MeasuringUnitId_FK"),
                                     MeasuringUnitName = reader.IsDBNull("MeasuringUnitName") ? "Unit" : reader.GetString("MeasuringUnitName"),
                                     MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? "U" : reader.GetString("MeasuringUnitAbbreviation")
-                                });
+                                };
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("ProductRangeName");
+                                    if (!reader.IsDBNull(ord)) prs.ProductRangeName = reader.GetString(ord);
+                                }
+                                catch { }
+                                try
+                                {
+                                    int ord = reader.GetOrdinal("UrduName");
+                                    if (!reader.IsDBNull(ord)) prs.UrduName = reader.GetString(ord);
+                                }
+                                catch { }
+                                productSizes.Add(prs);
                             }
                         }
                     }
@@ -1672,6 +1697,38 @@ namespace IMS.Services
                             }
                         }
                         catch { }
+
+                        var rangeIds = billItems.Where(i => i.ProductRangeId > 0).Select(i => i.ProductRangeId).Distinct().ToList();
+                        if (rangeIds.Count > 0)
+                        {
+                            try
+                            {
+                                var rangeList = string.Join(",", rangeIds);
+                                using (var cmdPr = new SqlCommand(
+                                    $"SELECT ProductRangeId, ProductRangeName, UrduName FROM ProductRange WHERE ProductRangeId IN ({rangeList})",
+                                    connection))
+                                using (var rdrPr = await cmdPr.ExecuteReaderAsync())
+                                {
+                                    var rangeNames = new Dictionary<long, (string? Name, string? Urdu)>();
+                                    while (await rdrPr.ReadAsync())
+                                    {
+                                        var prId = rdrPr.GetInt64(0);
+                                        string? n = rdrPr.IsDBNull(1) ? null : rdrPr.GetString(1);
+                                        string? u = rdrPr.IsDBNull(2) ? null : rdrPr.GetString(2);
+                                        rangeNames[prId] = (n, u);
+                                    }
+                                    foreach (var item in billItems)
+                                    {
+                                        if (rangeNames.TryGetValue(item.ProductRangeId, out var pr))
+                                        {
+                                            item.ProductRangeName = pr.Name;
+                                            item.ProductRangeUrduName = pr.Urdu;
+                                        }
+                                    }
+                                }
+                            }
+                            catch { /* ProductRange columns may differ */ }
+                        }
                     }
                 }
             }
