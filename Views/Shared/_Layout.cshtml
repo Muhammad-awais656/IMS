@@ -4,9 +4,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - IMS</title>
-    
-    <!-- Favicon -->
+    <meta name="application-name" content="Analytics-IMS" />
+    <meta name="apple-mobile-web-app-title" content="Analytics-IMS" />
+    <title>@(string.IsNullOrEmpty(ViewData["Title"]?.ToString()) ? "Analytics-IMS" : $"{ViewData["Title"]} · Analytics-IMS")</title>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true" />
      
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link href="~/toastr.js/toastr.min.css" rel="stylesheet" />
