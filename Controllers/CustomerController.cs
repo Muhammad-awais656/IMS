@@ -14,8 +14,6 @@ using iTextSharp.text.pdf;
 using Document = iTextSharp.text.Document;
 using Paragraph = iTextSharp.text.Paragraph;
 using PageSize = iTextSharp.text.PageSize;
-using IMS.Authorization;
-using IMS.Enums;
 
 namespace IMS.Controllers
 {
@@ -34,7 +32,6 @@ namespace IMS.Controllers
             _webHostEnvironment = webHostEnvironment;
         }
         // GET: CustomerController
-        [MvcCustomAuthorize(privilege = EnumPrivilegesName.CUSTOMER_MANAGEMENT)]
         public async Task<ActionResult> Index(CustomerViewModel model, int pageNumber = 1, int? pageSize = null, string sidx = "Id", string sord = "asc", bool _search = false)
         {
             try

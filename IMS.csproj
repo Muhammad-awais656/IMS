@@ -7,12 +7,16 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Remove="Filters\**" />
 		<Compile Remove="Helpers\**" />
 		<Compile Remove="Images\**" />
+		<Content Remove="Filters\**" />
 		<Content Remove="Helpers\**" />
 		<Content Remove="Images\**" />
+		<EmbeddedResource Remove="Filters\**" />
 		<EmbeddedResource Remove="Helpers\**" />
 		<EmbeddedResource Remove="Images\**" />
+		<None Remove="Filters\**" />
 		<None Remove="Helpers\**" />
 		<None Remove="Images\**" />
 	</ItemGroup>

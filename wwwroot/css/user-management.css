@@ -294,36 +294,3 @@
     background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
 }
 
-/* Password field with show/hide eye toggle - Create/Edit User */
-.user-password-group {
-    border-radius: 0.375rem;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.user-password-group .form-control {
-    border-right: 0;
-    transition: opacity 0.25s ease;
-}
-.user-password-group .form-control.password-visible {
-    opacity: 1;
-    letter-spacing: 0.02em;
-}
-.user-password-group .btn-password-toggle {
-    border-left: 0;
-    background-color: #fff;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-.user-password-group .btn-password-toggle:hover {
-    background-color: #e9ecef;
-    color: #0d6efd;
-}
-.user-password-group .password-eye-icon {
-    transition: transform 0.2s ease;
-}
-.user-password-group .btn-password-toggle:active .password-eye-icon {
-    transform: scale(0.95);
-}
-.user-password-group:focus-within {
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    z-index: 1;
-}
-
