@@ -14,6 +14,12 @@ namespace IMS.Models
         [Required]
         public string Domain { get; set; } // Shop or Factory
 
+        /// <summary>
+        /// Kept for connection string selection (e.g. Shop/Factory). Set server-side on login.
+        /// </summary>
+        [ValidateNever]
+        public string Domain { get; set; } = "Shop";
+
         [ValidateNever]
        public DAL.PrimaryDBContext.User ShopUsers { get; set; }
     }

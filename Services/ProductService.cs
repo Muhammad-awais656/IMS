@@ -218,60 +218,48 @@ namespace IMS.Services
             };
         }
 
-        public async Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null)
+        public async Task<List<Product>> GetAllEnabledProductsAsync()
         {
             var productList = new List<Product>();
+            
 
             try
             {
-                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
-                await connection.OpenAsync();
-
-                if (branchId.HasValue)
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
-                    const string sql = @"SELECT p.ProductId, p.ProductName FROM Products p
-INNER JOIN Users u ON u.UserId = p.CreatedBy
-WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
-                    using var command = new SqlCommand(sql, connection);
-                    command.Parameters.AddWithValue("@BranchId", branchId.Value);
-                    using var reader = await command.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
                     {
-                        productList.Add(new Product
+                        
+                        command.CommandType = CommandType.StoredProcedure;
+                        try
                         {
-                            ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                        });
-                    }
-                    return productList;
-                }
-
-                using (var command = new SqlCommand("GetAllEnabledProducts", connection))
-                {
-                    command.CommandType = CommandType.StoredProcedure;
-                    try
-                    {
-                        using var reader = await command.ExecuteReaderAsync();
-                        while (await reader.ReadAsync())
-                        {
-                            productList.Add(new Product
+                            using (var reader = await command.ExecuteReaderAsync())
                             {
-                                ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                                ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                            });
+                                while (await reader.ReadAsync())
+                                {
+                                    productList.Add(new Product
+                                    {
+                                        ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                                        
+                                    });
+                                    
+                                }
+                            }
                         }
-                    }
-                    catch
-                    {
-                        // ignored
+                        catch
+                        {
+
+                        }
+
                     }
                 }
             }
             catch
             {
-                // ignored
-            }
 
+            }
             return productList;
         }
 

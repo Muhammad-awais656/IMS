@@ -1,7 +1,10 @@
 using IMS.CommonUtilities;
 using IMS.Common_Interfaces;
+using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
+using IMS.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Diagnostics;
 
 
@@ -13,101 +16,83 @@ namespace IMS.Controllers
         private readonly IDashboardService _dashboardService;
         private readonly IProductService _productService;
 
-        public HomeController(ILogger<HomeController> logger, IDashboardService dashboardService, IProductService productService)
+
+        public HomeController(ILogger<HomeController> logger, IDashboardService dashboardService,IProductService productService)
         {
             _logger = logger;
             _dashboardService = dashboardService;
             _productService = productService;
         }
+      
 
-        /// <summary>Admins see all branches; other users are scoped to session <c>BranchId</c> (set at login).</summary>
-        private (bool IsAdmin, int? BranchId) ResolveDashboardScope()
+        public async Task<IActionResult> Index()
         {
-            var isAdmin = bool.TryParse(HttpContext.Session.GetString("IsAdmin"), out var ia) && ia;
-            if (isAdmin)
-                return (true, null);
-            return (false, HttpContext.Session.GetInt32("BranchId"));
-        }
-
-        private static (DateTime From, DateTime To) ResolveAnalyticsRange(string? preset, DateTime? from, DateTime? to)
-        {
-            var today = DateTimeHelper.Today;
-            preset = (preset ?? "today").Trim().ToLowerInvariant();
-            switch (preset)
+            // TODO: Replace this with real DB / service calls
+            var productCount =  _dashboardService.GetTotalProductCount();
+         var VendorCount   =_dashboardService.GetTotalVendorsCount();
+          var categoryCount = _dashboardService.GetTotalCategoryCount();
+            var last12monthsale = _dashboardService.GetLast12MonthsSalesAsync();
+            var currentMonthRevenue = _dashboardService.GetCurrentMonthRevenueAsync();
+            //var stockStatus= _dashboardService.GetStockStatusAsync();
+            var enabledProducts = _productService.GetAllEnabledProductsAsync();
+            await Task.WhenAll(productCount, VendorCount, categoryCount,
+                last12monthsale, currentMonthRevenue, enabledProducts);
+            
+            var model = new DashboardViewModel
             {
-                case "today":
-                    return (today, today);
-                case "yesterday":
-                    var y = today.AddDays(-1);
-                    return (y, y);
-                case "last7":
-                    return (today.AddDays(-6), today);
-                case "last30":
-                    return (today.AddDays(-29), today);
-                case "thismonth":
-                    return (new DateTime(today.Year, today.Month, 1), today);
-                case "custom" when from.HasValue && to.HasValue:
-                    var f = from.Value.Date;
-                    var t = to.Value.Date;
-                    if (f > t)
-                        (f, t) = (t, f);
-                    return (f, t);
-                default:
-                    return (today, today);
-            }
-        }
-
-        public async Task<IActionResult> Index(string? range = "today", DateTime? from = null, DateTime? to = null)
-        {
-            var (isAdmin, branchId) = ResolveDashboardScope();
-            var (fromDate, toDate) = ResolveAnalyticsRange(range, from, to);
-            var summary = await _dashboardService.GetAnalyticsSummaryAsync(fromDate, toDate, branchId);
-            var trend = await _dashboardService.GetSalesTrendAsync(fromDate, toDate, branchId);
-            var products = await _productService.GetAllEnabledProductsAsync(branchId);
-
-            var model = new AnalyticsDashboardPageModel
-            {
-                Summary = summary,
-                SalesTrend = trend,
-                FromDate = fromDate,
-                ToDate = toDate,
-                Preset = range ?? "today",
-                IsAdmin = isAdmin,
-                BranchName = HttpContext.Session.GetString("BranchName"),
-                StockProducts = products.Select(p => new StockProductOption
+                TotalProducts = productCount.Result,
+                TotalCategories = categoryCount.Result,
+                TotalVendors = VendorCount.Result,
+                MonthlyRevenue = currentMonthRevenue.Result, // Use current month revenue instead of last month
+                MonthlyLabels = last12monthsale.Result.Months , //new List<string> { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" },
+                MonthlySales = last12monthsale.Result.Sales,            //new List<decimal> { 4200, 3800, 5200, 6000, 4800, 5100, 7200, 6500, 7800,0,0,0 },
+                ProductList = new List<SelectListItem>
                 {
-                    Value = p.ProductId.ToString(),
-                    Text = p.ProductName
-                }).ToList()
+                    new SelectListItem{Value="0",Text="<--Select Product-->"}
+                },
+
+           
+            
+
+                TopProducts = new List<TopProductDto>
+                {
+                    new() { ProductId = 1, Name = "Product A", Sold = 320, Revenue = 6400 },
+                    new() { ProductId = 2, Name = "Product B", Sold = 210, Revenue = 4200 },
+                    new() { ProductId = 3, Name = "Product C", Sold = 150, Revenue = 3750 }
+                },
+                RecentTransactions = new List<RecentTransactionDto>
+                {
+                    new() { TransactionId = 1010, Type = "Sale", Party = "Customer X", Amount = 122.00m, Date = DateTimeHelper.Now.AddDays(-1) },
+                    new() { TransactionId = 1009, Type = "Purchase", Party = "Vendor Y", Amount = 2360.00m, Date = DateTimeHelper.Now.AddDays(-5) },
+                    new() { TransactionId = 1008, Type = "Sale", Party = "Customer Z", Amount = 950.00m, Date = DateTimeHelper.Now.AddDays(-7) }
+                }
             };
+            if (enabledProducts.Result.Any())
+            {
+                var firstProduct = enabledProducts.Result.First();
+                var stockStatus= await _dashboardService.GetStockStatusAsync(firstProduct.ProductId);
+                model.ProductList = enabledProducts.Result.Select(x => new SelectListItem
+                {
+                    Value = x.ProductId.ToString(),
+                    Text = x.ProductName
+
+                }).ToList();
+                var liststock=new StockStaus {
+                    ProductId = firstProduct.ProductId,
+                    ProductName = firstProduct.ProductName,
+                    InStockCount = stockStatus.FirstOrDefault()?.InStockCount,
+                    AvailableStockCount = stockStatus.FirstOrDefault()?.AvailableStockCount,
+                    OutOfStockCount = stockStatus.FirstOrDefault()?.OutOfStockCount
+                };
+                model.StockStaus.Add(liststock);
+
+                model.InStockCount = model.StockStaus[0].InStockCount;
+                model.LowStockCount = model.StockStaus[0].AvailableStockCount;
+                model.OutOfStockCount = model.StockStaus[0].OutOfStockCount;
+            }
+            
 
             return View(model);
-        }
-
-        /// <summary>JSON endpoint for the analytics dashboard (date presets and custom range).</summary>
-        [HttpGet]
-        public async Task<IActionResult> AnalyticsData(string? range = "today", DateTime? from = null, DateTime? to = null)
-        {
-            try
-            {
-                var (_, branchId) = ResolveDashboardScope();
-                var (fromDate, toDate) = ResolveAnalyticsRange(range, from, to);
-                var summary = await _dashboardService.GetAnalyticsSummaryAsync(fromDate, toDate, branchId);
-                var trend = await _dashboardService.GetSalesTrendAsync(fromDate, toDate, branchId);
-                return Json(new
-                {
-                    success = true,
-                    summary,
-                    trend,
-                    from = fromDate.ToString("yyyy-MM-dd"),
-                    to = toDate.ToString("yyyy-MM-dd")
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "AnalyticsData failed");
-                return Json(new { success = false, message = "Could not load analytics." });
-            }
         }
 
         [HttpGet]
@@ -121,8 +106,7 @@ namespace IMS.Controllers
                 }
 
                 var model = new DashboardViewModel();
-                var (_, branchId) = ResolveDashboardScope();
-                var result = await _dashboardService.GetStockStatusAsync(productId, branchId);
+                var result = await _dashboardService.GetStockStatusAsync(productId);
 
                 var stockData = result.FirstOrDefault();
                 if (stockData != null)
@@ -133,17 +117,18 @@ namespace IMS.Controllers
                 }
                 else
                 {
+                    // Return default values if no data found
                     model.InStockCount = 0;
                     model.LowStockCount = 0;
                     model.OutOfStockCount = 0;
                 }
-
+                
                 return Json(model);
             }
-            catch (Exception)
+            catch (Exception )
             {
-                return Json(new
-                {
+                // Log the exception (you might want to use a proper logging framework)
+                return Json(new { 
                     error = "An error occurred while fetching stock data",
                     inStockCount = 0,
                     lowStockCount = 0,
@@ -151,10 +136,10 @@ namespace IMS.Controllers
                 });
             }
         }
-
         [HttpGet]
         public IActionResult Ping()
         {
+            // Touch session to keep it alive
             HttpContext.Session.SetString("Ping", DateTimeHelper.Now.ToString());
             return Ok();
         }
@@ -164,34 +149,30 @@ namespace IMS.Controllers
         {
             try
             {
-                var (_, branchId) = ResolveDashboardScope();
-                var currentMonthRevenue = await _dashboardService.GetCurrentMonthRevenueAsync(branchId);
-                var last12MonthsSales = await _dashboardService.GetLast12MonthsSalesAsync(branchId);
-
-                return Json(new
-                {
+                var currentMonthRevenue = await _dashboardService.GetCurrentMonthRevenueAsync();
+                var last12MonthsSales = await _dashboardService.GetLast12MonthsSalesAsync();
+                
+                return Json(new 
+                { 
                     success = true,
-                    currentMonthRevenue,
+                    currentMonthRevenue = currentMonthRevenue,
                     monthlySales = last12MonthsSales.Sales,
                     monthlyLabels = last12MonthsSales.Months
                 });
             }
-            catch (Exception)
+            catch (Exception )
             {
                 return Json(new { success = false, message = "Error fetching dashboard data" });
             }
         }
-
         public IActionResult Privacy()
         {
             return View();
         }
-
         public IActionResult AboutUs()
         {
             return View();
         }
-
         public IActionResult AccessDenied()
         {
             return View();
