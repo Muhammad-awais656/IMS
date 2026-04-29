@@ -186,7 +186,7 @@
                                     <tr>
                                         <td><span class="badge bg-secondary">@t.StockTransactionId</span></td>
                                         <td class="text-end fw-semibold @(t.StockQuantity >= 0 ? "text-success" : "text-danger")">@t.StockQuantity.ToString("N4")</td>
-                                        <td>@t.TransactionDate.ToString("dd-MMM-yyyy HH:mm")</td>
+                                        <td>@t.TransactionDate.ToString("dd-MMM-yyyy")</td>
                                         <td><span class="badge bg-info">@t.TransactionType</span></td>
                                         <td>@(string.IsNullOrEmpty(t.Description) ? "—" : t.Description)</td>
                                     </tr>
