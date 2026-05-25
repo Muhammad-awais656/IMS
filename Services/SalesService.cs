@@ -6,6 +6,7 @@ using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Linq;
 
 namespace IMS.Services
 {
@@ -158,6 +159,13 @@ namespace IMS.Services
                                     PersonalPaymentId = reader.IsDBNull("PersonalPaymentId") ? 0 : reader.GetInt64("PersonalPaymentId"),
 
                                 };
+                                try
+                                {
+                                    int ordSf = reader.GetOrdinal("SalesFreight");
+                                    if (!reader.IsDBNull(ordSf))
+                                        sale.SalesFreight = reader.GetDecimal(ordSf);
+                                }
+                                catch { /* column until DB migration */ }
                             }
                         }
                     }
@@ -196,6 +204,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pBillNumber", sale.BillNumber);
                         command.Parameters.AddWithValue("@pSaleDescription", sale.SaleDescription ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleDate", sale.SaleDate);
+                        command.Parameters.AddWithValue("@pSalesFreight", sale.SalesFreight);
 
                         var salesIdParam = new SqlParameter("@pSalesId", SqlDbType.BigInt)
                         {
@@ -248,9 +257,13 @@ namespace IMS.Services
                     command.Parameters.AddWithValue("@pSaleId_FK", saleId);
                     command.Parameters.AddWithValue("@pPrductId_FK", productId);
                     command.Parameters.AddWithValue("@pUnitPrice", unitPrice);
-                    // Convert decimal quantity to long for database (round to nearest whole number)
-                    // Note: Database stores as long, but we accept decimal for precision during conversion
-                    command.Parameters.AddWithValue("@pQuantity", (long)Math.Round(quantity, MidpointRounding.AwayFromZero));
+                    command.Parameters.AddWithValue("@pQuantity", quantity);
+                    //command.Parameters.Add(new SqlParameter("@pQuantity", SqlDbType.Decimal)
+                    //{
+                    //    Precision = 18,
+                    //    Scale = 3,
+                    //    Value = quantity
+                    //});
                     command.Parameters.AddWithValue("@pSalePrice", salePrice);
                     command.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                     command.Parameters.AddWithValue("@pPayableAmount", payableAmount);
@@ -421,7 +434,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSaleDate", sale.SaleDate);
                         command.Parameters.AddWithValue("@PaymentMethod", sale.PaymentMethod);
                         command.Parameters.AddWithValue("@OnlineAccountId", sale.OnlineAccountId ?? (object)DBNull.Value);
-                       
+                        command.Parameters.AddWithValue("@pSalesFreight", sale.SalesFreight);
 
                         var rowsAffected = await command.ExecuteNonQueryAsync();
                         response = rowsAffected;
@@ -471,7 +484,7 @@ namespace IMS.Services
                                             ProductName = reader.IsDBNull("ProductName") ? string.Empty : reader.GetString("ProductName"),
                                             MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
                                             UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
-                                            Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
+                                            Quantity = reader.IsDBNull("Quantity") ? 0m : Convert.ToDecimal(reader["Quantity"]),
                                             SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
                                             LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
                                             PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount"),
@@ -508,10 +521,11 @@ namespace IMS.Services
 
                                 if (prodMaster != null)
                                 {
-                                    // Calculate new quantities (restore stock that was decreased)
-                                    var newAvailableQuantity = prodMaster.AvailableQuantity + (decimal)detail.Quantity;
-                                    var newUsedQuantity = prodMaster.UsedQuantity - (decimal)detail.Quantity;
-                                    
+                                    // SaleDetails.Quantity is stored in base (smallest) units (same as vendor bills); restore stock with that amount.
+                                    var qtyBase = (decimal)detail.Quantity;
+                                    var newAvailableQuantity = prodMaster.AvailableQuantity + qtyBase;
+                                    var newUsedQuantity = prodMaster.UsedQuantity - qtyBase;
+
                                     // Ensure quantities don't go negative
                                     if (newUsedQuantity < 0) newUsedQuantity = 0;
 
@@ -530,8 +544,9 @@ namespace IMS.Services
                                         await updateStockCommand.ExecuteNonQueryAsync();
                                     }
 
-                                    _logger.LogInformation("Stock restored for product {ProductId}: Increased available by {Quantity}, Decreased used by {Quantity}. New available: {NewAvailable}, New used: {NewUsed}",
-                                        detail.ProductId, detail.Quantity, detail.Quantity, newAvailableQuantity, newUsedQuantity);
+                                    _logger.LogInformation(
+                                        "Stock restored for product {ProductId}: base-unit qty {Qty}; new available {NewAvailable}, new used {NewUsed}",
+                                        detail.ProductId, qtyBase, newAvailableQuantity, newUsedQuantity);
                                 }
                                 else
                                 {
@@ -768,7 +783,7 @@ namespace IMS.Services
                                     ProductRangeUrduName = reader.IsDBNull("ProductRangeUrduName") ? null : reader.GetString("ProductRangeUrduName"),
                                     MeasuringUnitAbbreviation = reader.IsDBNull("MeasuringUnitAbbreviation") ? string.Empty : reader.GetString("MeasuringUnitAbbreviation"),
                                     UnitPrice = reader.IsDBNull("UnitPrice") ? 0m : reader.GetDecimal("UnitPrice"),
-                                    Quantity = reader.IsDBNull("Quantity") ? 0 : reader.GetInt64("Quantity"),
+                                    Quantity = reader.IsDBNull("Quantity") ? 0m : Convert.ToDecimal(reader["Quantity"]),
                                     SalePrice = reader.IsDBNull("SalePrice") ? 0m : reader.GetDecimal("SalePrice"),
                                     LineDiscountAmount = reader.IsDBNull("LineDiscountAmount") ? 0m : reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.IsDBNull("PayableAmount") ? 0m : reader.GetDecimal("PayableAmount"),
@@ -798,7 +813,8 @@ namespace IMS.Services
                     
                     // Get sale information - handle both customer and vendor sales
                     var saleSql = @"SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
-                                          s.TotalReceivedAmount, s.TotalDueAmount, s.CustomerId_FK, s.SupplierId_FK, s.SaleDescription,
+                                          s.TotalReceivedAmount, s.TotalDueAmount, ISNULL(s.SalesFreight, 0) AS SalesFreight,
+                                          s.CustomerId_FK, s.SupplierId_FK, s.SaleDescription,
                                           c.CustomerName, sup.SupplierName,c.UrduName as CustomerUrduName,sup.UrduName as VendorUrduName   
                                    FROM Sales s
                                    LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
@@ -820,6 +836,9 @@ namespace IMS.Services
                                 var ordDiscountAmount = reader.GetOrdinal("DiscountAmount");
                                 var ordTotalReceivedAmount = reader.GetOrdinal("TotalReceivedAmount");
                                 var ordTotalDueAmount = reader.GetOrdinal("TotalDueAmount");
+                                int ordSalesFreight;
+                                try { ordSalesFreight = reader.GetOrdinal("SalesFreight"); }
+                                catch { ordSalesFreight = -1; }
                                 var ordCustomerIdFk = reader.GetOrdinal("CustomerId_FK");
                                 var ordSupplierIdFk = reader.GetOrdinal("SupplierId_FK");
                                 var ordSupplierName = reader.GetOrdinal("SupplierName");
@@ -835,6 +854,9 @@ namespace IMS.Services
                                 salePrint.DiscountAmount = reader.IsDBNull(ordDiscountAmount) ? 0m : reader.GetDecimal(ordDiscountAmount);
                                 salePrint.TotalReceivedAmount = reader.IsDBNull(ordTotalReceivedAmount) ? 0m : reader.GetDecimal(ordTotalReceivedAmount);
                                 salePrint.TotalDueAmount = reader.IsDBNull(ordTotalDueAmount) ? 0m : reader.GetDecimal(ordTotalDueAmount);
+                                salePrint.FreightAmount = ordSalesFreight >= 0 && !reader.IsDBNull(ordSalesFreight)
+                                    ? reader.GetDecimal(ordSalesFreight)
+                                    : 0m;
                                 salePrint.CustomerIdFk = reader.IsDBNull(ordCustomerIdFk) ? 0 : reader.GetInt64(ordCustomerIdFk);
 
                                 // Get customer or vendor name
@@ -933,7 +955,7 @@ namespace IMS.Services
                                     ProductRangeName = reader.IsDBNull(ordProductRangeName) ? null : reader.GetString(ordProductRangeName),
                                     ProductRangeUrduName = reader.IsDBNull(ordProductRangeUrduName) ? null : reader.GetString(ordProductRangeUrduName),
                                     UnitPrice = reader.IsDBNull(ordUnitPrice) ? 0m : reader.GetDecimal(ordUnitPrice),
-                                    Quantity = reader.IsDBNull(ordQuantity) ? 0L : reader.GetInt64(ordQuantity),
+                                    Quantity = reader.IsDBNull(ordQuantity) ? 0m : Convert.ToDecimal(reader.GetValue(ordQuantity)),
                                     SalePrice = reader.IsDBNull(ordSalePrice) ? 0m : reader.GetDecimal(ordSalePrice),
                                     LineDiscountAmount = reader.IsDBNull(ordLineDiscountAmount) ? 0m : reader.GetDecimal(ordLineDiscountAmount),
                                     PayableAmount = reader.IsDBNull(ordPayableAmount) ? 0m : reader.GetDecimal(ordPayableAmount),
@@ -969,6 +991,14 @@ namespace IMS.Services
                             }
                         }
                         catch { /* UrduName column may not exist */ }
+                    }
+
+                    salePrint.LinesPayableSubtotal = salePrint.SaleDetails.Sum(d => d.PayableAmount);
+                    if (salePrint.FreightAmount <= 0m)
+                    {
+                        var inferredFreight = salePrint.TotalAmount - salePrint.LinesPayableSubtotal;
+                        if (inferredFreight > 0.01m)
+                            salePrint.FreightAmount = inferredFreight;
                     }
                 }
             }
@@ -1224,6 +1254,30 @@ namespace IMS.Services
             }
         }
 
+        private static async Task FilterProductSizesToActiveRangesOnlyAsync(
+            SqlConnection connection,
+            long productId,
+            List<ProductSizeViewModel> productSizes)
+        {
+            if (productSizes.Count == 0) return;
+            try
+            {
+                await using var cmd = new SqlCommand(
+                    "SELECT ProductRangeId FROM ProductRange WHERE ProductId_FK = @p AND ISNULL(IsDeleted, 0) = 0",
+                    connection);
+                cmd.Parameters.AddWithValue("@p", productId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                var active = new HashSet<long>();
+                while (await reader.ReadAsync())
+                    active.Add(reader.GetInt64(0));
+                productSizes.RemoveAll(ps => !active.Contains(ps.ProductRangeId));
+            }
+            catch
+            {
+                // No IsDeleted column or DB mismatch: keep SP results unchanged.
+            }
+        }
+
         public async Task<List<ProductSizeViewModel>> GetProductUnitPriceRangeByProductIdAsync(long productId)
         {
             var productSizes = new List<ProductSizeViewModel>();
@@ -1279,6 +1333,8 @@ namespace IMS.Services
                             _logger.LogInformation("Total records read from database: {Count}", recordCount);
                         }
                     }
+
+                    await FilterProductSizesToActiveRangesOnlyAsync(connection, productId, productSizes);
                 }
                 _logger.LogInformation("Returning {Count} product sizes from GetProductUnitPriceRangeByProductIdAsync", productSizes.Count);
             }
@@ -1293,7 +1349,7 @@ namespace IMS.Services
         public async Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
             long? customerId,long? vendorId,  DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
-            string paymentMethod = null, long? onlineAccountId = null)
+            string paymentMethod = null, long? onlineAccountId = null, decimal salesFreight = 0)
         {
             long saleId = 0;
             int returnValue = 0;
@@ -1321,6 +1377,7 @@ namespace IMS.Services
                         command.Parameters.AddWithValue("@pSaleDate", saleDate);
                         command.Parameters.AddWithValue("@pPaymentMethod", paymentMethod ?? (object)DBNull.Value);
                         command.Parameters.AddWithValue("@pOnlineAccountId", onlineAccountId ?? (object)DBNull.Value);
+                        command.Parameters.AddWithValue("@pSalesFreight", salesFreight);
 
                         var salesIdParam = new SqlParameter("@pSalesId", SqlDbType.BigInt)
                         {
@@ -1372,7 +1429,8 @@ namespace IMS.Services
                 saleDescription: "opening Balance",
                 saleDate: now,
                 paymentMethod: "Adjustment",
-                onlineAccountId: null);
+                onlineAccountId: null,
+                salesFreight: 0);
             return saleId;
         }
 
@@ -1525,7 +1583,7 @@ namespace IMS.Services
                                     PrductIdFk = reader.GetInt64(reader.GetOrdinal("PrductId_FK")),
                                     Code = SafeGetStringNull(reader, "Code"),
                                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                                    Quantity = reader.GetInt64(reader.GetOrdinal("Quantity")),
+                                    Quantity = Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Quantity"))),
                                     SalePrice = reader.GetDecimal(reader.GetOrdinal("SalePrice")),
                                     LineDiscountAmount = reader.GetDecimal(reader.GetOrdinal("LineDiscountAmount")),
                                     PayableAmount = reader.GetDecimal(reader.GetOrdinal("PayableAmount")),

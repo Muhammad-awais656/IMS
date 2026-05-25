@@ -28,7 +28,7 @@ namespace IMS.Models
 
         public string MeasuringUnitAbbreviation { get; set; }
         public decimal UnitPrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
@@ -51,6 +51,8 @@ namespace IMS.Models
         public DateTime SaleDate { get; set; }
         public decimal PayNow { get; set; }
         public decimal DiscountAmount { get; set; }
+        /// <summary>Optional freight (Karaya) on top of line payables; included in TotalAmount.</summary>
+        public decimal FreightAmount { get; set; }
         public decimal ReceivedAmount { get; set; }
         public decimal DueAmount { get; set; }
         public decimal PreviousDue { get; set; }
@@ -119,6 +121,10 @@ namespace IMS.Models
         public decimal DiscountAmount { get; set; }
         public decimal TotalReceivedAmount { get; set; }
         public decimal TotalDueAmount { get; set; }
+        /// <summary>Freight (Karaya) from <c>Sales.SalesFreight</c>; legacy sales may infer from total vs lines.</summary>
+        public decimal FreightAmount { get; set; }
+        /// <summary>Sum of line <c>PayableAmount</c> (excludes freight).</summary>
+        public decimal LinesPayableSubtotal { get; set; }
         public long CustomerIdFk { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         /// <summary>Urdu name for customer/vendor when available (from DB column UrduName).</summary>
@@ -137,7 +143,7 @@ namespace IMS.Models
         public string? ProductRangeName { get; set; }
         public string? ProductRangeUrduName { get; set; }
         public decimal UnitPrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal PrintQuantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
@@ -157,7 +163,7 @@ namespace IMS.Models
         /// <summary>Unit abbreviation (e.g. kg) for display as Code.</summary>
         public string? Code { get; set; }
         public decimal UnitPrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }

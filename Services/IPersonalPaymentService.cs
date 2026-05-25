@@ -23,5 +23,8 @@ namespace IMS.Services
         Task<decimal> GetAccountBalanceAsync(long personalPaymentId);
         Task<bool> ProcessBankDepositAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate);
         Task<bool> ProcessBankWithdrawAsync(long personalPaymentId, decimal amount, string description, long createdBy, DateTime paymentDate);
+        Task<PersonalPaymentTransactionViewModel?> GetManualTransactionByIdAsync(long personalPaymentSaleDetailId);
+        Task<bool> UpdateManualTransactionAsync(long personalPaymentSaleDetailId, long personalPaymentId, decimal amount, string? description, DateTime paymentDate, long modifiedBy);
+        Task<bool> DeleteManualTransactionAsync(long personalPaymentSaleDetailId, long personalPaymentId, long modifiedBy);
     }
 }

@@ -47,6 +47,11 @@
                             <input asp-for="TotalDueAmount" class="form-control" type="number" step="0.01" min="0" readonly />
                             <span asp-validation-for="TotalDueAmount" class="text-danger"></span>
                         </div>
+                        <div class="col">
+                            <label asp-for="SalesFreight" class="form-label">Freight (Karaya):</label>
+                            <input asp-for="SalesFreight" class="form-control" type="number" step="0.01" min="0" value="0" />
+                            <span asp-validation-for="SalesFreight" class="text-danger"></span>
+                        </div>
                         <div class="col-12">
                             <label asp-for="SaleDescription" class="form-label">Description:</label>
                             <textarea asp-for="SaleDescription" class="form-control" rows="3" placeholder="Enter sale description..."></textarea>
