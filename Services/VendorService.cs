@@ -448,6 +448,8 @@ namespace IMS.Services
                                 productSizes.Add(ps);
                             }
                         }
+
+                        await FilterProductSizesToActiveRangesOnlyAsync(connection, productId, productSizes);
                         return productSizes;
                     }
                 }
@@ -456,6 +458,30 @@ namespace IMS.Services
             {
                 _logger.LogError(ex, "Error getting product unit price ranges for product {ProductId}", productId);
                 return new List<ProductSizeViewModel>();
+            }
+        }
+
+        private static async Task FilterProductSizesToActiveRangesOnlyAsync(
+            SqlConnection connection,
+            long productId,
+            List<ProductSizeViewModel> productSizes)
+        {
+            if (productSizes.Count == 0) return;
+            try
+            {
+                await using var cmd = new SqlCommand(
+                    "SELECT ProductRangeId FROM ProductRange WHERE ProductId_FK = @p AND ISNULL(IsDeleted, 0) = 0",
+                    connection);
+                cmd.Parameters.AddWithValue("@p", productId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                var active = new HashSet<long>();
+                while (await reader.ReadAsync())
+                    active.Add(reader.GetInt64(0));
+                productSizes.RemoveAll(ps => !active.Contains(ps.ProductRangeId));
+            }
+            catch
+            {
+                // No IsDeleted column or DB mismatch: keep SP results unchanged.
             }
         }
 
@@ -639,9 +665,12 @@ namespace IMS.Services
                         itemCommand.Parameters.AddWithValue("@pBillId_FK", billId);
                         itemCommand.Parameters.AddWithValue("@pPrductId_FK", productId);
                         itemCommand.Parameters.AddWithValue("@pUnitPrice", unitPrice);
-                        // Convert decimal quantity to long for database (round to nearest whole number)
-                        // Note: Database stores as long, but we accept decimal for precision during conversion
-                        itemCommand.Parameters.AddWithValue("@pQuantity", (long)Math.Round(quantity, MidpointRounding.AwayFromZero));
+                        itemCommand.Parameters.Add(new SqlParameter("@pQuantity", SqlDbType.Decimal)
+                        {
+                            Precision = 18,
+                            Scale = 4,
+                            Value = quantity
+                        });
                         itemCommand.Parameters.AddWithValue("@pPurchasePrice", purchasePrice);
                         itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                         itemCommand.Parameters.AddWithValue("@pPayableAmount", payableAmount);
@@ -827,7 +856,7 @@ namespace IMS.Services
                                         ProductName = reader.GetString("ProductName"),
                                         UnitPrice = reader.GetDecimal("UnitPrice"),
                                         PurchasePrice = reader.GetDecimal("PurchasePrice"),
-                                        Quantity = reader.GetInt64("Quantity"),
+                                        Quantity = Convert.ToDecimal(reader["Quantity"]),
                                         SalePrice = reader.GetDecimal("SalePrice"),
                                         LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                         PayableAmount = reader.GetDecimal("PayableAmount"),

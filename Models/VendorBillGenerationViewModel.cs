@@ -40,7 +40,10 @@ namespace IMS.Models
         public string ProductSize { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public decimal PurchasePrice { get; set; }
+        /// <summary>Quantity in the selected product range's measuring unit; server converts to base unit before save.</summary>
         public decimal Quantity { get; set; }
+        /// <summary>When loading a bill for edit: quantity stored in DB (base unit). Used by the client for stock math.</summary>
+        public decimal? QuantityBase { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
@@ -102,7 +105,7 @@ namespace IMS.Models
         public string ProductName { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public decimal PurchasePrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal SalePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }

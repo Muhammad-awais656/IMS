@@ -419,7 +419,13 @@
                     <a asp-controller="UnitConversion" asp-action="Index"><i class="fa-solid fa-exchange-alt"></i><span>Unit Conversions</span></a>
                 </div>
             </div>
-         
+
+            @if (role == "Admin")
+            {
+                <div class="menu-item" data-tooltip="DB Backup">
+                    <a asp-controller="DatabaseBackup" asp-action="Index"><i class="fa-solid fa-cloud-arrow-down"></i><span>DB Backup</span></a>
+                </div>
+            }
 
         </div>
 

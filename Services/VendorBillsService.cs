@@ -5,6 +5,7 @@ using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Linq;
 
 namespace IMS.Services
 {
@@ -13,12 +14,161 @@ namespace IMS.Services
         private readonly IDbContextFactory _dbContextFactory;
         private readonly ILogger<VendorBillsService> _logger;
         private readonly IVendor _vendorService;
+        private readonly IProductService _productService;
+        private readonly IAdminMeasuringUnitService _measuringUnitService;
+        private readonly IUnitConversionService _unitConversionService;
 
-        public VendorBillsService(IDbContextFactory dbContextFactory, ILogger<VendorBillsService> logger, IVendor vendorService)
+        public VendorBillsService(
+            IDbContextFactory dbContextFactory,
+            ILogger<VendorBillsService> logger,
+            IVendor vendorService,
+            IProductService productService,
+            IAdminMeasuringUnitService measuringUnitService,
+            IUnitConversionService unitConversionService)
         {
             _dbContextFactory = dbContextFactory;
             _logger = logger;
             _vendorService = vendorService;
+            _productService = productService;
+            _measuringUnitService = measuringUnitService;
+            _unitConversionService = unitConversionService;
+        }
+
+        /// <summary>
+        /// Converts a bill line quantity from the line's product-range measuring unit to stock's base (smallest) unit before save.
+        /// Uses <c>ProductRange</c> by id so historical lines still resolve. Stored bill quantities are always in this base unit.
+        /// </summary>
+        public async Task<decimal> ConvertBillLineQuantityToBaseUnitAsync(long productId, long productRangeId, decimal lineQuantity)
+        {
+            if (lineQuantity == 0m || productRangeId <= 0)
+                return lineQuantity;
+
+            long? lineUnitId = null;
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    @"SELECT TOP (1) MeasuringUnitId_FK FROM dbo.ProductRange
+                      WHERE ProductRangeId = @rid AND ProductId_FK = @pid",
+                    connection);
+                cmd.Parameters.AddWithValue("@rid", productRangeId);
+                cmd.Parameters.AddWithValue("@pid", productId);
+                var scalar = await cmd.ExecuteScalarAsync();
+                if (scalar == null || scalar == DBNull.Value)
+                    return lineQuantity;
+                lineUnitId = Convert.ToInt64(scalar);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve measuring unit for ProductRangeId {RangeId}, product {ProductId}; using line quantity for stock.", productRangeId, productId);
+                return lineQuantity;
+            }
+
+            var product = await _productService.GetProductByIdAsync(productId);
+            if (product?.ProductList?.MeasuringUnitTypeIdFk is long measuringUnitTypeId)
+            {
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                long? baseUnitId = smallestUnit?.MeasuringUnitId
+                    ?? (measuringUnits.Count > 0 ? measuringUnits[0].MeasuringUnitId : (long?)null);
+
+                if (baseUnitId.HasValue && lineUnitId.Value != baseUnitId.Value)
+                {
+                    var converted = await _unitConversionService.ConvertUnitAsync(
+                        lineUnitId.Value,
+                        baseUnitId.Value,
+                        lineQuantity);
+
+                    if (converted.HasValue)
+                        return converted.Value;
+
+                    _logger.LogWarning(
+                        "No unit conversion from {FromUnitId} to base {ToUnitId} for product {ProductId}; using line quantity for stock revert.",
+                        lineUnitId.Value, baseUnitId.Value, productId);
+                }
+            }
+
+            return lineQuantity;
+        }
+
+        /// <inheritdoc />
+        public async Task<decimal> ConvertBaseQuantityToProductRangeUnitAsync(long productId, long productRangeId, decimal baseQuantity)
+        {
+            if (baseQuantity == 0m || productRangeId <= 0)
+                return baseQuantity;
+
+            long? lineUnitId = null;
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    @"SELECT TOP (1) MeasuringUnitId_FK FROM dbo.ProductRange
+                      WHERE ProductRangeId = @rid AND ProductId_FK = @pid",
+                    connection);
+                cmd.Parameters.AddWithValue("@rid", productRangeId);
+                cmd.Parameters.AddWithValue("@pid", productId);
+                var scalar = await cmd.ExecuteScalarAsync();
+                if (scalar == null || scalar == DBNull.Value)
+                    return baseQuantity;
+                lineUnitId = Convert.ToInt64(scalar);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve measuring unit for ProductRangeId {RangeId}, product {ProductId}; using base quantity for display.", productRangeId, productId);
+                return baseQuantity;
+            }
+
+            var product = await _productService.GetProductByIdAsync(productId);
+            if (product?.ProductList?.MeasuringUnitTypeIdFk is long measuringUnitTypeId)
+            {
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                long? baseUnitId = smallestUnit?.MeasuringUnitId
+                    ?? (measuringUnits.Count > 0 ? measuringUnits[0].MeasuringUnitId : (long?)null);
+
+                if (baseUnitId.HasValue && lineUnitId.Value != baseUnitId.Value)
+                {
+                    var converted = await _unitConversionService.ConvertUnitAsync(
+                        baseUnitId.Value,
+                        lineUnitId.Value,
+                        baseQuantity);
+
+                    if (converted.HasValue)
+                        return converted.Value;
+
+                    _logger.LogWarning(
+                        "No unit conversion from base {FromUnitId} to range unit {ToUnitId} for product {ProductId}; using base quantity for display.",
+                        baseUnitId.Value, lineUnitId.Value, productId);
+                }
+            }
+
+            return baseQuantity;
+        }
+
+        /// <summary>
+        /// Removes soft-deleted <see cref="ProductRange"/> rows (IsDeleted = 1) from lists built from GetProductUnitPriceRangeByProductId.
+        /// </summary>
+        private static async Task FilterProductRangesToActiveOnlyAsync(SqlConnection connection, long productId, List<ProductRange> ranges)
+        {
+            if (ranges.Count == 0) return;
+            try
+            {
+                await using var cmd = new SqlCommand(
+                    "SELECT ProductRangeId FROM ProductRange WHERE ProductId_FK = @p AND ISNULL(IsDeleted, 0) = 0",
+                    connection);
+                cmd.Parameters.AddWithValue("@p", productId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                var active = new HashSet<long>();
+                while (await reader.ReadAsync())
+                    active.Add(reader.GetInt64(0));
+                ranges.RemoveAll(pr => !active.Contains(pr.ProductRangeId));
+            }
+            catch
+            {
+                // No IsDeleted column or DB mismatch: keep SP results unchanged.
+            }
         }
 
         public async Task<VendorBillsViewModel> GetAllBillsAsync(int pageNumber, int? pageSize, VendorBillsFilters? filters)
@@ -357,6 +507,8 @@ namespace IMS.Services
                             }
                         }
                     }
+
+                    await FilterProductRangesToActiveOnlyAsync(connection, productId, productRanges);
                 }
             }
             catch (Exception ex)
@@ -473,6 +625,8 @@ namespace IMS.Services
                             }
                         }
                     }
+
+                    await FilterProductRangesToActiveOnlyAsync(connection, productId, productSizes);
                 }
             }
             catch (Exception ex)
@@ -764,7 +918,7 @@ namespace IMS.Services
                                     ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
                                     UnitPrice = reader.GetDecimal("UnitPrice"),
                                     BillPrice = purchasePrice,
-                                    Quantity = reader.GetInt64("Quantity"),
+                                    Quantity = Convert.ToDecimal(reader["Quantity"]),
                                     DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                     PayableAmount = reader.GetDecimal("PayableAmount"),
                                     ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? "" : reader.GetString("ProductName"),
@@ -785,6 +939,23 @@ namespace IMS.Services
                 _logger.LogError(ex, "Error getting vendor bill items for bill {BillId}", billId);
                 throw;
             }
+
+            foreach (var item in billItems)
+            {
+                try
+                {
+                    item.QuantityInLineUnit = await ConvertBaseQuantityToProductRangeUnitAsync(
+                        item.ProductId,
+                        item.ProductRangeId,
+                        item.Quantity);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not compute line quantity for bill item product {ProductId} range {RangeId}", item.ProductId, item.ProductRangeId);
+                    item.QuantityInLineUnit = item.Quantity;
+                }
+            }
+
             return billItems;
         }
 
@@ -839,13 +1010,19 @@ namespace IMS.Services
                             // Step 4: Add new bill details using AddBillDetails stored procedure
                             foreach (var item in model.BillDetails)
                             {
+                                var qtyBase = await ConvertBillLineQuantityToBaseUnitAsync(item.ProductId, item.ProductRangeId, item.Quantity);
                                 using (var command = new SqlCommand("AddBillDetails", connection, transaction))
                                 {
                                     command.CommandType = CommandType.StoredProcedure;
                                     command.Parameters.AddWithValue("@pBillId_FK", billId);
                                     command.Parameters.AddWithValue("@pPrductId_FK", item.ProductId);
                                     command.Parameters.AddWithValue("@pUnitPrice", item.UnitPrice);
-                                    command.Parameters.AddWithValue("@pQuantity", item.Quantity);
+                                    command.Parameters.Add(new SqlParameter("@pQuantity", SqlDbType.Decimal)
+                                    {
+                                        Precision = 18,
+                                        Scale = 4,
+                                        Value = qtyBase
+                                    });
                                     command.Parameters.AddWithValue("@pPurchasePrice", item.PurchasePrice);
                                     command.Parameters.AddWithValue("@pLineDiscountAmount", item.LineDiscountAmount);
                                     command.Parameters.AddWithValue("@pPayableAmount", item.PayableAmount);
@@ -928,13 +1105,19 @@ namespace IMS.Services
                             // Add bill items using AddBillDetails stored procedure
                             foreach (var item in model.BillItems)
                             {
+                                var qtyBase = await ConvertBillLineQuantityToBaseUnitAsync(item.ProductId, item.ProductRangeId, item.Quantity);
                                 using (var itemCommand = new SqlCommand("AddBillDetails", connection, transaction))
                                 {
                                     itemCommand.CommandType = CommandType.StoredProcedure;
                                     itemCommand.Parameters.AddWithValue("@pBillId_FK", billId);
                                     itemCommand.Parameters.AddWithValue("@pPrductId_FK", item.ProductId);
                                     itemCommand.Parameters.AddWithValue("@pUnitPrice", item.UnitPrice);
-                                    itemCommand.Parameters.AddWithValue("@pQuantity", (int)item.Quantity);
+                                    itemCommand.Parameters.Add(new SqlParameter("@pQuantity", SqlDbType.Decimal)
+                                    {
+                                        Precision = 18,
+                                        Scale = 4,
+                                        Value = qtyBase
+                                    });
                                     itemCommand.Parameters.AddWithValue("@pPurchasePrice", item.BillPrice);
                                     itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", item.DiscountAmount);
                                     itemCommand.Parameters.AddWithValue("@pPayableAmount", item.PayableAmount);
@@ -1029,7 +1212,7 @@ namespace IMS.Services
                                             ProductId = reader.GetInt64("PrductId_FK"),
                                             ProductRangeId = reader.GetInt64("ProductRangeId_FK"),
                                             UnitPrice = reader.GetDecimal("UnitPrice"),
-                                            Quantity = reader.GetInt64("Quantity"),
+                                            Quantity = Convert.ToDecimal(reader["Quantity"]),
                                             DiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                             PayableAmount = reader.GetDecimal("PayableAmount"),
                                             ProductName = reader.IsDBNull("ProductName") ? "" : reader.GetString("ProductName"),
@@ -1041,16 +1224,16 @@ namespace IMS.Services
                             }
                             _logger.LogInformation("Found {Count} bill items to process for bill {BillId}", billItems.Count, billId);
 
-                            // Step 2: Reverse stock for each product (decrease stock that was added)
+                            // Step 2: Reverse stock for each product (decrease stock that was added), in base (smallest) units
                             foreach (var item in billItems)
                             {
                                 var prodMaster = await _vendorService.GetStockByProductIdAsync(item.ProductId);
                                 if (prodMaster != null)
                                 {
-                                    // Calculate new quantities (decrease stock)
-                                    var newAvailableQuantity = prodMaster.AvailableQuantity - (decimal)item.Quantity;
-                                    var newTotalQuantity = prodMaster.TotalQuantity - (decimal)item.Quantity;
-                                    
+                                    // PurchaseOrderItems.Quantity is stored in base (smallest) units.
+                                    var newAvailableQuantity = prodMaster.AvailableQuantity - item.Quantity;
+                                    var newTotalQuantity = prodMaster.TotalQuantity - item.Quantity;
+
                                     // Ensure quantities don't go negative
                                     if (newAvailableQuantity < 0) newAvailableQuantity = 0;
                                     if (newTotalQuantity < 0) newTotalQuantity = 0;
@@ -1066,7 +1249,8 @@ namespace IMS.Services
                                         DateTimeHelper.Now
                                     );
 
-                                    _logger.LogInformation("Stock reversed for product {ProductId}: Decreased by {Quantity}. New available: {NewAvailable}, New total: {NewTotal}",
+                                    _logger.LogInformation(
+                                        "Stock reversed for product {ProductId}: stored base qty {BaseQty}; new available {NewAvailable}, new total {NewTotal}",
                                         item.ProductId, item.Quantity, newAvailableQuantity, newTotalQuantity);
                                 }
                                 else
@@ -1306,12 +1490,15 @@ namespace IMS.Services
                 var prodMaster = await _vendorService.GetStockByProductIdAsync(item.ProductId);
                 if (prodMaster != null)
                 {
-                    var newAvailable = prodMaster.AvailableQuantity - (decimal)item.Quantity;
-                    var newTotal = prodMaster.TotalQuantity - (decimal)item.Quantity;
+                    // Bill line quantities are stored in base (smallest) units.
+                    var newAvailable = prodMaster.AvailableQuantity - item.Quantity;
+                    var newTotal = prodMaster.TotalQuantity - item.Quantity;
                     if (newAvailable < 0) newAvailable = 0;
                     if (newTotal < 0) newTotal = 0;
                     _vendorService.UpdateStock(prodMaster.StockMasterId, item.ProductId, newAvailable, newTotal, prodMaster.UsedQuantity, modifiedBy, modifiedDate);
-                    _logger.LogInformation("Stock reverted for product {ProductId} bill {BillId}: decreased by {Quantity}", item.ProductId, billId, item.Quantity);
+                    _logger.LogInformation(
+                        "Stock reverted for product {ProductId} bill {BillId}: stored base qty {BaseQty}",
+                        item.ProductId, billId, item.Quantity);
                 }
             }
         }
@@ -1579,7 +1766,7 @@ namespace IMS.Services
                                     PrductIdFk = reader.GetInt64(reader.GetOrdinal("PrductId_FK")),
                                     Code = SafeGetStringNull(reader, "Code"),
                                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                                    Quantity = reader.GetInt64(reader.GetOrdinal("Quantity")),
+                                    Quantity = Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Quantity"))),
                                     PurchasePrice = reader.GetDecimal(reader.GetOrdinal("PurchasePrice")),
                                     LineDiscountAmount = reader.GetDecimal(reader.GetOrdinal("LineDiscountAmount")),
                                     PayableAmount = reader.GetDecimal(reader.GetOrdinal("PayableAmount")),

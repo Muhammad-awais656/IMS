@@ -56,7 +56,10 @@ namespace IMS.Models
         public string? ProductUrduName { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal BillPrice { get; set; }
+        /// <summary>Quantity in base (smallest) units as stored in the database.</summary>
         public decimal Quantity { get; set; }
+        /// <summary>Same line expressed in the product range's unit (for forms and display).</summary>
+        public decimal QuantityInLineUnit { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }
         public decimal PrintQuantity { get; set; }

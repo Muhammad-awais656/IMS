@@ -45,7 +45,7 @@
                     </div>
                     <div class="col-md-2">
                         <label for="quantity" class="form-label">Quantity:</label>
-                        <input type="number" id="quantity" class="form-control" value="1" min="1" />
+                        <input type="number" id="quantity" class="form-control" value="1" min="0.0001" step="any" />
                     </div>
                     <div class="col-md-2">
                         <label for="unitPrice" class="form-label">Unit Price:</label>
@@ -169,7 +169,20 @@
                         <label asp-for="ReceivedAmount" class="form-label">Received Amount:</label>
                         <input asp-for="ReceivedAmount" class="form-control" value="@Model.ReceivedAmount" step="0.01" readonly />
                     </div>
+                    <div class="col-md-3 d-flex flex-column justify-content-end">
+                        <label class="form-label d-block">Freight (optional):</label>
+                        <button type="button" class="btn btn-outline-secondary w-100" id="karayaToggleBtn" title="Add freight (Karaya)">
+                            <i class="fa-solid fa-truck me-1"></i>Karaya
+                        </button>
                     </div>
+                    </div>
+                <div class="row mb-4" id="karayaFreightSection" style="display: none;">
+                    <div class="col-md-3">
+                        <label asp-for="FreightAmount" class="form-label">Freight amount:</label>
+                        <input asp-for="FreightAmount" class="form-control" step="0.01" min="0" placeholder="0.00" />
+                        <small class="form-text text-muted">Added to the sale total (line items + freight).</small>
+                    </div>
+                </div>
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label asp-for="DueAmount" class="form-label">Due Amount:</label>
@@ -822,6 +835,24 @@
             document.getElementById('PayNow').addEventListener('input', updateReceivedAmount);
             document.getElementById('PreviousDue').addEventListener('input', updateTotals);
 
+            const freightAmountEl = document.getElementById('FreightAmount');
+            if (freightAmountEl) {
+                freightAmountEl.addEventListener('input', updateTotals);
+                freightAmountEl.addEventListener('change', updateTotals);
+            }
+
+            const karayaToggleBtn = document.getElementById('karayaToggleBtn');
+            const karayaFreightSection = document.getElementById('karayaFreightSection');
+            if (karayaToggleBtn && karayaFreightSection) {
+                karayaToggleBtn.addEventListener('click', function () {
+                    const isHidden = karayaFreightSection.style.display === 'none' || karayaFreightSection.style.display === '';
+                    karayaFreightSection.style.display = isHidden ? 'block' : 'none';
+                    if (isHidden && freightAmountEl) {
+                        freightAmountEl.focus();
+                    }
+                });
+            }
+
             // Additional event listeners for real-time updates
             document.getElementById('TotalAmount').addEventListener('input', updateTotals);
             document.getElementById('DueAmount').addEventListener('input', updateTotals);
@@ -1109,7 +1140,7 @@
             debugger;
             const quantityInput = document.getElementById('quantity');
             const quantity = parseFloat(quantityInput.value) || 0;
-            const maxQuantity = Math.floor(currentAvailableStock);
+            const maxQuantity = Number(currentAvailableStock);
 
             // Remove previous validation styling
             quantityInput.classList.remove('is-invalid', 'is-valid');
@@ -1457,7 +1488,7 @@
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductRangeId" value="${selectedProductSize.productRangeId}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].ProductSize" value="${unitAbbrAdd}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].UnitPrice" value="${unitPrice.toFixed(2)}" />
-                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${Math.floor(quantity)}" />
+                <input type="hidden" name="SaleDetails[${rowIndex}].Quantity" value="${quantity}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].SalePrice" value="${salePrice.toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].LineDiscountAmount" value="${totalDiscount.toFixed(2)}" />
                 <input type="hidden" name="SaleDetails[${rowIndex}].PayableAmount" value="${payable.toFixed(2)}" />
@@ -1551,6 +1582,15 @@
             quantityInput.setCustomValidity('');
         }
 
+        function initKarayaFreightIfNeeded() {
+            const section = document.getElementById('karayaFreightSection');
+            const input = document.getElementById('FreightAmount');
+            if (!section || !input) return;
+            if ((parseFloat(input.value) || 0) > 0) {
+                section.style.display = 'block';
+            }
+        }
+
         function populateExistingSaleDetails() {
             console.log('Populating existing sale details for editing...');
 
@@ -1571,6 +1611,7 @@
 
                 // Update totals
                 updateTotals();
+                initKarayaFreightIfNeeded();
 
                 // Use in-form alert so we don't depend on notification service (its container may not exist yet on load)
                 showAddSaleFormSuccess('Existing sale details loaded successfully!');
@@ -1659,17 +1700,23 @@
                 totalAmount += payable;
                 totalDiscount += discount;
             });
+
+            const freightInput = document.getElementById('FreightAmount');
+            const freightAmount = freightInput ? (parseFloat(freightInput.value) || 0) : 0;
+            const grandTotal = totalAmount + freightAmount;
             
             console.log('UpdateTotals calculation:', {
                 rowsCount: rows.length,
-                totalAmount: totalAmount,
+                linePayablesTotal: totalAmount,
+                freightAmount: freightAmount,
+                grandTotal: grandTotal,
                 totalDiscount: totalDiscount
             });
 
-            // Update Total Amount
+            // Update Total Amount (line payables + optional freight / Karaya)
             const totalAmountInput = document.getElementById('TotalAmount');
             if (totalAmountInput) {
-                totalAmountInput.value = totalAmount.toFixed(2);
+                totalAmountInput.value = grandTotal.toFixed(2);
             }
 
             // Update Total Discount
@@ -1684,9 +1731,9 @@
             const receivedAmount = receivedAmountInput ? (parseFloat(receivedAmountInput.value) || 0) : 0;
             const previousDueAmount = previousDueInput ? (parseFloat(previousDueInput.value) || 0) : 0;
 
-            // Calculate due amount (Total Amount is already net after line discounts)
+            // Calculate due amount (Total Amount is line payables + freight)
             // Due Amount = Total Amount - Received Amount
-            const dueAmount = Math.max(0, totalAmount - receivedAmount);
+            const dueAmount = Math.max(0, grandTotal - receivedAmount);
 
             // Update Due Amount
             const dueAmountInput = document.getElementById('DueAmount');
@@ -2242,6 +2289,7 @@
             formData['DiscountAmount'] = $('#DiscountAmount').val();
             formData['ReceivedAmount'] = $('#ReceivedAmount').val();
             formData['DueAmount'] = $('#DueAmount').val();
+            formData['FreightAmount'] = $('#FreightAmount').length ? ($('#FreightAmount').val() || '0') : '0';
             formData['PreviousDue'] = $('#PreviousDue').val();
             formData['Description'] = $('#Description').val();
             formData['PaymentMethod'] = $('#paymentMethodSelect').val();
@@ -2306,8 +2354,11 @@
             $('#DiscountAmount').val('0.00');
             $('#ReceivedAmount').val('0.00');
             $('#DueAmount').val('0.00');
+            $('#FreightAmount').val('0.00');
             $('#PreviousDue').val('0.00');
             $('#Description').val('');
+            const karayaSection = document.getElementById('karayaFreightSection');
+            if (karayaSection) karayaSection.style.display = 'none';
             
             // Reset form field values directly
             document.getElementById('customerSelect').value = '';
@@ -2319,6 +2370,8 @@
             document.getElementById('DiscountAmount').value = '0.00';
             document.getElementById('ReceivedAmount').value = '0.00';
             document.getElementById('DueAmount').value = '0.00';
+            const freightEl = document.getElementById('FreightAmount');
+            if (freightEl) freightEl.value = '0.00';
             document.getElementById('PreviousDue').value = '0.00';
             document.getElementById('Description').value = '';
             

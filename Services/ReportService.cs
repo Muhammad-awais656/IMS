@@ -553,6 +553,7 @@ namespace IMS.Services
                 SELECT pr.ProductId_FK AS ProductId
                 FROM ProductRange pr
                 WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 """;
 
             var countSql = $"""
@@ -639,6 +640,7 @@ namespace IMS.Services
                 SELECT pr.ProductId_FK AS ProductId
                 FROM ProductRange pr
                 WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 """;
 
             var sql = $"""
@@ -802,6 +804,7 @@ namespace IMS.Services
                     AND mu.MeasuringUnitTypeId_FK = p.MeasuringUnitTypeId_FK
                     AND mu.IsSmallestUnit = 1
                 WHERE pr.ProductId_FK IN ({idList})
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 GROUP BY pr.ProductId_FK
                 """;
             try
@@ -1065,7 +1068,39 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    var sql = @"
+                    var reportDateOnly = (filters?.ReportDate ?? DateTimeHelper.Now).Date;
+                    var includePricing = filters?.IncludeUnitPriceAndValue != false;
+                    var pricingJoin = includePricing
+                        ? @"
+                        LEFT JOIN (
+                            SELECT pr.ProductId_FK, MIN(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            WHERE ISNULL(pr.IsDeleted, 0) = 0
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK"
+                        : string.Empty;
+                    var unitPriceSelect = includePricing
+                        ? "ISNULL(pr.UnitPrice, 0) AS UnitPrice"
+                        : "CAST(0 AS DECIMAL(18,4)) AS UnitPrice";
+                    var stockValueSelect = includePricing
+                        ? "(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue"
+                        : "CAST(0 AS DECIMAL(18,4)) AS StockValue";
+                    var totalStockValueAgg = includePricing
+                        ? "SUM(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue"
+                        : "SUM(CAST(0 AS DECIMAL(18,4))) AS TotalStockValue";
+
+                    var sql = $@"
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
                             p.ProductId,
                             p.ProductName,
@@ -1073,19 +1108,14 @@ namespace IMS.Services
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
-                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
-                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
-                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(pst.ClosingStock, 0) AS AvailableQuantity,
+                            {unitPriceSelect},
+                            {stockValueSelect},
                             ISNULL(p.Location, '') AS StockLocation
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId)
                         ORDER BY p.ProductName
@@ -1096,26 +1126,33 @@ namespace IMS.Services
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
 
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
-                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(pst.ClosingStock, 0)) AS TotalAvailableQuantity,
                             SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
                             SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
-                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                            {totalStockValueAgg}
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
                     {
+                        command.Parameters.AddWithValue("@ReportDate", reportDateOnly);
                         command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
                         command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
@@ -1199,7 +1236,39 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    var sql = @"
+                    var reportDateOnly = (filters?.ReportDate ?? DateTimeHelper.Now).Date;
+                    var includePricing = filters?.IncludeUnitPriceAndValue != false;
+                    var pricingJoin = includePricing
+                        ? @"
+                        LEFT JOIN (
+                            SELECT pr.ProductId_FK, MIN(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            WHERE ISNULL(pr.IsDeleted, 0) = 0
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK"
+                        : string.Empty;
+                    var unitPriceSelect = includePricing
+                        ? "ISNULL(pr.UnitPrice, 0) AS UnitPrice"
+                        : "CAST(0 AS DECIMAL(18,4)) AS UnitPrice";
+                    var stockValueSelect = includePricing
+                        ? "(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue"
+                        : "CAST(0 AS DECIMAL(18,4)) AS StockValue";
+                    var totalStockValueAgg = includePricing
+                        ? "SUM(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue"
+                        : "SUM(CAST(0 AS DECIMAL(18,4))) AS TotalStockValue";
+
+                    var sql = $@"
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
                             p.ProductId,
                             p.ProductName,
@@ -1207,43 +1276,45 @@ namespace IMS.Services
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
-                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
-                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
-                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(pst.ClosingStock, 0) AS AvailableQuantity,
+                            {unitPriceSelect},
+                            {stockValueSelect},
                             ISNULL(p.Location, '') AS StockLocation
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId)
                         ORDER BY p.ProductName;
 
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
-                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(pst.ClosingStock, 0)) AS TotalAvailableQuantity,
                             SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
                             SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
-                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                            {totalStockValueAgg}
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
                     {
+                        command.Parameters.AddWithValue("@ReportDate", reportDateOnly);
                         command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
 
                         using (var reader = await command.ExecuteReaderAsync())
@@ -1338,14 +1409,24 @@ namespace IMS.Services
                 item.UsedQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.UsedQuantity);
                 item.AvailableQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.AvailableQuantity);
 
-                item.UnitPrice = await ConvertUnitPriceFromBaseToDisplayAsync(baseUnitId.Value, displayUnitId, unitPricePerBase);
-                item.StockValue = item.AvailableQuantity * item.UnitPrice;
+                if (filters?.IncludeUnitPriceAndValue != false)
+                {
+                    item.UnitPrice = await ConvertUnitPriceFromBaseToDisplayAsync(baseUnitId.Value, displayUnitId, unitPricePerBase);
+                    item.StockValue = item.AvailableQuantity * item.UnitPrice;
+                }
+                else
+                {
+                    item.UnitPrice = 0m;
+                    item.StockValue = 0m;
+                }
             }
 
             vm.TotalQuantity = vm.StockList.Sum(i => i.TotalQuantity);
             vm.TotalUsedQuantity = vm.StockList.Sum(i => i.UsedQuantity);
             vm.TotalAvailableQuantity = vm.StockList.Sum(i => i.AvailableQuantity);
-            vm.TotalStockValue = vm.StockList.Sum(i => i.StockValue);
+            vm.TotalStockValue = filters?.IncludeUnitPriceAndValue != false
+                ? vm.StockList.Sum(i => i.StockValue)
+                : 0m;
         }
 
         private async Task<long?> GetBaseUnitIdForProductAsync(long productId)
@@ -1905,7 +1986,7 @@ namespace IMS.Services
             int totalRecords = 0;
             decimal totalAmount = 0;
             decimal totalWeight = 0;
-            long totalQty = 0;
+            decimal totalQty = 0;
 
             try
             {
@@ -2030,8 +2111,8 @@ namespace IMS.Services
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Weight")),
                                     Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
-                                        ? 0
-                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                        ? 0m
+                                        : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Qty"))),
                                     Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Rate")),
@@ -2059,8 +2140,8 @@ namespace IMS.Services
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
                                 totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
-                                    ? 0
-                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                    ? 0m
+                                    : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TotalQty")));
                                 totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
@@ -2127,7 +2208,7 @@ namespace IMS.Services
             int totalRecords = 0;
             decimal totalAmount = 0;
             decimal totalWeight = 0;
-            long totalQty = 0;
+            decimal totalQty = 0;
 
             try
             {
@@ -2252,8 +2333,8 @@ namespace IMS.Services
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Weight")),
                                     Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
-                                        ? 0
-                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                        ? 0m
+                                        : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Qty"))),
                                     Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Rate")),
@@ -2281,8 +2362,8 @@ namespace IMS.Services
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
                                 totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
-                                    ? 0
-                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                    ? 0m
+                                    : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TotalQty")));
                                 totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
@@ -2360,52 +2441,120 @@ namespace IMS.Services
                     var reportDate = filters?.ReportDate ?? DateTimeHelper.Now;
                     var reportDateOnly = reportDate.Date;
 
+                    //var sql = @"
+                    //    WITH ProductPurchase AS (
+                    //        SELECT 
+                    //            poi.PrductId_FK AS ProductId,
+                    //            SUM(poi.Quantity) AS PurchaseQuantity
+                    //        FROM PurchaseOrderItems poi
+                    //        INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                    //        WHERE po.IsDeleted = 0
+                    //            AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
+                    //        GROUP BY poi.PrductId_FK
+                    //    ),
+                    //    ProductSales AS (
+                    //        SELECT 
+                    //            sd.PrductId_FK AS ProductId,
+                    //            SUM(sd.Quantity) AS SalesQuantity
+                    //        FROM SaleDetails sd
+                    //        INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                    //        WHERE s.IsDeleted = 0
+                    //            AND CAST(s.SaleDate AS DATE) = @ReportDate
+                    //        GROUP BY sd.PrductId_FK
+                    //    ),
+                    //    ProductStock AS (
+                    //        SELECT 
+                    //            sm.ProductId_FK AS ProductId,
+                    //            sm.AvailableQuantity AS ClosingStock
+                    //        FROM StockMaster sm
+                    //        WHERE sm.AvailableQuantity >= 0
+                    //    )
+                    //    SELECT 
+                    //        p.ProductId,
+                    //        p.ProductName,
+                    //        p.UrduName AS ProductUrduName,
+                    //        ISNULL(p.ProductCode, '') AS ProductCode,
+                    //        ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
+                    //        ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
+                    //        ISNULL(pst.ClosingStock, 0) AS ClosingStock,
+                    //        CASE 
+                    //            WHEN ISNULL(pst.ClosingStock, 0) > 0 THEN CAST(ISNULL(pst.ClosingStock, 0) / 35.0 AS BIGINT)
+                    //            ELSE 0
+                    //        END AS Bags
+                    //    FROM Products p
+                    //    LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
+                    //    LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
+                    //    LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                    //    WHERE p.IsEnabled = 1
+                    //    ORDER BY p.ProductName;
+                    //";
                     var sql = @"
                         WITH ProductPurchase AS (
-                            SELECT 
-                                poi.PrductId_FK AS ProductId,
-                                SUM(poi.Quantity) AS PurchaseQuantity
-                            FROM PurchaseOrderItems poi
-                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                            WHERE po.IsDeleted = 0
-                                AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
-                            GROUP BY poi.PrductId_FK
-                        ),
-                        ProductSales AS (
-                            SELECT 
-                                sd.PrductId_FK AS ProductId,
-                                SUM(sd.Quantity) AS SalesQuantity
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            WHERE s.IsDeleted = 0
-                                AND CAST(s.SaleDate AS DATE) = @ReportDate
-                            GROUP BY sd.PrductId_FK
-                        ),
-                        ProductStock AS (
-                            SELECT 
-                                sm.ProductId_FK AS ProductId,
-                                sm.AvailableQuantity AS ClosingStock
-                            FROM StockMaster sm
-                            WHERE sm.AvailableQuantity >= 0
-                        )
-                        SELECT 
-                            p.ProductId,
-                            p.ProductName,
-                            p.UrduName AS ProductUrduName,
-                            ISNULL(p.ProductCode, '') AS ProductCode,
-                            ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
-                            ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
-                            ISNULL(pst.ClosingStock, 0) AS ClosingStock,
-                            CASE 
-                                WHEN ISNULL(pst.ClosingStock, 0) > 0 THEN CAST(ISNULL(pst.ClosingStock, 0) / 34.0 AS BIGINT)
-                                ELSE 0
-                            END AS Bags
-                        FROM Products p
-                        LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
-                        LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
-                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
-                        WHERE p.IsEnabled = 1
-                        ORDER BY p.ProductName;
+    SELECT 
+        poi.PrductId_FK AS ProductId,
+        SUM(poi.Quantity) AS PurchaseQuantity
+    FROM PurchaseOrderItems poi
+    INNER JOIN PurchaseOrders po 
+        ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+    WHERE 
+        ISNULL(po.IsDeleted,0) = 0
+        AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
+    GROUP BY poi.PrductId_FK
+),
+ProductSales AS (
+    SELECT 
+        sd.PrductId_FK AS ProductId,
+        SUM(sd.Quantity) AS SalesQuantity
+    FROM SaleDetails sd
+    INNER JOIN Sales s 
+        ON sd.SaleId_FK = s.SaleId
+    WHERE 
+        ISNULL(s.IsDeleted,0) = 0
+        AND CAST(s.SaleDate AS DATE) = @ReportDate
+    GROUP BY sd.PrductId_FK
+),
+ProductStock AS (
+    SELECT 
+        sm.ProductId_FK AS ProductId,
+        SUM(
+            CASE 
+                WHEN st.TransactionStatusId IN (1,3) THEN st.StockQuantity   -- Add
+                WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity       -- Subtract
+                ELSE 0
+            END
+        ) AS ClosingStock
+    FROM StockTransactions st
+    INNER JOIN StockMaster sm 
+        ON st.StockMasterId_FK = sm.StockMasterId
+    WHERE 
+        ISNULL(st.IsDeleted,0)=0
+        AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+    GROUP BY sm.ProductId_FK
+)
+SELECT 
+    p.ProductId,
+    p.ProductName,
+    p.UrduName AS ProductUrduName,
+    ISNULL(p.ProductCode, '') AS ProductCode,
+    ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
+    ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
+    ISNULL(pst.ClosingStock, 0) AS ClosingStock,
+    CASE 
+        WHEN ISNULL(pst.ClosingStock, 0) > 0 
+            THEN CAST(ISNULL(pst.ClosingStock, 0) / 35.0 AS BIGINT)
+        ELSE 0
+    END AS Bags
+FROM Products p
+LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
+LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
+LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+
+WHERE p.IsEnabled = 1
+ORDER BY p.ProductName;
+
+
+
+
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
@@ -2418,10 +2567,10 @@ namespace IMS.Services
                             {
                                 var purchaseQty = reader.IsDBNull(reader.GetOrdinal("PurchaseQuantity"))
                                     ? 0m
-                                    : reader.GetInt64(reader.GetOrdinal("PurchaseQuantity"));
+                                    : reader.GetDecimal(reader.GetOrdinal("PurchaseQuantity"));
                                 var salesQty = reader.IsDBNull(reader.GetOrdinal("SalesQuantity"))
                                     ? 0m
-                                    : reader.GetInt64(reader.GetOrdinal("SalesQuantity"));
+                                    : reader.GetDecimal(reader.GetOrdinal("SalesQuantity"));
                                 var closingStock = reader.IsDBNull(reader.GetOrdinal("ClosingStock"))
                                     ? 0
                                     : reader.GetDecimal(reader.GetOrdinal("ClosingStock"));

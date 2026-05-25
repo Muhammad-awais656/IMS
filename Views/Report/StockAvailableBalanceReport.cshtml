@@ -73,10 +73,10 @@
 
         <p class="text-muted small mb-4">
             <i class="fa fa-info-circle me-1"></i>
-            Shows current stock levels from <strong>StockMaster</strong> (total, used, and <strong>available</strong> quantity).
+            Shows current stock levels from <strong>StockMaster</strong> (total, used, and <strong>available</strong> quantity), unit price from product ranges, and stock value (available × unit price), same basis as Daily Stock Report.
             @if (!string.IsNullOrEmpty(Model.DisplayMeasuringUnitAbbreviation))
             {
-                <span class="d-block mt-1">Quantities use display unit <strong>@Model.DisplayMeasuringUnitAbbreviation</strong>.</span>
+                <span class="d-block mt-1">Quantities, unit price (from minimum product-range price per base unit), and stock value use display unit <strong>@Model.DisplayMeasuringUnitAbbreviation</strong> — unit price and value are converted with the same factors as quantities.</span>
             }
         </p>
 
@@ -84,7 +84,7 @@
             <div class="col-md-4">
                 <div class="card bg-success text-white border-success">
                     <div class="card-body">
-                        <h6 class="card-title">Available quantity (balance)</h6>
+                        <h6 class="card-title">Available quantity (as of date)</h6>
                         <h3 class="mb-0">@Model.TotalAvailableQuantity.ToString("N2")</h3>
                     </div>
                 </div>
@@ -92,7 +92,7 @@
             <div class="col-md-4">
                 <div class="card bg-info text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Total quantity</h6>
+                        <h6 class="card-title">Total quantity (current)</h6>
                         <h3 class="mb-0">@Model.TotalQuantity.ToString("N2")</h3>
                     </div>
                 </div>
@@ -100,8 +100,16 @@
             <div class="col-md-4">
                 <div class="card bg-warning text-white">
                     <div class="card-body">
-                        <h6 class="card-title">Used quantity</h6>
+                        <h6 class="card-title">Used quantity (current)</h6>
                         <h3 class="mb-0">@Model.TotalUsedQuantity.ToString("N2")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Stock value (available × price)</h6>
+                        <h3 class="mb-0">@Model.TotalStockValue.ToString("N2")</h3>
                     </div>
                 </div>
             </div>

@@ -13,7 +13,7 @@ public partial class PurchaseOrderItem
 
     public decimal UnitPrice { get; set; }
 
-    public long Quantity { get; set; }
+    public decimal Quantity { get; set; }
 
     public decimal PurchasePrice { get; set; }
 
