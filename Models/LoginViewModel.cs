@@ -1,3 +1,5 @@
+﻿using IMS.DAL.PrimaryDBContext;
+using IMS.Enums;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using System.ComponentModel.DataAnnotations;
 
@@ -6,20 +8,19 @@ namespace IMS.Models
     public class LoginViewModel
     {
         [Required]
-        public string Username { get; set; } = string.Empty;
-
+        public string Username { get; set; }
         [Required]
-        public string Password { get; set; } = string.Empty;
+        public string Password { get; set; }
+        [Required]
+        public string Domain { get; set; } // Shop or Factory
 
         /// <summary>
-        /// Selected branch for login. User must belong to this branch.
+        /// Kept for connection string selection (e.g. Shop/Factory). Set server-side on login.
         /// </summary>
-        [Required(ErrorMessage = "Please select a branch.")]
-        [Range(1, int.MaxValue, ErrorMessage = "Please select a branch.")]
-        public int BranchId { get; set; }
+        [ValidateNever]
+        public string Domain { get; set; } = "Shop";
 
         [ValidateNever]
-        public List<DAL.PrimaryDBContext.Branch>? Branches { get; set; }
-        public bool RememberMe { get; set; }
+       public DAL.PrimaryDBContext.User ShopUsers { get; set; }
     }
 }
