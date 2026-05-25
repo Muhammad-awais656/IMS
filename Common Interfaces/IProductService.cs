@@ -19,8 +19,8 @@ namespace IMS.Common_Interfaces
         Task<bool> CreateProductRange(ProductRange productRange);
         Task<Product?> GetProductByCodeAsync(string productCode);
         Task<bool> ProductCodeExistsAsync(string productCode, long? excludeProductId = null);
-        Task<bool> DeleteProductRangesByProductIdAsync(long productId);
 
-        
+        /// <summary>Updates, soft-deletes, and inserts product ranges on edit so ProductRangeId stays stable for SaleDetails.</summary>
+        Task SyncProductRangesOnProductEditAsync(long productId, IReadOnlyList<ProductRange>? submittedRanges);
     }
 }

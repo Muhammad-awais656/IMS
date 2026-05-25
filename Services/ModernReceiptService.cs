@@ -67,7 +67,7 @@ namespace IMS.Services
             // Get sale details with user information
             var saleQuery = @"
                 SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
-                       s.TotalReceivedAmount, s.TotalDueAmount, c.CustomerName, u.UserName
+                       s.TotalReceivedAmount, s.TotalDueAmount, ISNULL(s.SalesFreight, 0) AS SalesFreight, c.CustomerName, u.UserName
                 FROM Sales s
                 LEFT JOIN Customer c ON s.CustomerId_FK = c.CustomerId
                 LEFT JOIN [User] u ON s.CreatedBy = u.UserId
@@ -86,6 +86,7 @@ namespace IMS.Services
             var discountAmount = saleReader.GetDecimal("DiscountAmount");
             var totalReceivedAmount = saleReader.GetDecimal("TotalReceivedAmount");
             var totalDueAmount = saleReader.GetDecimal("TotalDueAmount");
+            var salesFreight = saleReader.IsDBNull("SalesFreight") ? 0m : saleReader.GetDecimal("SalesFreight");
             var customerName = saleReader.IsDBNull("CustomerName") ? "N/A" : saleReader.GetString("CustomerName");
             var createdByUserName = saleReader.IsDBNull("UserName") ? "System" : saleReader.GetString("UserName");
 
@@ -125,7 +126,8 @@ namespace IMS.Services
                     CashReceived = totalReceivedAmount,
                     TotalBalance = totalDueAmount,
                     TotalDue = totalDueAmount,
-                    GrossTotal = totalAmount
+                    GrossTotal = totalAmount,
+                    FreightAmount = salesFreight
                 },
                 Footer = new ReceiptFooter
                 {

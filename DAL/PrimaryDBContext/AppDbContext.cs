@@ -346,6 +346,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.UnitPrice).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.ProductRangeName).HasMaxLength(500);
             entity.Property(e => e.UrduName).HasMaxLength(500);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<PurchaseOrder>(entity =>
@@ -364,6 +365,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<PurchaseOrderItem>(entity =>
         {
+            entity.Property(e => e.Quantity).HasColumnType("numeric(18, 4)");
             entity.Property(e => e.LineDiscountAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.PayableAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.PrductIdFk).HasColumnName("PrductId_FK");
@@ -391,10 +393,12 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.TotalAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.TotalDueAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.TotalReceivedAmount).HasColumnType("numeric(18, 3)");
+            entity.Property(e => e.SalesFreight).HasColumnType("numeric(18, 3)");
         });
 
         modelBuilder.Entity<SaleDetail>(entity =>
         {
+            entity.Property(e => e.Quantity).HasColumnType("numeric(18, 4)");
             entity.Property(e => e.LineDiscountAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.PayableAmount).HasColumnType("numeric(18, 3)");
             entity.Property(e => e.PrductIdFk).HasColumnName("PrductId_FK");

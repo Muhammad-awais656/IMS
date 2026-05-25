@@ -5,6 +5,9 @@
     var displayName = !string.IsNullOrWhiteSpace(Model.CustomerUrduName) ? Model.CustomerUrduName : Model.CustomerName;
    
     var isCredit = Model.TotalDueAmount > 0;
+    var linesSubtotal = Model.LinesPayableSubtotal > 0
+        ? Model.LinesPayableSubtotal
+        : (Model.SaleDetails?.Sum(d => d.PayableAmount) ?? 0m);
 }
 <!DOCTYPE html>
 <html lang="ur" dir="rtl">
@@ -27,27 +30,59 @@
         }
         .ltr { direction: ltr; text-align: left; }
         .receipt { border: 1px solid #333; padding: 12px; min-height: 270mm; }
+        .receipt-letterhead {
+            background-color: #ffeb3b;
+            padding: 12px 10px 14px;
+            margin: -12px -12px 10px -12px;
+            border-bottom: 2px solid #222;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         .receipt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
         .contact-block { font-size: 12pt; line-height: 1.5; }
-        .contact-block .contact-name { font-weight: bold; margin-bottom: 2px; font-size: 14pt; }
-        .contact-block .contact-phone { font-weight: bold; }
+        .receipt-letterhead .contact-block { font-size: 14pt; line-height: 1.5; }
+        .receipt-letterhead .contact-block .contact-name { font-weight: 900; margin-bottom: 4px; font-size: 20pt; }
+        .receipt-letterhead .contact-block .contact-phone { font-weight: 800; font-size: 16pt; margin-top: 2px; }
         .contact-block.contact-right { text-align: right; }
         .contact-block.contact-left { text-align: left; }
         .header-center { text-align: center; margin-bottom: 8px; }
-        .business-name { font-size: 28pt; font-weight: bold; margin: 0; color: #0066cc; }
-        .tagline { font-size: 13pt; color: #000; margin: 4px 0 2px; text-align: center; font-family: inherit; }
-        .address { font-size: 13pt; color: #000; margin: 4px 0; text-align: center; font-family: inherit; }
+        .receipt-letterhead .business-name { font-size: 55pt; font-weight: 900; margin: 0; color: #10F; letter-spacing: 0.02em; }
+        .receipt-letterhead .tagline { font-size: 17pt; font-weight: 800; color: #111; margin: 6px 0 4px; text-align: center; font-family: inherit; }
+        .receipt-letterhead .address { font-size: 18pt; font-weight: 800; color: #111; margin: 4px 0 0; text-align: center; font-family: inherit; }
         hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+        /* Transaction strip: separate from letterhead; same yellow when printed; sizes unchanged */
+        .receipt-meta-banner {
+            background-color: #ffeb3b;
+            margin: 0 -12px 10px -12px;
+            padding: 10px 12px 10px;
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 17pt;
+            font-weight: 800;
+            color: #111;
+        }
+        .receipt-meta-banner .info-row { display: flex; justify-content: space-between; margin: 0 0 6px; flex-wrap: wrap; gap: 8px; font-size: 17pt; font-weight: 800; }
+        .receipt-meta-banner .info-item { display: flex; align-items: center; gap: 6px; font-weight: 800; }
+        .receipt-meta-banner .info-label { font-weight: 900; }
+        .receipt-meta-banner .payment-type { margin: 0; font-size: 10pt; font-weight: 800; line-height: 1.5; }
         .info-row { display: flex; justify-content: space-between; margin: 6px 0; flex-wrap: wrap; gap: 8px; }
         .info-item { display: flex; align-items: center; gap: 6px; }
         .info-label { font-weight: bold; }
         .payment-type { margin: 6px 0; font-size: 10pt; }
         table.items { width: 100%; border-collapse: collapse; margin: 10px 0; }
         table.items th, table.items td { border: 1px solid #333; padding: 6px 8px; }
-        table.items th { background: #f0f0f0; font-weight: bold; }
+
+            table.items th {
+                background: #f0f0f0;
+                font-weight: bold;
+                font-size: x-large;
+            }
         table.items .num { text-align: center; width: 40px; }
         table.items .desc { }
-        table.items .qty { text-align: center; width: 125px; }
+        table.items .qty { text-align: center; width: 100px; }
+        table.items .wazn { text-align: center; width: 95px; }
         table.items .rate { text-align: left; width: 120px; }
         table.items .amt { text-align: left; width: 125px; }
         .total-row { margin-top: 10px; font-weight: bold; font-size: 12pt; }
@@ -73,33 +108,36 @@
 </head>
 <body>
     <div class="receipt">
-        <div class="receipt-header">
-            <div class="contact-block contact-right">
-                <div class="contact-name">اسد محمود</div>
-                <div class="contact-phone ltr">@(ViewBag.PhoneAsad1 ?? "0321-4438351")</div>
-                <div class="contact-phone ltr">@(ViewBag.PhoneAsad2 ?? "0319-4838351")</div>
+        <div class="receipt-letterhead">
+            <div class="receipt-header">
+                <div class="contact-block contact-right">
+                    <div class="contact-name">اسد محمود</div>
+                    <div class="contact-phone ltr">@(ViewBag.PhoneAsad1 ?? "0321-4438351")</div>
+                    <div class="contact-phone ltr">@(ViewBag.PhoneAsad2 ?? "0319-4838351")</div>
+                </div>
+                <div class="header-center" style="flex: 1;">
+                    <h1 class="business-name">@(ViewBag.BusinessName ?? "ایم ظہور ٹریڈرز")</h1>
+                </div>
+                <div class="contact-block contact-left">
+                    <div class="contact-name">ندیم محمود</div>
+                    <div class="contact-phone ltr">@(ViewBag.PhoneNadeem1 ?? "0321-4438350")</div>
+                    <div class="contact-phone ltr">@(ViewBag.PhoneNadeem2 ?? "0300-9483508")</div>
+                </div>
             </div>
-            <div class="header-center" style="flex: 1;">
-                <h1 class="business-name">@(ViewBag.BusinessName ?? "ایم ظہور ٹریڈرز")</h1>
-            </div>
-            <div class="contact-block contact-left">
-                <div class="contact-name">ندیم محمود</div>
-                <div class="contact-phone ltr">@(ViewBag.PhoneNadeem1 ?? "0321-4438350")</div>
-                <div class="contact-phone ltr">@(ViewBag.PhoneNadeem2 ?? "0300-9483508")</div>
-            </div>
+            <p class="tagline">@(ViewBag.BusinessTagline ?? "ڈیلر: کھل، چوکر ، سوڑی، دانہ، بیج، کڑوی کھل وغیرہ تھوک و پر چون دستیاب ہے")</p>
+            <p class="address">@(ViewBag.Address ?? "چھوٹا ساندہ بس سٹاپ مین بند روڈ لاہور") @(ViewBag.Landline ?? "37148045,37147571-042")</p>
         </div>
-        <p class="tagline">@(ViewBag.BusinessTagline ?? "ڈیلر: کھل، چوکر ، سوڑی، دانہ، بیج، کوری کھل وغیرہ تھوک و پر چون دستیاب ہے")</p>
-        <p class="address">@(ViewBag.Address ?? "چھوٹا ساندہ بس سٹاپ مین بند روڈ لاہور") @(ViewBag.Landline ?? "37148045,37147571-042")</p>
-        <hr />
-        <div class="info-row">
-            <div class="info-item"><span class="info-label">نمبر:</span><span class="ltr">@Model.BillNumber</span></div>
-            <div class="info-item"><span class="info-label">نام:</span><span>@displayName</span></div>
-            <div class="info-item"><span class="info-label">تاریخ:</span><span class="ltr">@Model.SaleDate.ToString("dd-MMM-yyyy")</span></div>
-        </div>
-        <div class="payment-type">
-            <span class="info-label">ادھار / نقد:</span> @(isCredit ? "ادھار" : "نقد")
-            @if (ViewBag.MerchantCopy == true) { <span> (مرچنٹ کاپی)</span> }
-            else { <span> (کسٹمر کاپی)</span> }
+        <div class="receipt-meta-banner">
+            <div class="info-row">
+                <div class="info-item"><span class="info-label">نمبر:</span><span class="ltr">@Model.BillNumber</span></div>
+                <div class="info-item"><span class="info-label">نام:</span><span>@displayName</span></div>
+                <div class="info-item"><span class="info-label">تاریخ:</span><span class="ltr">@Model.SaleDate.ToString("dd-MMM-yyyy")</span></div>
+            </div>
+            <div class="payment-type">
+                <span class="info-label">ادھار / نقد:</span> @(isCredit ? "ادھار" : "نقد")
+                @if (ViewBag.MerchantCopy == true) { <span> (مرچنٹ کاپی)</span> }
+                else { <span> (کسٹمر کاپی)</span> }
+            </div>
         </div>
         <hr />
         <table class="items">
@@ -108,6 +146,7 @@
                     <th class="num">#</th>
                     <th class="desc">تفصیل</th>
                     <th class="qty">تعداد</th>
+                    <th class="wazn">وزن</th>
                     <th class="rate">نرخ</th>
                     <th class="amt">قیمت</th>
                 </tr>
@@ -118,9 +157,9 @@
                     @foreach (var item in Model.SaleDetails)
                     {
                         var lineTotal = item.SalePrice * item.PrintQuantity;
-                        var qtyWithUnit = item.PrintQuantity.ToString("N2");
-                        var displayMU = !string.IsNullOrWhiteSpace(item.UrduNameMU) ? item.UrduNameMU : item.MeasuringUnitAbbreviation;
-                        if (!string.IsNullOrEmpty(item.MeasuringUnitAbbreviation)) { qtyWithUnit += " " + displayMU; }
+                        var qtyOnly = item.PrintQuantity.ToString("N0");
+                        var displayMU = !string.IsNullOrWhiteSpace(item.UrduNameMU) ? item.UrduNameMU : (item.MeasuringUnitAbbreviation ?? string.Empty);
+                        if (string.IsNullOrWhiteSpace(displayMU)) { displayMU = "—"; }
                         var descEnglish = !string.IsNullOrWhiteSpace(item.ProductRangeUrduName)
                         ? item.ProductRangeUrduName
                             : item.ProductRangeName;
@@ -139,7 +178,8 @@
                                     <div>@item.ProductUrduName</div>
                                 } *@
                             </td>
-                            <td class="qty ltr">@qtyWithUnit</td>
+                            <td class="qty ltr">@qtyOnly</td>
+                            <td class="wazn">@displayMU</td>
                             <td class="rate ltr">@item.SalePrice.ToString("N2")</td>
                             <td class="amt ltr">@lineTotal.ToString("N2")</td>
                         </tr>
@@ -148,22 +188,22 @@
                 }
                 else
                 {
-                    <tr><td colspan="5" class="ltr" style="text-align:center;">No items</td></tr>
+                    <tr><td colspan="6" class="ltr" style="text-align:center;">No items</td></tr>
                 }
             </tbody>
             <tfoot>
-                @{
-
-                    var total = Model?.TotalAmount + Model?.DiscountAmount;
-                }
                 <tr>
-                    <td colspan="4" style="text-align: right;">میزان (کل):</td>
-                    <td class="amt ltr">@(total?.ToString("N2") ?? "0.00")</td>
+                    <td colspan="5" style="text-align: right;">میزان (سطریں):</td>
+                    <td class="amt ltr">@linesSubtotal.ToString("N2")</td>
                 </tr>
             </tfoot>
         </table>
         <div class="total-summary-lines">
-            <div><span>ٹوٹل:</span> <span class="ltr">@Model.TotalAmount.ToString("N2")</span></div>
+            @if (Model.FreightAmount > 0)
+            {
+                <div><span>کرایہ:</span> <span class="ltr">@Model.FreightAmount.ToString("N2")</span></div>
+            }
+            <div><span>ٹوٹل (بل):</span> <span class="ltr">@Model.TotalAmount.ToString("N2")</span></div>
             @if (Model.DiscountAmount > 0) { <div><span>رعایت:</span> <span class="ltr">@Model.DiscountAmount.ToString("N2")</span></div> }
             <div><span>ادا شدہ:</span> <span class="ltr">@Model.TotalReceivedAmount.ToString("N2")</span></div>
             @if (Model.TotalDueAmount > 0) { <div><span>بقایا:</span> <span class="ltr">@Model.TotalDueAmount.ToString("N2")</span></div> }

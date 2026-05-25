@@ -203,6 +203,7 @@ namespace IMS.Services
                     AND p.MeasuringUnitTypeId_FK IS NOT NULL
                     AND mu.MeasuringUnitTypeId_FK = p.MeasuringUnitTypeId_FK
                     AND mu.IsSmallestUnit = 1
+                WHERE ISNULL(pr.IsDeleted, 0) = 0
                 
                 """;
 
@@ -218,6 +219,7 @@ namespace IMS.Services
                 SELECT TOP 1 pr.UnitPrice
                 FROM ProductRange pr
                 WHERE pr.ProductId_FK = @pProductId
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                   
                 """;
 
@@ -306,6 +308,7 @@ namespace IMS.Services
                     AND p.MeasuringUnitTypeId_FK IS NOT NULL
                     AND mu.MeasuringUnitTypeId_FK = p.MeasuringUnitTypeId_FK
                     AND mu.IsSmallestUnit = 1
+                WHERE ISNULL(pr.IsDeleted, 0) = 0
                 ORDER BY pr.ProductRangeId
                 """;
 

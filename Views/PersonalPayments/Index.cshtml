@@ -396,6 +396,7 @@
                                 <th>Balance</th>
                                 <th>Description</th>
                                 <th>Sale Reference</th>
+                                <th style="min-width: 110px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="transactionHistoryBody">
@@ -546,6 +547,48 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-warning" onclick="processBankWithdraw()">
                     <i class="fa-solid fa-check me-1"></i>Withdraw
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit manual deposit / withdraw (History) -->
+<div class="modal fade" id="editManualTxnModal" tabindex="-1" aria-labelledby="editManualTxnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="editManualTxnModalLabel">
+                    <i class="fa-solid fa-pen-to-square me-2"></i>Edit manual transaction
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editManualTxnDetailId" />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Type</label>
+                        <input type="text" id="editManualTxnTypeDisplay" class="form-control" readonly />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="editManualTxnAmount" class="form-label fw-semibold">Amount <span class="text-danger">*</span></label>
+                        <input type="number" id="editManualTxnAmount" class="form-control" step="0.01" min="0.01" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="editManualTxnDate" class="form-label fw-semibold">Transaction date <span class="text-danger">*</span></label>
+                        <input type="date" id="editManualTxnDate" class="form-control" required />
+                    </div>
+                    <div class="col-md-12">
+                        <label for="editManualTxnDescription" class="form-label fw-semibold">Description</label>
+                        <textarea id="editManualTxnDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="text-danger small mt-2 d-none" id="editManualTxnError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveManualTransactionEdit()">
+                    <i class="fa-solid fa-save me-1"></i>Save
                 </button>
             </div>
         </div>
@@ -814,6 +857,9 @@
                     // Determine reference text - show "Manual Deposit/Withdraw" for manual transactions (SaleId = 0)
                     let referenceText = '-';
                     const saleId = transaction.saleId || transaction.SaleId || 0;
+                    const detailId = transaction.personalPaymentSaleDetailId || transaction.PersonalPaymentSaleDetailId || 0;
+                    const isManual = (saleId === 0 || saleId === '0') &&
+                        (transaction.transactionType === 'Credit' || transaction.transactionType === 'Debit');
                     if (saleId === 0 || saleId === '0') {
                         // Manual transaction
                         if (transaction.transactionType === 'Credit') {
@@ -831,6 +877,19 @@
                         }
                     }
 
+                    let actionsCell = '<span class="text-muted">—</span>';
+                    if (isManual && detailId > 0 && currentPersonalPaymentId) {
+                        actionsCell = `
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-warning" title="Edit" onclick="openEditManualTransaction(${detailId})">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Delete" onclick="confirmDeleteManualTransaction(${detailId})">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>`;
+                    }
+
                     row.innerHTML = `
                         <td>${new Date(transaction.transactionDate).toLocaleDateString()}</td>
                         <td>
@@ -844,6 +903,7 @@
                         <td class="text-end fw-bold">Rs${parseFloat(transaction.balance).toFixed(2)}</td>
                         <td>${transaction.transactionDescription || '-'}</td>
                         <td>${referenceText}</td>
+                        <td>${actionsCell}</td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -856,7 +916,7 @@
             } else {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             <i class="fa-solid fa-inbox fa-2x mb-2"></i>
                             <br>No transactions found
                         </td>
@@ -909,12 +969,102 @@
             const tbody = document.getElementById('transactionHistoryBody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-danger py-4">
+                    <td colspan="7" class="text-center text-danger py-4">
                         <i class="fa-solid fa-exclamation-triangle fa-2x mb-2"></i>
                         <br>${message}
                     </td>
                 </tr>
             `;
+        }
+
+        function openEditManualTransaction(detailId) {
+            const err = document.getElementById('editManualTxnError');
+            err.classList.add('d-none');
+            err.textContent = '';
+            document.getElementById('editManualTxnDetailId').value = detailId;
+            fetch('@Url.Action("GetManualTransaction", "PersonalPayments")?detailId=' + encodeURIComponent(detailId) + '&personalPaymentId=' + encodeURIComponent(currentPersonalPaymentId))
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success || !data.transaction) {
+                        err.textContent = data.message || 'Could not load transaction.';
+                        err.classList.remove('d-none');
+                        return;
+                    }
+                    const t = data.transaction;
+                    const typeLabel = (t.transactionType === 'Credit') ? 'Manual Deposit' : 'Manual Withdraw';
+                    document.getElementById('editManualTxnTypeDisplay').value = typeLabel;
+                    document.getElementById('editManualTxnAmount').value = parseFloat(t.amount).toFixed(2);
+                    document.getElementById('editManualTxnDate').value = t.transactionDate || '';
+                    document.getElementById('editManualTxnDescription').value = t.transactionDescription || '';
+                    const modal = new bootstrap.Modal(document.getElementById('editManualTxnModal'));
+                    modal.show();
+                })
+                .catch(() => {
+                    err.textContent = 'Failed to load transaction.';
+                    err.classList.remove('d-none');
+                });
+        }
+
+        function saveManualTransactionEdit() {
+            const err = document.getElementById('editManualTxnError');
+            err.classList.add('d-none');
+            err.textContent = '';
+            const id = parseInt(document.getElementById('editManualTxnDetailId').value, 10);
+            const amount = parseFloat(document.getElementById('editManualTxnAmount').value);
+            const paymentDateStr = document.getElementById('editManualTxnDate').value;
+            const description = document.getElementById('editManualTxnDescription').value;
+            if (!id || amount <= 0 || !paymentDateStr) {
+                err.textContent = 'Please enter a valid amount and date.';
+                err.classList.remove('d-none');
+                return;
+            }
+            const body = {
+                personalPaymentSaleDetailId: id,
+                personalPaymentId: currentPersonalPaymentId,
+                amount: amount,
+                description: description,
+                paymentDate: paymentDateStr
+            };
+            fetch('@Url.Action("UpdateManualTransaction", "PersonalPayments")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('editManualTxnModal'))?.hide();
+                        window.location.reload();
+                        loadTransactionHistory(currentHistoryPage);
+
+                    } else {
+                        err.textContent = data.message || 'Update failed.';
+                        err.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    err.textContent = 'Update failed.';
+                    err.classList.remove('d-none');
+                });
+        }
+
+        function confirmDeleteManualTransaction(detailId) {
+            if (!confirm('Delete this manual transaction? Account totals will be adjusted.')) return;
+            fetch('@Url.Action("DeleteManualTransaction", "PersonalPayments")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personalPaymentSaleDetailId: detailId, personalPaymentId: currentPersonalPaymentId })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                        loadTransactionHistory(currentHistoryPage);
+                    } else {
+                        alert(data.message || 'Delete failed.');
+                    }
+                })
+                .catch(() => alert('Delete failed.'));
         }
 
         // Initialize Deposit and Withdraw Modals

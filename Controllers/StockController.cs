@@ -114,12 +114,12 @@ namespace IMS.Controllers
                 ViewBag.Products = new SelectList(new List<Product>(), "ProductId", "ProductName");
                 ViewBag.Categories = new SelectList(categories, "CategoryId", "CategoryName");
                 
-                return View();
+                return View(new StockMaster { CreatedDate = DateTimeHelper.Now.Date });
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = ex.Message;
-                return View();
+                return View(new StockMaster { CreatedDate = DateTimeHelper.Now.Date });
             }
         }
 
@@ -144,6 +144,10 @@ namespace IMS.Controllers
                     {
                         var userIdStr = HttpContext.Session.GetString("UserId");
                         long userId = long.Parse(userIdStr);
+
+                        var stockTransactionDate = stock.CreatedDate.HasValue && stock.CreatedDate.Value > DateTime.MinValue
+                            ? stock.CreatedDate.Value.Date
+                            : DateTimeHelper.Now;
                         
                         // Get measuring unit ID from form (if provided)
                         var measuringUnitIdStr = Request.Form["MeasuringUnitIdHidden"].ToString();
@@ -239,7 +243,7 @@ namespace IMS.Controllers
                                 existingStock.StockMasterId,
                                 (decimal)stock.TotalQuantity,
                                 string.IsNullOrEmpty(stock.Comment) ? "" :stock.Comment,
-                                DateTimeHelper.Now,
+                                stockTransactionDate,
                                 userId,
                                 1, // Added Stock Transaction Type
                                 0
@@ -259,7 +263,7 @@ namespace IMS.Controllers
                         {
                             // Create new stock
                             stock.CreatedBy = userId;
-                            stock.CreatedDate = DateTimeHelper.Now;
+                            stock.CreatedDate = stockTransactionDate;
                             
                             // For new stock, assume all quantity is available initially
                             stock.AvailableQuantity = stock.TotalQuantity;

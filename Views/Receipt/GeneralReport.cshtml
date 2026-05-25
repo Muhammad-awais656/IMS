@@ -245,6 +245,13 @@
                 <th>Total Amount</th>
                 <td>@Model.Totals.TotalAmount.ToString("N2")</td>
             </tr>
+            @if (Model.Totals.FreightAmount > 0)
+            {
+                <tr>
+                    <th>Freight (Karaya)</th>
+                    <td>@Model.Totals.FreightAmount.ToString("N2")</td>
+                </tr>
+            }
             <tr>
                 <th>Discount</th>
                 <td>@Model.Totals.InvoiceDiscount.ToString("N2")</td>

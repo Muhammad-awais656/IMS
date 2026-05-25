@@ -115,6 +115,14 @@
                                         <span class="text-muted fst-italic">No description provided</span>
                                     }
                                 </dd>
+
+                                @if (Model.SalesFreight > 0)
+                                {
+                                    <dt class="col-sm-4">Freight (Karaya):</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="fw-semibold">@Model.SalesFreight.ToString("N2", new CultureInfo("ur-PK"))</span>
+                                    </dd>
+                                }
                             </dl>
                         </div>
                         <div class="col-md-6">

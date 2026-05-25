@@ -1,0 +1,132 @@
+@{
+    ViewData["Title"] = "Database backup";
+    var domain = Context.Session.GetString("Domain") ?? "—";
+    var downloadUrl = Url.Action("Download", "DatabaseBackup")!;
+}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0 text-center"><i class="fa-solid fa-database me-2"></i>Database backup</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">
+            Creates a full SQL Server backup (<code>.bak</code>) for the database you are logged into (<strong>@domain</strong>).
+            Your browser will ask where to save the file when possible (Chrome and Edge). Other browsers use the normal download folder.
+        </p>
+        <p class="small text-muted mb-4">
+            The backup is written on the SQL Server machine first, then downloaded. By default the app uses
+            <code>C:\ProgramData\IMS\SqlBackups</code> (created automatically). If backup fails with a permission error, grant the SQL Server service account
+            <strong>Modify</strong> on that folder. If SQL Server runs on another computer, set
+            <code>DatabaseBackup:SqlServerBackupDirectory</code> in <code>appsettings.json</code> to a UNC path that both SQL Server and this application can use.
+        </p>
+        <button type="button" id="btnDbBackup" class="btn btn-primary btn-lg">
+            <i class="fa-solid fa-download me-2"></i>Save backup as…
+        </button>
+        <div id="dbBackupStatus" class="mt-3 small" role="status" aria-live="polite"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var downloadUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(downloadUrl));
+            var statusEl = document.getElementById('dbBackupStatus');
+            var btn = document.getElementById('btnDbBackup');
+
+            function defaultFileName() {
+                var d = new Date();
+                var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+                return 'IMS_' + @Html.Raw(System.Text.Json.JsonSerializer.Serialize(domain)) + '_' +
+                    d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' +
+                    pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.bak';
+            }
+
+            function setStatus(msg, isError) {
+                if (!statusEl) return;
+                statusEl.textContent = msg || '';
+                statusEl.className = 'mt-3 small' + (isError ? ' text-danger' : ' text-muted');
+            }
+
+            async function saveWithPicker(blob, name) {
+                if (window.showSaveFilePicker) {
+                    var handle = await window.showSaveFilePicker({
+                        suggestedName: name,
+                        types: [{
+                            description: 'SQL Server backup',
+                            accept: { 'application/octet-stream': ['.bak'] }
+                        }]
+                    });
+                    var writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    setStatus('Backup saved to the location you chose.');
+                    return;
+                }
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                setStatus('Download started. If the browser did not ask for a folder, check your default downloads folder.');
+            }
+
+            btn.addEventListener('click', async function () {
+                btn.disabled = true;
+                var name = defaultFileName();
+                var fileHandle = null;
+                if (window.showSaveFilePicker) {
+                    try {
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName: name,
+                            types: [{
+                                description: 'SQL Server backup',
+                                accept: { 'application/octet-stream': ['.bak'] }
+                            }]
+                        });
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') {
+                            setStatus('Cancelled.');
+                            btn.disabled = false;
+                            return;
+                        }
+                        setStatus(e && e.message ? e.message : String(e), true);
+                        btn.disabled = false;
+                        return;
+                    }
+                }
+                setStatus('Creating backup on the server, please wait…');
+                try {
+                    var res = await fetch(downloadUrl, { method: 'GET', credentials: 'same-origin' });
+                    if (!res.ok) {
+                        var errText = await res.text();
+                        setStatus(errText || ('Request failed (' + res.status + ')'), true);
+                        return;
+                    }
+                    var blob = await res.blob();
+                    var cd = res.headers.get('Content-Disposition');
+                    if (cd) {
+                        var m = /filename\*=UTF-8''([^;\r\n]+)|filename="([^"]+)"/i.exec(cd);
+                        if (m) {
+                            name = decodeURIComponent((m[1] || m[2] || '').trim()) || name;
+                        }
+                    }
+                    if (fileHandle) {
+                        var writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                        setStatus('Backup saved to the location you chose.');
+                    } else {
+                        await saveWithPicker(blob, name);
+                    }
+                } catch (e) {
+                    setStatus(e && e.message ? e.message : String(e), true);
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        })();
+    </script>
+}

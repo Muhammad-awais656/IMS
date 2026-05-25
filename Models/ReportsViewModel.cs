@@ -242,6 +242,8 @@ namespace IMS.Models
         public long? ProductId { get; set; }
         /// <summary>Optional display unit (measuring unit id). When set, total/used/available quantities are converted from base (smallest) unit like the Stock screen.</summary>
         public long? DisplayMeasuringUnitId { get; set; }
+        /// <summary>When false (Stock Available Balance report), unit price and stock value columns are omitted and exports stay pricing-free.</summary>
+        public bool IncludeUnitPriceAndValue { get; set; } = true;
     }
 
     public class DailyStockPositionReportViewModel
@@ -508,7 +510,7 @@ namespace IMS.Models
         public bool HasNextPage => CurrentPage < TotalPages;
         public decimal TotalAmount { get; set; }
         public decimal TotalWeight { get; set; }
-        public long TotalQty { get; set; }
+        public decimal TotalQty { get; set; }
     }
 
     public class ProductWiseSalesReportItem
@@ -519,7 +521,7 @@ namespace IMS.Models
         public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public decimal Weight { get; set; }
-        public long Qty { get; set; }
+        public decimal Qty { get; set; }
         public decimal Rate { get; set; }
         public decimal Amount { get; set; }
         public bool IsTotalRow { get; set; } = false; // To identify total rows for each product
@@ -544,7 +546,7 @@ namespace IMS.Models
         public bool HasNextPage => CurrentPage < TotalPages;
         public decimal TotalAmount { get; set; }
         public decimal TotalWeight { get; set; }
-        public long TotalQty { get; set; }
+        public decimal TotalQty { get; set; }
     }
 
     public class ProductWisePurchaseReportItem
@@ -555,7 +557,7 @@ namespace IMS.Models
         public string? ProductUrduName { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public decimal Weight { get; set; }
-        public long Qty { get; set; }
+        public decimal Qty { get; set; }
         public decimal Rate { get; set; }
         public decimal Amount { get; set; }
         public bool IsTotalRow { get; set; } = false; // To identify total rows for each product

@@ -21,6 +21,16 @@ namespace IMS.Common_Interfaces
         Task<List<ProductRange>> GetProductSizesAsync(long productId);
         Task<decimal> GetPreviousDueAmountAsync(long vendorId);
         Task<long> CreateBillAsync(GenerateBillViewModel model);
+
+        /// <summary>
+        /// Converts a bill line quantity from the product range's measuring unit to the product's base (smallest) unit for persistence and stock.
+        /// </summary>
+        Task<decimal> ConvertBillLineQuantityToBaseUnitAsync(long productId, long productRangeId, decimal lineQuantity);
+
+        /// <summary>
+        /// Converts a stored base-unit quantity back to the product range's measuring unit (for edit UI / display).
+        /// </summary>
+        Task<decimal> ConvertBaseQuantityToProductRangeUnitAsync(long productId, long productRangeId, decimal baseQuantity);
         
         // Edit functionality methods
         Task<VendorBillViewModel?> GetVendorBillByIdAsync(long billId);
