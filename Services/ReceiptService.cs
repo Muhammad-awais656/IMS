@@ -97,7 +97,7 @@ namespace IMS.Services
             // Get sale details
             var saleQuery = @"
                 SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
-                       s.TotalReceivedAmount, s.TotalDueAmount, c.CustomerName
+                       s.TotalReceivedAmount, s.TotalDueAmount, ISNULL(s.SalesFreight, 0) AS SalesFreight, c.CustomerName
                 FROM Sales s
                 LEFT JOIN Customer c ON s.CustomerId_FK = c.CustomerId
                 WHERE s.SaleId = @SaleId AND s.IsDeleted = 0";
@@ -115,6 +115,7 @@ namespace IMS.Services
             var discountAmount = saleReader.GetDecimal("DiscountAmount");
             var totalReceivedAmount = saleReader.GetDecimal("TotalReceivedAmount");
             var totalDueAmount = saleReader.GetDecimal("TotalDueAmount");
+            var salesFreight = saleReader.IsDBNull("SalesFreight") ? 0m : saleReader.GetDecimal("SalesFreight");
             var customerName = saleReader.IsDBNull("CustomerName") ? "N/A" : saleReader.GetString("CustomerName");
 
             await saleReader.CloseAsync();
@@ -162,13 +163,19 @@ namespace IMS.Services
             }
 
             // Add footer
-            receiptData.FooterItems = new List<ReceiptFooter>
+            var footers = new List<ReceiptFooter>
             {
                 new ReceiptFooter { ColumnName = "Total Amount", ColumnValue = totalAmount.ToString("N2") },
+            };
+            if (salesFreight > 0m)
+                footers.Add(new ReceiptFooter { ColumnName = "Freight (Karaya)", ColumnValue = salesFreight.ToString("N2") });
+            footers.AddRange(new[]
+            {
                 new ReceiptFooter { ColumnName = "Discount", ColumnValue = discountAmount.ToString("N2") },
                 new ReceiptFooter { ColumnName = "Received Amount", ColumnValue = totalReceivedAmount.ToString("N2") },
                 new ReceiptFooter { ColumnName = "Due Amount", ColumnValue = totalDueAmount.ToString("N2") }
-            };
+            });
+            receiptData.FooterItems = footers;
 
             return receiptData;
         }
@@ -181,7 +188,7 @@ namespace IMS.Services
             // Get sale details with user information
             var saleQuery = @"
                 SELECT s.SaleId, s.BillNumber, s.SaleDate, s.TotalAmount, s.DiscountAmount, 
-                       s.TotalReceivedAmount, s.TotalDueAmount, c.CustomerName, u.UserName
+                       s.TotalReceivedAmount, s.TotalDueAmount, ISNULL(s.SalesFreight, 0) AS SalesFreight, c.CustomerName, u.UserName
                 FROM Sales s
                 LEFT JOIN Customer c ON s.CustomerId_FK = c.CustomerId
                 LEFT JOIN [User] u ON s.CreatedBy = u.UserId
@@ -200,6 +207,7 @@ namespace IMS.Services
             var discountAmount = saleReader.GetDecimal("DiscountAmount");
             var totalReceivedAmount = saleReader.GetDecimal("TotalReceivedAmount");
             var totalDueAmount = saleReader.GetDecimal("TotalDueAmount");
+            var salesFreight = saleReader.IsDBNull("SalesFreight") ? 0m : saleReader.GetDecimal("SalesFreight");
             var customerName = saleReader.IsDBNull("CustomerName") ? "N/A" : saleReader.GetString("CustomerName");
             var createdByUserName = saleReader.IsDBNull("UserName") ? "System" : saleReader.GetString("UserName");
 
@@ -222,7 +230,8 @@ namespace IMS.Services
                     TotalBillAmount = totalAmount.ToString("N2"),
                     PreviousAmount = "0.00", // You might need to calculate this from previous sales
                     TotalDue = totalDueAmount.ToString("N2"),
-                    TotalReceiveAmount = totalReceivedAmount.ToString("N2")
+                    TotalReceiveAmount = totalReceivedAmount.ToString("N2"),
+                    SalesFreight = salesFreight.ToString("N2")
                 }
             };
 
@@ -361,6 +370,11 @@ namespace IMS.Services
             root.Add(new XElement("SaleDeatils",
                 new XElement("ColumnName", "TotalAmount"),
                 new XElement("ColumnValue", data.SaleDetails.TotalAmount)
+            ));
+
+            root.Add(new XElement("SaleDeatils",
+                new XElement("ColumnName", "SalesFreight"),
+                new XElement("ColumnValue", data.SaleDetails.SalesFreight)
             ));
 
             root.Add(new XElement("SaleDeatils",

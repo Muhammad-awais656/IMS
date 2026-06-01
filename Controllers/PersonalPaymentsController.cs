@@ -490,6 +490,90 @@ namespace IMS.Controllers
             }
         }
 
+        /// <summary>Load a single manual (SaleId = 0) ledger line for edit.</summary>
+        [HttpGet]
+        [IgnoreAntiforgeryToken]
+        public async Task<JsonResult> GetManualTransaction(long detailId, long? personalPaymentId = null)
+        {
+            try
+            {
+                if (detailId <= 0)
+                    return Json(new { success = false, message = "Invalid transaction id." });
+                var row = await _personalPaymentService.GetManualTransactionByIdAsync(detailId);
+                if (row == null)
+                    return Json(new { success = false, message = "Transaction not found or is not a manual deposit/withdraw." });
+                if (personalPaymentId.HasValue && personalPaymentId.Value > 0 && row.PersonalPaymentId != personalPaymentId.Value)
+                    return Json(new { success = false, message = "Transaction does not belong to this account." });
+                return Json(new
+                {
+                    success = true,
+                    transaction = new
+                    {
+                        personalPaymentSaleDetailId = row.PersonalPaymentSaleDetailId,
+                        personalPaymentId = row.PersonalPaymentId,
+                        transactionType = row.TransactionType,
+                        amount = row.Amount,
+                        transactionDescription = row.TransactionDescription,
+                        transactionDate = row.TransactionDate.ToString("yyyy-MM-dd")
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<JsonResult> UpdateManualTransaction([FromBody] UpdateManualTransactionRequest request)
+        {
+            try
+            {
+                if (request == null || request.PersonalPaymentSaleDetailId <= 0 || request.PersonalPaymentId <= 0 || request.Amount <= 0)
+                    return Json(new { success = false, message = "Invalid request." });
+
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr ?? "1");
+                var paymentDate = request.PaymentDate ?? DateTimeHelper.Now;
+                var ok = await _personalPaymentService.UpdateManualTransactionAsync(
+                    request.PersonalPaymentSaleDetailId,
+                    request.PersonalPaymentId,
+                    request.Amount,
+                    request.Description,
+                    paymentDate,
+                    userId);
+                return ok
+                    ? Json(new { success = true, message = "Transaction updated." })
+                    : Json(new { success = false, message = "Update failed. Transaction may not be manual or was removed." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<JsonResult> DeleteManualTransaction([FromBody] DeleteManualTransactionRequest request)
+        {
+            try
+            {
+                if (request == null || request.PersonalPaymentSaleDetailId <= 0 || request.PersonalPaymentId <= 0)
+                    return Json(new { success = false, message = "Invalid request." });
+                var userIdStr = HttpContext.Session.GetString("UserId");
+                long userId = long.Parse(userIdStr ?? "1");
+                var ok = await _personalPaymentService.DeleteManualTransactionAsync(request.PersonalPaymentSaleDetailId, request.PersonalPaymentId, userId);
+                return ok
+                    ? Json(new { success = true, message = "Transaction deleted." })
+                    : Json(new { success = false, message = "Delete failed. Transaction may not be manual or was removed." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> ExportExcel(long? personalPaymentId = null, string? accountNumber = null, DateTime? fromDate = null, DateTime? toDate = null)
         {
@@ -558,5 +642,20 @@ namespace IMS.Controllers
         public decimal Amount { get; set; }
         public string? Description { get; set; }
         public DateTime? PaymentDate { get; set; }
+    }
+
+    public class UpdateManualTransactionRequest
+    {
+        public long PersonalPaymentSaleDetailId { get; set; }
+        public long PersonalPaymentId { get; set; }
+        public decimal Amount { get; set; }
+        public string? Description { get; set; }
+        public DateTime? PaymentDate { get; set; }
+    }
+
+    public class DeleteManualTransactionRequest
+    {
+        public long PersonalPaymentSaleDetailId { get; set; }
+        public long PersonalPaymentId { get; set; }
     }
 }

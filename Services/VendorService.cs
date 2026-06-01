@@ -367,56 +367,34 @@ namespace IMS.Services
             }
         }
 
-        public async Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null)
+        public async Task<List<Product>> GetAllEnabledProductsAsync()
         {
             try
             {
-                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
-                await connection.OpenAsync();
-
-                if (branchId.HasValue)
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
-                    const string sql = @"SELECT p.ProductId, p.ProductName, p.ProductCode, p.UnitPrice, p.IsEnabled FROM Products p
-INNER JOIN Users u ON u.UserId = p.CreatedBy
-WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
-                    using var cmd = new SqlCommand(sql, connection);
-                    cmd.Parameters.AddWithValue("@BranchId", branchId.Value);
-                    var products = new List<Product>();
-                    using var reader = await cmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
                     {
-                        products.Add(new Product
+                        command.CommandType = CommandType.StoredProcedure;
+                        var products = new List<Product>();
+                        
+                        using (var reader = await command.ExecuteReaderAsync())
                         {
-                            ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                            ProductCode = reader.IsDBNull(reader.GetOrdinal("ProductCode")) ? null : reader.GetString(reader.GetOrdinal("ProductCode")),
-                            UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                            IsEnabled = reader.GetByte(reader.GetOrdinal("IsEnabled"))
-                        });
-                    }
-                    return products;
-                }
-
-                using (var command = new SqlCommand("GetAllEnabledProducts", connection))
-                {
-                    command.CommandType = CommandType.StoredProcedure;
-                    var products = new List<Product>();
-
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            products.Add(new Product
+                            while (await reader.ReadAsync())
                             {
-                                ProductId = reader.GetInt64("ProductId"),
-                                ProductName = reader.GetString("ProductName"),
-                                ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
-                                UnitPrice = reader.GetDecimal("UnitPrice"),
-                                IsEnabled = reader.GetByte("IsEnabled")
-                            });
+                                products.Add(new Product
+                                {
+                                    ProductId = reader.GetInt64("ProductId"),
+                                    ProductName = reader.GetString("ProductName"),
+                                    ProductCode = reader.IsDBNull("ProductCode") ? null : reader.GetString("ProductCode"),
+                                    UnitPrice = reader.GetDecimal("UnitPrice"),
+                                    IsEnabled = reader.GetByte("IsEnabled")
+                                });
+                            }
                         }
+                        return products;
                     }
-                    return products;
                 }
             }
             catch (Exception ex)
@@ -470,6 +448,8 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                                 productSizes.Add(ps);
                             }
                         }
+
+                        await FilterProductSizesToActiveRangesOnlyAsync(connection, productId, productSizes);
                         return productSizes;
                     }
                 }
@@ -478,6 +458,30 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
             {
                 _logger.LogError(ex, "Error getting product unit price ranges for product {ProductId}", productId);
                 return new List<ProductSizeViewModel>();
+            }
+        }
+
+        private static async Task FilterProductSizesToActiveRangesOnlyAsync(
+            SqlConnection connection,
+            long productId,
+            List<ProductSizeViewModel> productSizes)
+        {
+            if (productSizes.Count == 0) return;
+            try
+            {
+                await using var cmd = new SqlCommand(
+                    "SELECT ProductRangeId FROM ProductRange WHERE ProductId_FK = @p AND ISNULL(IsDeleted, 0) = 0",
+                    connection);
+                cmd.Parameters.AddWithValue("@p", productId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                var active = new HashSet<long>();
+                while (await reader.ReadAsync())
+                    active.Add(reader.GetInt64(0));
+                productSizes.RemoveAll(ps => !active.Contains(ps.ProductRangeId));
+            }
+            catch
+            {
+                // No IsDeleted column or DB mismatch: keep SP results unchanged.
             }
         }
 
@@ -661,9 +665,12 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                         itemCommand.Parameters.AddWithValue("@pBillId_FK", billId);
                         itemCommand.Parameters.AddWithValue("@pPrductId_FK", productId);
                         itemCommand.Parameters.AddWithValue("@pUnitPrice", unitPrice);
-                        // Convert decimal quantity to long for database (round to nearest whole number)
-                        // Note: Database stores as long, but we accept decimal for precision during conversion
-                        itemCommand.Parameters.AddWithValue("@pQuantity", (long)Math.Round(quantity, MidpointRounding.AwayFromZero));
+                        itemCommand.Parameters.Add(new SqlParameter("@pQuantity", SqlDbType.Decimal)
+                        {
+                            Precision = 18,
+                            Scale = 4,
+                            Value = quantity
+                        });
                         itemCommand.Parameters.AddWithValue("@pPurchasePrice", purchasePrice);
                         itemCommand.Parameters.AddWithValue("@pLineDiscountAmount", lineDiscountAmount);
                         itemCommand.Parameters.AddWithValue("@pPayableAmount", payableAmount);
@@ -849,7 +856,7 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                                         ProductName = reader.GetString("ProductName"),
                                         UnitPrice = reader.GetDecimal("UnitPrice"),
                                         PurchasePrice = reader.GetDecimal("PurchasePrice"),
-                                        Quantity = reader.GetInt64("Quantity"),
+                                        Quantity = Convert.ToDecimal(reader["Quantity"]),
                                         SalePrice = reader.GetDecimal("SalePrice"),
                                         LineDiscountAmount = reader.GetDecimal("LineDiscountAmount"),
                                         PayableAmount = reader.GetDecimal("PayableAmount"),

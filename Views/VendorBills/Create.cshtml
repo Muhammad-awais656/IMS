@@ -1,4 +1,5 @@
 @model IMS.Models.GenerateBillViewModel
+@using System.Globalization
 @{
     bool isEdit = ViewBag.IsEdit == true;
     ViewBag.Title = isEdit ? "Edit Bill" : "Generate Bill";
@@ -49,7 +50,7 @@
                                             </div>
                                             <div class="col-md-2">
                                                 <label for="quantity" class="form-label">Qty :</label>
-                                                <input type="number" id="quantity" class="form-control" value="1" min="0" step="0.001" onchange="calculatePayableAmount()" />
+                                                <input type="number" id="quantity" class="form-control" value="1" min="0.0001" step="any" onchange="calculatePayableAmount()" />
                                             </div>
                                         </div>
                                         <div class="row g-3 mt-2">
@@ -638,7 +639,7 @@
 
         function calculatePayableAmount() {
             const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
-            const quantity = parseInt(document.getElementById('quantity').value) || 0;
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
             const discountAmount = parseFloat(document.getElementById('discountAmount').value) || 0;
             
             const totalAmount = unitPrice * quantity;
@@ -879,8 +880,9 @@
                     targetRow.setAttribute('data-row-id', rowId);
                 }
 
-                // Store data in hidden inputs - use baseUnitQuantity for Quantity field
+                // Quantity = product-range (line) unit for POST; server converts to base. Stock UI uses data-base-unit-qty.
                 const currentRowIndex = isEditMode ? editingRowIndex : rowIndex;
+                targetRow.setAttribute('data-base-unit-qty', String(baseUnitQuantity));
                 targetRow.innerHTML += `
                     <input type="hidden" name="BillItems[${currentRowIndex}].ProductId" value="${productId}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].ProductRangeId" value="${sizeCombo.value()}" />
@@ -889,7 +891,7 @@
                     <input type="hidden" name="BillItems[${currentRowIndex}].ProductSize" value="${productSize}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].UnitPrice" value="${unitPrice}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].BillPrice" value="${unitPurchasePrice}" />
-                    <input type="hidden" name="BillItems[${currentRowIndex}].Quantity" value="${baseUnitQuantity}" />
+                    <input type="hidden" name="BillItems[${currentRowIndex}].Quantity" value="${displayQuantity}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].DisplayQuantity" value="${displayQuantity}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].DiscountAmount" value="${discountAmount}" />
                     <input type="hidden" name="BillItems[${currentRowIndex}].PayableAmount" value="${payableAmount}" />
@@ -976,9 +978,7 @@
         function removeProductRow(button) {
             const row = button.closest('tr');
             
-            // Get base unit quantity from hidden field to restore stock
-            const baseUnitQuantityInput = row.querySelector('input[name*=".Quantity"]');
-            const baseUnitQuantity = baseUnitQuantityInput ? parseFloat(baseUnitQuantityInput.value) : 0;
+            const baseUnitQuantity = parseFloat(row.getAttribute('data-base-unit-qty')) || 0;
             
             // Get product ID to update stock
             const productIdInput = row.querySelector('input[name*=".ProductId"]');
@@ -1101,10 +1101,7 @@
             const productId = row.querySelector('input[name*=".ProductId"]').value;
             const productRangeId = row.querySelector('input[name*=".ProductRangeId"]').value;
             const productSize = row.querySelector('input[name*=".ProductSize"]') ? row.querySelector('input[name*=".ProductSize"]').value : measuringUnit;
-            // Get base unit quantity from hidden field if available
-            const baseUnitQuantityInput = row.querySelector('input[name*=".Quantity"]');
-            const baseUnitQuantity = baseUnitQuantityInput ? parseFloat(baseUnitQuantityInput.value) : quantity;
-            // Get display quantity from hidden field if available
+            const baseUnitQuantity = parseFloat(row.getAttribute('data-base-unit-qty')) || quantity;
             const displayQuantityInput = row.querySelector('input[name*=".DisplayQuantity"]');
             const displayQuantity = displayQuantityInput ? parseFloat(displayQuantityInput.value) : quantity;
             
@@ -1337,22 +1334,24 @@
                 {
                     var productSize = item.ProductSize ?? "N/A";
                     <text>
-                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', '@Html.Raw(productSize)', @item.UnitPrice, @item.BillPrice, @item.Quantity, @item.DiscountAmount, @item.PayableAmount);
+                    addExistingItemToTable(@item.ProductId, @item.ProductRangeId, '@item.ProductName', '@Html.Raw(productSize)', @item.UnitPrice.ToString(CultureInfo.InvariantCulture), @item.BillPrice.ToString(CultureInfo.InvariantCulture), @item.QuantityInLineUnit.ToString(CultureInfo.InvariantCulture), @item.Quantity.ToString(CultureInfo.InvariantCulture), @item.DiscountAmount.ToString(CultureInfo.InvariantCulture), @item.PayableAmount.ToString(CultureInfo.InvariantCulture));
                     </text>
                 }
             }
         }
 
-        function addExistingItemToTable(productId, productRangeId, productName, measuringUnitAbbreviation, unitPrice, purchasePrice, quantity, discountAmount, payableAmount) {
+        function addExistingItemToTable(productId, productRangeId, productName, measuringUnitAbbreviation, unitPrice, purchasePrice, lineQuantity, baseQuantity, discountAmount, payableAmount) {
             const tbody = document.getElementById('productListBody');
             const row = document.createElement('tr');
             const measuringUnit = measuringUnitAbbreviation && measuringUnitAbbreviation !== 'null' && measuringUnitAbbreviation.trim() !== '' ? measuringUnitAbbreviation : 'N/A';
+            const disp = parseFloat(lineQuantity);
+            row.setAttribute('data-base-unit-qty', String(parseFloat(baseQuantity)));
             row.innerHTML = `
                 <td>${measuringUnit}</td>
                 <td>${productName}</td>
                 <td>$${parseFloat(unitPrice).toFixed(2)}</td>
                 <td>$${parseFloat(purchasePrice).toFixed(2)}</td>
-                <td>${quantity}</td>
+                <td>${disp.toFixed(3)} ${measuringUnit !== 'N/A' ? measuringUnit : ''}</td>
                 <td>$${parseFloat(discountAmount).toFixed(2)}</td>
                 <td>$${parseFloat(payableAmount).toFixed(2)}</td>
                 <td>
@@ -1368,7 +1367,8 @@
                 <input type="hidden" name="BillItems[${rowIndex}].ProductSize" value="${measuringUnit}" />
                 <input type="hidden" name="BillItems[${rowIndex}].UnitPrice" value="${unitPrice}" />
                 <input type="hidden" name="BillItems[${rowIndex}].BillPrice" value="${purchasePrice}" />
-                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${quantity}" />
+                <input type="hidden" name="BillItems[${rowIndex}].Quantity" value="${disp}" />
+                <input type="hidden" name="BillItems[${rowIndex}].DisplayQuantity" value="${disp}" />
                 <input type="hidden" name="BillItems[${rowIndex}].DiscountAmount" value="${discountAmount}" />
                 <input type="hidden" name="BillItems[${rowIndex}].PayableAmount" value="${payableAmount}" />
             `;

@@ -401,19 +401,7 @@ namespace IMS.Controllers
                     var result = await _productService.UpdateProductAsync(product);
                     if (result > 0)
                     {
-                        // Update product ranges
-                        if (model.productRanges != null && model.productRanges.Any())
-                        {
-                            // First, delete existing product ranges for this product
-                            await _productService.DeleteProductRangesByProductIdAsync(model.ProductId);
-                            
-                            // Then add the updated product ranges
-                            foreach (var range in model.productRanges)
-                            {
-                                range.ProductIdFk = model.ProductId;
-                                await _productService.CreateProductRange(range);
-                            }
-                        }
+                        await _productService.SyncProductRangesOnProductEditAsync(model.ProductId, model.productRanges);
                         
                         TempData["Success"] = AlertMessages.RecordUpdated;
                         return RedirectToAction(nameof(Index));

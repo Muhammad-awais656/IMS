@@ -1047,7 +1047,7 @@ namespace IMS.Controllers
             {
                 worksheet.Cell(row, 1).Value = t.StockTransactionId;
                 worksheet.Cell(row, 2).Value = t.StockQuantity;
-                worksheet.Cell(row, 3).Value = t.TransactionDate;
+                worksheet.Cell(row, 3).Value = t.TransactionDate.ToString("dd-MMM-yyyy");
                 worksheet.Cell(row, 4).Value = t.TransactionType;
                 worksheet.Cell(row, 5).Value = t.Description ?? "";
                 row++;
@@ -1437,12 +1437,12 @@ namespace IMS.Controllers
             var qtySuffix = StockAvailableBalanceExportQtyHeaderSuffix(model);
             const int headerRow = 3;
             worksheet.Cell(1, 1).Value = "Stock Available Balance Report" + StockAvailableBalanceExportTitleSuffix(model);
-            worksheet.Range(1, 1, 1, 9).Merge();
+            worksheet.Range(1, 1, 1, 7).Merge();
             worksheet.Cell(1, 1).Style.Font.Bold = true;
             worksheet.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
             worksheet.Cell(2, 1).Value = StockAvailableBalanceExportMeasuringUnitNote(model);
-            worksheet.Range(2, 1, 2, 9).Merge();
+            worksheet.Range(2, 1, 2, 7).Merge();
             worksheet.Cell(2, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             worksheet.Cell(2, 1).Style.Font.Italic = true;
 
@@ -1452,11 +1452,9 @@ namespace IMS.Controllers
             worksheet.Cell(headerRow, 4).Value = "Total Quantity" + qtySuffix;
             worksheet.Cell(headerRow, 5).Value = "Used Quantity" + qtySuffix;
             worksheet.Cell(headerRow, 6).Value = "Available Quantity" + qtySuffix;
-            worksheet.Cell(headerRow, 7).Value = "Unit Price";
-            worksheet.Cell(headerRow, 8).Value = "Stock Value";
-            worksheet.Cell(headerRow, 9).Value = "Stock Location";
+            worksheet.Cell(headerRow, 7).Value = "Stock Location";
 
-            var headerRange = worksheet.Range(headerRow, 1, headerRow, 9);
+            var headerRange = worksheet.Range(headerRow, 1, headerRow, 7);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -1469,9 +1467,7 @@ namespace IMS.Controllers
                 worksheet.Cell(row, 4).Value = item.TotalQuantity;
                 worksheet.Cell(row, 5).Value = item.UsedQuantity;
                 worksheet.Cell(row, 6).Value = item.AvailableQuantity;
-                worksheet.Cell(row, 7).Value = item.UnitPrice;
-                worksheet.Cell(row, 8).Value = item.StockValue;
-                worksheet.Cell(row, 9).Value = item.StockLocation;
+                worksheet.Cell(row, 7).Value = item.StockLocation;
                 row++;
             }
 
@@ -1484,8 +1480,6 @@ namespace IMS.Controllers
             worksheet.Cell(row, 5).Style.Font.Bold = true;
             worksheet.Cell(row, 6).Value = model.TotalAvailableQuantity;
             worksheet.Cell(row, 6).Style.Font.Bold = true;
-            worksheet.Cell(row, 8).Value = model.TotalStockValue;
-            worksheet.Cell(row, 8).Style.Font.Bold = true;
 
             worksheet.Columns().AdjustToContents();
 
@@ -1526,16 +1520,16 @@ namespace IMS.Controllers
             document.Add(new Paragraph(StockAvailableBalanceExportMeasuringUnitNote(model), noteFont) { Alignment = Element.ALIGN_CENTER });
             document.Add(new Paragraph("\n"));
 
-            PdfPTable table = new PdfPTable(9);
+            PdfPTable table = new PdfPTable(7);
             table.WidthPercentage = 100;
-            table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.2f, 1.2f, 1.2f, 1.5f, 1.5f });
+            table.SetWidths(new float[] { 2.5f, 2.5f, 1.5f, 1.2f, 1.2f, 1.2f, 1.8f });
 
             var pdfQtySuf = StockAvailableBalanceExportQtyHeaderSuffix(model);
             string[] headers =
             {
                 "Product Name", "Urdu Name", "Product Code",
                 "Total Qty" + pdfQtySuf, "Used Qty" + pdfQtySuf, "Available Qty" + pdfQtySuf,
-                "Unit Price", "Stock Value", "Location"
+                "Location"
             };
 
             foreach (var header in headers)
@@ -1557,8 +1551,6 @@ namespace IMS.Controllers
                 table.AddCell(item.TotalQuantity.ToString("N2"));
                 table.AddCell(item.UsedQuantity.ToString("N2"));
                 table.AddCell(item.AvailableQuantity.ToString("N2"));
-                table.AddCell(item.UnitPrice.ToString("N2"));
-                table.AddCell(item.StockValue.ToString("N2"));
                 table.AddCell(item.StockLocation ?? "");
             }
 
@@ -1573,8 +1565,6 @@ namespace IMS.Controllers
             table.AddCell(new PdfPCell(new Phrase(model.TotalQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase(model.TotalUsedQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase(model.TotalAvailableQuantity.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
-            table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
-            table.AddCell(new PdfPCell(new Phrase(model.TotalStockValue.ToString("N2"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
             table.AddCell(new PdfPCell(new Phrase("", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10))) { BackgroundColor = BaseColor.LIGHT_GRAY });
 
             document.Add(table);

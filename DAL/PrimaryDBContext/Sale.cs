@@ -19,6 +19,9 @@ public partial class Sale
 
     public decimal TotalDueAmount { get; set; }
 
+    /// <summary>Karaya / freight stored separately from line payables (TotalAmount typically includes this).</summary>
+    public decimal SalesFreight { get; set; }
+
     public long? CustomerIdFk { get; set; }
     public long? SupplierIdFk { get; set; }
     public long? VendorId { get; set; }

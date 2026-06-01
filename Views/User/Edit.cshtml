@@ -1,12 +1,5 @@
-@using IMS.DAL.PrimaryDBContext
-@model User
-@{
-    var branches = ViewBag.Branches as List<Branch> ?? new List<Branch>();
-    var roles = ViewBag.Roles as List<AdminRole> ?? new List<AdminRole>();
-    var userBranchIds = ViewBag.UserBranchIds as List<int> ?? new List<int>();
-    ViewData["Title"] = "Edit User";
-}
-<link href="~/css/user-management.css" rel="stylesheet" />
+﻿@using IMS.DAL.PrimaryDBContext;
+@model User;
 
 <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
@@ -21,42 +14,16 @@
                 <span asp-validation-for="UserName" class="text-danger"></span>
             </div>
             <div class="mb-3">
-                <label asp-for="UserPassword" class="form-label">Password</label>
-                <div class="input-group user-password-group">
-                    <input asp-for="UserPassword" type="password" class="form-control" id="editUserPassword" placeholder="Leave blank to keep unchanged" autocomplete="new-password" />
-                    <button type="button" class="btn btn-outline-secondary btn-password-toggle" id="editTogglePassword" title="Show password" aria-label="Show password">
-                        <i class="fa fa-eye password-eye-icon" id="editTogglePasswordIcon"></i>
-                    </button>
-                </div>
-                <span class="text-muted small">Leave blank to keep current password.</span>
+                <label asp-for="UserPassword" class="form-label"></label>
+                <input asp-for="UserPassword" type="text" class="form-control" placeholder="Enter new password (leave blank to keep unchanged)" />
                 <span asp-validation-for="UserPassword" class="text-danger"></span>
             </div>
-            <div class="mb-3">
-                <label asp-for="RoleId" class="form-label">Role</label>
-                <select asp-for="RoleId" class="form-select">
-                    <option value="">— Select role —</option>
-                    @foreach (var r in roles)
-                    {
-                        <option value="@r.RoleId">@r.RoleName</option>
-                    }
-                </select>
-                <span class="text-muted small">Optional. Assign a role for role-based access.</span>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Branches</label>
-                <div class="defaultDropdown">
-                    <select id="Branches" multiple="multiple" style="width:100%;"></select>
-                    <input type="hidden" name="BranchIds" id="BranchIds" value="" />
-                    <div class="mt-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm k-button me-1" id="branchSelectAll">Select All</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm k-button" id="branchDeselectAll">Deselect All</button>
-                    </div>
-                </div>
-                <span class="text-muted small d-block mt-1">Select one or more branches for this user.</span>
-                <span class="text-danger field-validation-error" id="branchIds-validation" data-valmsg-for="BranchIds"></span>
-            </div>
             <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="isEnableSwitch" asp-for="IsEnabled" />
+                
+                    <input class="form-check-input" type="checkbox" id="isEnableSwitch"
+                       asp-for="IsEnabled" />
+               
+                @* <input asp-for="IsEnabled" class="form-check-input" /> *@
                 <label asp-for="IsEnabled" class="form-check-label"></label>
                 <span asp-validation-for="IsEnabled" class="text-danger"></span>
             </div>
@@ -65,6 +32,7 @@
                 <label asp-for="IsAdmin" class="form-check-label"></label>
                 <span asp-validation-for="IsAdmin" class="text-danger"></span>
             </div>
+       
             <div class="mb-3">
                 <button type="submit" class="btn btn-primary">Save</button>
                 <a asp-action="GetAllUsers" class="btn btn-secondary">Cancel</a>
@@ -75,76 +43,4 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
-        $(document).ready(function () {
-            var initialBranchIds = [ @string.Join(", ", userBranchIds) ];
-
-            function syncBranchIdsHidden() {
-                var multiselect = $("#Branches").data("kendoMultiSelect");
-                if (multiselect) {
-                    var v = multiselect.value();
-                    $("#BranchIds").val(v ? v.join(',') : '');
-                }
-            }
-
-            var loadPromise = LoadKendoMultiselect('Branches', '-- Select one or more branches --', '@Url.Action("GetActiveBranchesJson", "Branch")', initialBranchIds);
-            if (loadPromise && loadPromise.then) {
-                loadPromise.then(function () {
-                    var multiselect = $("#Branches").data("kendoMultiSelect");
-                    if (multiselect) multiselect.bind("change", syncBranchIdsHidden);
-                    syncBranchIdsHidden();
-                });
-            }
-
-            $("#branchSelectAll").click(function () {
-                var multiselect = $("#Branches").data("kendoMultiSelect");
-                if (multiselect) {
-                    var data = multiselect.dataSource.options.data || [];
-                    var valueField = multiselect.options.dataValueField || "id";
-                    var ids = [];
-                    for (var i = 0; i < data.length; i++) ids.push(data[i][valueField] != null ? data[i][valueField] : data[i].Id);
-                    multiselect.value(ids);
-                    syncBranchIdsHidden();
-                }
-            });
-
-            $("#branchDeselectAll").click(function () {
-                var multiselect = $("#Branches").data("kendoMultiSelect");
-                if (multiselect) {
-                    multiselect.value([]);
-                    syncBranchIdsHidden();
-                }
-            });
-
-            $("form").on("submit", function () {
-                syncBranchIdsHidden();
-            });
-
-            // Password show/hide with eye icon and animation
-            (function () {
-                var input = document.getElementById('editUserPassword');
-                var btn = document.getElementById('editTogglePassword');
-                var icon = document.getElementById('editTogglePasswordIcon');
-                if (input && btn && icon) {
-                    btn.addEventListener('click', function () {
-                        if (input.type === 'password') {
-                            input.type = 'text';
-                            input.classList.add('password-visible');
-                            icon.classList.remove('fa-eye');
-                            icon.classList.add('fa-eye-slash');
-                            btn.setAttribute('title', 'Hide password');
-                            btn.setAttribute('aria-label', 'Hide password');
-                        } else {
-                            input.type = 'password';
-                            input.classList.remove('password-visible');
-                            icon.classList.remove('fa-eye-slash');
-                            icon.classList.add('fa-eye');
-                            btn.setAttribute('title', 'Show password');
-                            btn.setAttribute('aria-label', 'Show password');
-                        }
-                    });
-                }
-            })();
-        });
-    </script>
 }

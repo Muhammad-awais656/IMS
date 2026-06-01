@@ -13,7 +13,7 @@ public partial class SaleDetail
 
     public decimal UnitPrice { get; set; }
 
-    public long Quantity { get; set; }
+    public decimal Quantity { get; set; }
 
     public decimal SalePrice { get; set; }
 

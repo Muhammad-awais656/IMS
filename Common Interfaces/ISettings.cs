@@ -1,4 +1,4 @@
-using IMS.DAL.PrimaryDBContext;
+﻿using IMS.DAL.PrimaryDBContext;
 using IMS.Models;
 
 namespace IMS.Common_Interfaces
@@ -83,41 +83,5 @@ namespace IMS.Common_Interfaces
         Task<AdminMeasuringUnit> GetSmallestMeasuringUnitAsync();
     }
 
-    public interface IBranchService
-    {
-        Task<BranchViewModel> GetAllBranchesAsync(int pageNumber, int? pageSize, string? search);
-        Task<Branch?> GetBranchByIdAsync(int id);
-        Task<bool> CreateBranchAsync(Branch branch);
-        Task<int> UpdateBranchAsync(Branch branch);
-        Task<int> DeleteBranchAsync(int id);
-        Task<List<Branch>> GetAllActiveBranchesAsync();
-    }
 
-    /// <summary>
-    /// Loads branches for the login page without requiring an existing session (uses default Shop connection).
-    /// </summary>
-    public interface ILoginBranchesService
-    {
-        Task<List<Branch>> GetBranchesForLoginAsync();
-    }
-
-    public interface IRoleService
-    {
-        Task<RoleViewModel> GetAllRolesAsync(int pageNumber, int? pageSize, string? search);
-        Task<AdminRole?> GetRoleByIdAsync(long id);
-        Task<bool> CreateRoleAsync(AdminRole role);
-        Task<int> UpdateRoleAsync(AdminRole role);
-        Task<int> DeleteRoleAsync(long id);
-        /// <summary>Active roles for dropdowns (e.g. Create/Edit User).</summary>
-        Task<List<AdminRole>> GetActiveRolesForDropdownAsync();
-    }
-
-    public interface IUserPermissionsService
-    {
-        Task<List<UserForPermissionsDto>> GetUsersForPermissionsAsync();
-        Task<List<FeatureNodeDto>> GetFeatureHierarchyAsync();
-        Task<List<UserPermissionItemDto>> GetUserPermissionsAsync(long userId);
-        Task ReplicatePermissionsAsync(long sourceUserId, long targetUserId);
-        Task SaveUserPermissionsAsync(long userId, List<UserPermissionItemDto> permissions);
-    }
 }

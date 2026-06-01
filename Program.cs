@@ -3,10 +3,7 @@ using IMS.CommonUtilities;
 using IMS.DAL;
 using IMS.DAL.PrimaryDBContext;
 using IMS.Middlewares;
-using IMS.Authorization;
-using IMS.Common_Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -16,8 +13,6 @@ using System.Globalization;
 using Microsoft.Extensions.Localization;
 using IMS.Services;
 using Serilog;
-using StringEncrptandDecryptorApp;
-using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +24,6 @@ var policy = new AuthorizationPolicyBuilder()
     .Build();
 
     options.Filters.Add(new AuthorizeFilter(policy));
-    options.Filters.Add<IMS.Filters.PrivilegeMenuFilter>();
 });
 // Read configuration from appsettings.json
 Log.Logger = new LoggerConfiguration()
@@ -43,19 +37,9 @@ builder.Host.UseSerilog(); // Replace default logging
 // Self by awais
 
 // For Primary DB Shop
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    var raw = builder.Configuration.GetConnectionString("ShopConnectionString");
-    if (string.IsNullOrWhiteSpace(raw))
-        throw new InvalidOperationException("ShopConnectionString is missing.");
-    var enc = new EncryptionHelper();
-    var b = new SqlConnectionStringBuilder(raw)
-    {
-        UserID = enc.Decrypt(new SqlConnectionStringBuilder(raw).UserID),
-        Password = enc.Decrypt(new SqlConnectionStringBuilder(raw).Password)
-    };
-    options.UseSqlServer(b.ConnectionString, sqlOptions => sqlOptions.EnableRetryOnFailure());
-});
+//builder.Services.AddDbContext<IMS.DAL.PrimaryDBContext.AppDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("ShopConnectionString"), sqlOptions =>
+//    sqlOptions.EnableRetryOnFailure()));
 
 //// For Secondary DB Factory
 //builder.Services.AddDbContext<FactoryDbContext>(options =>
@@ -85,29 +69,15 @@ builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddScoped<IPersonalPaymentService, PersonalPaymentService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IModernReceiptService, ModernReceiptService>();
-builder.Services.AddScoped<IUnitPriceRateService, UnitPriceRateService>();
 builder.Services.AddScoped<IViewRenderService, ViewRenderService>();
-builder.Services.AddScoped<IBranchService, BranchService>();
-builder.Services.AddScoped<ILoginBranchesService, LoginBranchesService>();
-builder.Services.AddScoped<IRoleService, RoleService>();
-builder.Services.AddScoped<IPrivilegeAuthorizationService, PrivilegeAuthorizationService>();
-builder.Services.AddScoped<IUserPermissionsService, UserPermissionsService>();
-builder.Services.AddScoped<IIdentityUserSyncService, IdentityUserSyncService>();
-builder.Services.AddScoped<IdentityHelper>();
 builder.Services.AddLogging(logging => logging.AddConsole());
-
-// Session + auth cookie share the same idle window: after this many minutes with no HTTP requests, session data is cleared and the user must sign in again (sliding cookie).
-var idleTimeoutMinutes = Math.Max(1, builder.Configuration.GetValue("Application:IdleTimeoutMinutes", 30));
-var idleTimeout = TimeSpan.FromMinutes(idleTimeoutMinutes);
-
-builder.Services.AddDistributedMemoryCache();
 
 // Register services by Awais
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = idleTimeout;
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
+    options.Cookie.IsEssential = true;    // true after test
 });
 
 // Configure cookie authentication
@@ -118,62 +88,29 @@ builder.Services.AddSession(options =>
 //        options.AccessDeniedPath = "/Home/AccessDenied";
 //    });
 
-builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole>(options =>
-    {
-        options.Password.RequireDigit = false;
-        options.Password.RequireLowercase = false;
-        options.Password.RequireUppercase = false;
-        options.Password.RequireNonAlphanumeric = false;
-        options.Password.RequiredLength = 6;
-        options.User.RequireUniqueEmail = false;
-    })
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders()
-    .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
-
-builder.Services.ConfigureApplicationCookie(options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = "CookieAuth";
+})
+.AddCookie("CookieAuth", options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Home/AccessDenied";
     options.Cookie.Name = "IMS_Auth";
-    options.ExpireTimeSpan = idleTimeout;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
     options.SlidingExpiration = true;
 });
 builder.Services.AddScoped<IDbContextFactory, AppDbContextFactory>();
 builder.Services.AddAuthorization();
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpContextAccessor();
 //builder.Services.AddScoped<DbContextResolver>();
 
+builder.Services.AddAuthorization();
+
 
 var app = builder.Build();
-
-// Add missing AspNetUsers columns (ApplicationUser) + AspNetUserBranches if needed — fixes login SqlException until EF migration is applied.
-try
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var schemaLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("IdentitySchemaBootstrapper");
-    await IdentitySchemaBootstrapper.EnsureAsync(db, schemaLogger);
-}
-catch (Exception ex)
-{
-    var log = app.Services.GetService<ILoggerFactory>()?.CreateLogger("IdentitySchemaBootstrapper");
-    log?.LogError(ex, "Identity schema bootstrap failed.");
-}
-
-// First-time Identity admin (only when AspNetUsers is empty). Set IdentitySeed:Enabled = false after use.
-try
-{
-    var seedLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("IdentityDataSeeder");
-    await IdentityDataSeeder.SeedAsync(app.Services, app.Configuration, seedLogger);
-}
-catch (Exception ex)
-{
-    var log = app.Services.GetService<ILoggerFactory>()?.CreateLogger("IdentityDataSeeder");
-    log?.LogError(ex, "Identity seed failed.");
-}
 
 //var supportedCultures = new[]
 //{
@@ -210,25 +147,26 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-// Middleware to store the current user's username in session (LoadAsync required before session access in middleware)
+// Middleware to store the current user's username in session
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity?.IsAuthenticated == true &&
-        !string.IsNullOrEmpty(context.User.Identity.Name))
+    if (context.User.Identity != null && context.User.Identity.IsAuthenticated)
     {
-        await context.Session.LoadAsync();
         var userName = context.User.Identity.Name;
+        var domain = context.User.Claims.FirstOrDefault(c => c.Type == "Domain")?.Value;
         var role = context.User.Claims.FirstOrDefault(c => c.Type == "IsAdmin")?.Value;
-        var usrId = context.User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+        var UsrId = context.User.Claims.FirstOrDefault(c=>c.Type=="UserId")?.Value;
 
-        context.Session.SetString("UserName", userName);
-        if (role != null)
-            context.Session.SetString("IsAdmin", role);
-        if (usrId != null)
-            context.Session.SetString("UserId", usrId);
+        if (!string.IsNullOrEmpty(userName))
+        {
+            context.Session.SetString("UserName", userName);
+            context.Session.SetString("Domain", domain ?? string.Empty);
+            context.Session.SetString("IsAdmin", role?? string.Empty);
+            context.Session.SetString("UserId", UsrId ?? string.Empty);
+        }
     }
 
-    await next();
+    await next.Invoke();
 });
 
 app.MapControllerRoute(

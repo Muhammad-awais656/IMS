@@ -218,60 +218,48 @@ namespace IMS.Services
             };
         }
 
-        public async Task<List<Product>> GetAllEnabledProductsAsync(int? branchId = null)
+        public async Task<List<Product>> GetAllEnabledProductsAsync()
         {
             var productList = new List<Product>();
+            
 
             try
             {
-                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
-                await connection.OpenAsync();
-
-                if (branchId.HasValue)
+                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
                 {
-                    const string sql = @"SELECT p.ProductId, p.ProductName FROM Products p
-INNER JOIN Users u ON u.UserId = p.CreatedBy
-WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
-                    using var command = new SqlCommand(sql, connection);
-                    command.Parameters.AddWithValue("@BranchId", branchId.Value);
-                    using var reader = await command.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("GetAllEnabledProducts", connection))
                     {
-                        productList.Add(new Product
+                        
+                        command.CommandType = CommandType.StoredProcedure;
+                        try
                         {
-                            ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                        });
-                    }
-                    return productList;
-                }
-
-                using (var command = new SqlCommand("GetAllEnabledProducts", connection))
-                {
-                    command.CommandType = CommandType.StoredProcedure;
-                    try
-                    {
-                        using var reader = await command.ExecuteReaderAsync();
-                        while (await reader.ReadAsync())
-                        {
-                            productList.Add(new Product
+                            using (var reader = await command.ExecuteReaderAsync())
                             {
-                                ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
-                                ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
-                            });
+                                while (await reader.ReadAsync())
+                                {
+                                    productList.Add(new Product
+                                    {
+                                        ProductId = reader.GetInt64(reader.GetOrdinal("ProductId")),
+                                        ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                                        
+                                    });
+                                    
+                                }
+                            }
                         }
-                    }
-                    catch
-                    {
-                        // ignored
+                        catch
+                        {
+
+                        }
+
                     }
                 }
             }
             catch
             {
-                // ignored
-            }
 
+            }
             return productList;
         }
 
@@ -360,6 +348,13 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
                                             }
                                             catch { }
                                         }
+                                        try
+                                        {
+                                            int delOrd = reader.GetOrdinal("IsDeleted");
+                                            if (!reader.IsDBNull(delOrd) && Convert.ToBoolean(reader.GetValue(delOrd)))
+                                                continue;
+                                        }
+                                        catch { /* column optional until DB migrated */ }
                                         productRanges.Add(pr);
 
                                     }
@@ -590,26 +585,123 @@ WHERE p.IsEnabled = 1 AND u.BranchId = @BranchId";
             return response;
         }
 
-        public async Task<bool> DeleteProductRangesByProductIdAsync(long productId)
+        public async Task SyncProductRangesOnProductEditAsync(long productId, IReadOnlyList<ProductRange>? submittedRanges)
         {
+            submittedRanges ??= Array.Empty<ProductRange>();
+
+            await using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+            await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction();
+
             try
             {
-                using (var connection = new SqlConnection(_dbContextFactory.DBConnectionString()))
-                {
-                    await connection.OpenAsync();
-                    using (var command = new SqlCommand("DELETE FROM ProductRange WHERE ProductId_FK = @ProductId", connection))
-                    {
-                        command.Parameters.AddWithValue("@ProductId", productId);
-                        int rowsAffected = await command.ExecuteNonQueryAsync();
-                        return rowsAffected >= 0; // Return true even if no rows were affected
-                    }
-                }
+                var existingActiveIds = await GetActiveProductRangeIdsAsync(connection, transaction, productId);
+                var submittedWithIds = submittedRanges
+                    .Where(r => r.ProductRangeId > 0)
+                    .Select(r => r.ProductRangeId)
+                    .ToHashSet();
+
+                foreach (var id in existingActiveIds.Where(id => !submittedWithIds.Contains(id)))
+                    await SoftDeleteProductRangeAsync(connection, transaction, id, productId);
+
+                foreach (var range in submittedRanges.Where(r => r.ProductRangeId > 0))
+                    await UpdateProductRangeAsync(connection, transaction, productId, range);
+
+                foreach (var range in submittedRanges.Where(r => r.ProductRangeId <= 0))
+                    await InsertProductRangeAsync(connection, transaction, productId, range);
+
+                transaction.Commit();
             }
             catch
             {
-                // Log error if needed
-                return false;
+                transaction.Rollback();
+                throw;
             }
+        }
+
+        private static async Task<HashSet<long>> GetActiveProductRangeIdsAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            long productId)
+        {
+            const string sql = """
+                SELECT ProductRangeId FROM ProductRange
+                WHERE ProductId_FK = @p AND ISNULL(IsDeleted, 0) = 0
+                """;
+            await using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.Parameters.AddWithValue("@p", productId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            var ids = new HashSet<long>();
+            while (await reader.ReadAsync())
+                ids.Add(reader.GetInt64(0));
+            return ids;
+        }
+
+        private static async Task SoftDeleteProductRangeAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            long productRangeId,
+            long productId)
+        {
+            const string sql = """
+                UPDATE ProductRange SET IsDeleted = 1
+                WHERE ProductRangeId = @id AND ProductId_FK = @pid AND ISNULL(IsDeleted, 0) = 0
+                """;
+            await using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.Parameters.AddWithValue("@id", productRangeId);
+            cmd.Parameters.AddWithValue("@pid", productId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task UpdateProductRangeAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            long productId,
+            ProductRange range)
+        {
+            const string sql = """
+                UPDATE ProductRange SET
+                    MeasuringUnitId_FK = @mu,
+                    RangeFrom = @rf,
+                    RangeTo = @rt,
+                    UnitPrice = @up,
+                    ProductRangeName = @name,
+                    UrduName = @urdu,
+                    IsDeleted = 0
+                WHERE ProductRangeId = @id AND ProductId_FK = @pid
+                """;
+            await using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.Parameters.AddWithValue("@id", range.ProductRangeId);
+            cmd.Parameters.AddWithValue("@pid", productId);
+            cmd.Parameters.AddWithValue("@mu", range.MeasuringUnitIdFk);
+            cmd.Parameters.AddWithValue("@rf", range.RangeFrom);
+            cmd.Parameters.AddWithValue("@rt", range.RangeTo);
+            cmd.Parameters.AddWithValue("@up", range.UnitPrice);
+            cmd.Parameters.AddWithValue("@name", string.IsNullOrEmpty(range.ProductRangeName) ? (object)DBNull.Value : range.ProductRangeName);
+            cmd.Parameters.AddWithValue("@urdu", string.IsNullOrEmpty(range.UrduName) ? (object)DBNull.Value : range.UrduName);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task InsertProductRangeAsync(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            long productId,
+            ProductRange range)
+        {
+            await using var command = new SqlCommand("AddProductRange", connection, transaction)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            command.Parameters.AddWithValue("@pProductId_FK", productId);
+            command.Parameters.AddWithValue("@pMeasuringUnitId_FK", range.MeasuringUnitIdFk);
+            command.Parameters.AddWithValue("@pRangeFrom", range.RangeFrom);
+            command.Parameters.AddWithValue("@pRangeTo", range.RangeTo);
+            command.Parameters.AddWithValue("@pUnitPrice", range.UnitPrice);
+            command.Parameters.AddWithValue("@pProductRangeName", string.IsNullOrEmpty(range.ProductRangeName) ? (object)DBNull.Value : range.ProductRangeName);
+            command.Parameters.AddWithValue("@pUrduName", string.IsNullOrEmpty(range.UrduName) ? (object)DBNull.Value : range.UrduName);
+            var outParam = new SqlParameter("@pProductRangeId", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
+            command.Parameters.Add(outParam);
+            await command.ExecuteNonQueryAsync();
         }
     }
 }

@@ -745,8 +745,7 @@
                         <td class="${quantityClass} fw-bold">${quantitySign}${parseFloat(transaction.stockQuantity).toFixed(4)}</td>
                         <td>
                             <small class="text-muted">
-                            ${new Date(transaction.transactionDate).toLocaleDateString()}
-                           ${new Date(transaction.transactionDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            ${new Date(transaction.transactionDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                             </small>
                         </td>
                         <td>

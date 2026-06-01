@@ -29,10 +29,21 @@
                             <small class="form-text text-muted">Select unit for the stock quantity</small>
                         </div>
                         <div class="col">
+                            <label asp-for="CreatedDate" class="form-label">Stock / transaction date:</label>
+                            <input asp-for="CreatedDate" class="form-control" type="date" />
+                            <small class="form-text text-muted">Shown on stock history for this addition (date only)</small>
+                            <span asp-validation-for="CreatedDate" class="text-danger"></span>
+                        </div>
+                        <div class="col">
                             <label asp-for="TotalQuantity" class="form-label">New Stock Quantity:</label>
                             <input asp-for="TotalQuantity" class="form-control" type="number" step="0.001" id="TotalQuantity" />
                             <small class="form-text text-muted">Quantity of new stock being added</small>
                             <span asp-validation-for="TotalQuantity" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <label asp-for="CreatedDate" class="form-label">Stock / transaction date:</label>
+                            <input asp-for="CreatedDate" class="form-control" type="date" />
+                            <small class="form-text text-muted">Shown on stock history for this addition (date only)</small>
                         </div>
                         <div class="col">
                             <label asp-for="AvailableQuantity" class="form-label">Available Quantity:</label>
