@@ -9,8 +9,8 @@
     bool isAdmin = Convert.ToBoolean(User.FindFirst("IsAdmin")?.Value);
     string role = isAdmin ? "Admin" : "User";
     //Layout = "~/Views/Shared/_Layout.cshtml"; // change if your layout is elsewhere
-    var pkr = new CultureInfo("ur-PK");
-    string Money(decimal v) => v.ToString("C", pkr);
+    // var pkr = new CultureInfo("ur-PK");
+    // string Money(decimal v) => v.ToString("C", pkr);
 }
 <link href="~/css/dist/all.min.css" rel="stylesheet" />
 <link href="~/css/dist/bootstrap.min.css" rel="stylesheet" />
