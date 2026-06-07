@@ -950,5 +950,271 @@ namespace IMS.Services
                 return false;
             }
         }
+
+        public async Task<PersonalPaymentTransactionViewModel?> GetManualTransactionByIdAsync(long personalPaymentSaleDetailId)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+                using var command = new SqlCommand(@"
+                    SELECT PersonalPaymentSaleDetailId, PersonalPaymentId, SaleId, TransactionType, Amount,
+                           TransactionDescription, TransactionDate, IsActive
+                    FROM PersonalPaymentSaleDetail
+                    WHERE PersonalPaymentSaleDetailId = @Id AND SaleId = 0 AND IsActive = 1", connection);
+                command.Parameters.AddWithValue("@Id", personalPaymentSaleDetailId);
+                using var reader = await command.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                    return null;
+                return new PersonalPaymentTransactionViewModel
+                {
+                    PersonalPaymentSaleDetailId = reader.GetInt64(0),
+                    PersonalPaymentId = reader.GetInt64(1),
+                    SaleId = reader.GetInt64(2),
+                    TransactionType = reader.GetString(3),
+                    Amount = reader.GetDecimal(4),
+                    TransactionDescription = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    TransactionDate = reader.GetDateTime(6),
+                    IsActive = reader.GetBoolean(7)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading manual transaction {DetailId}", personalPaymentSaleDetailId);
+                return null;
+            }
+        }
+
+        public async Task<bool> UpdateManualTransactionAsync(long personalPaymentSaleDetailId, long personalPaymentId, decimal amount, string? description, DateTime paymentDate, long modifiedBy)
+        {
+            if (amount <= 0)
+                return false;
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    var existing = await GetManualTransactionByIdInTransactionAsync(connection, transaction, personalPaymentSaleDetailId);
+                    if (existing == null || existing.PersonalPaymentId != personalPaymentId)
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+
+                    var delta = amount - existing.Amount;
+                    if (string.Equals(existing.TransactionType, "Credit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var up = new SqlCommand(@"
+                            UPDATE PersonalPayments
+                            SET CreditAmount = ISNULL(CreditAmount, 0) + @Delta,
+                                ModifiedDate = GETDATE(), ModifiedBy = @ModifiedBy
+                            WHERE PersonalPaymentId = @Pid", connection, transaction))
+                        {
+                            up.Parameters.AddWithValue("@Delta", delta);
+                            up.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                            up.Parameters.AddWithValue("@Pid", existing.PersonalPaymentId);
+                            await up.ExecuteNonQueryAsync();
+                        }
+                    }
+                    else if (string.Equals(existing.TransactionType, "Debit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var up = new SqlCommand(@"
+                            UPDATE PersonalPayments
+                            SET DebitAmount = ISNULL(DebitAmount, 0) + @Delta,
+                                ModifiedDate = GETDATE(), ModifiedBy = @ModifiedBy
+                            WHERE PersonalPaymentId = @Pid", connection, transaction))
+                        {
+                            up.Parameters.AddWithValue("@Delta", delta);
+                            up.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                            up.Parameters.AddWithValue("@Pid", existing.PersonalPaymentId);
+                            await up.ExecuteNonQueryAsync();
+                        }
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+
+                    using (var upDetail = new SqlCommand(@"
+                        UPDATE PersonalPaymentSaleDetail
+                        SET Amount = @Amount,
+                            TransactionDescription = @Desc,
+                            TransactionDate = @TxnDate,
+                            ModifiedDate = GETDATE(),
+                            ModifiedBy = @ModifiedBy
+                        WHERE PersonalPaymentSaleDetailId = @Id AND SaleId = 0 AND IsActive = 1", connection, transaction))
+                    {
+                        upDetail.Parameters.AddWithValue("@Amount", amount);
+                        upDetail.Parameters.AddWithValue("@Desc", string.IsNullOrEmpty(description) ? (object)DBNull.Value : description);
+                        upDetail.Parameters.AddWithValue("@TxnDate", paymentDate);
+                        upDetail.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                        upDetail.Parameters.AddWithValue("@Id", personalPaymentSaleDetailId);
+                        var n = await upDetail.ExecuteNonQueryAsync();
+                        if (n == 0)
+                        {
+                            transaction.Rollback();
+                            return false;
+                        }
+                    }
+
+                    await RecalculatePersonalPaymentBalancesAsync(connection, transaction, existing.PersonalPaymentId, modifiedBy);
+                    transaction.Commit();
+                    return true;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating manual transaction {DetailId}", personalPaymentSaleDetailId);
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteManualTransactionAsync(long personalPaymentSaleDetailId, long personalPaymentId, long modifiedBy)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_dbContextFactory.DBConnectionString());
+                await connection.OpenAsync();
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    var existing = await GetManualTransactionByIdInTransactionAsync(connection, transaction, personalPaymentSaleDetailId);
+                    if (existing == null || existing.PersonalPaymentId != personalPaymentId)
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+
+                    if (string.Equals(existing.TransactionType, "Credit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var up = new SqlCommand(@"
+                            UPDATE PersonalPayments
+                            SET CreditAmount = ISNULL(CreditAmount, 0) - @Amt,
+                                ModifiedDate = GETDATE(), ModifiedBy = @ModifiedBy
+                            WHERE PersonalPaymentId = @Pid", connection, transaction))
+                        {
+                            up.Parameters.AddWithValue("@Amt", existing.Amount);
+                            up.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                            up.Parameters.AddWithValue("@Pid", existing.PersonalPaymentId);
+                            await up.ExecuteNonQueryAsync();
+                        }
+                    }
+                    else if (string.Equals(existing.TransactionType, "Debit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var up = new SqlCommand(@"
+                            UPDATE PersonalPayments
+                            SET DebitAmount = ISNULL(DebitAmount, 0) - @Amt,
+                                ModifiedDate = GETDATE(), ModifiedBy = @ModifiedBy
+                            WHERE PersonalPaymentId = @Pid", connection, transaction))
+                        {
+                            up.Parameters.AddWithValue("@Amt", existing.Amount);
+                            up.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                            up.Parameters.AddWithValue("@Pid", existing.PersonalPaymentId);
+                            await up.ExecuteNonQueryAsync();
+                        }
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+
+                    using (var del = new SqlCommand(@"
+                        DELETE FROM PersonalPaymentSaleDetail
+                        WHERE PersonalPaymentSaleDetailId = @Id AND SaleId = 0", connection, transaction))
+                    {
+                        del.Parameters.AddWithValue("@Id", personalPaymentSaleDetailId);
+                        var n = await del.ExecuteNonQueryAsync();
+                        if (n == 0)
+                        {
+                            transaction.Rollback();
+                            return false;
+                        }
+                    }
+
+                    await RecalculatePersonalPaymentBalancesAsync(connection, transaction, existing.PersonalPaymentId, modifiedBy);
+                    transaction.Commit();
+                    return true;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting manual transaction {DetailId}", personalPaymentSaleDetailId);
+                return false;
+            }
+        }
+
+        private static async Task<PersonalPaymentTransactionViewModel?> GetManualTransactionByIdInTransactionAsync(
+            SqlConnection connection, SqlTransaction transaction, long personalPaymentSaleDetailId)
+        {
+            using var command = new SqlCommand(@"
+                SELECT PersonalPaymentSaleDetailId, PersonalPaymentId, SaleId, TransactionType, Amount,
+                       TransactionDescription, TransactionDate, IsActive
+                FROM PersonalPaymentSaleDetail
+                WHERE PersonalPaymentSaleDetailId = @Id AND SaleId = 0 AND IsActive = 1", connection, transaction);
+            command.Parameters.AddWithValue("@Id", personalPaymentSaleDetailId);
+            using var reader = await command.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return null;
+            return new PersonalPaymentTransactionViewModel
+            {
+                PersonalPaymentSaleDetailId = reader.GetInt64(0),
+                PersonalPaymentId = reader.GetInt64(1),
+                SaleId = reader.GetInt64(2),
+                TransactionType = reader.GetString(3),
+                Amount = reader.GetDecimal(4),
+                TransactionDescription = reader.IsDBNull(5) ? null : reader.GetString(5),
+                TransactionDate = reader.GetDateTime(6),
+                IsActive = reader.GetBoolean(7)
+            };
+        }
+
+        private static async Task RecalculatePersonalPaymentBalancesAsync(
+            SqlConnection connection, SqlTransaction transaction, long personalPaymentId, long modifiedBy)
+        {
+            var rows = new List<(long Id, string Type, decimal Amount)>();
+            using (var cmd = new SqlCommand(@"
+                SELECT PersonalPaymentSaleDetailId, TransactionType, Amount
+                FROM PersonalPaymentSaleDetail
+                WHERE PersonalPaymentId = @Pid AND IsActive = 1
+                ORDER BY TransactionDate ASC, PersonalPaymentSaleDetailId ASC", connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@Pid", personalPaymentId);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    rows.Add((reader.GetInt64(0), reader.GetString(1), reader.GetDecimal(2)));
+            }
+
+            decimal running = 0;
+            foreach (var r in rows)
+            {
+                if (string.Equals(r.Type, "Credit", StringComparison.OrdinalIgnoreCase))
+                    running += r.Amount;
+                else
+                    running -= r.Amount;
+
+                using var up = new SqlCommand(@"
+                    UPDATE PersonalPaymentSaleDetail
+                    SET Balance = @Bal, ModifiedDate = GETDATE(), ModifiedBy = @ModifiedBy
+                    WHERE PersonalPaymentSaleDetailId = @Id", connection, transaction);
+                up.Parameters.AddWithValue("@Bal", running);
+                up.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
+                up.Parameters.AddWithValue("@Id", r.Id);
+                await up.ExecuteNonQueryAsync();
+            }
+        }
     }
 }

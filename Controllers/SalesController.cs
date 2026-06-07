@@ -27,9 +27,10 @@ namespace IMS.Controllers
         private readonly IVendor _vendorService;
         private readonly IVendorBillsService _vendorBillsService;
         private readonly IUnitPriceRateService _unitPriceRateService;
+        private readonly IUnitConversionService _unitConversionService;
         private const string VendorCustomerPrefix = "Vendor - ";
 
-        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService, IVendorBillsService vendorBillsService, IUnitPriceRateService unitPriceRateService)
+        public SalesController(ISalesService salesService, ILogger<SalesController> logger, IProductService productService, ICustomer customerService, IPersonalPaymentService personalPaymentService, IAdminMeasuringUnitService measuringUnitService, IVendor vendorService, IVendorBillsService vendorBillsService, IUnitPriceRateService unitPriceRateService, IUnitConversionService unitConversionService)
         {
             _salesService = salesService;
             _logger = logger;
@@ -40,6 +41,7 @@ namespace IMS.Controllers
             _vendorService = vendorService;
             _vendorBillsService = vendorBillsService;
             _unitPriceRateService = unitPriceRateService;
+            _unitConversionService = unitConversionService;
         }
 
         // GET: SalesController
@@ -412,9 +414,11 @@ namespace IMS.Controllers
                     return NotFound();
                 }
 
-                // Get sale details
+                // Get sale details (Quantity in DB = base/smallest units)
                 var saleDetails = await _salesService.GetSaleDetailsBySaleIdAsync(id);
-                
+                foreach (var line in saleDetails)
+                    await ConvertSaleDetailQuantityFromBaseToLineForEditDisplayAsync(line);
+
                 // Load products
                 var products = await _productService.GetAllEnabledProductsAsync();
                 ViewBag.Products = new SelectList(products, "ProductId", "ProductName");
@@ -422,6 +426,15 @@ namespace IMS.Controllers
                 // Load customers
                 var customers = await _salesService.GetAllCustomersAsync();
                 ViewBag.Customers = new SelectList(customers, "CustomerId", "CustomerName", sale.CustomerIdFk);
+
+                var linesPayableTotal = saleDetails.Sum(d => d.PayableAmount);
+                var inferredFreight = sale.TotalAmount - linesPayableTotal;
+                if (inferredFreight < 0)
+                    inferredFreight = 0;
+                const decimal freightTol = 0.01m;
+                var freightForEdit = sale.SalesFreight;
+                if (freightForEdit < freightTol && inferredFreight > freightTol)
+                    freightForEdit = inferredFreight;
 
                 // Create AddSaleViewModel with existing data
                 var viewModel = new AddSaleViewModel
@@ -438,6 +451,7 @@ namespace IMS.Controllers
                     ReceivedAmount = sale.TotalReceivedAmount,
                     PayNow = sale.TotalReceivedAmount, // Show received amount in Pay Now when editing
                     DueAmount = sale.TotalDueAmount,
+                    FreightAmount = freightForEdit,
                     Description = sale.SaleDescription,
                     SaleId = sale.SaleId, // Add this to track the sale being edited
                     PaymentMethod = sale.PaymentMethod ?? "Cash", // Use stored payment method or default to Cash
@@ -569,6 +583,7 @@ namespace IMS.Controllers
                     ModifiedDate = currentDateTime,
                     PaymentMethod = model.PaymentMethod,
                     OnlineAccountId = model.PaymentMethod == "Online" ? model.OnlineAccountId : null,
+                    SalesFreight = model.FreightAmount,
                 });
 
                 if (updateResult == 0)
@@ -581,11 +596,12 @@ namespace IMS.Controllers
                 foreach (var detail in model.SaleDetails)
                 {
                     int detailReturnValue;
+                    var quantityInBaseUnits = await GetSaleDetailQuantityInBaseUnitsForPersistAsync(detail);
                     _salesService.AddSaleDetails(
                         id,
                         detail.ProductId,
                         detail.UnitPrice,
-                        detail.Quantity,
+                        quantityInBaseUnits,
                         detail.SalePrice,
                         detail.LineDiscountAmount,
                         detail.PayableAmount,
@@ -600,46 +616,19 @@ namespace IMS.Controllers
                     var prodMaster = await _salesService.GetStockByProductIdAsync(detail.ProductId);
                     if (prodMaster != null)
                     {
-                        decimal quantityToDeduct = (decimal)detail.Quantity;
-                        var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(detail.ProductId);
-                        var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == detail.ProductRangeId);
-
-                        if (selectedProductRange != null)
-                        {
-                            var product = await _productService.GetProductByIdAsync(detail.ProductId);
-                            if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
-                            {
-                                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
-                                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
-                                long? baseUnitId = smallestUnit?.MeasuringUnitId ?? (measuringUnits.Any() ? measuringUnits.First().MeasuringUnitId : (long?)null);
-
-                                if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
-                                {
-                                    var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                                    var convertedQuantity = await unitConversionService.ConvertUnitAsync(
-                                        selectedProductRange.MeasuringUnitId_FK,
-                                        baseUnitId.Value,
-                                        (decimal)detail.Quantity
-                                    );
-                                    if (convertedQuantity.HasValue)
-                                        quantityToDeduct = convertedQuantity.Value;
-                                }
-                            }
-                        }
-
                         _salesService.UpdateStock(
                             prodMaster.StockMasterId,
                             detail.ProductId,
-                            prodMaster.AvailableQuantity - quantityToDeduct,
+                            prodMaster.AvailableQuantity - quantityInBaseUnits,
                             prodMaster.TotalQuantity,
-                            prodMaster.UsedQuantity + quantityToDeduct,
+                            prodMaster.UsedQuantity + quantityInBaseUnits,
                             userId,
                             currentDateTime
                         );
 
                         _salesService.SaleTransactionCreate(
                             prodMaster.StockMasterId,
-                            (decimal)detail.Quantity,
+                            quantityInBaseUnits,
                             $"Sale #{id}",
                             currentDateTime,
                             userId,
@@ -981,7 +970,8 @@ namespace IMS.Controllers
                             model.Description ?? "",
                             model.SaleDate,
                             model.PaymentMethod,
-                            model.OnlineAccountId
+                            model.OnlineAccountId,
+                            model.FreightAmount
                         );
 
                     if (saleId > 0)
@@ -990,11 +980,12 @@ namespace IMS.Controllers
                         foreach (var detail in model.SaleDetails)
                         {
                             int detailReturnValue;
+                            var quantityInBaseUnits = await GetSaleDetailQuantityInBaseUnitsForPersistAsync(detail);
                             long saleDetailsId = _salesService.AddSaleDetails(
                                 saleId,
                                 detail.ProductId,
                                 detail.UnitPrice,
-                                detail.Quantity,
+                                quantityInBaseUnits,
                                 detail.SalePrice,
                                 detail.LineDiscountAmount,
                                 detail.PayableAmount,
@@ -1006,79 +997,22 @@ namespace IMS.Controllers
                                 out detailReturnValue
                             );
 
-                            // Get stock information and update
                             var prodMaster = await _salesService.GetStockByProductIdAsync(detail.ProductId);
                             if (prodMaster!=null)
                             {
-                                // Calculate quantity in base unit (smallest unit) for stock update
-                                decimal quantityToDeduct = (decimal)detail.Quantity;
-                                
-                                // Get ProductRange to find the MeasuringUnitId
-                                var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(detail.ProductId);
-                                var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == detail.ProductRangeId);
-                                
-                                if (selectedProductRange != null)
-                                {
-                                    // Get product to find base unit
-                                    var product = await _productService.GetProductByIdAsync(detail.ProductId);
-                                    if (product != null && product.ProductList.MeasuringUnitTypeIdFk.HasValue)
-                                    {
-                                        // Get the smallest unit for this measuring unit type as base unit
-                                        var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(product.ProductList.MeasuringUnitTypeIdFk);
-                                        var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
-                                        long? baseUnitId = null;
-                                        
-                                        if (smallestUnit != null)
-                                        {
-                                            baseUnitId = smallestUnit.MeasuringUnitId;
-                                        }
-                                        else if (measuringUnits.Any())
-                                        {
-                                            // If no smallest unit is marked, use the first enabled unit as base unit
-                                            baseUnitId = measuringUnits.First().MeasuringUnitId;
-                                            _logger.LogWarning("No smallest unit marked for product {ProductId}, using first unit {UnitId} as base unit", detail.ProductId, baseUnitId);
-                                        }
-                                        
-                                        // If selected unit is different from base unit, convert quantity
-                                        if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
-                                        {
-                                            var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                                            var convertedQuantity = await unitConversionService.ConvertUnitAsync(
-                                                selectedProductRange.MeasuringUnitId_FK, 
-                                                baseUnitId.Value, 
-                                                (decimal)detail.Quantity
-                                            );
-                                            
-                                            if (convertedQuantity.HasValue)
-                                            {
-                                                quantityToDeduct = convertedQuantity.Value;
-                                                _logger.LogInformation("Converted {Quantity} {FromUnitId} to {ConvertedQuantity} {ToUnitId} for product {ProductId}", 
-                                                    detail.Quantity, selectedProductRange.MeasuringUnitId_FK, quantityToDeduct, baseUnitId.Value, detail.ProductId);
-                                            }
-                                            else
-                                            {
-                                                _logger.LogWarning("No conversion found from unit {FromUnitId} to base unit {ToUnitId} for product {ProductId}, using original quantity", 
-                                                    selectedProductRange.MeasuringUnitId_FK, baseUnitId.Value, detail.ProductId);
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Update stock quantity (deduct converted quantity in base unit)
                                 long updateStockReturn = _salesService.UpdateStock(
                                     prodMaster.StockMasterId,
                                     detail.ProductId,
-                                    prodMaster.AvailableQuantity - quantityToDeduct,
+                                    prodMaster.AvailableQuantity - quantityInBaseUnits,
                                     prodMaster.TotalQuantity,
-                                    prodMaster.UsedQuantity + quantityToDeduct,
+                                    prodMaster.UsedQuantity + quantityInBaseUnits,
                                     userId,
                                     currentDateTime
                                 );
 
-                                // Create sale transaction (store original quantity, not converted)
                                 long transactionReturn = _salesService.SaleTransactionCreate(
                                     prodMaster.StockMasterId,
-                                    (decimal)detail.Quantity,
+                                    quantityInBaseUnits,
                                     $"Sale #{saleId}",
                                     currentDateTime,
                                     userId,
@@ -1603,41 +1537,18 @@ namespace IMS.Controllers
             try
             {
                 var salePrint = await _salesService.GetSaleForPrintAsync(id);
-                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                var res = await unitConversionService.GetSmallestMeasuringUnitAsync();
                 if (salePrint != null)
                 {
                     foreach (var item in salePrint.SaleDetails)
                     {
+                        // Quantity in DB is base units; receipt shows line unit when the range is not the smallest.
                         if (!item.IsSmallestUnit)
-                        {
-                            //var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-
-                           
-                            //var conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
-
-                            //if (conversionResult.HasValue)
-                            //{
-                                //// conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
-                                //// So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
-                                //// Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
-                                
-                            //    item.PrintQuantity = conversionResult.Value;
-                            //}
-                            //else
-                            //{
-                                item.PrintQuantity = (decimal)item.Quantity;
-                           // }
-                            
-
-                        }
+                            item.PrintQuantity = await ConvertSaleQuantityFromBaseToLineUnitAsync(
+                                item.ProductId,
+                                item.ProductRangeId,
+                                (decimal)item.Quantity);
                         else
-                        {
                             item.PrintQuantity = (decimal)item.Quantity;
-                        }
-
-
-
                     }
 
                 }
@@ -1789,14 +1700,97 @@ namespace IMS.Controllers
             }
         }
 
+        /// <summary>
+        /// Converts the user-entered line quantity to the product's smallest (base) measuring unit for <c>SaleDetails.Quantity</c>
+        /// and stock, matching vendor Generate Bill behavior.
+        /// </summary>
+        private async Task<decimal> GetSaleDetailQuantityInBaseUnitsForPersistAsync(SaleDetailViewModel detail)
+        {
+            decimal quantityInBase = (decimal)detail.Quantity;
+            var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(detail.ProductId);
+            var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == detail.ProductRangeId);
+            if (selectedProductRange == null)
+                return quantityInBase;
+
+            var product = await _productService.GetProductByIdAsync(detail.ProductId);
+            if (product?.ProductList?.MeasuringUnitTypeIdFk is long measuringUnitTypeId)
+            {
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                long? baseUnitId = smallestUnit?.MeasuringUnitId
+                    ?? (measuringUnits.Any() ? measuringUnits.First().MeasuringUnitId : (long?)null);
+
+                if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
+                {
+                    var convertedQuantity = await _unitConversionService.ConvertUnitAsync(
+                        selectedProductRange.MeasuringUnitId_FK,
+                        baseUnitId.Value,
+                        quantityInBase);
+                    if (convertedQuantity.HasValue)
+                        return convertedQuantity.Value;
+
+                    _logger.LogWarning(
+                        "No conversion from unit {FromUnitId} to base {ToUnitId} for product {ProductId}; persisting entered quantity as-is.",
+                        selectedProductRange.MeasuringUnitId_FK, baseUnitId.Value, detail.ProductId);
+                }
+            }
+
+            return quantityInBase;
+        }
+
+        /// <summary>
+        /// Converts a stored base-unit quantity back to the sale line's product-range unit (receipt / edit UI).
+        /// </summary>
+        private async Task<decimal> ConvertSaleQuantityFromBaseToLineUnitAsync(long productId, long productRangeId, decimal quantityInBase)
+        {
+            if (quantityInBase == 0m || productRangeId <= 0)
+                return quantityInBase;
+
+            var productRanges = await _salesService.GetProductUnitPriceRangeByProductIdAsync(productId);
+            var selectedProductRange = productRanges?.FirstOrDefault(pr => pr.ProductRangeId == productRangeId);
+            if (selectedProductRange == null)
+                return quantityInBase;
+
+            var product = await _productService.GetProductByIdAsync(productId);
+            if (product?.ProductList?.MeasuringUnitTypeIdFk is long measuringUnitTypeId)
+            {
+                var measuringUnits = await _measuringUnitService.GetAllEnabledMeasuringUnitsByMUTIdAsync(measuringUnitTypeId);
+                var smallestUnit = measuringUnits.FirstOrDefault(mu => mu.IsSmallestUnit);
+                long? baseUnitId = smallestUnit?.MeasuringUnitId
+                    ?? (measuringUnits.Any() ? measuringUnits.First().MeasuringUnitId : (long?)null);
+
+                if (baseUnitId.HasValue && selectedProductRange.MeasuringUnitId_FK != baseUnitId.Value)
+                {
+                    var lineQty = await _unitConversionService.ConvertUnitAsync(
+                        baseUnitId.Value,
+                        selectedProductRange.MeasuringUnitId_FK,
+                        quantityInBase);
+                    if (lineQty.HasValue)
+                        return lineQty.Value;
+                }
+            }
+
+            return quantityInBase;
+        }
+
+        /// <summary>
+        /// For edit UI: <c>SaleDetails.Quantity</c> in DB is base units; convert to the line's range unit for display.
+        /// </summary>
+        private async Task ConvertSaleDetailQuantityFromBaseToLineForEditDisplayAsync(SaleDetailViewModel detail)
+        {
+            detail.Quantity = await ConvertSaleQuantityFromBaseToLineUnitAsync(
+                detail.ProductId,
+                detail.ProductRangeId,
+                (decimal)detail.Quantity);
+        }
+
         // AJAX endpoint to convert unit and get stock in selected unit
         [HttpGet]
         public async Task<JsonResult> ConvertQuantityToBaseUnit(long productId, long fromUnitId, long toUnitId, decimal quantity)
         {
             try
             {
-                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId, toUnitId, 1);
+                var conversionResult = await _unitConversionService.ConvertUnitAsync(fromUnitId, toUnitId, 1);
                 
                 if (conversionResult.HasValue)
                 {
@@ -1837,15 +1831,13 @@ namespace IMS.Controllers
                 _logger.LogInformation("ConvertUnitAndGetStock: Converting {StockInBaseUnit} from unit {FromUnitId} to unit {ToUnitId}", 
                     stockInBaseUnit, fromUnitId.Value, toUnitId.Value);
 
-                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                
                 // ConvertUnitAsync returns the result of converting 1 unit from fromUnitId to toUnitId
                 // For example: if 1 bori = 50 kg, then ConvertUnitAsync(kg, bori, 1) should return 0.02 (1/50)
                 // But if we have FromUnitId=bori, ToUnitId=kg with factor=50, then:
                 // - Direct: ConvertUnitAsync(bori, kg, 1) = 1 * 50 = 50
                 // - Reverse: ConvertUnitAsync(kg, bori, 1) = 1 / 50 = 0.02
                 
-                var conversionResult = await unitConversionService.ConvertUnitAsync(fromUnitId.Value, toUnitId.Value, 1);
+                var conversionResult = await _unitConversionService.ConvertUnitAsync(fromUnitId.Value, toUnitId.Value, 1);
                 
                 if (conversionResult.HasValue)
                 {

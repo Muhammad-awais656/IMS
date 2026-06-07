@@ -47,6 +47,7 @@ namespace IMS.Models
         public string PreviousAmount { get; set; } = string.Empty;
         public string TotalDue { get; set; } = string.Empty;
         public string TotalReceiveAmount { get; set; } = string.Empty;
+        public string SalesFreight { get; set; } = "0.00";
     }
 
     public class SaleItem

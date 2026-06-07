@@ -895,8 +895,8 @@ function addBillDetailToArray(displayQuantity, baseUnitQuantity) {
         measuringUnitId: selectedProductSize.measuringUnitId,
         unitPrice: unitPrice,
         purchasePrice: purchasePrice,
-        quantity: displayQuantity, // Display quantity in product size unit
-        baseUnitQuantity: baseUnitQuantity, // Base unit quantity for database
+        quantity: displayQuantity, // Product-range (line) unit; POST sends this; server persists base
+        baseUnitQuantity: baseUnitQuantity, // Base unit for client-side stock display only
         salePrice: unitPrice,
         lineDiscountAmount: discountAmount * displayQuantity,
         payableAmount: payableAmount,
@@ -1461,7 +1461,7 @@ function collectBillFormData(actionType) {
         BillDetails: []
     };
     
-    // Add bill details - use baseUnitQuantity if available, otherwise use quantity
+    // Quantity = product-range (line) unit; server converts to base for DB/stock
     billDetails.forEach(function(item) {
         formData.BillDetails.push({
             ProductId: parseInt(item.productId),
@@ -1469,7 +1469,7 @@ function collectBillFormData(actionType) {
             ProductSize: item.measuringUnitAbbreviation || "",
             UnitPrice: parseFloat(item.unitPrice),
             PurchasePrice: parseFloat(item.purchasePrice),
-            Quantity: parseFloat(item.baseUnitQuantity || item.quantity), // Use base unit quantity for database
+            Quantity: parseFloat(item.quantity),
             SalePrice: parseFloat(item.salePrice),
             LineDiscountAmount: parseFloat(item.lineDiscountAmount),
             PayableAmount: parseFloat(item.payableAmount)

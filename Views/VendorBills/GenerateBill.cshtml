@@ -46,7 +46,7 @@
                 </div>
                 <div class="col-md-2">
                     <label for="quantity" class="form-label">Quantity:</label>
-                    <input type="number" id="quantity" class="form-control" value="1" min="0" step="0.001" />
+                    <input type="number" id="quantity" class="form-control" value="1" min="0.0001" step="any" />
                 </div>
                 <div class="col-md-2">
                     <label for="unitPrice" class="form-label">Unit Price:</label>
@@ -1395,8 +1395,8 @@
                 measuringUnitId: selectedProductSize.measuringUnitId,
                 unitPrice: unitPrice,
                 purchasePrice: purchasePrice,
-                quantity: displayQuantity, // Display quantity in product size unit
-                baseUnitQuantity: baseUnitQuantity, // Base unit quantity for database
+                quantity: displayQuantity, // Product-range (line) unit; POST sends this; server persists base
+                baseUnitQuantity: baseUnitQuantity, // Base unit for client-side stock display only
                 salePrice: unitPrice,
                 lineDiscountAmount: discountAmount * displayQuantity,
                 payableAmount: payableAmount,
@@ -2006,7 +2006,7 @@
                 BillDetails: []
             };
 
-            // Add bill details - use baseUnitQuantity if available, otherwise use quantity
+            // Quantity = product-range (line) unit; server converts to base for DB/stock
             billDetails.forEach(function(item) {
                 formData.BillDetails.push({
                     ProductId: parseInt(item.productId),
@@ -2014,7 +2014,7 @@
                     ProductSize: item.measuringUnitAbbreviation || "",
                     UnitPrice: parseFloat(item.unitPrice),
                     PurchasePrice: parseFloat(item.purchasePrice),
-                    Quantity: parseFloat(item.baseUnitQuantity || item.quantity), // Use base unit quantity for database
+                    Quantity: parseFloat(item.quantity),
                     SalePrice: parseFloat(item.salePrice),
                     LineDiscountAmount: parseFloat(item.lineDiscountAmount),
                     PayableAmount: parseFloat(item.payableAmount)
@@ -2230,15 +2230,52 @@
 
                     var productId = item.ProductId || item.productId || 0;
                     var productRangeId = item.ProductRangeId || item.productRangeId || 0;
-                    var baseUnitQuantity = parseFloat(item.Quantity || item.quantity || 0); // This is stored in base unit
+                    var quantityBaseRaw = item.QuantityBase != null && item.QuantityBase !== undefined
+                        ? item.QuantityBase
+                        : (item.quantityBase != null && item.quantityBase !== undefined ? item.quantityBase : null);
+                    var hasServerLineAndBase = quantityBaseRaw != null && quantityBaseRaw !== '';
+                    var lineFromServer = parseFloat(item.Quantity || item.quantity || 0);
+                    var baseUnitQuantity = hasServerLineAndBase
+                        ? parseFloat(quantityBaseRaw)
+                        : lineFromServer; // legacy: Quantity was base-only
                     var measuringUnitId = item.MeasuringUnitId || item.measuringUnitId || null;
                     // Get measuring unit abbreviation from the item, don't use ProductSize (which is a range string)
                     var measuringUnitAbbreviation = item.MeasuringUnitAbbreviation || item.measuringUnitAbbreviation || '';
 
-                    console.log('Item', idx, '- ProductId:', productId, 'ProductRangeId:', productRangeId, 'BaseQuantity:', baseUnitQuantity, 'MeasuringUnitId:', measuringUnitId, 'MeasuringUnitAbbreviation:', measuringUnitAbbreviation);
+                    console.log('Item', idx, '- ProductId:', productId, 'ProductRangeId:', productRangeId, 'LineQty:', lineFromServer, 'BaseQty:', baseUnitQuantity, 'MeasuringUnitId:', measuringUnitId, 'MeasuringUnitAbbreviation:', measuringUnitAbbreviation);
 
                     // Create a promise for each item to handle async conversion
                     var promise = new Promise(function(resolve) {
+                        if (hasServerLineAndBase) {
+                            var getMeasuringUnitAbbreviation = function(abbreviation, pid, prId) {
+                                if (abbreviation && abbreviation.trim() !== '') {
+                                    return Promise.resolve(abbreviation);
+                                }
+                                if (pid && prId) {
+                                    return fetch('/VendorBills/GetProductSizes?productId=' + pid)
+                                        .then(function(response) { return response.json(); })
+                                        .then(function(sizes) {
+                                            if (Array.isArray(sizes) && sizes.length > 0) {
+                                                var matchingSize = sizes.find(function(s) {
+                                                    return (s.productRangeId || s.ProductRangeId) == prId;
+                                                });
+                                                if (matchingSize && (matchingSize.measuringUnitAbbreviation || matchingSize.MeasuringUnitAbbreviation)) {
+                                                    return matchingSize.measuringUnitAbbreviation || matchingSize.MeasuringUnitAbbreviation;
+                                                }
+                                            }
+                                            return 'N/A';
+                                        })
+                                        .catch(function() { return 'N/A'; });
+                                }
+                                return Promise.resolve('N/A');
+                            };
+                            getMeasuringUnitAbbreviation(measuringUnitAbbreviation, productId, productRangeId)
+                                .then(function(finalAbbreviation) {
+                                    resolve(createMappedItem(item, lineFromServer, baseUnitQuantity, finalAbbreviation, measuringUnitId));
+                                });
+                            return;
+                        }
+
                         // First, try to get measuring unit abbreviation from product range if not provided
                         var getMeasuringUnitAbbreviation = function(abbreviation, pid, prId) {
                             if (abbreviation && abbreviation.trim() !== '') {

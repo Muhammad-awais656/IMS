@@ -95,7 +95,7 @@
                 <div class="card bg-info text-white">
                     <div class="card-body">
                         <h6 class="card-title">Total Quantity</h6>
-                        <h3 class="mb-0">@Model.TotalQty</h3>
+                        <h3 class="mb-0">@Model.TotalQty.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
@@ -175,11 +175,11 @@
                                         <td>
                                             @if (item.IsTotalRow)
                                             {
-                                                @item.Qty
+                                                @item.Qty.ToString("N2")
                                             }
                                             else if (item.Qty > 0)
                                             {
-                                                @item.Qty
+                                                @item.Qty.ToString("N2")
                                             }
                                         </td>
                                         <td>

@@ -60,10 +60,10 @@ namespace IMS.Services
                         //command.Parameters.AddWithValue("@PageSize", pageSize);
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", (object)salesReportsFilters.CustomerId ?? DBNull.Value);
-                        command.Parameters.AddWithValue("@pBillNumber",  DBNull.Value);
+                        command.Parameters.AddWithValue("@pBillNumber", DBNull.Value);
                         command.Parameters.AddWithValue("@pSaleFrom", salesReportsFilters.FromDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.FromDate);
                         command.Parameters.AddWithValue("@pSaleDateTo", salesReportsFilters.ToDate == default(DateTime) ? DateTimeHelper.Now : salesReportsFilters.ToDate);
-                        command.Parameters.AddWithValue("@pDescription",  DBNull.Value);
+                        command.Parameters.AddWithValue("@pDescription", DBNull.Value);
                         using (var reader = await command.ExecuteReaderAsync())
                         {
 
@@ -114,9 +114,9 @@ namespace IMS.Services
             ? string.Empty
             : reader.GetString(reader.GetOrdinal("SaleDescription")),
                                 };
-                                
+
                                 sale.Add(saleItem);
-                                
+
                                 // Calculate totals
                                 totalAmount += saleItem.TotalAmount;
                                 totalDiscountAmount += saleItem.DiscountAmount;
@@ -151,8 +151,8 @@ namespace IMS.Services
                     using (var totalsCommand = new SqlCommand(totalsSql, connection))
                     {
                         totalsCommand.Parameters.AddWithValue("@CustomerId", (object)salesReportsFilters?.CustomerId ?? DBNull.Value);
-                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) || salesReportsFilters?.FromDate ==null ? DBNull.Value : (object)salesReportsFilters.FromDate);
-                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) || salesReportsFilters?.ToDate==null ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
+                        totalsCommand.Parameters.AddWithValue("@FromDate", salesReportsFilters?.FromDate == default(DateTime) || salesReportsFilters?.FromDate == null ? DBNull.Value : (object)salesReportsFilters.FromDate);
+                        totalsCommand.Parameters.AddWithValue("@ToDate", salesReportsFilters?.ToDate == default(DateTime) || salesReportsFilters?.ToDate == null ? DBNull.Value : (object)salesReportsFilters.ToDate.Value.AddDays(1).AddSeconds(-1));
 
                         using (var totalsReader = await totalsCommand.ExecuteReaderAsync())
                         {
@@ -181,7 +181,7 @@ namespace IMS.Services
             return new ReportsViewModel
             {
                 SalesList = sale,
-               
+
                 CurrentPage = pageNumber,
                 TotalPages = pageSize.HasValue && pageSize.Value > 0
                    ? (int)Math.Ceiling(totalRecords / (double)pageSize.Value)
@@ -213,7 +213,7 @@ namespace IMS.Services
                     using (var command = new SqlCommand("GetAllSalesReport", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
-                    
+
                         command.Parameters.AddWithValue("@pIsDeleted", DBNull.Value);
                         command.Parameters.AddWithValue("@pCustomerId", (object)salesReportsFilters.CustomerId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@pBillNumber", DBNull.Value);
@@ -291,7 +291,7 @@ namespace IMS.Services
                             SUM(TotalReceivedAmount) AS TotalReceivedAmount,
                             SUM(TotalDueAmount) AS TotalDueAmount
                         FROM Sales
-                        WHERE IsDeleted = 0
+                        WHERE ISNULL(IsDeleted,0) = 0
                             AND (@CustomerId IS NULL OR CustomerId_FK = @CustomerId)
                             AND (@FromDate IS NULL OR SaleDate >= @FromDate)
                             AND (@ToDate IS NULL OR SaleDate <= @ToDate);
@@ -525,7 +525,7 @@ namespace IMS.Services
                 SELECT sd.PrductId_FK AS ProductId
                 FROM SaleDetails sd
                 INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                WHERE s.IsDeleted = 0
+                WHERE ISNULL(s.IsDeleted,0) = 0
                   AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
                   AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
                   AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
@@ -553,6 +553,7 @@ namespace IMS.Services
                 SELECT pr.ProductId_FK AS ProductId
                 FROM ProductRange pr
                 WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 """;
 
             var countSql = $"""
@@ -611,7 +612,7 @@ namespace IMS.Services
                 SELECT sd.PrductId_FK AS ProductId
                 FROM SaleDetails sd
                 INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                WHERE s.IsDeleted = 0
+                WHERE ISNULL(s.IsDeleted,0) = 0
                   AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
                   AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
                   AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
@@ -639,6 +640,7 @@ namespace IMS.Services
                 SELECT pr.ProductId_FK AS ProductId
                 FROM ProductRange pr
                 WHERE (@ProductId IS NULL OR pr.ProductId_FK = @ProductId)
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 """;
 
             var sql = $"""
@@ -710,7 +712,7 @@ namespace IMS.Services
                        SUM(sd.PayableAmount)
                 FROM SaleDetails sd
                 INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                WHERE s.IsDeleted = 0
+                WHERE ISNULL(s.IsDeleted,0) = 0
                   AND sd.PrductId_FK IN ({idList})
                   AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
                   AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
@@ -802,6 +804,7 @@ namespace IMS.Services
                     AND mu.MeasuringUnitTypeId_FK = p.MeasuringUnitTypeId_FK
                     AND mu.IsSmallestUnit = 1
                 WHERE pr.ProductId_FK IN ({idList})
+                  AND ISNULL(pr.IsDeleted, 0) = 0
                 GROUP BY pr.ProductId_FK
                 """;
             try
@@ -1065,7 +1068,39 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    var sql = @"
+                    var reportDateOnly = (filters?.ReportDate ?? DateTimeHelper.Now).Date;
+                    var includePricing = filters?.IncludeUnitPriceAndValue != false;
+                    var pricingJoin = includePricing
+                        ? @"
+                        LEFT JOIN (
+                            SELECT pr.ProductId_FK, MIN(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            WHERE ISNULL(pr.IsDeleted, 0) = 0
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK"
+                        : string.Empty;
+                    var unitPriceSelect = includePricing
+                        ? "ISNULL(pr.UnitPrice, 0) AS UnitPrice"
+                        : "CAST(0 AS DECIMAL(18,4)) AS UnitPrice";
+                    var stockValueSelect = includePricing
+                        ? "(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue"
+                        : "CAST(0 AS DECIMAL(18,4)) AS StockValue";
+                    var totalStockValueAgg = includePricing
+                        ? "SUM(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue"
+                        : "SUM(CAST(0 AS DECIMAL(18,4))) AS TotalStockValue";
+
+                    var sql = $@"
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
                             p.ProductId,
                             p.ProductName,
@@ -1073,19 +1108,14 @@ namespace IMS.Services
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
-                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
-                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
-                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(pst.ClosingStock, 0) AS AvailableQuantity,
+                            {unitPriceSelect},
+                            {stockValueSelect},
                             ISNULL(p.Location, '') AS StockLocation
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId)
                         ORDER BY p.ProductName
@@ -1096,26 +1126,33 @@ namespace IMS.Services
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
 
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
-                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(pst.ClosingStock, 0)) AS TotalAvailableQuantity,
                             SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
                             SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
-                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                            {totalStockValueAgg}
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
                     {
+                        command.Parameters.AddWithValue("@ReportDate", reportDateOnly);
                         command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * (pageSize ?? 10));
                         command.Parameters.AddWithValue("@PageSize", pageSize ?? 10);
@@ -1199,7 +1236,39 @@ namespace IMS.Services
                 {
                     await connection.OpenAsync();
 
-                    var sql = @"
+                    var reportDateOnly = (filters?.ReportDate ?? DateTimeHelper.Now).Date;
+                    var includePricing = filters?.IncludeUnitPriceAndValue != false;
+                    var pricingJoin = includePricing
+                        ? @"
+                        LEFT JOIN (
+                            SELECT pr.ProductId_FK, MIN(pr.UnitPrice) AS UnitPrice
+                            FROM ProductRange pr
+                            WHERE ISNULL(pr.IsDeleted, 0) = 0
+                            GROUP BY pr.ProductId_FK
+                        ) pr ON p.ProductId = pr.ProductId_FK"
+                        : string.Empty;
+                    var unitPriceSelect = includePricing
+                        ? "ISNULL(pr.UnitPrice, 0) AS UnitPrice"
+                        : "CAST(0 AS DECIMAL(18,4)) AS UnitPrice";
+                    var stockValueSelect = includePricing
+                        ? "(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue"
+                        : "CAST(0 AS DECIMAL(18,4)) AS StockValue";
+                    var totalStockValueAgg = includePricing
+                        ? "SUM(ISNULL(pst.ClosingStock, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue"
+                        : "SUM(CAST(0 AS DECIMAL(18,4))) AS TotalStockValue";
+
+                    var sql = $@"
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
                             p.ProductId,
                             p.ProductName,
@@ -1207,43 +1276,45 @@ namespace IMS.Services
                             ISNULL(p.ProductCode, '') AS ProductCode,
                             ISNULL(sm.TotalQuantity, 0) AS TotalQuantity,
                             ISNULL(sm.UsedQuantity, 0) AS UsedQuantity,
-                            ISNULL(sm.AvailableQuantity, 0) AS AvailableQuantity,
-                            ISNULL(pr.UnitPrice, 0) AS UnitPrice,
-                            (ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS StockValue,
+                            ISNULL(pst.ClosingStock, 0) AS AvailableQuantity,
+                            {unitPriceSelect},
+                            {stockValueSelect},
                             ISNULL(p.Location, '') AS StockLocation
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId)
                         ORDER BY p.ProductName;
 
+                        WITH ProductStock AS (
+                            SELECT sm.ProductId_FK AS ProductId,
+                                SUM(CASE WHEN st.TransactionStatusId IN (1, 3) THEN st.StockQuantity
+                                         WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity
+                                         ELSE 0 END) AS ClosingStock
+                            FROM StockTransactions st
+                            INNER JOIN StockMaster sm ON st.StockMasterId_FK = sm.StockMasterId
+                            WHERE ISNULL(st.IsDeleted, 0) = 0
+                                AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+                            GROUP BY sm.ProductId_FK
+                        )
                         SELECT 
-                            SUM(ISNULL(sm.AvailableQuantity, 0)) AS TotalAvailableQuantity,
+                            SUM(ISNULL(pst.ClosingStock, 0)) AS TotalAvailableQuantity,
                             SUM(ISNULL(sm.UsedQuantity, 0)) AS TotalUsedQuantity,
                             SUM(ISNULL(sm.TotalQuantity, 0)) AS TotalQuantity,
-                            SUM(ISNULL(sm.AvailableQuantity, 0) * ISNULL(pr.UnitPrice, 0)) AS TotalStockValue
+                            {totalStockValueAgg}
                         FROM Products p
                         LEFT JOIN StockMaster sm ON p.ProductId = sm.ProductId_FK
-                        LEFT JOIN (
-                            SELECT 
-                                pr.ProductId_FK,
-                                MIN(pr.UnitPrice) AS UnitPrice
-                            FROM ProductRange pr
-                            GROUP BY pr.ProductId_FK
-                        ) pr ON p.ProductId = pr.ProductId_FK
+                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                        {pricingJoin}
                         WHERE p.IsEnabled = 1
                             AND (@ProductId IS NULL OR p.ProductId = @ProductId);
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
                     {
+                        command.Parameters.AddWithValue("@ReportDate", reportDateOnly);
                         command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
 
                         using (var reader = await command.ExecuteReaderAsync())
@@ -1338,14 +1409,24 @@ namespace IMS.Services
                 item.UsedQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.UsedQuantity);
                 item.AvailableQuantity = await ConvertStockDisplayQuantityAsync(baseUnitId.Value, displayUnitId, item.AvailableQuantity);
 
-                item.UnitPrice = await ConvertUnitPriceFromBaseToDisplayAsync(baseUnitId.Value, displayUnitId, unitPricePerBase);
-                item.StockValue = item.AvailableQuantity * item.UnitPrice;
+                if (filters?.IncludeUnitPriceAndValue != false)
+                {
+                    item.UnitPrice = await ConvertUnitPriceFromBaseToDisplayAsync(baseUnitId.Value, displayUnitId, unitPricePerBase);
+                    item.StockValue = item.AvailableQuantity * item.UnitPrice;
+                }
+                else
+                {
+                    item.UnitPrice = 0m;
+                    item.StockValue = 0m;
+                }
             }
 
             vm.TotalQuantity = vm.StockList.Sum(i => i.TotalQuantity);
             vm.TotalUsedQuantity = vm.StockList.Sum(i => i.UsedQuantity);
             vm.TotalAvailableQuantity = vm.StockList.Sum(i => i.AvailableQuantity);
-            vm.TotalStockValue = vm.StockList.Sum(i => i.StockValue);
+            vm.TotalStockValue = filters?.IncludeUnitPriceAndValue != false
+                ? vm.StockList.Sum(i => i.StockValue)
+                : 0m;
         }
 
         private async Task<long?> GetBaseUnitIdForProductAsync(long productId)
@@ -1689,7 +1770,7 @@ namespace IMS.Services
                         FROM PurchaseOrders po
                         LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
                         left join Customers c ON c.CustomerId = po.CustomerId_FK
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
                             AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
@@ -1698,7 +1779,7 @@ namespace IMS.Services
 
                         SELECT COUNT(*) AS TotalRecords
                         FROM PurchaseOrders po
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
                             AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
@@ -1709,7 +1790,7 @@ namespace IMS.Services
                             SUM(TotalReceivedAmount) AS TotalPaidAmount,
                             SUM(TotalDueAmount) AS TotalDueAmount
                         FROM PurchaseOrders po
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
                             AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
@@ -1821,7 +1902,7 @@ namespace IMS.Services
                         FROM PurchaseOrders po
                         LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
                         LEFT JOIN Customers c ON c.CustomerId = po.CustomerId_FK
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
                             AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
@@ -1833,7 +1914,7 @@ namespace IMS.Services
                             SUM(TotalReceivedAmount) AS TotalPaidAmount,
                             SUM(TotalDueAmount) AS TotalDueAmount
                         FROM PurchaseOrders po
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                             AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
                             AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId);
@@ -1905,7 +1986,7 @@ namespace IMS.Services
             int totalRecords = 0;
             decimal totalAmount = 0;
             decimal totalWeight = 0;
-            long totalQty = 0;
+            decimal totalQty = 0;
 
             try
             {
@@ -1927,7 +2008,7 @@ namespace IMS.Services
                             FROM SaleDetails sd
                             INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
                             INNER JOIN Products p ON sd.PrductId_FK = p.ProductId
-                            WHERE s.IsDeleted = 0
+                            WHERE ISNULL(s.IsDeleted,0) = 0
                                 AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
                                 AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
@@ -1974,7 +2055,7 @@ namespace IMS.Services
                             FROM SaleDetails sd
                             INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
                             INNER JOIN Products p ON sd.PrductId_FK = p.ProductId
-                            WHERE s.IsDeleted = 0
+                            WHERE ISNULL(s.IsDeleted,0) = 0
                                 AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
                                 AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId)
@@ -1987,7 +2068,7 @@ namespace IMS.Services
                             SUM(sd.PayableAmount) AS TotalAmount
                         FROM SaleDetails sd
                         INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                        WHERE s.IsDeleted = 0
+                        WHERE ISNULL(s.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR CAST(s.SaleDate AS DATE) >= @FromDate)
                             AND (@ToDate IS NULL OR CAST(s.SaleDate AS DATE) <= @ToDate)
                             AND (@ProductId IS NULL OR sd.PrductId_FK = @ProductId);
@@ -2030,8 +2111,8 @@ namespace IMS.Services
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Weight")),
                                     Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
-                                        ? 0
-                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                        ? 0m
+                                        : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Qty"))),
                                     Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Rate")),
@@ -2059,8 +2140,8 @@ namespace IMS.Services
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
                                 totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
-                                    ? 0
-                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                    ? 0m
+                                    : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TotalQty")));
                                 totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
@@ -2072,12 +2153,12 @@ namespace IMS.Services
                     // Group sales by product and add total rows
                     var productGroups = salesList.GroupBy(s => s.ProductId).ToList();
                     var finalList = new List<ProductWiseSalesReportItem>();
-                    
+
                     foreach (var group in productGroups)
                     {
                         var productSales = group.OrderBy(s => s.SaleDate).ToList();
                         finalList.AddRange(productSales);
-                        
+
                         // Add total row for this product
                         var productTotal = new ProductWiseSalesReportItem
                         {
@@ -2089,14 +2170,14 @@ namespace IMS.Services
                             Weight = productSales.Sum(s => s.Weight),
                             Qty = productSales.Sum(s => s.Qty),
                             Amount = productSales.Sum(s => s.Amount),
-                            Rate = productSales.Sum(s => s.Qty) > 0 
-                                ? productSales.Sum(s => s.Amount) / productSales.Sum(s => s.Qty) 
+                            Rate = productSales.Sum(s => s.Qty) > 0
+                                ? productSales.Sum(s => s.Amount) / productSales.Sum(s => s.Qty)
                                 : 0m,
                             IsTotalRow = true
                         };
                         finalList.Add(productTotal);
                     }
-                    
+
                     salesList = finalList;
                 }
             }
@@ -2127,7 +2208,7 @@ namespace IMS.Services
             int totalRecords = 0;
             decimal totalAmount = 0;
             decimal totalWeight = 0;
-            long totalQty = 0;
+            decimal totalQty = 0;
 
             try
             {
@@ -2149,7 +2230,7 @@ namespace IMS.Services
                             FROM PurchaseOrderItems poi
                             INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
                             INNER JOIN Products p ON poi.PrductId_FK = p.ProductId
-                            WHERE po.IsDeleted = 0
+                            WHERE ISNULL(po.IsDeleted,0) = 0
                                 AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
                                 AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
@@ -2196,7 +2277,7 @@ namespace IMS.Services
                             FROM PurchaseOrderItems poi
                             INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
                             INNER JOIN Products p ON poi.PrductId_FK = p.ProductId
-                            WHERE po.IsDeleted = 0
+                            WHERE ISNULL(po.IsDeleted,0) = 0
                                 AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
                                 AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
                                 AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId)
@@ -2209,7 +2290,7 @@ namespace IMS.Services
                             SUM(poi.PayableAmount) AS TotalAmount
                         FROM PurchaseOrderItems poi
                         INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                        WHERE po.IsDeleted = 0
+                        WHERE ISNULL(po.IsDeleted,0) = 0
                             AND (@FromDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) >= @FromDate)
                             AND (@ToDate IS NULL OR CAST(po.PurchaseOrderDate AS DATE) <= @ToDate)
                             AND (@ProductId IS NULL OR poi.PrductId_FK = @ProductId);
@@ -2252,8 +2333,8 @@ namespace IMS.Services
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Weight")),
                                     Qty = reader.IsDBNull(reader.GetOrdinal("Qty"))
-                                        ? 0
-                                        : reader.GetInt64(reader.GetOrdinal("Qty")),
+                                        ? 0m
+                                        : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Qty"))),
                                     Rate = reader.IsDBNull(reader.GetOrdinal("Rate"))
                                         ? 0m
                                         : reader.GetDecimal(reader.GetOrdinal("Rate")),
@@ -2281,8 +2362,8 @@ namespace IMS.Services
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalWeight"));
                                 totalQty = reader.IsDBNull(reader.GetOrdinal("TotalQty"))
-                                    ? 0
-                                    : reader.GetInt64(reader.GetOrdinal("TotalQty"));
+                                    ? 0m
+                                    : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TotalQty")));
                                 totalAmount = reader.IsDBNull(reader.GetOrdinal("TotalAmount"))
                                     ? 0m
                                     : reader.GetDecimal(reader.GetOrdinal("TotalAmount"));
@@ -2294,12 +2375,12 @@ namespace IMS.Services
                     // Group purchases by product and add total rows
                     var productGroups = purchaseList.GroupBy(p => p.ProductId).ToList();
                     var finalList = new List<ProductWisePurchaseReportItem>();
-                    
+
                     foreach (var group in productGroups)
                     {
                         var productPurchases = group.OrderBy(p => p.PurchaseDate).ToList();
                         finalList.AddRange(productPurchases);
-                        
+
                         // Add total row for this product
                         var productTotal = new ProductWisePurchaseReportItem
                         {
@@ -2311,14 +2392,14 @@ namespace IMS.Services
                             Weight = productPurchases.Sum(p => p.Weight),
                             Qty = productPurchases.Sum(p => p.Qty),
                             Amount = productPurchases.Sum(p => p.Amount),
-                            Rate = productPurchases.Sum(p => p.Qty) > 0 
-                                ? productPurchases.Sum(p => p.Amount) / productPurchases.Sum(p => p.Qty) 
+                            Rate = productPurchases.Sum(p => p.Qty) > 0
+                                ? productPurchases.Sum(p => p.Amount) / productPurchases.Sum(p => p.Qty)
                                 : 0m,
                             IsTotalRow = true
                         };
                         finalList.Add(productTotal);
                     }
-                    
+
                     purchaseList = finalList;
                 }
             }
@@ -2360,52 +2441,120 @@ namespace IMS.Services
                     var reportDate = filters?.ReportDate ?? DateTimeHelper.Now;
                     var reportDateOnly = reportDate.Date;
 
+                    //var sql = @"
+                    //    WITH ProductPurchase AS (
+                    //        SELECT 
+                    //            poi.PrductId_FK AS ProductId,
+                    //            SUM(poi.Quantity) AS PurchaseQuantity
+                    //        FROM PurchaseOrderItems poi
+                    //        INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+                    //        WHERE po.IsDeleted = 0
+                    //            AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
+                    //        GROUP BY poi.PrductId_FK
+                    //    ),
+                    //    ProductSales AS (
+                    //        SELECT 
+                    //            sd.PrductId_FK AS ProductId,
+                    //            SUM(sd.Quantity) AS SalesQuantity
+                    //        FROM SaleDetails sd
+                    //        INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
+                    //        WHERE s.IsDeleted = 0
+                    //            AND CAST(s.SaleDate AS DATE) = @ReportDate
+                    //        GROUP BY sd.PrductId_FK
+                    //    ),
+                    //    ProductStock AS (
+                    //        SELECT 
+                    //            sm.ProductId_FK AS ProductId,
+                    //            sm.AvailableQuantity AS ClosingStock
+                    //        FROM StockMaster sm
+                    //        WHERE sm.AvailableQuantity >= 0
+                    //    )
+                    //    SELECT 
+                    //        p.ProductId,
+                    //        p.ProductName,
+                    //        p.UrduName AS ProductUrduName,
+                    //        ISNULL(p.ProductCode, '') AS ProductCode,
+                    //        ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
+                    //        ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
+                    //        ISNULL(pst.ClosingStock, 0) AS ClosingStock,
+                    //        CASE 
+                    //            WHEN ISNULL(pst.ClosingStock, 0) > 0 THEN CAST(ISNULL(pst.ClosingStock, 0) / 35.0 AS BIGINT)
+                    //            ELSE 0
+                    //        END AS Bags
+                    //    FROM Products p
+                    //    LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
+                    //    LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
+                    //    LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+                    //    WHERE p.IsEnabled = 1
+                    //    ORDER BY p.ProductName;
+                    //";
                     var sql = @"
                         WITH ProductPurchase AS (
-                            SELECT 
-                                poi.PrductId_FK AS ProductId,
-                                SUM(poi.Quantity) AS PurchaseQuantity
-                            FROM PurchaseOrderItems poi
-                            INNER JOIN PurchaseOrders po ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
-                            WHERE po.IsDeleted = 0
-                                AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
-                            GROUP BY poi.PrductId_FK
-                        ),
-                        ProductSales AS (
-                            SELECT 
-                                sd.PrductId_FK AS ProductId,
-                                SUM(sd.Quantity) AS SalesQuantity
-                            FROM SaleDetails sd
-                            INNER JOIN Sales s ON sd.SaleId_FK = s.SaleId
-                            WHERE s.IsDeleted = 0
-                                AND CAST(s.SaleDate AS DATE) = @ReportDate
-                            GROUP BY sd.PrductId_FK
-                        ),
-                        ProductStock AS (
-                            SELECT 
-                                sm.ProductId_FK AS ProductId,
-                                sm.AvailableQuantity AS ClosingStock
-                            FROM StockMaster sm
-                            WHERE sm.AvailableQuantity >= 0
-                        )
-                        SELECT 
-                            p.ProductId,
-                            p.ProductName,
-                            p.UrduName AS ProductUrduName,
-                            ISNULL(p.ProductCode, '') AS ProductCode,
-                            ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
-                            ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
-                            ISNULL(pst.ClosingStock, 0) AS ClosingStock,
-                            CASE 
-                                WHEN ISNULL(pst.ClosingStock, 0) > 0 THEN CAST(ISNULL(pst.ClosingStock, 0) / 34.0 AS BIGINT)
-                                ELSE 0
-                            END AS Bags
-                        FROM Products p
-                        LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
-                        LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
-                        LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
-                        WHERE p.IsEnabled = 1
-                        ORDER BY p.ProductName;
+    SELECT 
+        poi.PrductId_FK AS ProductId,
+        SUM(poi.Quantity) AS PurchaseQuantity
+    FROM PurchaseOrderItems poi
+    INNER JOIN PurchaseOrders po 
+        ON poi.PurchaseOrderId_FK = po.PurchaseOrderId
+    WHERE 
+        ISNULL(po.IsDeleted,0) = 0
+        AND CAST(po.PurchaseOrderDate AS DATE) = @ReportDate
+    GROUP BY poi.PrductId_FK
+),
+ProductSales AS (
+    SELECT 
+        sd.PrductId_FK AS ProductId,
+        SUM(sd.Quantity) AS SalesQuantity
+    FROM SaleDetails sd
+    INNER JOIN Sales s 
+        ON sd.SaleId_FK = s.SaleId
+    WHERE 
+        ISNULL(s.IsDeleted,0) = 0
+        AND CAST(s.SaleDate AS DATE) = @ReportDate
+    GROUP BY sd.PrductId_FK
+),
+ProductStock AS (
+    SELECT 
+        sm.ProductId_FK AS ProductId,
+        SUM(
+            CASE 
+                WHEN st.TransactionStatusId IN (1,3) THEN st.StockQuantity   -- Add
+                WHEN st.TransactionStatusId = 2 THEN -st.StockQuantity       -- Subtract
+                ELSE 0
+            END
+        ) AS ClosingStock
+    FROM StockTransactions st
+    INNER JOIN StockMaster sm 
+        ON st.StockMasterId_FK = sm.StockMasterId
+    WHERE 
+        ISNULL(st.IsDeleted,0)=0
+        AND CAST(st.TransactionDate AS DATE) <= @ReportDate
+    GROUP BY sm.ProductId_FK
+)
+SELECT 
+    p.ProductId,
+    p.ProductName,
+    p.UrduName AS ProductUrduName,
+    ISNULL(p.ProductCode, '') AS ProductCode,
+    ISNULL(pp.PurchaseQuantity, 0) AS PurchaseQuantity,
+    ISNULL(ps.SalesQuantity, 0) AS SalesQuantity,
+    ISNULL(pst.ClosingStock, 0) AS ClosingStock,
+    CASE 
+        WHEN ISNULL(pst.ClosingStock, 0) > 0 
+            THEN CAST(ISNULL(pst.ClosingStock, 0) / 35.0 AS BIGINT)
+        ELSE 0
+    END AS Bags
+FROM Products p
+LEFT JOIN ProductPurchase pp ON p.ProductId = pp.ProductId
+LEFT JOIN ProductSales ps ON p.ProductId = ps.ProductId
+LEFT JOIN ProductStock pst ON p.ProductId = pst.ProductId
+
+WHERE p.IsEnabled = 1
+ORDER BY p.ProductName;
+
+
+
+
                     ";
 
                     using (var command = new SqlCommand(sql, connection))
@@ -2418,10 +2567,10 @@ namespace IMS.Services
                             {
                                 var purchaseQty = reader.IsDBNull(reader.GetOrdinal("PurchaseQuantity"))
                                     ? 0m
-                                    : reader.GetInt64(reader.GetOrdinal("PurchaseQuantity"));
+                                    : reader.GetDecimal(reader.GetOrdinal("PurchaseQuantity"));
                                 var salesQty = reader.IsDBNull(reader.GetOrdinal("SalesQuantity"))
                                     ? 0m
-                                    : reader.GetInt64(reader.GetOrdinal("SalesQuantity"));
+                                    : reader.GetDecimal(reader.GetOrdinal("SalesQuantity"));
                                 var closingStock = reader.IsDBNull(reader.GetOrdinal("ClosingStock"))
                                     ? 0
                                     : reader.GetDecimal(reader.GetOrdinal("ClosingStock"));
@@ -2598,12 +2747,12 @@ namespace IMS.Services
                     // Group expenses by expense type and add total rows
                     var expenseTypeGroups = expensesList.GroupBy(e => e.ExpenseTypeId).ToList();
                     var finalList = new List<GeneralExpensesReportItem>();
-                    
+
                     foreach (var group in expenseTypeGroups)
                     {
                         var typeExpenses = group.OrderBy(e => e.ExpenseDate).ToList();
                         finalList.AddRange(typeExpenses);
-                        
+
                         // Add total row for this expense type
                         var typeTotal = new GeneralExpensesReportItem
                         {
@@ -2616,7 +2765,7 @@ namespace IMS.Services
                         };
                         finalList.Add(typeTotal);
                     }
-                    
+
                     expensesList = finalList;
                 }
             }
@@ -2710,7 +2859,7 @@ namespace IMS.Services
                     {
                         command.Parameters.AddWithValue("@FromDate", (object)filters?.FromDate ?? DBNull.Value);
                         command.Parameters.AddWithValue("@ToDate", (object)filters?.ToDate ?? DBNull.Value);
-                       
+
                         command.Parameters.AddWithValue("@ProductId", (object)filters?.ProductId ?? DBNull.Value);
                         command.Parameters.AddWithValue("@Offset", offset);
                         command.Parameters.AddWithValue("@PageSize", pageSizeValue);
@@ -2771,12 +2920,12 @@ namespace IMS.Services
                     // Group expenses by expense type and add total rows
                     var expenseTypeGroups = expensesList.GroupBy(e => e.ExpenseTypeId).ToList();
                     var finalList = new List<GeneralExpensesReportItem>();
-                    
+
                     foreach (var group in expenseTypeGroups)
                     {
                         var typeExpenses = group.OrderBy(e => e.ExpenseDate).ToList();
                         finalList.AddRange(typeExpenses);
-                        
+
                         // Add total row for this expense type
                         var typeTotal = new GeneralExpensesReportItem
                         {
@@ -2789,7 +2938,7 @@ namespace IMS.Services
                         };
                         finalList.Add(typeTotal);
                     }
-                    
+
                     expensesList = finalList;
                 }
             }
@@ -2840,7 +2989,7 @@ namespace IMS.Services
                                ISNULL(s.SaleDescription, '') AS GLAccount, s.BillNumber
                         FROM Sales s
                         LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
-                        WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                        WHERE ISNULL(s.IsDeleted,0) = 0 
                           AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
                           AND (@FromDate IS NULL OR s.SaleDate >= @FromDate)
                           AND (@ToDate IS NULL OR s.SaleDate <= @ToDate)
@@ -2883,9 +3032,11 @@ namespace IMS.Services
                                p.PaymentAmount AS CreditAmount, ISNULL(p.Description, '') AS GLAccount
                         FROM Payments p
                         LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
-                        WHERE (@CustomerId IS NULL OR p.CustomerId = @CustomerId)
+                        WHERE 
+(@CustomerId IS NULL OR p.CustomerId = @CustomerId)
                           AND (@FromDate IS NULL OR p.PaymentDate >= @FromDate)
                           AND (@ToDate IS NULL OR p.PaymentDate <= @ToDate)
+ and ISNULL(p.IsDeleted,0)=0
                         ORDER BY p.PaymentDate, p.PaymentId";
                     using (var cmd = new SqlCommand(paymentsSql, connection))
                     {
@@ -3022,7 +3173,7 @@ namespace IMS.Services
                                ISNULL(po.PurchaseOrderDescription, '') AS GLAccount, po.BillNumber
                         FROM PurchaseOrders po
                         LEFT JOIN AdminSuppliers s ON po.SupplierId_FK = s.SupplierId
-                        WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                        WHERE ISNULL(po.IsDeleted,0)=0
                           AND (@VendorId IS NULL OR po.SupplierId_FK = @VendorId)
                           AND (@FromDate IS NULL OR po.PurchaseOrderDate >= @FromDate)
                           AND (@ToDate IS NULL OR po.PurchaseOrderDate <= @ToDate)
@@ -3071,6 +3222,7 @@ namespace IMS.Services
                         WHERE (@VendorId IS NULL OR p.SupplierId_FK = @VendorId)
                           AND (@FromDate IS NULL OR p.PaymentDate >= @FromDate)
                           AND (@ToDate IS NULL OR CAST(p.PaymentDate AS DATE) <= @ToDate)
+                             AND ISNULL(p.IsDeleted,0)=0
                         ORDER BY p.PaymentDate, p.PaymentId";
                     using (var cmd = new SqlCommand(paymentsSql, connection))
                     {
@@ -3205,28 +3357,29 @@ namespace IMS.Services
                             SELECT s.CustomerId_FK AS CustomerId,
                                    SUM(s.TotalAmount) AS DebitTotal
                             FROM Sales s
-                            WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                            WHERE ISNULL(s.IsDeleted,0)=0
                               AND s.SaleDate <= @AsOfEnd
                             GROUP BY s.CustomerId_FK
                         ) d1 ON c.CustomerId = d1.CustomerId
                         LEFT JOIN (
                             SELECT p.CustomerId, SUM(p.PaymentAmount) AS CreditTotal
                             FROM Payments p
-                            WHERE p.PaymentDate <= @AsOfEnd
+                            WHERE ISNULL(p.IsDeleted,0)=0
+                              AND p.PaymentDate <= @AsOfEnd
                             GROUP BY p.CustomerId
                         ) p1 ON c.CustomerId = p1.CustomerId
                         LEFT JOIN (
                             SELECT po.CustomerId_FK AS CustomerId,
                                    SUM(po.TotalDueAmount) AS CustomerPurchaseDue
                             FROM PurchaseOrders po
-                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                            WHERE ISNULL(po.IsDeleted,0)=0
                               AND po.CustomerId_FK IS NOT NULL AND po.CustomerId_FK > 0
                               AND po.PurchaseOrderDate <= @AsOfEnd
                             GROUP BY po.CustomerId_FK
                         ) poCust ON c.CustomerId = poCust.CustomerId
                         WHERE (
                             (@HasCustomer = 1 AND c.CustomerId = @CustomerId)
-                            OR (@HasCustomer = 0 AND c.IsEnabled = 1)
+                            OR (@HasCustomer = 0 AND ISNULL(c.IsEnabled,0) = 1)
                           )
                         ORDER BY c.CustomerName";
 
@@ -3271,7 +3424,7 @@ namespace IMS.Services
                         FROM AdminSuppliers v
                         WHERE (
                             (@HasVendor = 1 AND v.SupplierId = @VendorId)
-                            OR (@HasVendor = 0 AND v.IsDeleted = 0)
+                            OR (@HasVendor = 0 AND ISNULL(v.IsDeleted,0) = 0)
                           )
                         ORDER BY v.SupplierName";
 
@@ -3374,7 +3527,7 @@ namespace IMS.Services
                             SELECT s.CustomerId_FK AS CustomerId,
                                    SUM(s.TotalAmount) AS DebitTotal
                             FROM Sales s
-                            WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+                            WHERE ISNULL(s.IsDeleted,0) = 0
                               AND s.SaleDate <= @AsOfEnd
                             GROUP BY s.CustomerId_FK
                         ) d ON c.CustomerId = d.CustomerId
@@ -3389,7 +3542,7 @@ namespace IMS.Services
                             SELECT po.CustomerId_FK AS CustomerId,
                                    SUM(po.TotalDueAmount) AS CustomerPurchaseDue
                             FROM PurchaseOrders po
-                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                            WHERE ISNULL(po.IsDeleted,0) = 0 
                               AND po.CustomerId_FK IS NOT NULL AND po.CustomerId_FK > 0
                               AND po.PurchaseOrderDate <= @AsOfEnd
                             GROUP BY po.CustomerId_FK
@@ -3481,7 +3634,7 @@ namespace IMS.Services
                             SELECT po.SupplierId_FK AS SupplierId,
                                    SUM(po.TotalAmount) AS DebitTotal
                             FROM PurchaseOrders po
-                            WHERE (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+                            WHERE ISNULL(po.IsDeleted,0) = 0
                               AND po.PurchaseOrderDate <= @AsOfEnd
                             GROUP BY po.SupplierId_FK
                         ) po ON v.SupplierId = po.SupplierId
@@ -3494,7 +3647,7 @@ namespace IMS.Services
                         ) bp ON v.SupplierId = bp.SupplierId
                         WHERE (
                             (@HasVendor = 1 AND v.SupplierId = @VendorId)
-                            OR (@HasVendor = 0 AND v.IsDeleted = 0)
+                            OR (@HasVendor = 0 AND ISNULL(v.IsDeleted,0) = 0)
                           )
                         ORDER BY v.SupplierName";
                     using (var cmd = new SqlCommand(sql, connection))
@@ -3763,7 +3916,7 @@ FROM (
         CAST(NULL AS BIGINT) AS PaymentId
     FROM Sales s
     LEFT JOIN Customers c ON s.CustomerId_FK = c.CustomerId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+    WHERE ISNULL(s.IsDeleted,0) = 0 
       AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) = N'CASH'
       AND s.SaleDate >= @FromDate AND s.SaleDate < @ToDateExclusive
       AND (@CustomerId IS NULL OR s.CustomerId_FK = @CustomerId)
@@ -3781,7 +3934,7 @@ FROM (
     FROM Payments p
     INNER JOIN Sales s ON p.SaleId = s.SaleId
     LEFT JOIN Customers c ON p.CustomerId = c.CustomerId
-    WHERE (s.IsDeleted = 0 OR s.IsDeleted IS NULL)
+    WHERE ISNULL(s.IsDeleted,0) = 0
       AND UPPER(LTRIM(RTRIM(ISNULL(p.paymentMethod, N'')))) = N'CASH'
       AND UPPER(LTRIM(RTRIM(ISNULL(s.PaymentMethod, N'')))) <> N'CASH'
       AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
@@ -3816,9 +3969,9 @@ FROM (
         CAST(NULL AS BIGINT) AS SaleId,
         p.PaymentId AS PaymentId
     FROM BillPayments p
-    LEFT JOIN PurchaseOrders po ON p.BillId = po.PurchaseOrderId AND (po.IsDeleted = 0 OR po.IsDeleted IS NULL)
+    LEFT JOIN PurchaseOrders po ON p.BillId = po.PurchaseOrderId AND ( ISNULL(po.IsDeleted,0) = 0)
     LEFT JOIN AdminSuppliers sup ON p.SupplierId_FK = sup.SupplierId
-    WHERE (p.IsDeleted = 0 OR p.IsDeleted IS NULL)
+    WHERE ISNULL(p.IsDeleted,0) = 0
       AND UPPER(LTRIM(RTRIM(ISNULL(p.PaymentMethod, N'')))) = N'CASH'
       AND p.PaymentDate >= @FromDate AND p.PaymentDate < @ToDateExclusive
       AND (@VendorId IS NULL OR p.SupplierId_FK = @VendorId)

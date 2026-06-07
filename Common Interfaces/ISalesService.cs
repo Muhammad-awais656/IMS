@@ -19,7 +19,7 @@ namespace IMS.Common_Interfaces
         Task<long> CreateSaleAsync(decimal totalAmount, decimal totalReceivedAmount, decimal totalDueAmount, 
             long? customerId, long? vendorId, DateTime createdDate, long createdBy, DateTime modifiedDate, long modifiedBy, 
             decimal discountAmount, long billNumber, string saleDescription, DateTime saleDate, 
-            string paymentMethod = null, long? onlineAccountId = null);
+            string paymentMethod = null, long? onlineAccountId = null, decimal salesFreight = 0);
         Task<decimal> GetPreviousDueAmountByCustomerIdAsync(long customerId);
         /// <summary>Inserts an opening balance sale row (BillNumber=0, SaleDescription='opening Balance', PaymentMethod='Pay Later').</summary>
         Task<long> AddOpeningBalanceSaleAsync(long customerId, string typePayableOrReceivable, decimal openingBalance, long createdBy, DateTime? balanceDate = null);

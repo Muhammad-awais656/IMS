@@ -99,7 +99,7 @@ namespace IMS.Models
         /// <summary>Unit abbreviation (e.g. kg) for display as Code.</summary>
         public string? Code { get; set; }
         public decimal UnitPrice { get; set; }
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal PurchasePrice { get; set; }
         public decimal LineDiscountAmount { get; set; }
         public decimal PayableAmount { get; set; }

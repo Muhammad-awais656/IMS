@@ -754,16 +754,20 @@ namespace IMS.Controllers
 
                     if (billId > 0)
                     {
-                        // Add bill details for each product
+                        // Add bill details for each product (quantity in POST = product-range unit; persist and stock in base unit)
                         foreach (var detail in model.BillDetails)
                         {
-                        
+                            var qtyBase = await _vendorBillsService.ConvertBillLineQuantityToBaseUnitAsync(
+                                detail.ProductId,
+                                detail.ProductRangeId,
+                                detail.Quantity);
+
                             long billDetailsId = await _vendorService.AddVendorBillDetails(
                                 billId,
                                 detail.ProductId,
                                 detail.UnitPrice,
                                 detail.PurchasePrice,
-                                detail.Quantity,
+                                qtyBase,
                                 detail.SalePrice,
                                 detail.LineDiscountAmount,
                                 detail.PayableAmount,
@@ -781,8 +785,8 @@ namespace IMS.Controllers
                                 long updateStockReturn = _vendorService.UpdateStock(
                                     prodMaster.StockMasterId,
                                     detail.ProductId,
-                                    prodMaster.AvailableQuantity + (decimal)detail.Quantity, // INCREASE stock
-                                    prodMaster.TotalQuantity + (decimal)detail.Quantity, // INCREASE total quantity
+                                    prodMaster.AvailableQuantity + qtyBase, // INCREASE stock
+                                    prodMaster.TotalQuantity + qtyBase, // INCREASE total quantity
                                     prodMaster.UsedQuantity, // Keep used quantity same
                                     userId,
                                     currentDateTime
@@ -791,7 +795,7 @@ namespace IMS.Controllers
                                 // Create bill transaction
                                 long transactionReturn = _vendorService.VendorBillTransactionCreate(
                                     prodMaster.StockMasterId,
-                                    (decimal)detail.Quantity,
+                                    qtyBase,
                                     $"Vendor Bill #{billId}",
                                     currentDateTime,
                                     userId,
@@ -984,6 +988,9 @@ namespace IMS.Controllers
                         : (item.MeasuringUnitAbbreviation ?? "");
                     var muId = productRange?.MeasuringUnitIdFk ?? item.MeasuringUnitId;
 
+                    var qtyBase = item.Quantity;
+                    var qtyLine = item.QuantityInLineUnit;
+
                     var billDetail = new VendorBillDetailViewModel
                     {
                         ProductId = item.ProductId,
@@ -991,7 +998,8 @@ namespace IMS.Controllers
                         ProductSize = item.ProductSize,
                         UnitPrice = item.UnitPrice,
                         PurchasePrice = item.BillPrice,
-                        Quantity = (decimal)item.Quantity,
+                        Quantity = qtyLine,
+                        QuantityBase = qtyBase,
                         SalePrice = item.UnitPrice,
                         LineDiscountAmount = item.DiscountAmount,
                         PayableAmount = item.PayableAmount,
@@ -1139,12 +1147,17 @@ namespace IMS.Controllers
                 DateTime currentDateTime = DateTimeHelper.Now;
                 foreach (var detail in model.BillDetails)
                 {
+                    var qtyBase = await _vendorBillsService.ConvertBillLineQuantityToBaseUnitAsync(
+                        detail.ProductId,
+                        detail.ProductRangeId,
+                        detail.Quantity);
+
                     await _vendorService.AddVendorBillDetails(
                         id,
                         detail.ProductId,
                         detail.UnitPrice,
                         detail.PurchasePrice,
-                        detail.Quantity,
+                        qtyBase,
                         detail.SalePrice,
                         detail.LineDiscountAmount,
                         detail.PayableAmount,
@@ -1158,15 +1171,15 @@ namespace IMS.Controllers
                         _vendorService.UpdateStock(
                             prodMaster.StockMasterId,
                             detail.ProductId,
-                            prodMaster.AvailableQuantity + (decimal)detail.Quantity,
-                            prodMaster.TotalQuantity + (decimal)detail.Quantity,
+                            prodMaster.AvailableQuantity + qtyBase,
+                            prodMaster.TotalQuantity + qtyBase,
                             prodMaster.UsedQuantity,
                             userId,
                             currentDateTime
                         );
                         _vendorService.VendorBillTransactionCreate(
                             prodMaster.StockMasterId,
-                            (decimal)detail.Quantity,
+                            qtyBase,
                             $"Vendor Bill #{id}",
                             currentDateTime,
                             userId,
@@ -1296,46 +1309,23 @@ namespace IMS.Controllers
                 
                 var billItems = await _vendorBillsService.GetVendorBillItemsAsync(id);
 
-                var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                var res = await unitConversionService.GetSmallestMeasuringUnitAsync();
+                // PurchaseOrderItems.Quantity is stored in base units; print in the line's product-range unit when applicable.
                 if (billItems != null)
                 {
                     foreach (var item in billItems)
                     {
                         if (!item.IsSmallestUnit)
                         {
-                            ////var unitConversionService = HttpContext.RequestServices.GetRequiredService<IUnitConversionService>();
-                            decimal? conversionResult=null;
-                            if (item.MeasuringUnitId > 0  && res!=null && res.MeasuringUnitId >0 )
-                            {
-                                 conversionResult = await unitConversionService.ConvertUnitToSmallestAsync(item.MeasuringUnitId, res.MeasuringUnitId, item.Quantity);
-                            }
-                            
-
-                            if (conversionResult.HasValue)
-                            {
-                                // conversionResult is the result of converting 1 unit from fromUnitId to toUnitId
-                                // So to convert stockInBaseUnit, we multiply: stockInBaseUnit * conversionResult
-                                // Example: 685 kg * (1 bori / 50 kg) = 685 * 0.02 = 13.7 bori
-
-                                item.PrintQuantity = conversionResult.Value;
-                            }
-                            else
-                            {
-                                item.PrintQuantity = (decimal)item.Quantity;
-                            }
-
-
+                            item.PrintQuantity = await _vendorBillsService.ConvertBaseQuantityToProductRangeUnitAsync(
+                                item.ProductId,
+                                item.ProductRangeId,
+                                item.Quantity);
                         }
                         else
                         {
-                            item.PrintQuantity = (decimal)item.Quantity;
+                            item.PrintQuantity = item.Quantity;
                         }
-
-
-
                     }
-
                 }
 
 

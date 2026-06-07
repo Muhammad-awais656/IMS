@@ -64,6 +64,8 @@ namespace IMS.Models
         public decimal TotalBalance { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal TotalDue { get; set; }
+        /// <summary>Karaya / freight from <c>Sales.SalesFreight</c>.</summary>
+        public decimal FreightAmount { get; set; }
     }
 
     public class ReceiptFooter
